@@ -1,0 +1,86 @@
+# Copyright (C) 2007-2009 LuaDist.
+# Created by Peter Kapec
+# Redistribution and use of this file is allowed according to the terms of the MIT license.
+# For details see the COPYRIGHT file distributed with LuaDist.
+# Please note that the package source code is licensed under its own license.
+
+PROJECT(lanes C)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+INCLUDE(dist.cmake)
+
+#2DO - patch threading.c to suppot cygwin.
+# The following values are just a guess.
+# WARNING: test segfault under Cygwin
+IF(CYGWIN)
+  ADD_DEFINITIONS(-D_PRIO_MODE=SCHED_FIFO)
+  ADD_DEFINITIONS(-D_PRIO_HI=15) # maximum that doesn't crash
+  ADD_DEFINITIONS(-D_PRIO_0=0)
+  ADD_DEFINITIONS(-D_PRIO_LO=-15) # ???
+  ADD_DEFINITIONS(-Dpthread_yield=sched_yield)
+ENDIF(CYGWIN)
+
+#2DO - use provided bin2c
+# Compile Lua bytecode to C
+ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/keeper.lch
+  DEPENDS src/keeper.lua
+    COMMAND "${LUAC}" "-o" "${CMAKE_CURRENT_BINARY_DIR}/keeper.lo"
+                           "${CMAKE_CURRENT_SOURCE_DIR}/src/keeper.lua"
+    COMMAND "${LUA}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/bin2c.lua"
+            "${CMAKE_CURRENT_BINARY_DIR}/keeper.lo"
+            "-o" "${CMAKE_CURRENT_BINARY_DIR}/keeper.lch")
+SET_SOURCE_FILES_PROPERTIES(src/lanes.c PROPERTIES OBJECT_DEPENDS
+  ${CMAKE_CURRENT_BINARY_DIR}/keeper.lch)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
+
+
+# Build
+INCLUDE_DIRECTORIES(src)
+ADD_LIBRARY(lua51-lanes MODULE src/lanes.c src/threading.c src/tools.c)
+
+IF(UNIX AND NOT CYGWIN)
+  SET(LIBS pthread)
+ENDIF(UNIX AND NOT CYGWIN)
+
+IF(MINGW)
+#~ 	FIND_FILE(MSVCR80 NAMES msvcr80.dll msvcr90.dll)
+#~ 	SET(LIBS gcc ${MSVCR80})
+#~ 	IF(MSVC90)
+
+#~ 		from InstallRequiredSystemLibraries.cmake
+
+		IF(CMAKE_CL_64)
+			SET(CMAKE_MSVC_ARCH amd64)
+		ELSE(CMAKE_CL_64)
+			SET(CMAKE_MSVC_ARCH x86)
+		ENDIF(CMAKE_CL_64)
+
+		GET_FILENAME_COMPONENT(devenv_dir "${CMAKE_MAKE_PROGRAM}" PATH)
+		GET_FILENAME_COMPONENT(base_dir "${devenv_dir}/../.." ABSOLUTE)
+
+		# Find the runtime library redistribution directory.
+		FIND_PATH(MSVC90_REDIST_DIR NAMES ${CMAKE_MSVC_ARCH}/Microsoft.VC90.CRT/Microsoft.VC90.CRT.manifest
+		PATHS
+		"[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\9.0;InstallDir]/../../VC/redist"
+		"[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VCExpress\\9.0;InstallDir]/../../VC/redist"
+		"${base_dir}/VC/redist"
+		)
+		SET(MSVC90_CRT_DIR "${MSVC90_REDIST_DIR}/${CMAKE_MSVC_ARCH}/Microsoft.VC90.CRT")
+		SET(LIBS gcc msvcr90 "${MSVC90_CRT_DIR}/msvcr90.dll")
+
+#~ 	ENDIF()
+
+ENDIF()
+
+
+
+
+TARGET_LINK_LIBRARIES(lua51-lanes ${LUA_LIBRARY} ${LIBS})
+SET_TARGET_PROPERTIES(lua51-lanes PROPERTIES PREFIX "")
+
+# Install all files and documentation
+INSTALL (TARGETS lua51-lanes DESTINATION ${INSTALL_CMOD})
+INSTALL (FILES src/lanes.lua DESTINATION ${INSTALL_LMOD})
+
+INSTALL (FILES ABOUT BUGS COPYRIGHT CHANGES README TODO DESTINATION ${INSTALL_DATA})
+INSTALL (DIRECTORY docs/ DESTINATION ${INSTALL_DOC})
+INSTALL (DIRECTORY tests/ DESTINATION ${INSTALL_TEST})

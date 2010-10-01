@@ -1,0 +1,17 @@
+
+Lua Lanes
+---------
+
+Lanes is a lightweight, native, lazy evaluating multithreading library for 
+Lua 5.1. It allows efficient use of multicore processors in Lua, by passing
+function calls into separate OS threads, and separate Lua states.
+
+No locking of the threads is needed, only launching and waiting for (with an
+optional timeout) a thread to get ready. Efficient communications between the
+running threads are possible either using message passing or shared state 
+models. Values passed can be anything but coroutines (see detailed limitations
+in the manual).
+
+Lua Lanes has been optimized for performance, and provides around 50-60%
+speed increase when running heavily threaded applications on dual core
+processors (compared to running a non-threaded plain Lua implementation). 
