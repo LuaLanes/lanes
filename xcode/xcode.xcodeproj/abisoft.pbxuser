@@ -1,0 +1,411 @@
+// !$*UTF8*$!
+{
+	08FB7793FE84155DC02AAC07 /* Project object */ = {
+		activeArchitecture = ppc;
+		activeBuildConfigurationName = Debug;
+		activeExecutable = 274A5EFC0C2F41FB000A66CF /* Lua 5.1 */;
+		activeTarget = D2AAC0620554660B00DB518D /* xcode */;
+		addToTargets = (
+			D2AAC0620554660B00DB518D /* xcode */,
+		);
+		breakpoints = (
+			27280DE10C495CCB000FD317 /* gluax_static.c:667 */,
+			27280DE60C495D0C000FD317 /* gluax_static.c:663 */,
+			27E802B50C4978C700B1E216 /* sdl_module.cpp:630 */,
+			277CF6980C4A631C0044B79E /* gluax.c:2476 */,
+			2784DBE20CD64B1000B13CF3 /* gluax_static.c:164 */,
+			273631630CD71FBC00A12F3E /* lanes.c:1429 */,
+			27BD9DD60E403B490056C472 /* lanes.c:1168 */,
+			27BD9DEB0E403C250056C472 /* lanes.c:1246 */,
+		);
+		codeSenseManager = 27602E610C2F36D60086E627 /* Code sense */;
+		executables = (
+			274A5EFC0C2F41FB000A66CF /* Lua 5.1 */,
+		);
+		perUserDictionary = {
+			"PBXConfiguration.PBXBreakpointsDataSource.v1:1CA1AED706398EBD00589147" = {
+				PBXFileTableDataSourceColumnSortingDirectionKey = "-1";
+				PBXFileTableDataSourceColumnSortingKey = PBXBreakpointsDataSource_BreakpointID;
+				PBXFileTableDataSourceColumnWidthsKey = (
+					20,
+					20,
+					253,
+					20,
+					152,
+					151,
+					20,
+				);
+				PBXFileTableDataSourceColumnsKey = (
+					PBXBreakpointsDataSource_ActionID,
+					PBXBreakpointsDataSource_TypeID,
+					PBXBreakpointsDataSource_BreakpointID,
+					PBXBreakpointsDataSource_UseID,
+					PBXBreakpointsDataSource_LocationID,
+					PBXBreakpointsDataSource_ConditionID,
+					PBXBreakpointsDataSource_ContinueID,
+				);
+			};
+			PBXConfiguration.PBXFileTableDataSource3.PBXExecutablesDataSource = {
+				PBXFileTableDataSourceColumnSortingDirectionKey = "-1";
+				PBXFileTableDataSourceColumnSortingKey = PBXExecutablesDataSource_NameID;
+				PBXFileTableDataSourceColumnWidthsKey = (
+					22,
+					300,
+					304,
+				);
+				PBXFileTableDataSourceColumnsKey = (
+					PBXExecutablesDataSource_ActiveFlagID,
+					PBXExecutablesDataSource_NameID,
+					PBXExecutablesDataSource_CommentsID,
+				);
+			};
+			PBXConfiguration.PBXFileTableDataSource3.PBXFileTableDataSource = {
+				PBXFileTableDataSourceColumnSortingDirectionKey = "-1";
+				PBXFileTableDataSourceColumnSortingKey = PBXFileDataSource_Filename_ColumnID;
+				PBXFileTableDataSourceColumnWidthsKey = (
+					20,
+					416,
+					20,
+					48,
+					43,
+					43,
+					20,
+				);
+				PBXFileTableDataSourceColumnsKey = (
+					PBXFileDataSource_FiletypeID,
+					PBXFileDataSource_Filename_ColumnID,
+					PBXFileDataSource_Built_ColumnID,
+					PBXFileDataSource_ObjectSize_ColumnID,
+					PBXFileDataSource_Errors_ColumnID,
+					PBXFileDataSource_Warnings_ColumnID,
+					PBXFileDataSource_Target_ColumnID,
+				);
+			};
+			PBXConfiguration.PBXTargetDataSource.PBXTargetDataSource = {
+				PBXFileTableDataSourceColumnSortingDirectionKey = "-1";
+				PBXFileTableDataSourceColumnSortingKey = PBXFileDataSource_Filename_ColumnID;
+				PBXFileTableDataSourceColumnWidthsKey = (
+					20,
+					200,
+					230,
+					20,
+					48,
+					43,
+					43,
+				);
+				PBXFileTableDataSourceColumnsKey = (
+					PBXFileDataSource_FiletypeID,
+					PBXFileDataSource_Filename_ColumnID,
+					PBXTargetDataSource_PrimaryAttribute,
+					PBXFileDataSource_Built_ColumnID,
+					PBXFileDataSource_ObjectSize_ColumnID,
+					PBXFileDataSource_Errors_ColumnID,
+					PBXFileDataSource_Warnings_ColumnID,
+				);
+			};
+			PBXPerProjectTemplateStateSaveDate = 239090487;
+			PBXWorkspaceStateSaveDate = 239090487;
+		};
+		perUserProjectItems = {
+			27BD9DD90E403B640056C472 /* PBXTextBookmark */ = 27BD9DD90E403B640056C472 /* PBXTextBookmark */;
+			27BD9DDA0E403B640056C472 /* PBXTextBookmark */ = 27BD9DDA0E403B640056C472 /* PBXTextBookmark */;
+			27BD9DDB0E403B640056C472 /* PBXTextBookmark */ = 27BD9DDB0E403B640056C472 /* PBXTextBookmark */;
+			27BD9DEE0E403C960056C472 /* PBXTextBookmark */ = 27BD9DEE0E403C960056C472 /* PBXTextBookmark */;
+		};
+		sourceControlManager = 27602E600C2F36D60086E627 /* Source Control */;
+		userBuildSettings = {
+		};
+	};
+	27280DE10C495CCB000FD317 /* gluax_static.c:667 */ = {
+		isa = PBXFileBreakpoint;
+		actions = (
+		);
+		breakpointStyle = 0;
+		continueAfterActions = 0;
+		countType = 0;
+		delayBeforeContinue = 0;
+		fileReference = 27602E620C2F37390086E627 /* gluax_static.c */;
+		hitCount = 0;
+		ignoreCount = 0;
+		lineNumber = 667;
+		modificationTime = 239090794.843809;
+		state = 1;
+	};
+	27280DE60C495D0C000FD317 /* gluax_static.c:663 */ = {
+		isa = PBXFileBreakpoint;
+		actions = (
+		);
+		breakpointStyle = 0;
+		continueAfterActions = 0;
+		countType = 0;
+		delayBeforeContinue = 0;
+		fileReference = 27602E620C2F37390086E627 /* gluax_static.c */;
+		hitCount = 0;
+		ignoreCount = 0;
+		lineNumber = 663;
+		modificationTime = 239090794.844094;
+		state = 1;
+	};
+	273631630CD71FBC00A12F3E /* lanes.c:1429 */ = {
+		isa = PBXFileBreakpoint;
+		actions = (
+		);
+		breakpointStyle = 0;
+		continueAfterActions = 0;
+		countType = 0;
+		delayBeforeContinue = 0;
+		fileReference = 279F2E690C4A463C0020A321 /* lanes.c */;
+		functionName = "GLUA_FUNC()";
+		hitCount = 0;
+		ignoreCount = 0;
+		lineNumber = 1429;
+		modificationTime = 239090794.843223;
+		state = 1;
+	};
+	274A5EFC0C2F41FB000A66CF /* Lua 5.1 */ = {
+		isa = PBXExecutable;
+		activeArgIndices = (
+			NO,
+			YES,
+		);
+		argumentStrings = (
+			"-lstrict ../fibonacci.lua",
+			tests/basic.lua,
+		);
+		autoAttachOnCrash = 1;
+		breakpointsEnabled = 1;
+		configStateDict = {
+			"PBXLSLaunchAction-0" = {
+				PBXLSLaunchAction = 0;
+				PBXLSLaunchStartAction = 1;
+				PBXLSLaunchStdioStyle = 2;
+				PBXLSLaunchStyle = 0;
+				class = PBXLSRunLaunchConfig;
+				commandLineArgs = (
+				);
+				displayName = "Executable Runner";
+				environment = {
+				};
+				identifier = com.apple.Xcode.launch.runConfig;
+				remoteHostInfo = "";
+				startActionInfo = "";
+			};
+		};
+		customDataFormattersEnabled = 1;
+		debuggerPlugin = GDBDebugging;
+		disassemblyDisplayState = 0;
+		dylibVariantSuffix = "";
+		enableDebugStr = 1;
+		environmentEntries = (
+			{
+				active = YES;
+				name = LUA_PATH;
+				value = "src/?.lua;/sw/share/lua/5.1/?.lua";
+			},
+			{
+				active = YES;
+				name = LUA_CPATH;
+				value = "xcode/build/Debug/lib?.bundle";
+			},
+		);
+		executableSystemSymbolLevel = 0;
+		executableUserSymbolLevel = 0;
+		launchableReference = 274A5EFD0C2F41FB000A66CF /* lua */;
+		libgmallocEnabled = 0;
+		name = "Lua 5.1";
+		savedGlobals = {
+		};
+		sourceDirectories = (
+		);
+		startupPath = /Users/abisoft/Slug/public/2008/Lanes/;
+		variableFormatDictionary = {
+		};
+	};
+	274A5EFD0C2F41FB000A66CF /* lua */ = {
+		isa = PBXFileReference;
+		explicitFileType = "compiled.mach-o.executable";
+		name = lua;
+		path = /sw/bin/lua;
+		sourceTree = "<absolute>";
+	};
+	27602E600C2F36D60086E627 /* Source Control */ = {
+		isa = PBXSourceControlManager;
+		fallbackIsa = XCSourceControlManager;
+		isSCMEnabled = 0;
+		scmConfiguration = {
+		};
+		scmType = "";
+	};
+	27602E610C2F36D60086E627 /* Code sense */ = {
+		isa = PBXCodeSenseManager;
+		indexTemplatePath = "";
+	};
+	27602E620C2F37390086E627 /* gluax_static.c */ = {
+		isa = PBXFileReference;
+		fileEncoding = 30;
+		lastKnownFileType = sourcecode.c.c;
+		name = gluax_static.c;
+		path = /Users/abisoft/Slug/public/2008/gluax/gluax_static.c;
+		sourceTree = "<absolute>";
+	};
+	27602E640C2F37390086E627 /* gluax.c */ = {
+		isa = PBXFileReference;
+		fileEncoding = 30;
+		lastKnownFileType = sourcecode.c.c;
+		name = gluax.c;
+		path = /Users/abisoft/Slug/public/2008/gluax/gluax.c;
+		sourceTree = "<absolute>";
+	};
+	27602E660C2F37390086E627 /* sdl_module.cpp */ = {
+		isa = PBXFileReference;
+		fileEncoding = 30;
+		lastKnownFileType = sourcecode.cpp.cpp;
+		name = sdl_module.cpp;
+		path = /Users/abisoft/Slug/public/2007/Lanes/sdl_module.cpp;
+		sourceTree = "<absolute>";
+	};
+	277CF6980C4A631C0044B79E /* gluax.c:2476 */ = {
+		isa = PBXFileBreakpoint;
+		actions = (
+		);
+		breakpointStyle = 0;
+		continueAfterActions = 0;
+		countType = 0;
+		delayBeforeContinue = 0;
+		fileReference = 27602E640C2F37390086E627 /* gluax.c */;
+		hitCount = 0;
+		ignoreCount = 0;
+		lineNumber = 2476;
+		modificationTime = 239090794.84353;
+		state = 1;
+	};
+	2784DBE20CD64B1000B13CF3 /* gluax_static.c:164 */ = {
+		isa = PBXFileBreakpoint;
+		actions = (
+		);
+		breakpointStyle = 0;
+		continueAfterActions = 0;
+		countType = 0;
+		delayBeforeContinue = 0;
+		fileReference = 27602E620C2F37390086E627 /* gluax_static.c */;
+		functionName = "Loc_PushMetatableRef_()";
+		hitCount = 0;
+		ignoreCount = 0;
+		lineNumber = 164;
+		modificationTime = 239090794.842868;
+		state = 1;
+	};
+	279F2E690C4A463C0020A321 /* lanes.c */ = {
+		isa = PBXFileReference;
+		fileEncoding = 30;
+		lastKnownFileType = sourcecode.c.c;
+		name = lanes.c;
+		path = /Users/abisoft/Slug/public/2008/Lanes/lanes.c;
+		sourceTree = "<absolute>";
+	};
+	27ACDA660E4031F6004F5C28 /* lanes.c */ = {
+		uiCtxt = {
+			sepNavIntBoundsRect = "{{0, 0}, {822, 17500}}";
+			sepNavSelRange = "{31197, 0}";
+			sepNavVisRange = "{30733, 1064}";
+			sepNavWindowFrame = "{{86, 51}, {1052, 971}}";
+		};
+	};
+	27ACDA680E4031F6004F5C28 /* tools.c */ = {
+		uiCtxt = {
+			sepNavIntBoundsRect = "{{0, 0}, {594, 13790}}";
+			sepNavSelRange = "{0, 0}";
+			sepNavVisRange = "{0, 1259}";
+		};
+	};
+	27BD9DD60E403B490056C472 /* lanes.c:1168 */ = {
+		isa = PBXFileBreakpoint;
+		actions = (
+		);
+		breakpointStyle = 0;
+		continueAfterActions = 0;
+		countType = 0;
+		delayBeforeContinue = 0;
+		fileReference = 27ACDA660E4031F6004F5C28 /* lanes.c */;
+		functionName = "luaopen_lanes()";
+		hitCount = 1;
+		ignoreCount = 0;
+		lineNumber = 1168;
+		location = "liblua51-lanes.bundle";
+		modificationTime = 239090520.812976;
+		state = 1;
+	};
+	27BD9DD90E403B640056C472 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = 27ACDA680E4031F6004F5C28 /* tools.c */;
+		name = "tools.c: 1";
+		rLen = 0;
+		rLoc = 0;
+		rType = 0;
+		vrLen = 1259;
+		vrLoc = 0;
+	};
+	27BD9DDA0E403B640056C472 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = 27ACDA660E4031F6004F5C28 /* lanes.c */;
+		rLen = 0;
+		rLoc = 1167;
+		rType = 1;
+	};
+	27BD9DDB0E403B640056C472 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = 27ACDA680E4031F6004F5C28 /* tools.c */;
+		name = "tools.c: 1";
+		rLen = 0;
+		rLoc = 0;
+		rType = 0;
+		vrLen = 1259;
+		vrLoc = 0;
+	};
+	27BD9DEB0E403C250056C472 /* lanes.c:1246 */ = {
+		isa = PBXFileBreakpoint;
+		actions = (
+		);
+		breakpointStyle = 0;
+		continueAfterActions = 0;
+		countType = 0;
+		delayBeforeContinue = 0;
+		fileReference = 27ACDA660E4031F6004F5C28 /* lanes.c */;
+		functionName = "luaopen_lanes()";
+		hitCount = 0;
+		ignoreCount = 0;
+		lineNumber = 1246;
+		location = "liblua51-lanes.bundle";
+		modificationTime = 239090725.673196;
+		state = 1;
+	};
+	27BD9DEE0E403C960056C472 /* PBXTextBookmark */ = {
+		isa = PBXTextBookmark;
+		fRef = 27ACDA660E4031F6004F5C28 /* lanes.c */;
+		name = "lanes.c: 1168";
+		rLen = 0;
+		rLoc = 31197;
+		rType = 0;
+		vrLen = 1064;
+		vrLoc = 30733;
+	};
+	27E802B50C4978C700B1E216 /* sdl_module.cpp:630 */ = {
+		isa = PBXFileBreakpoint;
+		actions = (
+		);
+		breakpointStyle = 0;
+		continueAfterActions = 0;
+		countType = 0;
+		delayBeforeContinue = 0;
+		fileReference = 27602E660C2F37390086E627 /* sdl_module.cpp */;
+		functionName = "GLUA_FUNC()";
+		hitCount = 0;
+		ignoreCount = 0;
+		lineNumber = 630;
+		modificationTime = 239090794.842249;
+		state = 1;
+	};
+	D2AAC0620554660B00DB518D /* xcode */ = {
+		activeExec = 0;
+	};
+}

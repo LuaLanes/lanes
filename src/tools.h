@@ -22,6 +22,7 @@
   #define STACK_END(L,c)    /*nothing*/
   #define STACK_DUMP(L)    /*nothing*/
   #define DEBUG()   /*nothing*/
+  #define DEBUGEXEC(_code) {}  /*nothing*/
 #else
   #define _ASSERT_L(lua,c)  { if (!(c)) luaL_error( lua, "ASSERT failed: %s:%d '%s'", __FILE__, __LINE__, #c ); }
   //
@@ -32,6 +33,7 @@
 
   #define STACK_DUMP(L)    luaG_dump(L);
   #define DEBUG()   fprintf( stderr, "<<%s %d>>\n", __FILE__, __LINE__ );
+  #define DEBUGEXEC(_code) {_code;}  /*nothing*/
 #endif
 #define ASSERT_L(c) _ASSERT_L(L,c)
 

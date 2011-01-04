@@ -1,0 +1,124 @@
+// !$*UTF8*$!
+{
+	0429C3740C416BB800EC1476 /* Source Control */ = {
+		isa = PBXSourceControlManager;
+		fallbackIsa = XCSourceControlManager;
+		isSCMEnabled = 0;
+		scmConfiguration = {
+		};
+		scmType = "";
+	};
+	0429C3750C416BB800EC1476 /* Code sense */ = {
+		isa = PBXCodeSenseManager;
+		indexTemplatePath = "";
+	};
+	04C412EF0C42B7D500A0AD77 /* Lua */ = {
+		isa = PBXExecutable;
+		activeArgIndex = 0;
+		activeArgIndices = (
+			YES,
+		);
+		argumentStrings = (
+			test.lua,
+		);
+		autoAttachOnCrash = 1;
+		comments = "This is not stored in svn, is it?\n";
+		configStateDict = {
+			"PBXLSLaunchAction-0" = {
+				PBXLSLaunchAction = 0;
+				PBXLSLaunchStartAction = 1;
+				PBXLSLaunchStdioStyle = 2;
+				PBXLSLaunchStyle = 0;
+				class = PBXLSRunLaunchConfig;
+				displayName = "Executable Runner";
+				identifier = com.apple.Xcode.launch.runConfig;
+				remoteHostInfo = "";
+				startActionInfo = "";
+			};
+		};
+		customDataFormattersEnabled = 1;
+		debuggerPlugin = GDBDebugging;
+		disassemblyDisplayState = 0;
+		dylibVariantSuffix = "";
+		enableDebugStr = 1;
+		environmentEntries = (
+			{
+				active = YES;
+				name = LUA_CPATH;
+				value = "xcode/build/Debug/lib?.bundle";
+			},
+		);
+		executableSystemSymbolLevel = 0;
+		executableUserSymbolLevel = 0;
+		launchableReference = 04C412F00C42B7D500A0AD77 /* lua */;
+		libgmallocEnabled = 0;
+		name = Lua;
+		savedGlobals = {
+		};
+		sourceDirectories = (
+		);
+		startupPath = /Users/soumya/Slug/public/2007/SDL/;
+	};
+	04C412F00C42B7D500A0AD77 /* lua */ = {
+		isa = PBXFileReference;
+		explicitFileType = "compiled.mach-o.executable";
+		name = lua;
+		path = /sw/bin/lua;
+		sourceTree = "<absolute>";
+	};
+	08FB7793FE84155DC02AAC07 /* Project object */ = {
+		activeBuildConfigurationName = Debug;
+		activeExecutable = 04C412EF0C42B7D500A0AD77 /* Lua */;
+		activeTarget = D2AAC0620554660B00DB518D /* xcode */;
+		codeSenseManager = 0429C3750C416BB800EC1476 /* Code sense */;
+		executables = (
+			04C412EF0C42B7D500A0AD77 /* Lua */,
+		);
+		perUserDictionary = {
+			PBXConfiguration.PBXFileTableDataSource3.PBXExecutablesDataSource = {
+				PBXFileTableDataSourceColumnSortingDirectionKey = "-1";
+				PBXFileTableDataSourceColumnSortingKey = PBXExecutablesDataSource_NameID;
+				PBXFileTableDataSourceColumnWidthsKey = (
+					22,
+					300,
+					225,
+				);
+				PBXFileTableDataSourceColumnsKey = (
+					PBXExecutablesDataSource_ActiveFlagID,
+					PBXExecutablesDataSource_NameID,
+					PBXExecutablesDataSource_CommentsID,
+				);
+			};
+			PBXConfiguration.PBXFileTableDataSource3.PBXFileTableDataSource = {
+				PBXFileTableDataSourceColumnSortingDirectionKey = "-1";
+				PBXFileTableDataSourceColumnSortingKey = PBXFileDataSource_Filename_ColumnID;
+				PBXFileTableDataSourceColumnWidthsKey = (
+					20,
+					338,
+					20,
+					48,
+					43,
+					43,
+					20,
+				);
+				PBXFileTableDataSourceColumnsKey = (
+					PBXFileDataSource_FiletypeID,
+					PBXFileDataSource_Filename_ColumnID,
+					PBXFileDataSource_Built_ColumnID,
+					PBXFileDataSource_ObjectSize_ColumnID,
+					PBXFileDataSource_Errors_ColumnID,
+					PBXFileDataSource_Warnings_ColumnID,
+					PBXFileDataSource_Target_ColumnID,
+				);
+			};
+			PBXPerProjectTemplateStateSaveDate = 205699730;
+			PBXWorkspaceStateSaveDate = 205699730;
+		};
+		sourceControlManager = 0429C3740C416BB800EC1476 /* Source Control */;
+		userBuildSettings = {
+		};
+	};
+	D2AAC0620554660B00DB518D /* xcode */ = {
+		activeExec = 0;
+	};
+}

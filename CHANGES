@@ -3,11 +3,51 @@ CHANGES:
 
 CHANGE X:
 
+CHANGE 21 (bugfixes) BGe 3-Jan-2011:
+    Several fixes by Martin Krpan:
+    - linda_send was waiting on the wrong signal
+    - buildfix when using i586-mingw32msvc-gcc cross compiler
+    - lanes_h:cancel() returns a boolean as it should
+    - timers could get blocked sometimes because they were initialized with negative values
+    - prepare_timeout could generate an illegal setting
+
+CHANGE 20 BGe 3-Dec-2010:
+    Enable to specify a string as lane code instead of a function so that we dont use lua_dump, which
+    isn't supported by LuaJIT.
+
+CHANGE 19 BGe 2-Dec-2010:
+    No longer rely on global function 'tostring' to generate unique identifiers when caching data being transfered through la linda. Should fix a compatilibity issue with LuaJIT2.
+
+CHANGE 18 BGe 6-Oct-2010:
+    Fixed 'memory leak' in some situations where a free running lane is collected before application shutdown
+	A bit of code cleanup
+
+CHANGE 17 BGe 21-Sept-2010:
+    Fixed stupid compilation errors.
+
+CHANGE 16 PLM 24-Aug-2010:
+    Releasing memory at gc / atexit.
+    Finalizers actually get error strings.
+    Fixed missing argument propagation in lane:cancel
+    Added variable threadName sent trough globals-table. Set in s_lane, and in debuggers on windows.
+    Added argument checking for linda-objects, where missing them caused crashes.
+
+CHANGE 15 (minor) BGe 27-Jul-2010:
+    Version bump for a true upgrade release (2.0.4 package was only a renamed 2.0.3)
+
+CHANGE 14 (bug fix) BGe 09-Jul-2010:
+    Fixed lane status to be correctly returned as "waiting" when it should.
+
+CHANGE 13 (fix for multithreaded host apps) AKa 24-Jun-2009:
+    <borisusun-at-gmail> mentioned Lanes expects the host application to be singlethreaded,
+    and there are troubles if Lanes is used from multiple threads, opened by the host
+    (before requiring Lanes). This is true, and fix should now be in place.
+
 CHANGE 12 (bug fix on Windows, 2.0.3) AKa 25-Jan-2009:
     Did CHANGE 9 the way it should be done.
 
 CHANGE 11 (new feature, 2.0.3) AKa 23-Jan-2009:
-    Finalizers ('set_finalizer()') for being able to do cleanup of a lane's 
+    Finalizers ('set_finalizer()') for being able to do cleanup of a lane's
     resources, whether it returned succesfully or via an error.
 
 CHANGE 10 (new feature, 2.0.3) AKa 23-Jan-2009:
@@ -18,12 +58,12 @@ CHANGE 10 (new feature, 2.0.3) AKa 23-Jan-2009:
 CHANGE 9 (bug fix on Windows) AKa 10-Dec-2008 (> 2.0.2):
     Applied patch from Kriss Daniels to avoid issues on 'now_time()' in Win32
     (http://luaforge.net/forum/forum.php?thread_id=22704&forum_id=1781).
-    
+
 CHANGE 8 (bug fix) AKa 26-Oct-2008:
     Avoids occasional segfault at process exit (on multicore CPUs). Does this
     by keeping track of "free running" threads (s.a. the time thread) and
-    cancelling them at process exit. 
-    
+    cancelling them at process exit.
+
     Tested (2.0.2) on Linux 64,x86, OS X, WinXP.
 
 CHANGE 7 (bug fix) AKa 15-Oct-2008:
@@ -34,15 +74,15 @@ CHANGE 6 (bug fix) AKa 15-Oct-2008:
     Added local caches of the following to src/lanes.lua (was otherwise getting
     errors at least in 'tests/irayo_recursive.lua').
 
-		local assert= assert 
-		local string_gmatch= assert( string.gmatch ) 
-		local select= assert( select ) 
-		local type= assert( type ) 
-		local pairs= assert( pairs ) 
-		local tostring= assert( tostring ) 
-		local error= assert( error ) 
-		local setmetatable= assert( setmetatable ) 
-		local rawget= assert( rawget ) 
+		local assert= assert
+		local string_gmatch= assert( string.gmatch )
+		local select= assert( select )
+		local type= assert( type )
+		local pairs= assert( pairs )
+		local tostring= assert( tostring )
+		local error= assert( error )
+		local setmetatable= assert( setmetatable )
+		local rawget= assert( rawget )
 
     Thanks to Irayo for detecting and reporting this.
 
@@ -55,17 +95,17 @@ CHANGE 4 (new feature):
 CHANGE 3 (bug fix) AKa 5-Aug-2008:
     The '__gc' method was not tied to thread userdata, at all. Caused memory
     lifespan problems at least on OS X when threads were cancelled (EINVAL).
-    
+
 CHANGE 2 (bug fix) AKa 5-Aug-2008:
     Better calculation of timeouts, always making them absolute (even in Win32)
     to allow for events that wake the lane up but don't read/write the Linda
     key that it was observing.
 
 CHANGE 1 (bug fix) AKa 4-Aug-2008:
-    Signalling woke up only one waiting thread, not all. This caused i.e. 
-    receive to not wake up if there was another thread waiting on the same 
+    Signalling woke up only one waiting thread, not all. This caused i.e.
+    receive to not wake up if there was another thread waiting on the same
     Linda object.
-    
+
     PThread fix: using 'pthread_cond_broadcast()' instead of 'pthread_cond_signal()'
     Win32 fix: using manual events and 'PulseEvent()'
 

@@ -1,0 +1,268 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 42;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		27602E840C2F3CA40086E627 /* liblua.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 27602E830C2F3CA40086E627 /* liblua.dylib */; };
+		27ACDA690E4031F6004F5C28 /* lanes.c in Sources */ = {isa = PBXBuildFile; fileRef = 27ACDA660E4031F6004F5C28 /* lanes.c */; };
+		27ACDA6A0E4031F6004F5C28 /* threading.c in Sources */ = {isa = PBXBuildFile; fileRef = 27ACDA670E4031F6004F5C28 /* threading.c */; };
+		27ACDA6B0E4031F6004F5C28 /* tools.c in Sources */ = {isa = PBXBuildFile; fileRef = 27ACDA680E4031F6004F5C28 /* tools.c */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		27602E830C2F3CA40086E627 /* liblua.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = liblua.dylib; path = /sw/lib/liblua.dylib; sourceTree = "<absolute>"; };
+		279F2E7B0C4A477B0020A321 /* liblua51-lanes.bundle */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = "liblua51-lanes.bundle"; sourceTree = BUILT_PRODUCTS_DIR; };
+		27ACDA660E4031F6004F5C28 /* lanes.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = lanes.c; path = ../src/lanes.c; sourceTree = SOURCE_ROOT; };
+		27ACDA670E4031F6004F5C28 /* threading.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = threading.c; path = ../src/threading.c; sourceTree = SOURCE_ROOT; };
+		27ACDA680E4031F6004F5C28 /* tools.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = tools.c; path = ../src/tools.c; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D289988505E68E00004EDB86 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				27602E840C2F3CA40086E627 /* liblua.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		08FB7794FE84155DC02AAC07 /* xcode */ = {
+			isa = PBXGroup;
+			children = (
+				27602E830C2F3CA40086E627 /* liblua.dylib */,
+				08FB7795FE84155DC02AAC07 /* Source */,
+				1AB674ADFE9D54B511CA2CBB /* Products */,
+			);
+			comments = "\nTo use this XCode project, set \"active build configuration\" to Debug.\n\nYou may need to add \"custom executable\" to the \"Executables\" tree of the project, with:\n- path /sw/bin/lua\n- custom directory /Users/xxx/.../SDL/\n- arguments \"test.lua\"\n- environment LUA_CPATH xcode/build/Debug/lib?.bundle\n- \n\n---\nAK 25.6.2007 (open):\n\nHow to NOT have the \"lib\" prefix for bundles?   Tried everything, still XCode places it there.  :((\n\n    /usr/bin/g++-4.0 -o /Users/abisoft/Slug/public/2007/SDL/xcode/build/Debug/liblua51-sdl.bundle ...\n\nHave to change the LUA_CPATH instead, so we can debug with this.\n\n---\nAK 25.6.2007 (solved):\nAfter changing dylib->bundle there were some issues, same as:\nhttp://osdir.com/ml/lang.realbasic.plugins/2007-01/msg00033.html\n\n\"Perform single-object prelink\" needs to be ticked.\n";
+			name = xcode;
+			sourceTree = "<group>";
+		};
+		08FB7795FE84155DC02AAC07 /* Source */ = {
+			isa = PBXGroup;
+			children = (
+				27ACDA660E4031F6004F5C28 /* lanes.c */,
+				27ACDA670E4031F6004F5C28 /* threading.c */,
+				27ACDA680E4031F6004F5C28 /* tools.c */,
+			);
+			name = Source;
+			sourceTree = "<group>";
+		};
+		1AB674ADFE9D54B511CA2CBB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				279F2E7B0C4A477B0020A321 /* liblua51-lanes.bundle */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		D2AAC0600554660B00DB518D /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		D2AAC0620554660B00DB518D /* xcode */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1DEB914A08733D8E0010E9CD /* Build configuration list for PBXNativeTarget "xcode" */;
+			buildPhases = (
+				D2AAC0600554660B00DB518D /* Headers */,
+				D2AAC0610554660B00DB518D /* Sources */,
+				D289988505E68E00004EDB86 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = xcode;
+			productName = xcode;
+			productReference = 279F2E7B0C4A477B0020A321 /* liblua51-lanes.bundle */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		08FB7793FE84155DC02AAC07 /* Project object */ = {
+			isa = PBXProject;
+			buildConfigurationList = 1DEB914E08733D8E0010E9CD /* Build configuration list for PBXProject "xcode" */;
+			compatibilityVersion = "Xcode 2.4";
+			hasScannedForEncodings = 1;
+			mainGroup = 08FB7794FE84155DC02AAC07 /* xcode */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D2AAC0620554660B00DB518D /* xcode */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D2AAC0610554660B00DB518D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				27ACDA690E4031F6004F5C28 /* lanes.c in Sources */,
+				27ACDA6A0E4031F6004F5C28 /* threading.c in Sources */,
+				27ACDA6B0E4031F6004F5C28 /* tools.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1DEB914B08733D8E0010E9CD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				EXECUTABLE_PREFIX = lib;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_MODEL_TUNING = G5;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				INSTALL_PATH = /usr/local/lib;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/sw/lib,
+				);
+				PRODUCT_NAME = "lua51-lanes";
+				ZERO_LINK = NO;
+			};
+			name = Debug;
+		};
+		1DEB914C08733D8E0010E9CD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = (
+					ppc,
+					i386,
+				);
+				COPY_PHASE_STRIP = NO;
+				EXECUTABLE_PREFIX = lib;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_MODEL_TUNING = G5;
+				INSTALL_PATH = /usr/local/lib;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/sw/lib,
+				);
+				PRODUCT_NAME = "lua51-lanes";
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
+		1DEB914F08733D8E0010E9CD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = /sw/bin/lua;
+				DYLIB_COMPATIBILITY_VERSION = "";
+				DYLIB_CURRENT_VERSION = "";
+				EXECUTABLE_EXTENSION = bundle;
+				EXECUTABLE_PREFIX = "";
+				GCC_ENABLE_CPP_EXCEPTIONS = NO;
+				GCC_ENABLE_CPP_RTTI = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					GLUA_LUA51,
+					"_GNU_SOURCE=1",
+					_THREAD_SAFE,
+				);
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_PEDANTIC = NO;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_MASTER_OBJECT_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					../../gluax,
+					/sw/include,
+				);
+				LIBRARY_SEARCH_PATHS = /sw/lib;
+				MACH_O_TYPE = mh_bundle;
+				OTHER_LDFLAGS = (
+					"-framework",
+					Cocoa,
+				);
+				PREBINDING = NO;
+				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
+				PRELINK_LIBS = "";
+				PRODUCT_NAME = "lua51-lanes";
+				SCAN_ALL_SOURCE_FILES_FOR_INCLUDES = YES;
+				SDKROOT = /Developer/SDKs/MacOSX10.4u.sdk;
+				SHARED_PRECOMPS_DIR = "";
+			};
+			name = Debug;
+		};
+		1DEB915008733D8E0010E9CD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = /sw/bin/lua;
+				DYLIB_COMPATIBILITY_VERSION = "";
+				DYLIB_CURRENT_VERSION = "";
+				EXECUTABLE_EXTENSION = bundle;
+				EXECUTABLE_PREFIX = "";
+				GCC_ENABLE_CPP_EXCEPTIONS = NO;
+				GCC_ENABLE_CPP_RTTI = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					GLUA_LUA51,
+					"_GNU_SOURCE=1",
+					_THREAD_SAFE,
+				);
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_PEDANTIC = NO;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_MASTER_OBJECT_FILE = YES;
+				HEADER_SEARCH_PATHS = (
+					../../gluax,
+					/sw/include,
+				);
+				LIBRARY_SEARCH_PATHS = /sw/lib;
+				MACH_O_TYPE = mh_bundle;
+				OTHER_LDFLAGS = (
+					"-framework",
+					Cocoa,
+				);
+				PREBINDING = NO;
+				PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR = NO;
+				PRELINK_LIBS = "";
+				PRODUCT_NAME = "lua51-lanes";
+				SCAN_ALL_SOURCE_FILES_FOR_INCLUDES = YES;
+				SDKROOT = /Developer/SDKs/MacOSX10.4u.sdk;
+				SHARED_PRECOMPS_DIR = "";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1DEB914A08733D8E0010E9CD /* Build configuration list for PBXNativeTarget "xcode" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1DEB914B08733D8E0010E9CD /* Debug */,
+				1DEB914C08733D8E0010E9CD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1DEB914E08733D8E0010E9CD /* Build configuration list for PBXProject "xcode" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1DEB914F08733D8E0010E9CD /* Debug */,
+				1DEB915008733D8E0010E9CD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 08FB7793FE84155DC02AAC07 /* Project object */;
+}

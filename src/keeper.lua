@@ -11,7 +11,7 @@
 --[[
 ===============================================================================
 
-Copyright (C) 2008 Asko Kauppi <akauppi@gmail.com>
+Copyright (C) 2008-10 Asko Kauppi <akauppi@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -135,7 +135,7 @@ function send( ud, key, ... )
     local m= limits[key]
 
     if m and len+n > m then
-        return false    -- would exceed the limit; try again later
+        return false    -- would exceed the limit; try again later
     end
 
     for i=1,n do

@@ -17,19 +17,19 @@ REM Test for VC++2005 FIRST, because it is the norm with Lua 5.1.4
 REM LuaBinaries and LfW. All prebuilt modules and lua.exe are built
 REM with it.
 REM
-set VSINSTALLDIR=C:\Program Files\Microsoft Visual Studio 8
+set VSINSTALLDIR=%ProgramFiles%\Microsoft Visual Studio 8
 if not exist "%VSINSTALLDIR%\VC\vcvarsall.bat" goto TRY_VC9
 
 REM Win32 headers must be separately downloaded for VC++2005
 REM (VC++2008 SP1 carries an SDK with it)
 REM
-set _SDK=C:\Program Files\Microsoft Platform SDK for Windows Server 2003 R2\SetEnv.cmd
+set _SDK=%ProgramFiles%\Microsoft Platform SDK for Windows Server 2003 R2\SetEnv.cmd
 if not exist "%_SDK%" goto ERR_NOSDK
 call "%_SDK%"
 goto FOUND_VC
 
 :TRY_VC9
-set VSINSTALLDIR=C:\Program Files\Microsoft Visual Studio 9.0
+set VSINSTALLDIR=%ProgramFiles%\Microsoft Visual Studio 9.0
 if not exist "%VSINSTALLDIR%\VC\vcvarsall.bat" goto ERR_NOVC
 
 echo.
@@ -54,7 +54,7 @@ call "%VSINSTALLDIR%\VC\vcvarsall.bat"
 
 REM 'timeit.exe' is part of the MS Server Res Kit Tools (needed for "make perftest")
 REM
-set _RESKIT=C:\Program Files\Windows Resource Kits\Tools\
+set _RESKIT=%ProgramFiles%\Windows Resource Kits\Tools\
 if not exist "%_RESKIT%\timeit.exe" goto WARN_NOTIMEIT
 PATH=%PATH%;%_RESKIT%
 goto EXIT

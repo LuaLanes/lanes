@@ -1,5 +1,5 @@
 /*
- * TOOLS.C   	                    Copyright (c) 2002-08, Asko Kauppi
+ * TOOLS.C   	                    Copyright (c) 2002-10, Asko Kauppi
  *
  * Lua tools to support Lanes.
 */
@@ -7,7 +7,7 @@
 /*
 ===============================================================================
 
-Copyright (C) 2002-08 Asko Kauppi <akauppi@gmail.com>
+Copyright (C) 2002-10 Asko Kauppi <akauppi@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -39,8 +39,6 @@ THE SOFTWARE.
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
-
-static volatile lua_CFunction hijacked_tostring;     // = NULL
 
 MUTEX_T deep_lock;
 MUTEX_T mtid_lock;
@@ -600,7 +598,7 @@ uint_t get_mt_id( lua_State *L, int i ) {
         // [-2]: reg[REG_MTID]
         // [-1]: nil/uint
     
-    id= lua_tointeger(L,-1);    // 0 for nil
+    id= (uint_t)lua_tointeger(L,-1);    // 0 for nil
     lua_pop(L,1);
   STACK_MID(L,1)
     
@@ -644,73 +642,60 @@ static int buf_writer( lua_State *L, const void* b, size_t n, void* B ) {
  * Returns TRUE if the table was cached (no need to fill it!); FALSE if
  * it's a virgin.
  */
-static
-bool_t push_cached_table( lua_State *L2, uint_t L2_cache_i, lua_State *L, uint_t i ) {
-    bool_t ret;
+static bool_t push_cached_table( lua_State *L2, uint_t L2_cache_i, lua_State *L, uint_t i )
+{
+	bool_t ret;
 
-    ASSERT_L( hijacked_tostring );
-    ASSERT_L( L2_cache_i != 0 );
+	ASSERT_L( L2_cache_i != 0 );
 
-    STACK_GROW(L,2);
-    STACK_GROW(L2,3);
+	STACK_GROW(L2,3);
 
-    // Create an identity string for table at [i]; it should stay unique at
-    // least during copying of the data (then we can clear the caches).
-    //
-  STACK_CHECK(L)
-    lua_pushcfunction( L, hijacked_tostring );
-    lua_pushvalue( L, i );
-    lua_call( L, 1 /*args*/, 1 /*retvals*/ );
-        //
-        // [-1]: "table: 0x...."
+	// L2_cache[id_str]= [{...}]
+	//
+	STACK_CHECK(L2)
 
-  STACK_END(L,1)
-    ASSERT_L( lua_type(L,-1) == LUA_TSTRING );
+	// We don't need to use the from state ('L') in ID since the life span
+	// is only for the duration of a copy (both states are locked).
+	//
+	lua_pushlightuserdata( L2, (void*)lua_topointer( L, i )); // push a light userdata uniquely representing the table
 
-    // L2_cache[id_str]= [{...}]
-    //
-  STACK_CHECK(L2)
+	//fprintf( stderr, "<< ID: %s >>\n", lua_tostring(L2,-1) );
 
-    // We don't need to use the from state ('L') in ID since the life span
-    // is only for the duration of a copy (both states are locked).
-    //
-    lua_pushstring( L2, lua_tostring(L,-1) );
-    lua_pop(L,1);   // remove the 'tostring(tbl)' value (in L!)
+	lua_pushvalue( L2, -1 );
+	lua_rawget( L2, L2_cache_i );
+	//
+	// [-2]: identity table pointer lightuserdata
+	// [-1]: table|nil
 
-//fprintf( stderr, "<< ID: %s >>\n", lua_tostring(L2,-1) );
+	if (lua_isnil(L2,-1))
+	{
+		lua_pop(L2,1);
+		lua_newtable(L2);
+		lua_pushvalue(L2,-1);
+		lua_insert(L2,-3);
+		//
+		// [-3]: new table (2nd ref)
+		// [-2]: identity table pointer lightuserdata
+		// [-1]: new table
 
-    lua_pushvalue( L2, -1 );
-    lua_rawget( L2, L2_cache_i );
-        //
-        // [-2]: identity string ("table: 0x...")
-        // [-1]: table|nil
+		lua_rawset(L2, L2_cache_i);
+		//
+		// [-1]: new table (tied to 'L2_cache' table')
 
-    if (lua_isnil(L2,-1)) {
-        lua_pop(L2,1);
-        lua_newtable(L2);
-        lua_pushvalue(L2,-1);
-        lua_insert(L2,-3);
-            //
-            // [-3]: new table (2nd ref)
-            // [-2]: identity string
-            // [-1]: new table
+		ret= FALSE;     // brand new
 
-        lua_rawset(L2, L2_cache_i);
-            //
-            // [-1]: new table (tied to 'L2_cache' table')
+	}
+	else
+	{
+		lua_remove(L2,-2);
+		ret= TRUE;      // from cache
+	}
+	STACK_END(L2,1)
+	//
+	// L2 [-1]: table to use as destination
 
-        ret= FALSE;     // brand new
-        
-    } else {
-        lua_remove(L2,-2);
-        ret= TRUE;      // from cache
-    }
-  STACK_END(L2,1)
-    //
-    // L2 [-1]: table to use as destination
-
-    ASSERT_L( lua_istable(L2,-1) );
-    return ret;
+	ASSERT_L( lua_istable(L2,-1) );
+	return ret;
 }
 
 
@@ -722,82 +707,76 @@ bool_t push_cached_table( lua_State *L2, uint_t L2_cache_i, lua_State *L, uint_t
  */
 static void inter_copy_func( lua_State *L2, uint_t L2_cache_i, lua_State *L, uint_t i );
 
-static
-void push_cached_func( lua_State *L2, uint_t L2_cache_i, lua_State *L, uint_t i ) {
-    // TBD: Merge this and same code for tables
+static void push_cached_func( lua_State *L2, uint_t L2_cache_i, lua_State *L, uint_t i )
+{
+	// TBD: Merge this and same code for tables
 
-    ASSERT_L( hijacked_tostring );
-    ASSERT_L( L2_cache_i != 0 );
+	ASSERT_L( L2_cache_i != 0 );
 
-    STACK_GROW(L,2);
-    STACK_GROW(L2,3);
+	STACK_GROW(L2,3);
 
-  STACK_CHECK(L)
-    lua_pushcfunction( L, hijacked_tostring );
-    lua_pushvalue( L, i );
-    lua_call( L, 1 /*args*/, 1 /*retvals*/ );
-        //
-        // [-1]: "function: 0x...."
+	// L2_cache[id_str]= function
+	//
+	STACK_CHECK(L2)
 
-  STACK_END(L,1)
-    ASSERT_L( lua_type(L,-1) == LUA_TSTRING );
+	// We don't need to use the from state ('L') in ID since the life span
+	// is only for the duration of a copy (both states are locked).
+	//
+	lua_pushlightuserdata( L2, (void*)lua_topointer( L, i )); // push a light userdata uniquely representing the function
 
-    // L2_cache[id_str]= function
-    //
-  STACK_CHECK(L2)
+	//fprintf( stderr, "<< ID: %s >>\n", lua_tostring(L2,-1) );
 
-    // We don't need to use the from state ('L') in ID since the life span
-    // is only for the duration of a copy (both states are locked).
-    //
-    lua_pushstring( L2, lua_tostring(L,-1) );
-    lua_pop(L,1);   // remove the 'tostring(tbl)' value (in L!)
+	lua_pushvalue( L2, -1 );
+	lua_rawget( L2, L2_cache_i );
+	//
+	// [-2]: identity lightuserdata function pointer
+	// [-1]: function|nil|true  (true means: we're working on it; recursive)
 
-//fprintf( stderr, "<< ID: %s >>\n", lua_tostring(L2,-1) );
+	if (lua_isnil(L2,-1))
+	{
+		lua_pop(L2,1);
 
-    lua_pushvalue( L2, -1 );
-    lua_rawget( L2, L2_cache_i );
-        //
-        // [-2]: identity string ("function: 0x...")
-        // [-1]: function|nil|true  (true means: we're working on it; recursive)
+		// Set to 'true' for the duration of creation; need to find self-references
+		// via upvalues
+		//
+		lua_pushvalue( L2, -1);
+		lua_pushboolean(L2,TRUE);
+		lua_rawset( L2, L2_cache_i);
 
-    if (lua_isnil(L2,-1)) {
-        lua_pop(L2,1);
-        
-        // Set to 'true' for the duration of creation; need to find self-references
-        // via upvalues
-        //
-        lua_pushboolean(L2,TRUE);
-        lua_setfield( L2, L2_cache_i, lua_tostring(L2,-2) );        
+		inter_copy_func( L2, L2_cache_i, L, i );    // pushes a copy of the func
 
-        inter_copy_func( L2, L2_cache_i, L, i );    // pushes a copy of the func
+		lua_pushvalue(L2,-1);
+		lua_insert(L2,-3);
+		//
+		// [-3]: function (2nd ref)
+		// [-2]: identity lightuserdata function pointer
+		// [-1]: function
 
-        lua_pushvalue(L2,-1);
-        lua_insert(L2,-3);
-            //
-            // [-3]: function (2nd ref)
-            // [-2]: identity string
-            // [-1]: function
+		lua_rawset(L2,L2_cache_i);
+		//
+		// [-1]: function (tied to 'L2_cache' table')
 
-        lua_rawset(L2,L2_cache_i);
-            //
-            // [-1]: function (tied to 'L2_cache' table')
-        
-    } else if (lua_isboolean(L2,-1)) {
-        // Loop in preparing upvalues; either direct or via a table
-        // 
-        // Note: This excludes the case where a function directly addresses
-        //       itself as an upvalue (recursive lane creation).
-        //
-        luaL_error( L, "Recursive use of upvalues; cannot copy the function" );
-    
-    } else {
-        lua_remove(L2,-2);
-    }
-  STACK_END(L2,1)
-    //
-    // L2 [-1]: function
+	}
+	else if (lua_isboolean(L2,-1))
+	{
+		// Loop in preparing upvalues; either direct or via a table
+		// 
+		// Note: This excludes the case where a function directly addresses
+		//       itself as an upvalue (recursive lane creation).
+		//
+		STACK_GROW(L,1);
+		luaL_error( L, "Recursive use of upvalues; cannot copy the function" );
 
-    ASSERT_L( lua_isfunction(L2,-1) );
+	}
+	else
+	{
+		lua_remove(L2,-2);
+	}
+	STACK_END(L2,1)
+	//
+	// L2 [-1]: function
+
+	ASSERT_L( lua_isfunction(L2,-1) );
 }
 
 
@@ -1136,29 +1115,6 @@ void luaG_inter_copy( lua_State* L, lua_State *L2, uint_t n )
     uint_t top_L= lua_gettop(L);
     uint_t top_L2= lua_gettop(L2);
     uint_t i;
-
-    /* steal Lua library's 'luaB_tostring()' from the first call. Other calls
-    * don't have to have access to it.
-    *
-    * Note: multiple threads won't come here at once; this function will
-    *       be called before there can be multiple threads (no locking needed).
-    */
-    if (!hijacked_tostring) {
-        STACK_GROW( L,1 );
-        
-      STACK_CHECK(L)
-        lua_getglobal( L, "tostring" );
-            //
-            // [-1]: function|nil
-            
-        hijacked_tostring= lua_tocfunction( L, -1 );
-        lua_pop(L,1);
-      STACK_END(L,0)
-      
-        if (!hijacked_tostring) {
-            luaL_error( L, "Need to see 'tostring()' once" );
-        }
-    }
 
     if (n > top_L) 
         luaL_error( L, "Not enough values: %d < %d", top_L, n );

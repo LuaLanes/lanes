@@ -1,5 +1,5 @@
 /*
- * THREADING.C   	                    Copyright (c) 2007-08, Asko Kauppi
+ * THREADING.C   	                    Copyright (c) 2007-10, Asko Kauppi
  *
  * Lua Lanes OS threading specific code.
  *
@@ -10,7 +10,7 @@
 /*
 ===============================================================================
 
-Copyright (C) 2007-08 Asko Kauppi <akauppi@gmail.com>
+Copyright (C) 2007-10 Asko Kauppi <akauppi@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -178,6 +178,11 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
 
     ts->tv_sec= floor( abs_secs );
     ts->tv_nsec= ((long)((abs_secs - ts->tv_sec) * 1000.0 +0.5)) * 1000000UL;   // 1ms = 1000000ns
+    if (ts->tv_nsec == 1000000000UL)
+    {
+        ts->tv_nsec = 0;
+        ts->tv_sec = ts->tv_sec + 1;
+    }
 }
 #endif
 

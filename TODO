@@ -1,4 +1,21 @@
 
 TODO:
 
+- Use of 'atexit()' is not good. It's possible to be called at "program (process)
+  exit", when the so might already be out. Tying to OS specific so cleanup
+  is way better.
+  
 - Testing Lane killing (not cancellation, but actual killing)
+
+- Like luaproc: Lanes to have M:N relationship to kernel threads
+	(= give a maximum number of kernel threads to run, then juggle those to run a Lane, 
+	until the lane suspends, blocks, or exits)
+	(default could be twice the kernel threads of the CPU count, or something.)
+
+- Like luaproc:
+"only the basic standard 
+library and our own library are automatically loaded into each new Lua process. The re- 
+maining standard libraries (io, os, table, string, math, and debug) are pre-registered and 
+can be loaded with a standard call to Lua’s require function. "
+
+- Lanes so/dll to have a second interface; C code sending data to a linda of given void*

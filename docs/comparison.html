@@ -49,6 +49,7 @@ Pros:
 
 Cons:
     - requires OS threads
+    - currently 1:1 mapping to OS threads (limits scalability and maybe performance)
     - not utilizing network parallelism (all threads on one CPU)
 
 Sample:
@@ -68,6 +69,31 @@ Sample:
 
   print( h1[1], h2[1], h3[1] )     -- pends for the results, or propagates error
 <<
+
+
+===========
+  luaproc    (by Skyrme, Rodriguez and Ierusalimschy)
+===========
+
+<A HREF="http://www.inf.puc-rio.br/~roberto/docs/ry08-05.pdf">http://www.inf.puc-rio.br/~roberto/docs/ry08-05.pdf</A>
+
+The PDF seems to be an authorative voyage into how Lua could handle multithreading,
+in a multicore "separate universes" manner (not like what coroutines already do).
+
+Pros:
+    - Tackles both multicore and network parallelism
+    - M:N relationship to kernel threads (one kernel thread runs multiple luaprocs)
+    - Simple (so they say)
+    - Lua author (Roberto) included
+    - Can be used also without _any_ OS threading support (works like Rings, then)
+
+Cons:
+    - Data passing for "strings, number, or booleans" only
+      "More complex types must be encoded in some form"
+      (serializing data is slower than the stack-to-stack copies used by i.e. Lanes)
+      (yet, serializing allows for network parallelism)
+    - Message passing is synchronous (only). The sender will wait until the
+      receiver has taken the message.
 
 
 ==================
@@ -157,7 +183,7 @@ but it won't use more than one CPU core. Other differences include:
       (Lanes opens the needed ones)
 
     - marshalls numbers, strings, booleans, userdata
-      (Lanes marshalls also non-cyclic tables)
+      (Lanes also marshalls tables, functions, upvalues, ..)
 
     - "remotedostring" allows executing code in the master state
       (Lanes does _not_ allow subthreads to trouble/modify master automatically,
