@@ -54,9 +54,9 @@
   <a href="#changes">Change log</a>
   <!-- ... -->
 
-<p><br/><font size="-1"><i>Copyright &copy; 2007-08 Asko Kauppi. All rights reserved.</i>
+<p><br/><font size="-1"><i>Copyright &copy; 2007-11 Asko Kauppi. All rights reserved.</i>
     <br>Lua Lanes is published under the same <A HREF="http://en.wikipedia.org/wiki/MIT_License">MIT license</A> as Lua 5.1.
-    </p><p>This document was revised on 23-Jan-09, and applies to version 2.0.3.
+    </p><p>This document was revised on 3-Jan-11, and applies to version 2.0.10.
 </font></p>
 
 </center>
@@ -195,6 +195,9 @@ joins the threads, waiting for any results not already there.
     launching any number of lanes. They will share code, options, initial globals,
     but the particular arguments may vary. Only calling the generator function
     actually launches a lane, and provides a handle for controlling it.
+    Alternatively, <tt>lane_func</tt> may be a string, in which case it will be compiled
+    in the lane. This is to be able to launch lanes whith LuaJIT,
+    which does not support lua_dump, used internally to transfer functions to the lane.
 <!--
 </p>
 <p>This prepares <tt>lane_func</tt> to be called in parallel. It does not yet start
@@ -237,7 +240,7 @@ also in the new lanes.
     <tr valign=top><td/><td>
         <code>.cancelstep</code> <br/><nobr>N / true</nobr></td>
     <td>
-    By default, lanes are only cancellable when they enter a pending
+    By default, lanes are only cancellable when they <u>enter</u> a pending
     <tt>:receive()</tt> or <tt>:send()</tt> call.
     With this option, one can set cancellation check to occur every <tt>N</tt>
     Lua statements. The value <tt>true</tt> uses a default value (100).
@@ -250,7 +253,7 @@ also in the new lanes.
     them constants.
     </p><p>
     The global values of different lanes are in no manner connected;
-    modifying one will only affect the particular lane.
+    modifying one will only affect the particular lane. Settings the variable 'threadName' in this table makes VS display the sent name instead of the normal thread name while debugging.
     </td></tr>
 
     <tr valign=top><td width=40><td>
@@ -360,6 +363,12 @@ between a timed out join and the moment you read it).
 </pre>
 </table>
 
+<p>
+If you want to wait for multiple lanes to finish (any of a set of lanes), use
+a <a href="#lindas">Linda</a> object. Give each lane a specific id, and send
+that id over a Linda once that thread is done (as the last thing you do).
+</p>
+
 
 <!-- cancelling +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
 <hr/>
@@ -378,7 +387,7 @@ If the lane is still running and <tt>force_kill</tt> is <tt>true</tt>, the
 OS thread running the lane is forcefully killed. This means no GC, and should
 generally be the last resort.
 </p>
-<p>Cancellation is tested before going to sleep in <tt>receive()</tt> or <tt>send()</tt> calls
+<p>Cancellation is tested <u>before</u> going to sleep in <tt>receive()</tt> or <tt>send()</tt> calls
 and after executing <tt>cancelstep</tt> Lua statements. A currently pending <tt>receive</tt>
 or <tt>send</tt> call is currently not awakened, and may be a reason for a non-detected cancel.
 </p>
@@ -920,6 +929,30 @@ its actual value.
 <h2 id="changes">Change log</h2>
 
 <p>
+Jan-2011 (2.0.10):
+<ul>
+  <li>linda_send was waiting on the wrong signal</li>
+  <li>buildfix when using i586-mingw32msvc-gcc cross compiler</li>
+  <li>lanes_h:cancel() returns a boolean as it should</li>
+  <li>timers could get blocked sometimes because they were initialized with negative values</li>
+  <li>prepare_timeout could generate an illegal setting</li>
+</ul>
+
+Dec-2010 (2.0.9):
+<ul>
+  <li>Fixed 'memory leak' in some situations where a free running lane is collected before application shutdown</li>
+  <li>Fix LuaJIT2 incompatibility (no 'tostring' hijack anymore)</li>
+  <li>Added support to generate a lane from a string</li>
+</ul>
+
+Aug-2010 (2.0.6):
+<ul>
+<li>Fixed some memory leaks</li>
+<li>Fixed error in passing parameters to finalizers</li>
+<li>Fixed missing argument propagation in lane:cancel</li>
+<li>Added thread name debugging in VS</li>
+</ul>
+
 Jan-2009 (2.0.3):
 <ul>
   <li>Added 'finalizer' to lane options. (TBD: not implemented yet!)
@@ -942,6 +975,7 @@ Jul-2008 (2.0):
 <UL>
     <li><A HREF="http://luaforge.net/projects/lanes">Lanes @ LuaForge</A></li>
     <li><A HREF="mailto:akauppi@gmail.com">the author</A></li>
+    <li><A HREF="http://www.lua.org/lua-l.html">the lua mailing list</A></li>
 </UL>
 </p>
 
