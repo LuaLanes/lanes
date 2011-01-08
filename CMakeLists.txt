@@ -8,6 +8,11 @@ PROJECT(lanes C)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 INCLUDE(dist.cmake)
 
+FIND_PACKAGE(Lua51 REQUIRED)
+FIND_PROGRAM(LUA NAMES lua5.1 lua51 lua)
+FIND_PROGRAM(LUAC NAMES luac5.1 luac51 luac)
+INCLUDE_DIRECTORIES(${LUA_INCLUDE_DIR})
+
 #2DO - patch threading.c to suppot cygwin.
 # The following values are just a guess.
 # WARNING: test segfault under Cygwin
