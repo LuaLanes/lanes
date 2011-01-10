@@ -1845,21 +1845,17 @@ LUAG_FUNC( wakeup_conv )
 /*---=== Module linkage ===---
 */
 
-#define REG_FUNC( name ) \
-    lua_pushcfunction( L, LG_##name ); \
-    lua_setglobal( L, #name )
-
-#define REG_FUNC2( name, val ) \
-    lua_pushcfunction( L, val ); \
-    lua_setglobal( L, #name )
-
-#define REG_STR2( name, val ) \
-    lua_pushstring( L, val ); \
-    lua_setglobal( L, #name )
-
-#define REG_INT2( name, val ) \
-    lua_pushinteger( L, val ); \
-    lua_setglobal( L, #name )
+static const struct luaL_reg lanes_functions [] = {
+    {"linda_id", LG_linda_id},
+    {"thread_status", LG_thread_status},
+    {"thread_join", LG_thread_join},
+    {"thread_cancel", LG_thread_cancel},
+    {"now_secs", LG_now_secs},
+    {"wakeup_conv", LG_wakeup_conv},
+    {"_single", LG__single},
+    {"_deep_userdata", luaG_deep_userdata},
+    {NULL, NULL}
+};
 
 /*
 * One-time initializations
@@ -1996,9 +1992,9 @@ __declspec(dllexport)
 #endif
     assert( timer_deep != 0 );
 
-    // Linda identity function
-    //
-    REG_FUNC( linda_id );
+    // Create main module interface table
+    lua_newtable(L);
+    luaL_register(L, NULL, lanes_functions);
 
     // metatable for threads
     //
@@ -2007,29 +2003,22 @@ __declspec(dllexport)
     lua_setfield( L, -2, "__gc" );
 
     lua_pushcclosure( L, LG_thread_new, 1 );    // metatable as closure param
-    lua_setglobal( L, "thread_new" );
-
-    REG_FUNC( thread_status );
-    REG_FUNC( thread_join );
-    REG_FUNC( thread_cancel );
-
-    REG_STR2( _version, VERSION );
-    REG_FUNC( _single );
-
-    REG_FUNC2( _deep_userdata, luaG_deep_userdata );
-
-    REG_FUNC( now_secs );
-    REG_FUNC( wakeup_conv );
+    lua_setfield(L, -2, "thread_new");
 
     luaG_push_proxy( L, LG_linda_id, (DEEP_PRELUDE *) timer_deep );
-    lua_setglobal( L, "timer_gateway" );
+    lua_setfield(L, -2, "timer_gateway");
 
-    REG_INT2( max_prio, THREAD_PRIO_MAX );
+    lua_pushstring(L, VERSION);
+    lua_setfield(L, -2, "_version");
+
+    lua_pushinteger(L, THREAD_PRIO_MAX);
+    lua_setfield(L, -2, "max_prio");
 
     lua_pushlightuserdata( L, CANCEL_ERROR );
-    lua_setglobal( L, "cancel_error" );
+    lua_setfield(L, -2, "cancel_error");
 
-    return 0;
+    // Return the local module table
+    return 1;
 }
 
 

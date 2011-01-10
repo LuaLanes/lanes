@@ -41,10 +41,9 @@ THE SOFTWARE.
 
 module( "lanes", package.seeall )
 
-require "lua51-lanes"
-assert( type(lanes)=="table" )
+local mm = require "lua51-lanes"
+assert( type(mm)=="table" )
 
-local mm= lanes
 
 local linda_id=    assert( mm.linda_id )
 
