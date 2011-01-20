@@ -188,6 +188,13 @@ const char *luaG_openlibs( lua_State *L, const char *libs ) {
 #define DEEP_LOOKUP_KEY ((void*)set_deep_lookup)
     // any unique light userdata
 
+
+/*
+* The deep proxy cache is a weak valued table listing all deep UD proxies indexed by the deep UD that they are proxying
+*/
+#define DEEP_PROXY_CACHE_KEY ((void*)luaG_push_proxy)
+
+static void push_registry_subtable_mode( lua_State *L, void *token, const char* mode );
 static void push_registry_subtable( lua_State *L, void *token );
 
 /*
@@ -350,6 +357,18 @@ int deep_userdata_gc( lua_State *L ) {
 void luaG_push_proxy( lua_State *L, lua_CFunction idfunc, DEEP_PRELUDE *prelude ) {
     DEEP_PRELUDE **proxy;
 
+    // Check if a proxy already exists
+    push_registry_subtable_mode(L, DEEP_PROXY_CACHE_KEY, "v");
+    lua_pushlightuserdata(L, prelude->deep);
+    lua_rawget(L, -2);
+    if (!lua_isnil(L, -1)) {
+        lua_remove(L, -2); // deep proxy cache table
+        return;
+    } else {
+        lua_pop(L, 2); // Pop the nil and proxy cache table
+    }
+
+
     MUTEX_LOCK( &deep_lock );
       ++(prelude->refcount);  // one more proxy pointing to this deep data
     MUTEX_UNLOCK( &deep_lock );
@@ -413,6 +432,13 @@ void luaG_push_proxy( lua_State *L, lua_CFunction idfunc, DEEP_PRELUDE *prelude 
 
     lua_setmetatable( L, -2 );
     
+    // If we're here, we obviously had to create a new proxy, so cache it.
+    push_registry_subtable_mode(L, DEEP_PROXY_CACHE_KEY, "v");
+    lua_pushlightuserdata(L, (*proxy)->deep);
+    lua_pushvalue(L, -3); // Copy of the proxy
+    lua_rawset(L, -3);
+    lua_pop(L, 1); // Remove the cache proxy table
+
   STACK_END(L,1)
     // [-1]: proxy userdata
 }
@@ -544,11 +570,10 @@ lua_CFunction luaG_copydeep( lua_State *L, lua_State *L2, int index ) {
  */
 
 /*
-* Push a registry subtable (keyed by unique 'token') onto the stack.
-* If the subtable does not exist, it is created and chained.
+* Does what the original 'push_registry_subtable' function did, but adds an optional mode argument to it
 */
 static
-void push_registry_subtable( lua_State *L, void *token ) {
+void push_registry_subtable_mode( lua_State *L, void *token, const char* mode ) {
 
     STACK_GROW(L,3);
 
@@ -570,10 +595,28 @@ void push_registry_subtable( lua_State *L, void *token ) {
             // [-1]: value
 
         lua_rawset( L, LUA_REGISTRYINDEX );
+
+        // Set it's metatable if requested
+        if (mode) {
+            lua_newtable(L);
+            lua_pushliteral(L, "__mode");
+            lua_pushstring(L, mode);
+            lua_rawset(L, -3);
+            lua_setmetatable(L, -2);
+        }
     }
   STACK_END(L,1)
 
     ASSERT_L( lua_istable(L,-1) );
+}
+
+/*
+* Push a registry subtable (keyed by unique 'token') onto the stack.
+* If the subtable does not exist, it is created and chained.
+*/
+static
+void push_registry_subtable( lua_State *L, void *token ) {
+    push_registry_subtable_mode(L, token, NULL);
 }
 
 #define REG_MTID ( (void*) get_mt_id )
