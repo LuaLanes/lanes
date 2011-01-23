@@ -1938,7 +1938,12 @@ static void init_once_LOCKED( lua_State *L, volatile DEEP_PRELUDE ** timer_deep_
         *timer_deep_ref= * (DEEP_PRELUDE**) lua_touserdata( L, -1 );
         ASSERT_L( (*timer_deep_ref) && (*timer_deep_ref)->refcount==1 && (*timer_deep_ref)->deep );
 
-        lua_pop(L,1);   // we don't need the proxy
+        // The host Lua state must always have a reference to this Linda object in order for our 'timer_deep_ref' to be valid.
+        // So store a reference that we will never actually use.
+        lua_pushlightuserdata(L, (void *)init_once_LOCKED);
+        lua_insert(L, -2); // Swap key with the Linda object
+        lua_rawset(L, LUA_REGISTRYINDEX);
+
     }
   STACK_END(L,0)
 }
