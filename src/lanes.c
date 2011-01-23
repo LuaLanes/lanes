@@ -989,6 +989,11 @@ static void selfdestruct_remove( struct s_lane *s ) {
     MUTEX_UNLOCK( &selfdestruct_cs );
 }
 
+// Initialized by 'init_once_LOCKED()': the deep userdata Linda object
+// used for timers (each lane will get a proxy to this)
+//
+volatile DEEP_PRELUDE *timer_deep;  // = NULL
+
 /*
 * Process end; cancel any still free-running threads
 */
@@ -1007,6 +1012,10 @@ static void selfdestruct_atexit( void ) {
         }
     }
     MUTEX_UNLOCK( &selfdestruct_cs );
+
+    // Tell the timer thread to check it's cancel request
+    struct s_Linda *td = timer_deep->deep;
+    SIGNAL_ALL( &td->write_happened);
 
     // When noticing their cancel, the lanes will remove themselves from
     // the selfdestruct chain.
@@ -1953,11 +1962,6 @@ int
 __declspec(dllexport)
 #endif
 	luaopen_lanes( lua_State *L ) {
-
-    // Initialized by 'init_once_LOCKED()': the deep userdata Linda object
-    // used for timers (each lane will get a proxy to this)
-    //
-    static volatile DEEP_PRELUDE *timer_deep;  // = NULL
 
     /*
     * Making one-time initializations.
