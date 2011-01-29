@@ -3,6 +3,16 @@ CHANGES:
 
 CHANGE X:
 
+CHANGE 24 DPtr 25-Jan-2011:
+    Changed lanes.c to export functions as a module rather than writing them directly to the globals table.
+
+CHANGE 23 DPtr 23-Jan-2011:
+    Fixed bug where reference to Linda object was dropped for a short time ( crashing if GC was run during that time ).
+    Changed the atexit code to trip the timer thread's write signal. 
+
+CHANGE 22 DPtr 19-Jan-2011:
+    Changed luaG_push_proxy to cache deep userdata proxies.
+
 CHANGE 21 (bugfixes) BGe 3-Jan-2011:
     Several fixes by Martin Krpan:
     - linda_send was waiting on the wrong signal

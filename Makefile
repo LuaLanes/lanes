@@ -24,8 +24,8 @@ TIME=time
 ifeq "$(findstring MINGW32,$(shell uname -s))" "MINGW32"
   # MinGW MSYS on XP
   #
-  LUA=lua
-  LUAC=luac
+  LUA=lua.exe
+  LUAC=luac.exe
   _SO=.dll
   _TARGET_SO=./lua51-lanes.dll
   TIME=timeit.exe
