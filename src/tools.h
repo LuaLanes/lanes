@@ -65,6 +65,8 @@ void luaG_push_proxy( lua_State *L, lua_CFunction idfunc, DEEP_PRELUDE *deep_use
 void luaG_inter_copy( lua_State *L, lua_State *L2, uint_t n );
 void luaG_inter_move( lua_State *L, lua_State *L2, uint_t n );
 
+void push_registry_subtable_mode( lua_State *L, void *token, const char* mode );
+void push_registry_subtable( lua_State *L, void *token );
 // Lock for reference counter inc/dec locks (to be initialized by outside code)
 //
 extern MUTEX_T deep_lock;

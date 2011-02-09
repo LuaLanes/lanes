@@ -194,9 +194,6 @@ const char *luaG_openlibs( lua_State *L, const char *libs ) {
 */
 #define DEEP_PROXY_CACHE_KEY ((void*)luaG_push_proxy)
 
-static void push_registry_subtable_mode( lua_State *L, void *token, const char* mode );
-static void push_registry_subtable( lua_State *L, void *token );
-
 /*
 * Sets up [-1]<->[-2] two-way lookups, and ensures the lookup table exists.
 * Pops the both values off the stack.
@@ -572,7 +569,6 @@ lua_CFunction luaG_copydeep( lua_State *L, lua_State *L2, int index ) {
 /*
 * Does what the original 'push_registry_subtable' function did, but adds an optional mode argument to it
 */
-static
 void push_registry_subtable_mode( lua_State *L, void *token, const char* mode ) {
 
     STACK_GROW(L,3);
@@ -614,7 +610,6 @@ void push_registry_subtable_mode( lua_State *L, void *token, const char* mode ) 
 * Push a registry subtable (keyed by unique 'token') onto the stack.
 * If the subtable does not exist, it is created and chained.
 */
-static
 void push_registry_subtable( lua_State *L, void *token ) {
     push_registry_subtable_mode(L, token, NULL);
 }
