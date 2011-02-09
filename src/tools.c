@@ -909,6 +909,50 @@ static void inter_copy_func( lua_State *L2, uint_t L2_cache_i, lua_State *L, uin
 
     if (cfunc) {
         lua_pushcclosure( L2, cfunc, n );   // eats up upvalues
+
+        STACK_GROW(L, 2);
+        STACK_GROW(L2, 6);
+
+        // Check if this function is registered in L
+        push_registry_subtable_mode(L, CFUNCTION_REGISTRY_KEY, "k");
+        lua_pushvalue(L, i);
+        lua_gettable(L, -2);
+
+        if (lua_type(L, -1) == LUA_TSTRING) {
+
+            size_t len;
+            const char *module_name = lua_tolstring(L, -1, &len);
+            lua_pushlstring(L2, module_name, len);
+
+            // Register closure in L2
+            push_registry_subtable_mode(L2, CFUNCTION_REGISTRY_KEY, "k");
+            lua_pushvalue(L2, -3); // Newly created C closure
+            lua_pushvalue(L2, -3); // module name
+            lua_settable(L2, -3);
+            lua_pop(L2, 1);
+
+            // Check if module is loaded
+            lua_getfield(L2, LUA_GLOBALSINDEX, "package");
+            if (lua_isnil(L2, -1)) {
+                luaL_error(L, "Need 'package' library loaded in L2 to copy registered C function from L");
+            }
+            lua_getfield(L2, -1, "loaded");
+
+            lua_pushvalue(L2, -3);
+            lua_gettable(L2, -2); // package.loaded[module_name]
+
+            // If not, then load it
+            if (!lua_toboolean(L2, -1)) {
+                lua_getfield(L2, LUA_GLOBALSINDEX, "require");
+                lua_pushvalue(L2, -5);
+                lua_call(L2, 1, 0);
+            }
+
+            lua_pop(L2, 4); // module_name + package + package.loaded + package.loaded[module_name]
+        }
+
+        lua_pop(L, 2); // c function registry table + nil or module name
+
     } else {
         // Set upvalues (originally set to 'nil' by 'lua_load')
         //

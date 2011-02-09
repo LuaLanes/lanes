@@ -359,7 +359,7 @@ static const char *init_keepers(void) {
         lua_State *L= luaL_newstate();
         if (!L) return "out of memory";
 
-        luaG_openlibs( L, "io,table" );     // 'io' for debugging messages
+        luaG_openlibs( L, "io,table,package" );     // 'io' for debugging messages
 
         lua_pushlightuserdata( L, &nil_sentinel );
         lua_setglobal( L, "nil_sentinel" );
