@@ -1177,7 +1177,47 @@ LUAG_FUNC( _single ) {
 	return 0;
 }
 
+/* Registers a C function as being dependant on the given module
+* bool= register_cfunction(mod_name, function)
+*/
 
+int LG_register_cfunction( lua_State *L ) {
+
+    if (!lua_tocfunction(L, 2)) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    luaL_checkstring(L, 1);
+
+    push_registry_subtable_mode(L, CFUNCTION_REGISTRY_KEY, "k");
+
+    lua_pushvalue(L, 2);
+    lua_pushvalue(L, 1);
+    lua_settable(L, -3);
+
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+/* Retrieves the module that a function was registered under.
+* string= get_cfunction_module(function)
+*/
+
+LUAG_FUNC( get_cfunction_module ) {
+
+    if (!lua_tocfunction(L, 1)) {
+        lua_pushnil(L);
+        return 1;
+    }
+
+    push_registry_subtable_mode(L, CFUNCTION_REGISTRY_KEY, "k");
+
+    lua_pushvalue(L, 1);
+    lua_gettable(L, -2);
+
+    return 1;
+}
 /*
 * str= lane_error( error_val|str )
 *
@@ -1863,6 +1903,8 @@ static const struct luaL_reg lanes_functions [] = {
     {"wakeup_conv", LG_wakeup_conv},
     {"_single", LG__single},
     {"_deep_userdata", luaG_deep_userdata},
+    {"register_cfunction", LG_register_cfunction},
+    {"get_cfunction_module", LG_get_cfunction_module},
     {NULL, NULL}
 };
 

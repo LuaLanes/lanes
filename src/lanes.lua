@@ -61,6 +61,9 @@ local now_secs= assert( mm.now_secs )
 local wakeup_conv= assert( mm.wakeup_conv )
 local timer_gateway= assert( mm.timer_gateway )
 
+local register_cfunction= assert( mm.register_cfunction )
+local get_cfunction_module= assert( mm.get_cfunction_module )
+
 local max_prio= assert( mm.max_prio )
 
 -- This check is for sublanes requiring Lanes
@@ -328,6 +331,39 @@ lane_proxy= function( ud )
     return proxy
 end
 
+---=== Object registration ===---
+
+---
+-- void= lanes.register_function(module_name, function|table, [...])
+--
+
+do
+    local function reg_table(module_name, table, tables_done)
+
+        for k, v in pairs(table) do
+            for _, object in ipairs{k, v} do
+                if type(object) == 'function' then
+                    register_cfunction(module_name, object)
+                elseif type(object) == 'table' and not tables_done[object] then
+                    tables_done[object] = true
+                    reg_table(module_name, object, tables_done)
+                end
+            end
+        end
+
+    end
+
+    function register_function(module_name, ...)
+        local objects = { ... }
+
+        reg_table(module_name, objects, {})
+    end
+
+end
+
+---
+-- Export get_cfunction_module as "get_function_module"
+get_function_module = get_cfunction_module
 
 ---=== Lindas ===---
 
