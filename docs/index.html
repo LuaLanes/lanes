@@ -713,54 +713,9 @@ value.
 Note that the generated functions can be passed on to other lanes.
 </p>
 
-
-<!-- others +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+<!-- C modules +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
 <hr/>
-<h2 id="other">Other issues</h2>
-
-<h3>Limitations on data passing</h3>
-
-<p>Data passed between lanes (either as starting parameters, return values, upvalues or via Lindas) must conform to the following:
-</p>
-<p><ul>
-	<li>Booleans, numbers, strings, light userdata, Lua functions and tables of such can always be passed.
-	</li>
-	<li>Cyclic tables and/or duplicate references are allowed and reproduced appropriately, 
-	but only <u>within the same transmission</u>.
-	   <ul>
-	       <li>using the same source table in multiple Linda messages keeps no ties between the tables
-	       </li>
-	   </ul>
-    </li>
-    <li>Objects (tables with a metatable) are copyable between lanes.
-        <ul>
-            <li>metatables are assumed to be immutable; they are internally indexed and only copied once
-            per each type of objects per lane
-            </li>
-        </ul>
-    </li>
-    <li>C functions (<tt>lua_CFunction</tt>) referring to <tt>LUA_ENVIRONINDEX</tt> or <tt>LUA_REGISTRYINDEX</tt> might not
-    work right in the target
-        <ul>
-            <li>rather completely re-initialize a module with <tt>require</tt> in the target lane
-            </li>
-        </ul>
-    </li>
-    <li>Full userdata can be passed only if it's prepared using the <A HREF="#deep_userdata">deep userdata</A>
-        system, which handles its lifespan management
-        <ul>
-            <li>in particular, lane handles cannot be passed between lanes
-            </li>
-        </ul>
-    </li>
-    <li>coroutines cannot be passed
-    </li>
-</ul>
-</p>
-
-
-<h3>Required of module makers</h3>
-
+<h2 id="c_modules">C Modules</h2>
 <p>
 Most Lua extension modules should work unaltered with Lanes.
 If the module simply ties C side features to Lua, everything is fine without
@@ -791,6 +746,21 @@ should be covered into a one-time-only construct such as below.
 </td></tr></table>
 </p>
 
+<h3 id="c_functions">Passing C functions between lanes</h3>
+
+<p>C functions depending on the module to be initialized before the function is called will require special handling to make sure that the module is already initialized in the target Lane before the function is passed to it. This can be done by always requiring the appropriate module in each Lane before passing functions, or by using the <tt>register_function</tt> function to tell Lanes to automatically load the required module when passing a function to another Lane that doesn't already have the module loaded.
+</p>
+<p>
+C functions can be individually registered with <tt>register_function</tt> as they are needed. Or when you require a module, you can give the whole module table to <tt>register_function</tt> and it will register all C functions recursively found in keys and values of that table. This should register all C functions for most modules, but will not be able to access functions in metatables or C functions created by the module after initialization. These functions must be individually registered as needed.
+</p>
+<p>
+<tt>get_function_module</tt> returns the name of the module that the function was registered with, but it can be used to check if a function is registered or not, as it returns <tt>nil</tt> for unregistered functions.
+</p>
+<table border=1 bgcolor="#E0E0FF" cellpadding=10><tr><td><pre>
+  void= lanes.register_function(module_name, function|table, [...])
+	
+  string= lanes.get_function_module(function)
+</table>
 
 <h3 id="shared_userdata">Deep userdata in your own apps</h3>
 
@@ -825,6 +795,49 @@ the Lua state used. In other words, use <tt>malloc</tt>/<tt>free</tt> or
 similar memory handling mechanism.
 </p>
 
+<!-- others +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+<hr/>
+<h2 id="other">Other issues</h2>
+
+<h3>Limitations on data passing</h3>
+
+<p>Data passed between lanes (either as starting parameters, return values, upvalues or via Lindas) must conform to the following:
+</p>
+<p><ul>
+	<li>Booleans, numbers, strings, light userdata, Lua functions and tables of such can always be passed.
+	</li>
+	<li>Cyclic tables and/or duplicate references are allowed and reproduced appropriately, 
+	but only <u>within the same transmission</u>.
+	   <ul>
+	       <li>using the same source table in multiple Linda messages keeps no ties between the tables
+	       </li>
+	   </ul>
+    </li>
+    <li>Objects (tables with a metatable) are copyable between lanes.
+        <ul>
+            <li>metatables are assumed to be immutable; they are internally indexed and only copied once
+            per each type of objects per lane
+            </li>
+        </ul>
+    </li>
+    <li>C functions (<tt>lua_CFunction</tt>) referring to <tt>LUA_ENVIRONINDEX</tt> or <tt>LUA_REGISTRYINDEX</tt> might not
+    work right in the target
+        <ul>
+            <li><tt><a href="#c_functions">register_function()<a/></tt> can be used to automatically initialize modules when a registered function is transferred. Or you can just make sure that all lanes in question have the appropriate modules initialized before passing C functions.
+            </li>
+        </ul>
+    </li>
+    <li>Full userdata can be passed only if it's prepared using the <A HREF="#shared_userdata">deep userdata</A>
+        system, which handles its lifespan management
+        <ul>
+            <li>in particular, lane handles cannot be passed between lanes
+            </li>
+        </ul>
+    </li>
+    <li>coroutines cannot be passed
+    </li>
+</ul>
+</p>
 
 <h3>Lane handles don't travel</h3>
 
