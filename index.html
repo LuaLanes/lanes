@@ -21,11 +21,11 @@
     <tr>
       <td align="center">
       <a href="http://www.lua.org">
-        <img src="http://akauppi.googlepages.com/multi.png" alt="Lua" align="middle" border="0" height="120" width="128" />
-        <img src="http://akauppi.googlepages.com/multi.png" alt="Lua" align="middle" border="0" height="120" width="128" />
-        <img src="http://akauppi.googlepages.com/multi.png" alt="Lua" align="middle" border="0" height="120" width="128" />
-        <img src="http://akauppi.googlepages.com/multi.png" alt="Lua" align="middle" border="0" height="120" width="128" />
-        <img src="http://akauppi.googlepages.com/multi.png" alt="Lua" align="middle" border="0" height="120" width="128" />
+        <img src="multi.png" alt="Lua" align="middle" border="0" height="120" width="128" />
+        <img src="multi.png" alt="Lua" align="middle" border="0" height="120" width="128" />
+        <img src="multi.png" alt="Lua" align="middle" border="0" height="120" width="128" />
+        <img src="multi.png" alt="Lua" align="middle" border="0" height="120" width="128" />
+        <img src="multi.png" alt="Lua" align="middle" border="0" height="120" width="128" />
       </a></td>
     </tr>
     <tr>
@@ -56,7 +56,7 @@
 
 <p><br/><font size="-1"><i>Copyright &copy; 2007-11 Asko Kauppi. All rights reserved.</i>
     <br>Lua Lanes is published under the same <A HREF="http://en.wikipedia.org/wiki/MIT_License">MIT license</A> as Lua 5.1.
-    </p><p>This document was revised on 3-Jan-11, and applies to version 2.0.10.
+    </p><p>This document was revised on 12-Feb-11, and applies to version 2.0.11.
 </font></p>
 
 </center>
@@ -124,15 +124,14 @@
         <li>Windows 2000/XP and later <font size="-1">(MinGW or Visual C++ 2005/2008)</font></li>
 <!--
     Other OS'es here once people help test them. (and the tester's name)
-    
+
     Win64, BSD, Linux x64, Linux embedded, QNX, Solaris, ...
 -->
     </ul>
-    
-    <p>The underlying threading code can be compiled either towards Win32 API 
-    or <a TARGET="_blank" HREF="http://en.wikipedia.org/wiki/POSIX_Threads">Pthreads</a>. Unfortunately, thread prioritation under Pthreads is a JOKE, 
-    requiring OS specific tweaks and guessing undocumented behaviour. Other
-    features should be portable to any modern platform.
+
+    <p>The underlying threading code can be compiled either towards Win32 API
+    or <a TARGET="_blank" HREF="http://en.wikipedia.org/wiki/POSIX_Threads">Pthreads</a>. Unfortunately, thread prioritization under Pthreads is a JOKE,
+    requiring OS specific tweaks and guessing undocumented behaviour. Other features should be portable to any modern platform.
     </p>
 </p>
 
@@ -147,7 +146,7 @@ details and limitations.
 </p>
 
 <p>To install Lanes, all you need are the <tt>lanes.lua</tt> and <tt>lua51-lanes.so|dll</tt>
-files to be reachable by Lua (see LUA_PATH, LUA_CPATH). 
+files to be reachable by Lua (see LUA_PATH, LUA_CPATH).
 
 Or use <A HREF="http://www.luarocks.org" TARGET="_blank">Lua Rocks</A> package management.
 </p>
@@ -264,7 +263,7 @@ also in the new lanes.
     by platform. Especially Linux kernel 2.6 is not supporting priorities in user mode.
     </td></tr>
   </table>
-  
+
 </p>
 
 <h3>Free running lanes</h3>
@@ -383,7 +382,7 @@ for the request to be processed, or a timeout to occur.
 Returns <tt>true</tt> if the lane was already done (in <tt>"done"</tt>, <tt>"error"</tt> or <tt>"cancelled"</tt> status)
 or if the cancellation was fruitful within timeout period.
 </p><p>
-If the lane is still running and <tt>force_kill</tt> is <tt>true</tt>, the 
+If the lane is still running and <tt>force_kill</tt> is <tt>true</tt>, the
 OS thread running the lane is forcefully killed. This means no GC, and should
 generally be the last resort.
 </p>
@@ -404,16 +403,16 @@ or <tt>send</tt> call is currently not awakened, and may be a reason for a non-d
 </table>
 
 <p>The <tt>error</tt> call is used for throwing exceptions in Lua. What Lua
-does not offer, however, is scoped <a href="http://en.wikipedia.org/wiki/Finalizer">finalizers</a> 
+does not offer, however, is scoped <a href="http://en.wikipedia.org/wiki/Finalizer">finalizers</a>
 that would get called when a certain block of instructions gets exited, whether
 through peaceful return or abrupt <tt>error</tt>.
 </p>
-<p>Since 2.0.3, Lanes prepares a function <tt>set_finalizer</tt> for doing this. 
-Any functions given to it will be called in the lane Lua state, just prior to 
+<p>Since 2.0.3, Lanes prepares a function <tt>set_finalizer</tt> for doing this.
+Any functions given to it will be called in the lane Lua state, just prior to
 closing it. They are not called in any particular order.
 </p>
 <p>An error in a finalizer itself overrides the state of the regular chunk
-(in practise, it would be highly preferable <i>not</i> to have errors in finalizers). 
+(in practise, it would be highly preferable <i>not</i> to have errors in finalizers).
 If one finalizer errors, the others may not get called.
 </p>
 
@@ -424,7 +423,7 @@ If one finalizer errors, the others may not get called.
 
 <p>Communications between lanes is completely detached from the lane handles
 themselves. By itself, a lane can only provide return values once it's finished,
-or throw an error. Needs to communicate during runtime are handled by <A HREF="http://en.wikipedia.org/wiki/Linda_%28coordination_language%29" TARGET="_blank">Linda objects</A>, which are 
+or throw an error. Needs to communicate during runtime are handled by <A HREF="http://en.wikipedia.org/wiki/Linda_%28coordination_language%29" TARGET="_blank">Linda objects</A>, which are
 <A HREF="#deep_userdata">deep userdata</A> instances. They can be provided to a lane
 as startup parameters, upvalues or in some other Linda's message.
 </p><p>
@@ -445,7 +444,7 @@ level locking is required; each Linda operation is atomic.
         linda:send( "x", i )    -- linda as upvalue
     end
   end
-  
+
   a= lanes.gen("",loop)( 10000 )
 
   while true do
@@ -512,7 +511,7 @@ many producers, and many consumers. It's up to you.
 if the queue limit was met, and the queue did not empty enough during the given
 timeout.
 </p><p>
-Equally, <tt>receive</tt> returns a value and the key that provided the value, 
+Equally, <tt>receive</tt> returns a value and the key that provided the value,
 or nothing for timeout. Note that <tt>nil</tt>s can be sent and received;
 the <tt>key</tt> value will tell it apart from a timeout.
 </p><p>
@@ -537,8 +536,8 @@ be used for making priority queues.
 The table access methods are for accessing a slot without queuing or consuming.
 They can be used for making shared tables of storage among the lanes.
 </p><p>
-Writing to a slot overwrites existing value, and clears any possible queued 
-entries. Table access and <tt>send</tt>/<tt>receive</tt> can be used together; 
+Writing to a slot overwrites existing value, and clears any possible queued
+entries. Table access and <tt>send</tt>/<tt>receive</tt> can be used together;
 reading a slot essentially peeks the next outcoming value of a queue.
 </p>
 
@@ -554,7 +553,7 @@ discussing it is good for a preview of how deep userdata works.
 Because proxy objects (<tt>linda_h</tt>) are just pointers to the real, deep
 userdata, they cannot be used to identify a certain Linda from the others.
 The internal timer system needs to do this, and the <tt>:deep()</tt> method
-has been added for its use. It returns a light userdata pointing to the 
+has been added for its use. It returns a light userdata pointing to the
 <i>actual</i> deep object, and thus can be used for seeing, which proxies actually
 mean the same underlying object. You might or might not need a similar system
 with your own deep userdata.
@@ -574,13 +573,13 @@ you want to use several?
     for the other. This keeps your code clear and readable. You can pass
     multiple Linda handles to a lane with practically no added cost.
     </li>
-    
+
     <li>Namespace control. Linda keys have a "flat" namespace, so collisions
     are possible if you try to use the same Linda for too many separate uses.
     </li>
-    
+
     <li>Performance. Changing any slot in a Linda causes all pending threads
-    for that Linda to be momentarily awakened (at least in the C level). 
+    for that Linda to be momentarily awakened (at least in the C level).
     This can degrade performance due to unnecessary OS level context switches.
     </li>
 </ul>
@@ -603,13 +602,13 @@ events to a common Linda, but... :).</font>
 </table>
 
 <p>
-Timers can be run once, or in a reoccurring fashion (<tt>period_secs > 0</tt>). 
-The first occurrence can be given either as a date or as a relative delay in seconds. 
-The <tt>date</tt> table is like what <tt>os.date("*t")</tt> returns, in the 
+Timers can be run once, or in a reoccurring fashion (<tt>period_secs > 0</tt>).
+The first occurrence can be given either as a date or as a relative delay in seconds.
+The <tt>date</tt> table is like what <tt>os.date("*t")</tt> returns, in the
 local time zone.
 </p><p>
 Once a timer expires, the <tt>key</tt> is set with the current time
-(in seconds, same offset as <tt>os.time()</tt> but with millisecond accuracy). 
+(in seconds, same offset as <tt>os.time()</tt> but with millisecond accuracy).
 The key can be waited upon using the regular Linda <tt>:receive()</tt>
 method.
 </p><p>
@@ -632,17 +631,17 @@ A timer can be stopped simply by <tt>first_secs=0</tt> and no period.
   t.sec= 0
 
   lanes.timer( linda, "min", t, 60 )   -- reoccur every minute (sharp)
-    
+
   while true do
     local v,key= linda:receive( "sec", "min" )
     print( "Timer "..key..": "..v )
-  end  
+  end
 </pre>
 </table>
 
 </p><p>
 NOTE: Timer keys are set, not queued, so missing a beat is possible especially
-if the timer cycle is extremely small. The key value can be used to know the 
+if the timer cycle is extremely small. The key value can be used to know the
 actual time passed.
 </p><p>
 <table>
@@ -704,7 +703,7 @@ Similar sugar exists for atomic counters:
 </table>
 </p><p>
 
-Each time called, the generated function will change <tt>linda[key]</tt> 
+Each time called, the generated function will change <tt>linda[key]</tt>
 atomically, without other lanes being able to interfere. The new value is
 returned. You can use either <tt>diff 0.0</tt> or <tt>get</tt> to just read the current
 value.
@@ -725,7 +724,7 @@ Note that the generated functions can be passed on to other lanes.
 <p><ul>
 	<li>Booleans, numbers, strings, light userdata, Lua functions and tables of such can always be passed.
 	</li>
-	<li>Cyclic tables and/or duplicate references are allowed and reproduced appropriately, 
+	<li>Cyclic tables and/or duplicate references are allowed and reproduced appropriately,
 	but only <u>within the same transmission</u>.
 	   <ul>
 	       <li>using the same source table in multiple Linda messages keeps no ties between the tables
@@ -777,14 +776,14 @@ should be covered into a one-time-only construct such as below.
  int luaopen_module( lua_State *L )
  {
     static char been_here;  /* 0 by ANSI C */
-    
+
     /* Calls to 'require' serialized by Lanes; this is safe.&nbsp;&nbsp;
     */
     if (!been_here) {
         been_here= 1;
         ... one time initializations ...
     }
-    
+
     ... binding to Lua ...
  }
 </pre>
@@ -804,8 +803,9 @@ used for creation and deletion of your deep userdata (the shared resource),
 and for making metatables for the state-specific proxies for accessing it.
 Take a look at <tt>linda_id</tt> in <tt>lanes.c</tt>.
     </li>
-    <li>Create your userdata using <tt>luaG_deep_userdata()</tt>, which is
-    a Lua-callable function. Given an <tt>idfunc</tt>, it sets up the support
+    <li>Instanciate your userdata using <tt>luaG_deep_userdata()</tt>,
+	instead of the regular <tt>lua_newuserdata()</tt>.
+	Given an <tt>idfunc</tt>, it sets up the support
     structures and returns a state-specific proxy userdata for accessing your
     data. This proxy can also be copied over to other lanes.
     </li>
@@ -815,7 +815,7 @@ Take a look at <tt>linda_id</tt> in <tt>lanes.c</tt>.
 </ol>
 
 <p>Deep userdata management will take care of tying to <tt>__gc</tt> methods,
-and doing reference counting to see how many proxies are still there for 
+and doing reference counting to see how many proxies are still there for
 accessing the data. Once there are none, the data will be freed through a call
 to the <tt>idfunc</tt> you provided.
 </p>
@@ -850,7 +850,7 @@ something like this:
 <pre>
   A:  print( 1, 2, 3, 4 )
   B:  print( 'a', 'b', 'c', 'd' )
-  
+
   1   a   b   2   3   c   d   4
 </pre>
 
@@ -870,7 +870,7 @@ Here are some things one should consider, if best performance is vital:
 <ul>
     <li>Data passing (parameters, upvalues, Linda messages) is generally fast,
     doing two binary state-to-state copies (from source state to hidden state,
-    hidden state to target state). Remember that not only the function you 
+    hidden state to target state). Remember that not only the function you
     specify but also its upvalues, their upvalues, etc. etc. will get copied.
     </li>
     <li>Lane startup is fast (1000's of lanes a second), depending on the
@@ -894,7 +894,7 @@ Here are some things one should consider, if best performance is vital:
     merged into one main timer state (see <tt>timer.lua</tt>); no OS side
     timers are utilized.
     </li>
-    <li>Lindas are hashed to a fixed number of "keeper states", which are a locking entity. 
+    <li>Lindas are hashed to a fixed number of "keeper states", which are a locking entity.
     If you are using a lot of Linda objects,
     it may be useful to try having more of these keeper states. By default,
     only one is used (see <tt>KEEPER_STATES_N</tt>), but this is an implementation detail.
@@ -907,7 +907,7 @@ Here are some things one should consider, if best performance is vital:
 
 <p>
 Cancellation of lanes uses the Lua error mechanism with a special lightuserdata
-error sentinel. 
+error sentinel.
 If you use <tt>pcall</tt> in code that needs to be cancellable
 from the outside, the special error might not get through to Lanes, thus
 preventing the Lane from being cleanly cancelled. You should throw any
@@ -929,6 +929,13 @@ its actual value.
 <h2 id="changes">Change log</h2>
 
 <p>
+Feb-2011 (2.0.11):
+<ul>
+  <li>Fixed bug where reference to Linda object was dropped for a short time (crashing if GC was run during that time).</li>
+  <li>Changed the atexit code to trip the timer thread's write signal.</li>
+  <li>Changed lanes.c to export functions as a module rather than writing them directly to the globals table.</li>
+</ul>
+
 Jan-2011 (2.0.10):
 <ul>
   <li>linda_send was waiting on the wrong signal</li>
