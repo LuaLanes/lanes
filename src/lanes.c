@@ -64,7 +64,7 @@
  *      ...
  */
 
-const char *VERSION= "2.0.10";
+const char *VERSION= "2.0.11";
 
 /*
 ===============================================================================
@@ -359,7 +359,8 @@ static const char *init_keepers(void) {
         lua_State *L= luaL_newstate();
         if (!L) return "out of memory";
 
-        luaG_openlibs( L, "io,table" );     // 'io' for debugging messages
+        luaG_openlibs( L, "io,table,package" );     // 'io' for debugging messages, package because we need to require modules exporting idfuncs
+        serialize_require( L);
 
         lua_pushlightuserdata( L, &nil_sentinel );
         lua_setglobal( L, "nil_sentinel" );
@@ -449,9 +450,9 @@ struct s_Linda {
     SIGNAL_T write_happened;
 };
 
-static int LG_linda_id( lua_State* );
+static void linda_id( lua_State*, char const * const which);
 
-#define lua_toLinda(L,n) ((struct s_Linda *)luaG_todeep( L, LG_linda_id, n ))
+#define lua_toLinda(L,n) ((struct s_Linda *)luaG_todeep( L, linda_id, n ))
 
 
 /*
@@ -462,7 +463,8 @@ static int LG_linda_id( lua_State* );
 * Returns:  'true' if the value was queued
 *           'false' for timeout (only happens when the queue size is limited)
 */
-LUAG_FUNC( linda_send ) {
+LUAG_FUNC( linda_send )
+{
     struct s_Linda *linda= lua_toLinda( L, 1 );
     bool_t ret;
     bool_t cancel= FALSE;
@@ -750,20 +752,21 @@ LUAG_FUNC( linda_deep ) {
 * Returns a metatable for the proxy objects ('__gc' method not needed; will
 * be added by 'luaG_...')
 *
+*   string= linda_id( "module")
+*
+* Returns the name of the module that a state should require
+* in order to keep a handle on the shared library that exported the idfunc
+*
 *   = linda_id( str, ... )
 *
 * For any other strings, the ID function must not react at all. This allows
 * future extensions of the system. 
 */
-LUAG_FUNC( linda_id ) {
-    const char *which= lua_tostring(L,1);
-
-    if (strcmp( which, "new" )==0) {
+static void linda_id( lua_State *L, char const * const which)
+{
+    if (strcmp( which, "new" )==0)
+    {
         struct s_Linda *s;
-
-        /* We don't use any parameters, but one could (they're at [2..TOS])
-        */
-        ASSERT_L( lua_gettop(L)==1 );
 
         /* The deep data is allocated separately of Lua stack; we might no
         * longer be around when last reference to it is being released.
@@ -776,11 +779,11 @@ LUAG_FUNC( linda_id ) {
         SIGNAL_INIT( &s->write_happened );
 
         lua_pushlightuserdata( L, s );
-        return 1;
-
-    } else if (strcmp( which, "delete" )==0) {
+    }
+    else if (strcmp( which, "delete" )==0)
+    {
         struct s_Keeper *K;
-        struct s_Linda *s= lua_touserdata(L,2);
+        struct s_Linda *s= lua_touserdata(L,1);
         ASSERT_L(s);
 
         /* Clean associated structures in the keeper state.
@@ -797,18 +800,20 @@ LUAG_FUNC( linda_id ) {
         SIGNAL_FREE( &s->read_happened );
         SIGNAL_FREE( &s->write_happened );
         free(s);
+    }
+    else if (strcmp( which, "metatable" )==0)
+    {
 
-        return 0;
-
-    } else if (strcmp( which, "metatable" )==0) {
-
-      STACK_CHECK(L)
+        STACK_CHECK(L)
         lua_newtable(L);
-        lua_newtable(L);
-            //
-            // [-2]: linda metatable
-            // [-1]: metatable's to-be .__index table
-    
+        // metatable is its own index
+        lua_pushvalue( L, -1);
+        lua_setfield( L, -2, "__index");
+        // protect metatable from external access
+        lua_pushboolean( L, 0);
+        lua_setfield( L, -2, "__metatable");
+        //
+        // [-1]: linda metatable
         lua_pushcfunction( L, LG_linda_send );
         lua_setfield( L, -2, "send" );
     
@@ -827,13 +832,17 @@ LUAG_FUNC( linda_id ) {
         lua_pushcfunction( L, LG_linda_deep );
         lua_setfield( L, -2, "deep" );
 
-        lua_setfield( L, -2, "__index" );
-      STACK_END(L,1)
-    
-        return 1;
+        STACK_END(L,1)
     }
-    
-    return 0;   // unknown request, be quiet
+    else if( strcmp( which, "module") == 0)
+    {
+        lua_pushliteral( L, "lua51-lanes");
+    }
+}
+
+LUAG_FUNC( linda)
+{
+    return luaG_deep_userdata( L, linda_id);
 }
 
 
@@ -1014,8 +1023,10 @@ static void selfdestruct_atexit( void ) {
     MUTEX_UNLOCK( &selfdestruct_cs );
 
     // Tell the timer thread to check it's cancel request
-    struct s_Linda *td = timer_deep->deep;
-    SIGNAL_ALL( &td->write_happened);
+    {
+        struct s_Linda *td = timer_deep->deep;
+        SIGNAL_ALL( &td->write_happened);
+    }
 
     // When noticing their cancel, the lanes will remove themselves from
     // the selfdestruct chain.
@@ -1855,21 +1866,21 @@ LUAG_FUNC( wakeup_conv )
 */
 
 static const struct luaL_reg lanes_functions [] = {
-    {"linda_id", LG_linda_id},
+    {"linda", LG_linda},
     {"thread_status", LG_thread_status},
     {"thread_join", LG_thread_join},
     {"thread_cancel", LG_thread_cancel},
     {"now_secs", LG_now_secs},
     {"wakeup_conv", LG_wakeup_conv},
     {"_single", LG__single},
-    {"_deep_userdata", luaG_deep_userdata},
     {NULL, NULL}
 };
 
 /*
 * One-time initializations
 */
-static void init_once_LOCKED( lua_State *L, volatile DEEP_PRELUDE ** timer_deep_ref ) {
+static void init_once_LOCKED( lua_State *L, volatile DEEP_PRELUDE ** timer_deep_ref )
+{
     const char *err;
 
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
@@ -1919,8 +1930,9 @@ static void init_once_LOCKED( lua_State *L, volatile DEEP_PRELUDE ** timer_deep_
         }
   #endif
 #endif
-        err= init_keepers();
-    if (err) {
+    err= init_keepers();
+    if (err)
+    {
             luaL_error( L, "Unable to initialize: %s", err );
     }
     
@@ -1928,13 +1940,11 @@ static void init_once_LOCKED( lua_State *L, volatile DEEP_PRELUDE ** timer_deep_
     //
     ASSERT_L( timer_deep_ref && (!(*timer_deep_ref)) );
 
-  STACK_CHECK(L)
+    STACK_CHECK(L)
     {
         // proxy_ud= deep_userdata( idfunc )
         //
-        lua_pushcfunction( L, luaG_deep_userdata );
-        lua_pushcfunction( L, LG_linda_id );
-        lua_call( L, 1 /*args*/, 1 /*retvals*/ );
+        luaG_deep_userdata( L, linda_id);
 
         ASSERT_L( lua_isuserdata(L,-1) );
         
@@ -1950,7 +1960,7 @@ static void init_once_LOCKED( lua_State *L, volatile DEEP_PRELUDE ** timer_deep_
         lua_rawset(L, LUA_REGISTRYINDEX);
 
     }
-  STACK_END(L,0)
+    STACK_END(L,0)
 }
 
 int 
@@ -2014,7 +2024,7 @@ __declspec(dllexport)
     lua_pushcclosure( L, LG_thread_new, 1 );    // metatable as closure param
     lua_setfield(L, -2, "thread_new");
 
-    luaG_push_proxy( L, LG_linda_id, (DEEP_PRELUDE *) timer_deep );
+    luaG_push_proxy( L, linda_id, (DEEP_PRELUDE *) timer_deep );
     lua_setfield(L, -2, "timer_gateway");
 
     lua_pushstring(L, VERSION);

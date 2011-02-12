@@ -171,7 +171,7 @@ local function PEEK() return linda:get("<-") end
 local function SEND(...) linda:send( "->", ... ) end
 local function RECEIVE() return linda:receive( "<-" ) end
 
-local t= lanes_gen("io",chunk)(linda)     -- prepare & launch
+local t= lanes_gen("io,package",chunk)(linda)     -- prepare & launch
 
 SEND(1);  WR( "1 sent\n" )
 SEND(2);  WR( "2 sent\n" )
@@ -230,7 +230,7 @@ local tc= lanes_gen( "io",
     end
     STAGE("Hello")
     STAGE("I was here first!")
-    STAGE("So waht?")
+    STAGE("So what?")
   end
 )
 
@@ -247,7 +247,6 @@ local upvalue="123"
 
 local function chunk2( linda )
     assert( upvalue=="123" )    -- even when running as separate thread
-
     -- function name & line number should be there even as separate thread
     --
     local info= debug.getinfo(1)    -- 1 = us
@@ -256,17 +255,14 @@ local function chunk2( linda )
 
     assert( info.nups == 2 )    -- one upvalue + PRINT
     assert( info.what == "Lua" )
-
     --assert( info.name == "chunk2" )   -- name does not seem to come through
-    assert( string.match( info.source, "^@basic.lua$" ) )
-    assert( string.match( info.short_src, "^basic.lua$" ) )
-
+    assert( string.match( info.source, "^@.*basic.lua$" ) )
+    assert( string.match( info.short_src, "^.*basic.lua$" ) )
     -- These vary so let's not be picky (they're there..)
     --
     assert( info.linedefined > 200 )   -- start of 'chunk2'
     assert( info.currentline > info.linedefined )   -- line of 'debug.getinfo'
     assert( info.lastlinedefined > info.currentline )   -- end of 'chunk2'
-
     local func,k= linda:receive( "down" )
     assert( type(func)=="function" )
     assert( k=="down" )
@@ -280,12 +276,9 @@ local function chunk2( linda )
 end
 
 local linda= lanes.linda()
-
-local t2= lanes_gen( "debug,string", chunk2 )(linda)     -- prepare & launch
-
+local t2= lanes_gen( "debug,string,io", chunk2 )(linda)     -- prepare & launch
 linda:send( "down", function(linda) linda:send( "up", "ready!" ) end,
                     "ok" )
-
 -- wait to see if the tiny function gets executed
 --
 local s= linda:receive( "up" )

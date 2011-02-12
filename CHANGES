@@ -3,6 +3,10 @@ CHANGES:
 
 CHANGE X:
 
+CHANGE 25 BGe 12-Feb-2011:
+    Changed idfunc signature and contract to clarify that fact it is not lua-callable
+    and to be able to require the module it was exported from in the target lanes
+
 CHANGE 24 DPtr 25-Jan-2011:
     Changed lanes.c to export functions as a module rather than writing them directly to the globals table.
 

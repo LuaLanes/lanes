@@ -280,26 +280,27 @@ void get_deep_lookup( lua_State *L ) {
 * or NULL if 'index' is not a deep userdata proxy.
 */
 static
-lua_CFunction get_idfunc( lua_State *L, int index ) {
-    lua_CFunction ret;
+luaG_IdFunction get_idfunc( lua_State *L, int index )
+{
+    luaG_IdFunction ret;
 
     index= STACK_ABS(L,index);
 
     STACK_GROW(L,1);
 
-  STACK_CHECK(L)
+    STACK_CHECK(L)
     if (!lua_getmetatable( L, index ))
         return NULL;    // no metatable
     
     // [-1]: metatable of [index]
 
     get_deep_lookup(L);
-        //    
-        // [-1]: idfunc/nil
+    //    
+    // [-1]: idfunc/nil
 
-    ret= lua_tocfunction(L,-1);
+    ret= (luaG_IdFunction)lua_touserdata(L,-1);
     lua_pop(L,1);
-  STACK_END(L,0)
+    STACK_END(L,0)
     return ret;
 }
 
@@ -311,7 +312,8 @@ lua_CFunction get_idfunc( lua_State *L, int index ) {
 * it up if reaches 0.
 */
 static
-int deep_userdata_gc( lua_State *L ) {
+int deep_userdata_gc( lua_State *L )
+{
     DEEP_PRELUDE **proxy= (DEEP_PRELUDE**)lua_touserdata( L, 1 );
     DEEP_PRELUDE *p= *proxy;
     int v;
@@ -319,27 +321,26 @@ int deep_userdata_gc( lua_State *L ) {
     *proxy= 0;  // make sure we don't use it any more
 
     MUTEX_LOCK( &deep_lock );
-      v= --(p->refcount);
+    v= --(p->refcount);
     MUTEX_UNLOCK( &deep_lock );
 
-    if (v==0) {
-        int pushed;
-
+    if (v==0)
+    {
         // Call 'idfunc( "delete", deep_ptr )' to make deep cleanup
         //
-        lua_CFunction idfunc= get_idfunc(L,1);
+        luaG_IdFunction idfunc = get_idfunc(L,1);
         ASSERT_L(idfunc);
         
-        lua_settop(L,0);    // clean stack so we can call 'idfunc' directly
+        lua_settop( L, 0);    // clean stack so we can call 'idfunc' directly
 
         // void= idfunc( "delete", lightuserdata )
         //
-        lua_pushliteral( L, "delete" );
         lua_pushlightuserdata( L, p->deep );
-        pushed= idfunc(L);
-        
-        if (pushed)
-            luaL_error( L, "Bad idfunc on \"delete\": returned something" );
+        idfunc( L, "delete");
+
+        // top was set to 0, then userdata was pushed. "delete" might want to pop the userdata (we don't care), but should not push anything!
+        if ( lua_gettop( L) > 1)
+            luaL_error( L, "Bad idfunc on \"delete\": returned something");
 
         DEEP_FREE( (void*)p );
     }
@@ -354,28 +355,31 @@ int deep_userdata_gc( lua_State *L ) {
 * used in this Lua state (metatable, registring it). Otherwise, increments the
 * reference count.
 */
-void luaG_push_proxy( lua_State *L, lua_CFunction idfunc, DEEP_PRELUDE *prelude ) {
+void luaG_push_proxy( lua_State *L, luaG_IdFunction idfunc, DEEP_PRELUDE *prelude )
+{
     DEEP_PRELUDE **proxy;
 
     // Check if a proxy already exists
     push_registry_subtable_mode(L, DEEP_PROXY_CACHE_KEY, "v");
     lua_pushlightuserdata(L, prelude->deep);
     lua_rawget(L, -2);
-    if (!lua_isnil(L, -1)) {
+    if (!lua_isnil(L, -1))
+    {
         lua_remove(L, -2); // deep proxy cache table
         return;
-    } else {
+    }
+    else
+    {
         lua_pop(L, 2); // Pop the nil and proxy cache table
     }
 
-
     MUTEX_LOCK( &deep_lock );
-      ++(prelude->refcount);  // one more proxy pointing to this deep data
+    ++(prelude->refcount);  // one more proxy pointing to this deep data
     MUTEX_UNLOCK( &deep_lock );
 
     STACK_GROW(L,4);
 
-  STACK_CHECK(L)
+    STACK_CHECK(L)
 
     proxy= lua_newuserdata( L, sizeof( DEEP_PRELUDE* ) );
     ASSERT_L(proxy);
@@ -383,28 +387,32 @@ void luaG_push_proxy( lua_State *L, lua_CFunction idfunc, DEEP_PRELUDE *prelude 
 
     // Get/create metatable for 'idfunc' (in this state)
     //
-    lua_pushcfunction( L, idfunc );    // key
+    lua_pushlightuserdata( L, idfunc );    // key
     get_deep_lookup(L);
         //
         // [-2]: proxy
         // [-1]: metatable / nil
     
-    if (lua_isnil(L,-1)) {
-        // No metatable yet; make one and register it
-        //
+    if (lua_isnil(L,-1))
+    {
+        int oldtop;
+        // No metatable yet. We have two things to do:
+
+        // 1 - make one and register it
         lua_pop(L,1);
 
         // tbl= idfunc( "metatable" )
         //
-        lua_pushcfunction( L, idfunc );
-        lua_pushliteral( L, "metatable" );
-        lua_call( L, 1 /*args*/, 1 /*results*/ );
-            //
-            // [-2]: proxy
-            // [-1]: metatable (returned by 'idfunc')
+        oldtop = lua_gettop( L);
+        idfunc( L, "metatable");
+        //
+        // [-2]: proxy
+        // [-1]: metatable (returned by 'idfunc')
 
-        if (!lua_istable(L,-1))
+        if (lua_gettop( L) - oldtop != 1 || !lua_istable(L, -1))
+        {
             luaL_error( L, "Bad idfunc on \"metatable\": did not return one" );
+        }
 
         // Add '__gc' method
         //
@@ -414,16 +422,40 @@ void luaG_push_proxy( lua_State *L, lua_CFunction idfunc, DEEP_PRELUDE *prelude 
         // Memorize for later rounds
         //
         lua_pushvalue( L,-1 );
-        lua_pushcfunction( L, idfunc );
-            //
-            // [-4]: proxy
-            // [-3]: metatable (2nd ref)
-            // [-2]: metatable
-            // [-1]: idfunc
+        lua_pushlightuserdata( L, idfunc );
+        //
+        // [-4]: proxy
+        // [-3]: metatable (2nd ref)
+        // [-2]: metatable
+        // [-1]: idfunc
 
         set_deep_lookup(L);
-    } 
-  STACK_MID(L,2)
+
+        // 2 - cause the target state to require the module that exported the idfunc
+        // this is needed because we must make sure the shared library is still loaded as long as we hold a pointer on the idfunc
+        lua_getglobal( L, "require");
+        if( lua_isfunction( L, -1)) // just in case...
+        {
+            // make sure the function pushed a single value on the stack!
+            int oldtop = lua_gettop( L);
+            idfunc( L, "module");
+            if( lua_gettop( L) - oldtop != 1 || !lua_isstring( L, -1))
+            {
+                luaL_error( L, "Bad idfunc on \"module\": should return a string");
+            }
+            // if we are inside a call to require, this will raise a "reentrency" error that we absorb silently (we don't care, this probably means the module is already being required, which is what we need)
+            if( lua_pcall( L, 1, 0, 0) != 0)
+            {
+                //char const * const errMsg = lua_tostring( L, -1); // just to see it in the debugger
+                lua_pop( L, 1);
+            }
+        }
+        else
+        {
+            lua_pop( L, 1);
+        }
+    }
+    STACK_MID(L,2)
     ASSERT_L( lua_isuserdata(L,-2) );
     ASSERT_L( lua_istable(L,-1) );
 
@@ -439,7 +471,7 @@ void luaG_push_proxy( lua_State *L, lua_CFunction idfunc, DEEP_PRELUDE *prelude 
     lua_rawset(L, -3);
     lua_pop(L, 1); // Remove the cache proxy table
 
-  STACK_END(L,1)
+    STACK_END(L,1)
     // [-1]: proxy userdata
 }
 
@@ -466,9 +498,9 @@ void luaG_push_proxy( lua_State *L, lua_CFunction idfunc, DEEP_PRELUDE *prelude 
 *
 * Returns:  'proxy' userdata for accessing the deep data via 'luaG_todeep()'
 */
-int luaG_deep_userdata( lua_State *L ) {
-    lua_CFunction idfunc= lua_tocfunction( L,1 );
-    int pushed;
+int luaG_deep_userdata( lua_State *L, luaG_IdFunction idfunc)
+{
+    int oldtop;
 
     DEEP_PRELUDE *prelude= DEEP_MALLOC( sizeof(DEEP_PRELUDE) );
     ASSERT_L(prelude);
@@ -476,20 +508,17 @@ int luaG_deep_userdata( lua_State *L ) {
     prelude->refcount= 0;   // 'luaG_push_proxy' will lift it to 1
 
     STACK_GROW(L,1);
-  STACK_CHECK(L)
-
-    // Replace 'idfunc' with "new" in the stack (keep possible other params)
-    //
-    lua_remove(L,1);
-    lua_pushliteral( L, "new" );
-    lua_insert(L,1);
+    STACK_CHECK(L)
 
     // lightuserdata= idfunc( "new" [, ...] )
     //
-    pushed= idfunc(L);
+		oldtop = lua_gettop( L);
+    idfunc(L, "new");
 
-    if ((pushed!=1) || lua_type(L,-1) != LUA_TLIGHTUSERDATA)
-        luaL_error( L, "Bad idfunc on \"new\": did not return light userdata" );
+    if( lua_gettop( L) - oldtop != 1 || lua_type( L, -1) != LUA_TLIGHTUSERDATA)
+    {
+        luaL_error( L, "Bad idfunc on \"new\": did not return light userdata");
+    }
 
     prelude->deep= lua_touserdata(L,-1);
     ASSERT_L(prelude->deep);
@@ -497,10 +526,10 @@ int luaG_deep_userdata( lua_State *L ) {
     lua_pop(L,1);   // pop deep data
 
     luaG_push_proxy( L, idfunc, prelude );
-        //
-        // [-1]: proxy userdata
+    //
+    // [-1]: proxy userdata
 
-  STACK_END(L,1)
+    STACK_END(L,1)
     return 1;
 }
 
@@ -511,15 +540,16 @@ int luaG_deep_userdata( lua_State *L ) {
 * Reference count is not changed, and access to the deep userdata is not
 * serialized. It is the module's responsibility to prevent conflicting usage.
 */
-void *luaG_todeep( lua_State *L, lua_CFunction idfunc, int index ) {
+void *luaG_todeep( lua_State *L, luaG_IdFunction idfunc, int index )
+{
     DEEP_PRELUDE **proxy;
 
-  STACK_CHECK(L)
-    if (get_idfunc(L,index) != idfunc)
+    STACK_CHECK(L)
+    if( get_idfunc(L,index) != idfunc)
         return NULL;    // no metatable, or wrong kind
 
     proxy= (DEEP_PRELUDE**)lua_touserdata( L, index );
-  STACK_END(L,0)
+    STACK_END(L,0)
 
     return (*proxy)->deep;
 }
@@ -533,14 +563,14 @@ void *luaG_todeep( lua_State *L, lua_CFunction idfunc, int index ) {
 *   (not copied)
 */
 static
-lua_CFunction luaG_copydeep( lua_State *L, lua_State *L2, int index ) {
+luaG_IdFunction luaG_copydeep( lua_State *L, lua_State *L2, int index )
+{
     DEEP_PRELUDE **proxy;
     DEEP_PRELUDE *p;
 
-    lua_CFunction idfunc;
-    
-    idfunc= get_idfunc( L, index );
-    if (!idfunc) return NULL;   // not a deep userdata
+    luaG_IdFunction idfunc = get_idfunc( L, index);
+    if (!idfunc)
+        return NULL;   // not a deep userdata
 
     // Increment reference count
     //

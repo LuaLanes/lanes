@@ -48,19 +48,21 @@
 
 #define luaG_typename( L, index ) lua_typename( L, lua_type(L,index) )
 
+typedef void (*luaG_IdFunction)( lua_State *L, char const * const which);
+
 void luaG_dump( lua_State* L );
 
 const char *luaG_openlibs( lua_State *L, const char *libs );
 
-int luaG_deep_userdata( lua_State *L );
-void *luaG_todeep( lua_State *L, lua_CFunction idfunc, int index );
+int luaG_deep_userdata( lua_State *L, luaG_IdFunction idfunc);
+void *luaG_todeep( lua_State *L, luaG_IdFunction idfunc, int index );
 
 typedef struct {
     volatile int refcount;
     void *deep;
 } DEEP_PRELUDE;
 
-void luaG_push_proxy( lua_State *L, lua_CFunction idfunc, DEEP_PRELUDE *deep_userdata );
+void luaG_push_proxy( lua_State *L, luaG_IdFunction idfunc, DEEP_PRELUDE *deep_userdata );
 
 void luaG_inter_copy( lua_State *L, lua_State *L2, uint_t n );
 void luaG_inter_move( lua_State *L, lua_State *L2, uint_t n );

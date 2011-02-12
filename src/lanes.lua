@@ -45,8 +45,6 @@ local mm = require "lua51-lanes"
 assert( type(mm)=="table" )
 
 
-local linda_id=    assert( mm.linda_id )
-
 local thread_new=   assert(mm.thread_new)
 local thread_status= assert(mm.thread_status)
 local thread_join=  assert(mm.thread_join)
@@ -54,8 +52,6 @@ local thread_cancel= assert(mm.thread_cancel)
 
 local _single= assert(mm._single)
 local _version= assert(mm._version)
-
-local _deep_userdata= assert(mm._deep_userdata)
 
 local now_secs= assert( mm.now_secs )
 local wakeup_conv= assert( mm.wakeup_conv )
@@ -336,11 +332,7 @@ end
 -----
 -- linda_ud= lanes.linda()
 --
-function linda()
-    local proxy= _deep_userdata( linda_id )
-    assert( (type(proxy) == "userdata") and getmetatable(proxy) )
-    return proxy
-end
+linda = mm.linda
 
 
 ---=== Timers ===---
@@ -505,7 +497,7 @@ if first_time then
     -- We let the timer lane be a "free running" thread; no handle to it
     -- remains.
     --
-    gen( "io", { priority=max_prio, globals={threadName="LanesTimer"} }, function()
+    gen( "io,package", { priority=max_prio, globals={threadName="LanesTimer"} }, function()
 
         while true do
             local next_wakeup= check_timers()
