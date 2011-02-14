@@ -71,8 +71,9 @@ rock:
 #--- Testing ---
 #
 test:
+	$(MAKE) errhangtest
 	$(MAKE) irayo_recursive
-#	$(MAKE) irayo_closure
+	$(MAKE) irayo_closure
 	$(MAKE) basic
 	$(MAKE) fifo
 	$(MAKE) keeper
@@ -139,6 +140,9 @@ irayo_closure: tests/irayo_closure.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 finalizer: tests/finalizer.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+errhangtest: tests/errhangtest.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 error-test: tests/error.lua $(_TARGET_SO)
