@@ -330,10 +330,12 @@ void serialize_require( lua_State *L ) {
 * bigger the pool, the less chances of unnecessary waits. Lindas map to the
 * keepers randomly, by a hash.
 */
-struct s_Keeper {
-    MUTEX_T lock_;
-    lua_State *L;
-} keeper[ KEEPER_STATES_N ];
+struct s_Keeper
+{
+	MUTEX_T lock_;
+	lua_State *L;
+	//int count;
+} GKeepers[KEEPER_STATES_N];
 
 /* We could use an empty table in 'keeper.lua' as the sentinel, but maybe
 * checking for a lightuserdata is faster.
@@ -378,30 +380,33 @@ static const char *init_keepers(void) {
             return err;
         }
 
-        MUTEX_INIT( &keeper[i].lock_ );
-        keeper[i].L= L;
+        MUTEX_INIT( &GKeepers[i].lock_ );
+        GKeepers[i].L= L;
+        //GKeepers[i].count = 0;
     }
     return NULL;    // ok
 }
 
-static 
-struct s_Keeper *keeper_acquire( const void *ptr ) {
-    /*
-    * Any hashing will do that maps pointers to 0..KEEPER_STATES_N-1 
-    * consistently.
-    *
-    * Pointers are often aligned by 8 or so - ignore the low order bits
-    */
-    unsigned int i= ((unsigned long)(ptr) >> 3) % KEEPER_STATES_N;
-    struct s_Keeper *K= &keeper[i];
+static struct s_Keeper *keeper_acquire( const void *ptr)
+{
+	/*
+	* Any hashing will do that maps pointers to 0..KEEPER_STATES_N-1 
+	* consistently.
+	*
+	* Pointers are often aligned by 8 or so - ignore the low order bits
+	*/
+	unsigned int i= ((unsigned long)(ptr) >> 3) % KEEPER_STATES_N;
+	struct s_Keeper *K= &GKeepers[i];
 
-    MUTEX_LOCK( &K->lock_ );
-    return K;
+	MUTEX_LOCK( &K->lock_);
+	//++ K->count;
+	return K;
 }
 
-static 
-void keeper_release( struct s_Keeper *K ) {
-    MUTEX_UNLOCK( &K->lock_ );
+static void keeper_release( struct s_Keeper *K)
+{
+	//-- K->count;
+	MUTEX_UNLOCK( &K->lock_);
 }
 
 /*
@@ -411,30 +416,34 @@ void keeper_release( struct s_Keeper *K ) {
 * 'linda':          deep Linda pointer (used only as a unique table key, first parameter)
 * 'starting_index': first of the rest of parameters (none if 0)
 *
-* Returns:  number of return values (pushed to 'L')
+* Returns: number of return values (pushed to 'L') or -1 in case of error
 */
-static
-int keeper_call( lua_State* K, const char *func_name, 
-                  lua_State *L, struct s_Linda *linda, uint_t starting_index ) {
+static int keeper_call( lua_State *K, char const *func_name, lua_State *L, struct s_Linda *linda, uint_t starting_index)
+{
+	int const args = starting_index ? (lua_gettop(L) - starting_index +1) : 0;
+	int const Ktos = lua_gettop(K);
+	int retvals = -1;
 
-    int args= starting_index ? (lua_gettop(L) - starting_index +1) : 0;
-    int Ktos= lua_gettop(K);
-    int retvals;
+	STACK_GROW( K, 2);
 
-    STACK_GROW( K, 2 );
+	lua_getglobal( K, func_name);
+	ASSERT_L( lua_isfunction(K, -1));
 
-    lua_getglobal( K, func_name );
-    ASSERT_L( lua_isfunction(K,-1) );
+	lua_pushlightuserdata( K, linda);
 
-    lua_pushlightuserdata( K, linda );
+	if( (args == 0) || luaG_inter_copy( L, K, args) == 0) // L->K
+	{
+		lua_call( K, 1 + args, LUA_MULTRET);
 
-    luaG_inter_copy( L,K, args );   // L->K
-    lua_call( K, 1+args, LUA_MULTRET );
-
-    retvals= lua_gettop(K) - Ktos;
-
-    luaG_inter_move( K,L, retvals );    // K->L
-    return retvals;
+		retvals = lua_gettop( K) - Ktos;
+		if( (retvals > 0) && luaG_inter_move( K, L, retvals) != 0) // K->L
+		{
+			retvals = -1;
+		}
+	}
+	// whatever happens, restore the stack to where it was at the origin
+	lua_settop( K, Ktos);
+	return retvals;
 }
 
 
@@ -463,98 +472,120 @@ static void linda_id( lua_State*, char const * const which);
 * Returns:  'true' if the value was queued
 *           'false' for timeout (only happens when the queue size is limited)
 */
-LUAG_FUNC( linda_send )
+LUAG_FUNC( linda_send)
 {
-    struct s_Linda *linda= lua_toLinda( L, 1 );
-    bool_t ret;
-    bool_t cancel= FALSE;
-    struct s_Keeper *K;
-    time_d timeout= -1.0;
-    uint_t key_i= 2;    // index of first key, if timeout not there
-    
-    luaL_argcheck( L, linda, 1, "expected a linda object!");
+	struct s_Linda *linda = lua_toLinda( L, 1);
+	bool_t ret;
+	bool_t cancel = FALSE;
+	int pushed;
+	time_d timeout= -1.0;
+	uint_t key_i = 2; // index of first key, if timeout not there
 
-    if (lua_isnumber(L,2)) {
-        timeout= SIGNAL_TIMEOUT_PREPARE( lua_tonumber(L,2) );
-        key_i++;
-    } else if (lua_isnil(L,2))
-        key_i++;
+	luaL_argcheck( L, linda, 1, "expected a linda object!");
 
-    if (lua_isnil(L,key_i))
-        luaL_error( L, "nil key" );
+	if( lua_isnumber(L, 2))
+	{
+		timeout= SIGNAL_TIMEOUT_PREPARE( lua_tonumber(L,2) );
+		key_i++;
+	}
+	else if( lua_isnil( L, 2))
+	{
+		key_i++;
+	}
 
-    STACK_GROW(L,1);
+	if( lua_isnil( L, key_i))
+		luaL_error( L, "nil key" );
 
-    K= keeper_acquire( linda );
-    {
-        lua_State *KL= K->L;    // need to do this for 'STACK_CHECK'
-STACK_CHECK(KL)
-        while(TRUE) {
-            int pushed;
-        
-STACK_MID(KL,0)
-            pushed= keeper_call( K->L, "send", L, linda, key_i );
-            ASSERT_L( pushed==1 );
-        
-            ret= lua_toboolean(L,-1);
-            lua_pop(L,1);
-        
-            if (ret) {
-                // Wake up ALL waiting threads
-                //
-                SIGNAL_ALL( &linda->write_happened );
-                break;
+	STACK_GROW(L, 1);
+	{
+		struct s_Keeper *K = keeper_acquire( linda);
+		lua_State *KL = K->L;    // need to do this for 'STACK_CHECK'
+		STACK_CHECK( KL)
+		for( ;;)
+		{
+			STACK_MID(KL, 0)
+			pushed = keeper_call( KL, "send", L, linda, key_i);
+			if( pushed < 0)
+			{
+				break;
+			}
+			ASSERT_L( pushed == 1);
 
-            } else if (timeout==0.0) {
-                break;  /* no wait; instant timeout */
+			ret = lua_toboolean( L, -1);
+			lua_pop( L, 1);
 
-            } else {
-                /* limit faced; push until timeout */
-                    
-                cancel= cancel_test( L );   // testing here causes no delays
-                if (cancel) break;
+			if( ret)
+			{
+				// Wake up ALL waiting threads
+				//
+				SIGNAL_ALL( &linda->write_happened);
+				break;
 
-// Bugfix by Benoit Germain Dec-2009: change status of lane to "waiting"
-//
+			}
+			if( timeout == 0.0)
+			{
+				break;  /* no wait; instant timeout */
+			}
+			/* limit faced; push until timeout */
+
+			cancel = cancel_test( L);   // testing here causes no delays
+			if (cancel)
+				break;
+
+			// Bugfix by Benoit Germain Dec-2009: change status of lane to "waiting"
+			//
 #if 1
-{
-    struct s_lane *s;
-    enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
-    STACK_GROW(L,1);
+			{
+				struct s_lane *s;
+				enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
+				STACK_GROW(L, 1);
 
-    STACK_CHECK(L)
-    lua_pushlightuserdata( L, CANCEL_TEST_KEY );
-    lua_rawget( L, LUA_REGISTRYINDEX );
-    s= lua_touserdata( L, -1 );     // lightuserdata (true 's_lane' pointer) / nil
-    lua_pop(L,1);
-    STACK_END(L,0)
-    if (s) {
-        prev_status = s->status;
-        s->status = WAITING;
-    }
-    if (!SIGNAL_WAIT( &linda->read_happened, &K->lock_, timeout )) {
-        if (s) { s->status = prev_status; }
-        break;
-    }
-    if (s) s->status = prev_status;
-}
+				STACK_CHECK(L)
+				lua_pushlightuserdata( L, CANCEL_TEST_KEY);
+				lua_rawget( L, LUA_REGISTRYINDEX);
+				s = lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) / nil
+				lua_pop(L, 1);
+				STACK_END(L,0)
+				if( s)
+				{
+					prev_status = s->status;
+					s->status = WAITING;
+				}
+				if( !SIGNAL_WAIT( &linda->read_happened, &K->lock_, timeout))
+				{
+					if( s)
+					{
+						s->status = prev_status;
+					}
+					break;
+				}
+				if( s)
+				{
+					s->status = prev_status;
+				}
+			}
 #else
-                // K lock will be released for the duration of wait and re-acquired
-                //
-                if (!SIGNAL_WAIT( &linda->read_happened, &K->lock_, timeout ))
-                    break;  // timeout
+			// K lock will be released for the duration of wait and re-acquired
+			//
+			if( !SIGNAL_WAIT( &linda->read_happened, &K->lock_, timeout))
+				break;  // timeout
 #endif
-            }
-        }
-STACK_END(KL,0)
-    }
-    keeper_release(K);
+		}
+		STACK_END( KL, 0)
+		keeper_release( K);
+	}
 
-    if (cancel)
-        cancel_error(L);
-    
-    lua_pushboolean( L, ret );
-    return 1;
+	// must trigger error after keeper state has been released
+	if( pushed < 0)
+	{
+		luaL_error( L, "tried to copy unsupported types");
+	}
+
+	if( cancel)
+		cancel_error( L);
+
+	lua_pushboolean( L, ret);
+	return 1;
 }
 
 
@@ -566,81 +597,110 @@ STACK_END(KL,0)
 * Returns:  value received (which is consumed from the slot)
 *           key which had it
 */
-LUAG_FUNC( linda_receive ) {
-    struct s_Linda *linda= lua_toLinda( L, 1 );
-    int pushed;
-    bool_t cancel= FALSE;
-    struct s_Keeper *K;
-    time_d timeout= -1.0;
-    uint_t key_i= 2;
-
-    luaL_argcheck( L, linda, 1, "expected a linda object!");
-
-    if (lua_isnumber(L,2)) {
-        timeout= SIGNAL_TIMEOUT_PREPARE( lua_tonumber(L,2) );
-        key_i++;
-    } else if (lua_isnil(L,2))
-        key_i++;
-
-    K= keeper_acquire( linda );
-    {
-        while(TRUE) {
-            pushed= keeper_call( K->L, "receive", L, linda, key_i );
-            if (pushed) {
-                ASSERT_L( pushed==2 );
-
-                // To be done from within the 'K' locking area
-                //
-                SIGNAL_ALL( &linda->read_happened );
-                break;
-
-            } else if (timeout==0.0) {
-                break;  /* instant timeout */
-
-            } else {    /* nothing received; wait until timeout */
-    
-                cancel= cancel_test( L );   // testing here causes no delays
-                if (cancel) break;
-
-// Bugfix by Benoit Germain Dec-2009: change status of lane to "waiting"
-//
-#if 1
+LUAG_FUNC( linda_receive)
 {
-    struct s_lane *s;
-    enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
-    STACK_GROW(L,1);
+	struct s_Linda *linda = lua_toLinda( L, 1);
+	int pushed;
+	bool_t cancel = FALSE;
+	
+	time_d timeout = -1.0;
+	uint_t key_i = 2;
 
-    STACK_CHECK(L)
-    lua_pushlightuserdata( L, CANCEL_TEST_KEY );
-    lua_rawget( L, LUA_REGISTRYINDEX );
-    s= lua_touserdata( L, -1 );     // lightuserdata (true 's_lane' pointer) / nil
-    lua_pop(L,1);
-    STACK_END(L,0)
-    if (s) {
-        prev_status = s->status;
-        s->status = WAITING;
-    }
-    if (!SIGNAL_WAIT( &linda->write_happened, &K->lock_, timeout )) {
-        if (s) { s->status = prev_status; }
-        break;
-    }
-    if (s) s->status = prev_status;
-}
+	luaL_argcheck( L, linda, 1, "expected a linda object!");
+
+	if( lua_isnumber( L, 2))
+	{
+		timeout = SIGNAL_TIMEOUT_PREPARE( lua_tonumber( L, 2));
+		key_i++;
+	}
+	else if( lua_isnil( L, 2))
+	{
+		key_i++;
+	}
+
+	{
+		struct s_Keeper *K = keeper_acquire( linda);
+		for( ;;)
+		{
+			pushed = keeper_call( K->L, "receive", L, linda, key_i);
+			if( pushed < 0)
+			{
+				break;
+			}
+			if( pushed > 0)
+			{
+				ASSERT_L( pushed == 2);
+
+				// To be done from within the 'K' locking area
+				//
+				SIGNAL_ALL( &linda->read_happened);
+				break;
+
+			}
+			if( timeout == 0.0)
+			{
+				break;  /* instant timeout */
+			}
+			/* nothing received; wait until timeout */
+
+			cancel = cancel_test( L);   // testing here causes no delays
+			if( cancel)
+			{
+				break;
+			}
+
+			// Bugfix by Benoit Germain Dec-2009: change status of lane to "waiting"
+			//
+#if 1
+			{
+				struct s_lane *s;
+				enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
+				STACK_GROW(L,1);
+
+				STACK_CHECK(L)
+				lua_pushlightuserdata( L, CANCEL_TEST_KEY);
+				lua_rawget( L, LUA_REGISTRYINDEX);
+				s= lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) / nil
+				lua_pop(L, 1);
+				STACK_END(L, 0)
+				if( s)
+				{
+					prev_status = s->status;
+					s->status = WAITING;
+				}
+				if( !SIGNAL_WAIT( &linda->write_happened, &K->lock_, timeout))
+				{
+					if( s)
+					{
+						s->status = prev_status;
+					}
+					break;
+				}
+				if( s)
+				{
+					s->status = prev_status;
+				}
+			}
 #else
-                // Release the K lock for the duration of wait, and re-acquire
-                //
-                if (!SIGNAL_WAIT( &linda->write_happened, &K->lock_, timeout ))
-                    break;
+			// Release the K lock for the duration of wait, and re-acquire
+			//
+			if( !SIGNAL_WAIT( &linda->write_happened, &K->lock_, timeout))
+				break;
 #endif
-            }
-        }
-    }
-    keeper_release(K);
+		}
+		keeper_release( K);
+	}
 
-    if (cancel)
-        cancel_error(L);
+	// must trigger error after keeper state has been released
+	if( pushed < 0)
+	{
+		luaL_error( L, "tried to copy unsupported types");
+	}
 
-    return pushed;
+	if( cancel)
+		cancel_error( L);
+
+	return pushed;
 }
 
 
@@ -651,27 +711,35 @@ LUAG_FUNC( linda_receive ) {
 *
 * Existing slot value is replaced, and possible queue entries removed.
 */
-LUAG_FUNC( linda_set ) {
-    struct s_Linda *linda= lua_toLinda( L, 1 );
-    bool_t has_value= !lua_isnil(L,3);
-    struct s_Keeper *K;
+LUAG_FUNC( linda_set)
+{
+	struct s_Linda *linda = lua_toLinda( L, 1);
+	bool_t has_value = !lua_isnil( L, 3);
+	luaL_argcheck( L, linda, 1, "expected a linda object!");
 
-    luaL_argcheck( L, linda, 1, "expected a linda object!");
+	{
+		struct s_Keeper *K = keeper_acquire( linda);
+		int pushed = keeper_call( K->L, "set", L, linda, 2);
+		if( pushed >= 0) // no error?
+		{
+			ASSERT_L( pushed == 0);
 
-    K= keeper_acquire( linda );
-    {
-        int pushed= keeper_call( K->L, "set", L, linda, 2 );
-        ASSERT_L( pushed==0 );
+			/* Set the signal from within 'K' locking.
+			*/
+			if( has_value)
+			{
+				SIGNAL_ALL( &linda->write_happened);
+			}
+		}
+		keeper_release( K);
+		// must trigger error after keeper state has been released
+		if( pushed < 0)
+		{
+			luaL_error( L, "tried to copy unsupported types");
+		}
+	}
 
-        /* Set the signal from within 'K' locking.
-        */
-        if (has_value) {
-            SIGNAL_ALL( &linda->write_happened );
-        }
-    }
-    keeper_release(K);
-
-    return 0;
+	return 0;
 }
 
 
@@ -680,21 +748,25 @@ LUAG_FUNC( linda_set ) {
 *
 * Get a value from Linda.
 */
-LUAG_FUNC( linda_get ) {
-    struct s_Linda *linda= lua_toLinda( L, 1 );
-    int pushed;
-    struct s_Keeper *K;
+LUAG_FUNC( linda_get)
+{
+	struct s_Linda *linda= lua_toLinda( L, 1);
+	int pushed;
+	luaL_argcheck( L, linda, 1, "expected a linda object!");
 
-    luaL_argcheck( L, linda, 1, "expected a linda object!");
+	{
+		struct s_Keeper *K = keeper_acquire( linda);
+		pushed = keeper_call( K->L, "get", L, linda, 2);
+		ASSERT_L( pushed==0 || pushed==1 );
+		keeper_release(K);
+		// must trigger error after keeper state has been released
+		if( pushed < 0)
+		{
+			luaL_error( L, "tried to copy unsupported types");
+		}
+	}
 
-    K= keeper_acquire( linda );
-    {
-        pushed= keeper_call( K->L, "get", L, linda, 2 );
-        ASSERT_L( pushed==0 || pushed==1 );
-    }
-    keeper_release(K);
-
-    return pushed;
+	return pushed;
 }
 
 
@@ -703,20 +775,24 @@ LUAG_FUNC( linda_get ) {
 *
 * Set limits to 1 or more Linda keys.
 */
-LUAG_FUNC( linda_limit ) {
-    struct s_Linda *linda= lua_toLinda( L, 1 );
-    struct s_Keeper *K;
+LUAG_FUNC( linda_limit)
+{
+	struct s_Linda *linda= lua_toLinda( L, 1 );
+	luaL_argcheck( L, linda, 1, "expected a linda object!");
 
-    luaL_argcheck( L, linda, 1, "expected a linda object!");
+	{
+		struct s_Keeper *K = keeper_acquire( linda);
+		int pushed = keeper_call( K->L, "limit", L, linda, 2);
+		ASSERT_L( pushed <= 0); // either error or no return values
+		keeper_release( K);
+		// must trigger error after keeper state has been released
+		if( pushed < 0)
+		{
+			luaL_error( L, "tried to copy unsupported types");
+		}
+	}
 
-    K= keeper_acquire( linda );
-    {
-        int pushed= keeper_call( K->L, "limit", L, linda, 2 );
-        ASSERT_L( pushed==0 );
-    }
-    keeper_release(K);
-
-    return 0;
+	return 0;
 }
 
 
@@ -842,7 +918,7 @@ static void linda_id( lua_State *L, char const * const which)
 
 LUAG_FUNC( linda)
 {
-    return luaG_deep_userdata( L, linda_id);
+	return luaG_deep_userdata( L, linda_id);
 }
 
 
@@ -1111,8 +1187,9 @@ static void selfdestruct_atexit( void ) {
 	{
     int i;
     for(i=0;i<KEEPER_STATES_N;i++){
-      lua_close(keeper[i].L);
-      keeper[i].L = 0;
+      lua_close( GKeepers[i].L);
+      GKeepers[i].L = 0;
+      //assert( GKeepers[i].count == 0);
     }
   }
 }
@@ -1476,7 +1553,7 @@ LUAG_FUNC( thread_new )
 		lua_gettable( L, -2);
 		threadName = lua_tostring( L, -1);
 		lua_pop( L, 1);
-		luaG_inter_move( L,L2, 1 );     // moves the table to L2
+		luaG_inter_move( L, L2, 1);     // moves the table to L2
 
 		// L2 [-1]: table of globals
 
@@ -1500,10 +1577,11 @@ LUAG_FUNC( thread_new )
 	// Lane main function
 	//
 	STACK_CHECK(L)
-	if( lua_type(L, 1) == LUA_TFUNCTION)
+	if( lua_type( L, 1) == LUA_TFUNCTION)
 	{
-		lua_pushvalue( L, 1 );
-		luaG_inter_move( L,L2, 1 );    // L->L2
+		lua_pushvalue( L, 1);
+		if( luaG_inter_move( L, L2, 1) != 0)    // L->L2
+			luaL_error( L, "tried to copy unsupported types");
 		STACK_MID(L,0)
 	}
 	else if( lua_type(L, 1) == LUA_TSTRING)
@@ -1515,12 +1593,13 @@ LUAG_FUNC( thread_new )
 		}
 	}
 
-	ASSERT_L( lua_gettop(L2) == 1 );
-	ASSERT_L( lua_isfunction(L2,1) );
+	ASSERT_L( lua_gettop(L2) == 1);
+	ASSERT_L( lua_isfunction(L2,1));
 
 	// revive arguments
 	//
-	if (args) luaG_inter_copy( L,L2, args );    // L->L2
+	if( (args > 0) && (luaG_inter_copy( L, L2, args) != 0))    // L->L2
+		luaL_error( L, "tried to copy unsupported types");
 	STACK_MID(L,0)
 
 	ASSERT_L( (uint_t)lua_gettop(L2) == 1+args );
@@ -1756,49 +1835,55 @@ LUAG_FUNC( thread_status )
 //
 LUAG_FUNC( thread_join )
 {
-    struct s_lane *s= lua_toLane(L,1);
-    double wait_secs= luaL_optnumber(L,2,-1.0);
-    lua_State *L2= s->L;
-    int ret;
+	struct s_lane *s= lua_toLane(L,1);
+	double wait_secs= luaL_optnumber(L,2,-1.0);
+	lua_State *L2= s->L;
+	int ret;
+	bool_t done;
 
-    bool_t done= 
+	done = (s->thread == 0) ||
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC) || (defined PTHREAD_TIMEDJOIN)
-        THREAD_WAIT( &s->thread, wait_secs );
+		THREAD_WAIT( &s->thread, wait_secs );
 #else
-        THREAD_WAIT( &s->thread, &s->done_signal_, &s->done_lock_, &s->status, wait_secs );
+		THREAD_WAIT( &s->thread, &s->done_signal_, &s->done_lock_, &s->status, wait_secs);
 #endif
-    if (!done)
-        return 0;      // timeout: pushes none, leaves 'L2' alive
+	if (!done || !L2)
+		return 0;      // timeout: pushes none, leaves 'L2' alive
 
-    // Thread is DONE/ERROR_ST/CANCELLED; all ours now
+	// Thread is DONE/ERROR_ST/CANCELLED; all ours now
 
-    STACK_GROW( L, 1 );
+	STACK_GROW( L, 1);
 
-    switch( s->status ) {
-        case DONE: {   
-            uint_t n= lua_gettop(L2);       // whole L2 stack
-            luaG_inter_move( L2,L, n );
-            ret= n;
-            } break;
+	switch( s->status)
+	{
+		case DONE:
+		{
+			uint_t n = lua_gettop( L2);       // whole L2 stack
+			if( (n > 0) && (luaG_inter_move( L2, L, n) != 0))
+				luaL_error( L, "tried to copy unsupported types");
+			ret = n;
+		}
+		break;
 
-        case ERROR_ST:
-            lua_pushnil(L);
-            luaG_inter_move( L2,L, 2 );    // error message at [-2], stack trace at [-1]
-            ret= 3;
-            break;
+		case ERROR_ST:
+		lua_pushnil( L);
+		if( luaG_inter_move( L2, L, 2) != 0)    // error message at [-2], stack trace at [-1]
+			luaL_error( L, "tried to copy unsupported types");
+		ret= 3;
+		break;
 
-        case CANCELLED:
-            ret= 0;
-            break;
-        
-        default:
-            DEBUGEXEC(fprintf( stderr, "Status: %d\n", s->status ));
-            ASSERT_L( FALSE ); ret= 0;
-    }
-    lua_close(L2);
-    s->L = L2 = 0;
+		case CANCELLED:
+		ret= 0;
+		break;
 
-    return ret;
+		default:
+		DEBUGEXEC(fprintf( stderr, "Status: %d\n", s->status));
+		ASSERT_L( FALSE ); ret= 0;
+	}
+	lua_close( L2);
+	s->L = L2 = 0;
+
+	return ret;
 }
 
 

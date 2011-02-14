@@ -1183,45 +1183,61 @@ ASSERT_L( lua_istable(L,-1) );
 *
 * Note: Parameters are in this order ('L' = from first) to be same as 'lua_xmove'.
 */
-void luaG_inter_copy( lua_State* L, lua_State *L2, uint_t n )
+int luaG_inter_copy( lua_State* L, lua_State *L2, uint_t n)
 {
-    uint_t top_L= lua_gettop(L);
-    uint_t top_L2= lua_gettop(L2);
-    uint_t i;
+	uint_t top_L = lua_gettop( L);
+	uint_t top_L2 = lua_gettop( L2);
+	uint_t i;
+	bool_t copyok = TRUE;
 
-    if (n > top_L) 
-        luaL_error( L, "Not enough values: %d < %d", top_L, n );
+	if( n > top_L)
+	{
+		// requesting to copy more than is available?
+		return -1;
+	}
 
-    STACK_GROW( L2, n+1 );
+	STACK_GROW( L2, n + 1);
 
-    /*
-    * Make a cache table for the duration of this copy. Collects tables and
-    * function entries, avoiding the same entries to be passed on as multiple
-    * copies. ESSENTIAL i.e. for handling upvalue tables in the right manner!
-    */
-    lua_newtable(L2);
+	/*
+	* Make a cache table for the duration of this copy. Collects tables and
+	* function entries, avoiding the same entries to be passed on as multiple
+	* copies. ESSENTIAL i.e. for handling upvalue tables in the right manner!
+	*/
+	lua_newtable( L2);
 
-    for (i=top_L-n+1; i <= top_L; i++) {
-        if (!inter_copy_one_( L2, top_L2+1, L, i, VT_NORMAL )) {
-       
-            luaL_error( L, "Cannot copy type: %s", luaG_typename(L,i) );
-       }
-    }
+	for( i = top_L - n + 1; i <= top_L; ++ i)
+	{
+		copyok = inter_copy_one_( L2, top_L2 + 1, L, i, VT_NORMAL);
+		if( !copyok)
+		{
+			break;
+		}
+	}
 
-    /*
-    * Remove the cache table. Persistant caching would cause i.e. multiple 
-    * messages passed in the same table to use the same table also in receiving
-    * end.
-    */
-    lua_remove( L2, top_L2+1 );
-
-    ASSERT_L( (uint_t)lua_gettop(L) == top_L );
-    ASSERT_L( (uint_t)lua_gettop(L2) == top_L2+n );
+	/*
+	* Remove the cache table. Persistant caching would cause i.e. multiple 
+	* messages passed in the same table to use the same table also in receiving
+	* end.
+	*/
+	ASSERT_L( (uint_t) lua_gettop( L) == top_L);
+	if( copyok)
+	{
+		lua_remove( L2, top_L2 + 1);
+		ASSERT_L( (uint_t) lua_gettop( L2) == top_L2 + n);
+		return 0;
+	}
+	else
+	{
+		// error -> pop everything from the target state stack
+		lua_settop( L2, top_L2);
+		return -2;
+	}
 }
 
 
-void luaG_inter_move( lua_State* L, lua_State *L2, uint_t n )
+int luaG_inter_move( lua_State* L, lua_State *L2, uint_t n )
 {
-    luaG_inter_copy( L, L2, n );
-    lua_pop( L,(int)n );
+	int ret = luaG_inter_copy( L, L2, n);
+	lua_pop( L, (int) n);
+	return ret;
 }
