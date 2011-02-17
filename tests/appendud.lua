@@ -31,28 +31,30 @@ local _ud = {
 
 
 function appendud(tab, ud)
-    io.stderr:write "Starting"
+    io.stderr:write "Starting "
     tab:beginupdate() set_finalizer( function() tab:endupdate() end )
     ud:lock() set_finalizer( function() ud:unlock() end )
     for i = 1,#ud do
         tab[#tab+1] = ud[i]
     end
-    io.stderr:write "Ending"
+    io.stderr:write "Ending "
     return tab  -- need to return 'tab' since we're running in a separate thread
                 -- ('tab' is passed over lanes by value, not by reference)
 end
 
-local t,err= lanes.gen( "io", appendud )( _tab, _ud )   -- create & launch a thread
+local t,err= lanes.gen( "base,io", appendud )( _tab, _ud )   -- create & launch a thread
 assert(t)
 assert(not err)
 
 -- test
-
-t:join()    -- Need to explicitly wait for the thread, since 'ipairs()' does not
+-- print("t:join()")
+a,b,c = t[1],t[2],t[3]    -- Need to explicitly wait for the thread, since 'ipairs()' does not
+--a,b,c = t:join()    -- Need to explicitly wait for the thread, since 'ipairs()' does not
             -- value the '__index' metamethod (wouldn't it be cool if it did..?)
 
-io.stderr:write(t[1])
+print(a,b,c)
+-- print("io.stderr:write(t[1])")
+-- io.stderr:write(t[1])
+_ = t[0]
+print(_)
 
-for k,v in ipairs(t) do
-    print(k,v)
-end

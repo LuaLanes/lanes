@@ -3,6 +3,20 @@ CHANGES:
 
 CHANGE X:
 
+CHANGE 27 BGe 17-Feb-2011
+    - we know Lanes is loaded in the master state, so we don't force it
+      to be required in every lane too when a linda deep userdata is copied
+    - Refactor lane proxy implementation: it is now a full userdata instead
+      of a table, and its methods are implemented in C instead of Lua
+      * its metatable is no longer accessible
+      * writing to the proxy raises an error
+      * it is no longer possible to overwrite its join() and cancel() methods
+    - when a deep userdata idfunc requests a module to be required, manually
+      check that it is not loaded before requiring it instead of relying on
+      the require function's loop detection feature
+    - when a module must be required, raise an error if the 'require' function
+      is not found in the target state
+
 CHANGE 26 BGe 14-Feb-2011:
     Fixed application hang-up because keeper state was not released in case of errors thrown by
     inter-state data copy for unsupported types

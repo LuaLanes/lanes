@@ -912,7 +912,12 @@ static void linda_id( lua_State *L, char const * const which)
     }
     else if( strcmp( which, "module") == 0)
     {
-        lua_pushliteral( L, "lua51-lanes");
+        // linda is a special case because we know lanes must be loaded from the main lua state
+        // to be able to ever get here, so we know it will remain loaded as long a the main state is around
+        // in other words, forever.
+        lua_pushnil( L);
+        // other idfuncs must push a string naming the module they come from
+        //lua_pushliteral( L, "lua51-lanes");
     }
 }
 
@@ -1635,6 +1640,11 @@ LUAG_FUNC( thread_new )
 	lua_setmetatable( L, -2 );
 	STACK_MID(L,1)
 
+	// Clear environment for the userdata
+	//
+	lua_newtable( L);
+	lua_setfenv( L, -2);
+
 	// Place 's' to registry, for 'cancel_test()' (even if 'cs'==0 we still
 	// do cancel tests at pending send/receive).
 	//
@@ -1726,7 +1736,6 @@ LUAG_FUNC( thread_gc )
 	return 0;
 }
 
-
 //---
 // = thread_cancel( lane_ud [,timeout_secs=0.0] [,force_kill_bool=false] )
 //
@@ -1794,7 +1803,7 @@ static bool_t thread_cancel( struct s_lane *s, double secs, bool_t force )
 
 
 //---
-// str= thread_status( lane_ud )
+// str= thread_status( lane )
 //
 // Returns: "pending"   not started yet
 //          -> "running"   started, doing its work..
@@ -1803,25 +1812,29 @@ static bool_t thread_cancel( struct s_lane *s, double secs, bool_t force )
 //                   / "error"     finished at an error, error value is there
 //                   / "cancelled"   execution cancelled by M (state gone)
 //
-LUAG_FUNC( thread_status )
+static char const * const thread_status_string( struct s_lane *s)
 {
-    struct s_lane *s= lua_toLane(L,1);
-    enum e_status st= s->status;    // read just once (volatile)
-    const char *str;
-    
-    if (s->mstatus == KILLED)
-        st= CANCELLED;
+	enum e_status st = s->status;    // read just once (volatile)
+	char const * str;
 
-    str= (st==PENDING) ? "pending" :
-         (st==RUNNING) ? "running" :    // like in 'co.status()'
-         (st==WAITING) ? "waiting" :
-         (st==DONE) ? "done" :
-         (st==ERROR_ST) ? "error" :
-         (st==CANCELLED) ? "cancelled" : NULL;
-    ASSERT_L(str);
+	if (s->mstatus == KILLED)
+		st= CANCELLED;
 
-    lua_pushstring( L, str );
-    return 1;
+	str= (st==PENDING) ? "pending" :
+		(st==RUNNING) ? "running" :    // like in 'co.status()'
+		(st==WAITING) ? "waiting" :
+		(st==DONE) ? "done" :
+		(st==ERROR_ST) ? "error" :
+		(st==CANCELLED) ? "cancelled" : NULL;
+	return str;
+}
+
+static void push_thread_status( lua_State *L, struct s_lane *s)
+{
+	char const * const str = thread_status_string( s);
+	ASSERT_L( str);
+
+	lua_pushstring( L, str );
 }
 
 
@@ -1887,6 +1900,157 @@ LUAG_FUNC( thread_join )
 }
 
 
+//---
+// thread_index( ud, key) -> value
+//
+// If key is found in the environment, return it
+// If key is numeric, wait until the thread returns and populate the environment with the return values
+// If the return values signal an error, propagate it
+// If key is "status" return the thread status
+// Else raise an error
+LUAG_FUNC( thread_index)
+{
+	int const UD = 1;
+	int const KEY = 2;
+	int const ENV = 3;
+	struct s_lane *s = lua_toLane( L, UD);
+	ASSERT_L( lua_gettop( L) == 2);
+
+	STACK_GROW( L, 8); // up to 8 positions are needed in case of error propagation
+
+	// If key is numeric, wait until the thread returns and populate the environment with the return values
+	if( lua_type( L, KEY) == LUA_TNUMBER)
+	{
+		// first, check that we don't already have an environment that holds the requested value
+		{
+			// If key is found in the environment, return it
+			lua_getfenv( L, UD);
+			lua_pushvalue( L, KEY);
+			lua_rawget( L, ENV);
+			if( !lua_isnil( L, -1))
+			{
+				return 1;
+			}
+			lua_pop( L, 1);
+		}
+		{
+			// check if we already fetched the values from the thread or not
+			bool_t fetched;
+			lua_Integer key = lua_tointeger( L, KEY);
+			lua_pushinteger( L, 0);
+			lua_rawget( L, ENV);
+			fetched = !lua_isnil( L, -1);
+			lua_pop( L, 1); // back to our 2 args + env on the stack
+			if( !fetched)
+			{
+				lua_pushinteger( L, 0);
+				lua_pushboolean( L, 1);
+				lua_rawset( L, ENV);
+				// wait until thread has completed
+				lua_pushcfunction( L, LG_thread_join);
+				lua_pushvalue( L, UD);
+				lua_call( L, 1, LUA_MULTRET); // all return values are on the stack, at slots 4+
+				switch( s->status)
+				{
+					case DONE: // got regular return values
+					{
+						int i, nvalues = lua_gettop( L) - 3;
+						for( i = nvalues; i > 0; -- i)
+						{
+							// pop the last element of the stack, to store it in the environment at its proper index
+							lua_rawseti( L, ENV, i);
+						}
+					}
+					break;
+
+					case ERROR_ST: // got 3 values: nil, errstring, callstack table
+					// me[-2] could carry the stack table, but even 
+					// me[-1] is rather unnecessary (and undocumented);
+					// use ':join()' instead.   --AKa 22-Jan-2009
+					ASSERT_L( lua_isnil( L, 4) && !lua_isnil( L, 5) && lua_istable( L, 6));
+					// store errstring at key -1
+					lua_pushnumber( L, -1);
+					lua_pushvalue( L, 5);
+					lua_rawset( L, ENV);
+					break;
+
+					case CANCELLED:
+					 // do nothing
+					break;
+
+					default:
+					// this is an internal error, we probably never get here
+					lua_settop( L, 0);
+					lua_pushliteral( L, "Unexpected status: ");
+					lua_pushstring( L, thread_status_string( s));
+					lua_concat( L, 2);
+					lua_error( L);
+					break;
+				}
+			}
+			lua_settop( L, 3);                                                // UD KEY ENV
+			if( key != -1)
+			{
+				lua_pushnumber( L, -1);                                         // UD KEY ENV -1
+				lua_rawget( L, ENV);                                            // UD KEY ENV "error"
+				if( !lua_isnil( L, -1)) // an error was stored
+				{
+					// Note: Lua 5.1 interpreter is not prepared to show
+					//       non-string errors, so we use 'tostring()' here
+					//       to get meaningful output.  --AKa 22-Jan-2009
+					//
+					//       Also, the stack dump we get is no good; it only
+					//       lists our internal Lanes functions. There seems
+					//       to be no way to switch it off, though.
+					//
+					// Level 3 should show the line where 'h[x]' was read
+					// but this only seems to work for string messages
+					// (Lua 5.1.4). No idea, why.   --AKa 22-Jan-2009
+					lua_getmetatable( L, UD);                                     // UD KEY ENV "error" mt
+					lua_getfield( L, -1, "cached_error");                         // UD KEY ENV "error" mt error()
+					lua_getfield( L, -2, "cached_tostring");                      // UD KEY ENV "error" mt error() tostring()
+					lua_pushvalue( L, 4);                                         // UD KEY ENV "error" mt error() tostring() "error"
+					lua_call( L, 1, 1); // tostring( errstring) -- just in case   // UD KEY ENV "error" mt error() "error"
+					lua_pushinteger( L, 3);                                       // UD KEY ENV "error" mt error() "error" 3
+					lua_call( L, 2, 0); // error( tostring( errstring), 3)        // UD KEY ENV "error" mt
+				}
+				else
+				{
+					lua_pop( L, 1); // back to our 3 arguments on the stack
+				}
+			}
+			lua_rawgeti( L, ENV, (int)key);
+		}
+		return 1;
+	}
+	if( lua_type( L, KEY) == LUA_TSTRING)
+	{
+		char const * const keystr = lua_tostring( L, KEY);
+		lua_settop( L, 2); // keep only our original arguments on the stack
+		if( strcmp( keystr, "status") == 0)
+		{
+			push_thread_status( L, s); // push the string representing the status
+		}
+		else if( strcmp( keystr, "cancel") == 0 || strcmp( keystr, "join") == 0)
+		{
+			// return UD.metatable[key] (should be a function in both cases)
+			lua_getmetatable( L, UD); // UD KEY mt
+			lua_replace( L, -3);      // mt KEY
+			lua_rawget( L, -2);       // mt value
+			ASSERT_L( lua_iscfunction( L, -1));
+		}
+		return 1;
+	}
+	// unknown key
+	lua_getmetatable( L, UD);
+	lua_getfield( L, -1, "cached_error");
+	lua_pushliteral( L, "Unknown key: ");
+	lua_pushvalue( L, KEY);
+	lua_concat( L, 2);
+	lua_call( L, 1, 0); // error( "Unknown key: " .. key) -> doesn't return
+	return 0;
+}
+
 /*---=== Timer support ===---
 */
 
@@ -1946,15 +2110,11 @@ LUAG_FUNC( wakeup_conv )
     return 1;
 }
 
-
 /*---=== Module linkage ===---
 */
 
 static const struct luaL_reg lanes_functions [] = {
     {"linda", LG_linda},
-    {"thread_status", LG_thread_status},
-    {"thread_join", LG_thread_join},
-    {"thread_cancel", LG_thread_cancel},
     {"now_secs", LG_now_secs},
     {"wakeup_conv", LG_wakeup_conv},
     {"_single", LG__single},
@@ -2101,10 +2261,25 @@ __declspec(dllexport)
     luaL_register(L, NULL, lanes_functions);
 
     // metatable for threads
+    // contains keys: { __gc, __index, cached_error, cached_tostring, cancel, join }
     //
-    lua_newtable( L );
-    lua_pushcfunction( L, LG_thread_gc );
-    lua_setfield( L, -2, "__gc" );
+    lua_newtable( L);
+    lua_pushcfunction( L, LG_thread_gc);
+    lua_setfield( L, -2, "__gc");
+    lua_pushcfunction( L, LG_thread_index);
+    lua_setfield( L, -2, "__index");
+    lua_getfield( L, LUA_GLOBALSINDEX, "error");
+    ASSERT_L( lua_isfunction( L, -1));
+    lua_setfield( L, -2, "cached_error");
+    lua_getfield( L, LUA_GLOBALSINDEX, "tostring");
+    ASSERT_L( lua_isfunction( L, -1));
+    lua_setfield( L, -2, "cached_tostring");
+    lua_pushcfunction( L, LG_thread_join);
+    lua_setfield( L, -2, "join");
+    lua_pushcfunction( L, LG_thread_cancel);
+    lua_setfield( L, -2, "cancel");
+    lua_pushboolean( L, 0);
+    lua_setfield( L, -2, "__metatable");
 
     lua_pushcclosure( L, LG_thread_new, 1 );    // metatable as closure param
     lua_setfield(L, -2, "thread_new");

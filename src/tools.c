@@ -395,65 +395,102 @@ void luaG_push_proxy( lua_State *L, luaG_IdFunction idfunc, DEEP_PRELUDE *prelud
     
     if (lua_isnil(L,-1))
     {
-        int oldtop;
         // No metatable yet. We have two things to do:
-
         // 1 - make one and register it
-        lua_pop(L,1);
-
-        // tbl= idfunc( "metatable" )
-        //
-        oldtop = lua_gettop( L);
-        idfunc( L, "metatable");
-        //
-        // [-2]: proxy
-        // [-1]: metatable (returned by 'idfunc')
-
-        if (lua_gettop( L) - oldtop != 1 || !lua_istable(L, -1))
         {
-            luaL_error( L, "Bad idfunc on \"metatable\": did not return one" );
+            int oldtop;
+
+            lua_pop( L, 1);
+
+            // tbl= idfunc( "metatable" )
+            //
+            oldtop = lua_gettop( L);
+            idfunc( L, "metatable");
+            //
+            // [-2]: proxy
+            // [-1]: metatable (returned by 'idfunc')
+
+            if (lua_gettop( L) - oldtop != 1 || !lua_istable(L, -1))
+            {
+                luaL_error( L, "Bad idfunc on \"metatable\": did not return one" );
+            }
+
+            // Add '__gc' method
+            //
+            lua_pushcfunction( L, deep_userdata_gc );
+            lua_setfield( L, -2, "__gc" );
+
+            // Memorize for later rounds
+            //
+            lua_pushvalue( L,-1 );
+            lua_pushlightuserdata( L, idfunc );
+            //
+            // [-4]: proxy
+            // [-3]: metatable (2nd ref)
+            // [-2]: metatable
+            // [-1]: idfunc
+
+            set_deep_lookup(L);
         }
-
-        // Add '__gc' method
-        //
-        lua_pushcfunction( L, deep_userdata_gc );
-        lua_setfield( L, -2, "__gc" );
-
-        // Memorize for later rounds
-        //
-        lua_pushvalue( L,-1 );
-        lua_pushlightuserdata( L, idfunc );
-        //
-        // [-4]: proxy
-        // [-3]: metatable (2nd ref)
-        // [-2]: metatable
-        // [-1]: idfunc
-
-        set_deep_lookup(L);
 
         // 2 - cause the target state to require the module that exported the idfunc
         // this is needed because we must make sure the shared library is still loaded as long as we hold a pointer on the idfunc
-        lua_getglobal( L, "require");
-        if( lua_isfunction( L, -1)) // just in case...
+        STACK_CHECK(L)
         {
+            char const * modname;
             // make sure the function pushed a single value on the stack!
-            int oldtop = lua_gettop( L);
-            idfunc( L, "module");
-            if( lua_gettop( L) - oldtop != 1 || !lua_isstring( L, -1))
             {
-                luaL_error( L, "Bad idfunc on \"module\": should return a string");
+                int oldtop = lua_gettop( L);
+                idfunc( L, "module");                                                                        // ... "module"/nil
+                if( lua_gettop( L) - oldtop != 1)
+                {
+                    luaL_error( L, "Bad idfunc on \"module\": should return a single value");
+                }
             }
-            // if we are inside a call to require, this will raise a "reentrency" error that we absorb silently (we don't care, this probably means the module is already being required, which is what we need)
-            if( lua_pcall( L, 1, 0, 0) != 0)
+            modname = luaL_optstring( L, -1, NULL); // raises an error if not a string or nil
+            if( modname) // we actually got a module name
             {
-                //char const * const errMsg = lua_tostring( L, -1); // just to see it in the debugger
-                lua_pop( L, 1);
+                // somehow, L.registry._LOADED can exist without having registered the 'package' library.
+                lua_getglobal( L, "require");                                                                // ... "module" require()
+                // check that the module is already loaded (or being loaded, we are happy either way)
+                if( lua_isfunction( L, -1))
+                {
+                    lua_insert( L, -2);                                                                      // ... require() "module"
+                    lua_getfield( L, LUA_REGISTRYINDEX, "_LOADED");                                          // ... require() "module" L.registry._LOADED
+                    if( lua_istable( L, -1))
+                    {
+                        bool_t alreadyloaded;
+                        lua_pushvalue( L, -2);                                                               // ... require() "module" L.registry._LOADED "module"
+                        lua_rawget( L, -2);                                                                  // ... require() "module" L.registry._LOADED module
+                        alreadyloaded = lua_toboolean( L, -1);
+                        if( !alreadyloaded) // not loaded
+                        {
+                            lua_pop( L, 2);                                                                  // ... require() "module"
+                            lua_call( L, 1, 0); // call require "modname"                                    // ...
+                        }
+                        else // already loaded, we are happy
+                        {
+                            lua_pop( L, 4);                                                                  // ...
+                        }
+                    }
+                    else // no L.registry._LOADED; can this ever happen?
+                    {
+                        luaL_error( L, "unexpected error while requiring a module");
+                        lua_pop( L, 3);                                                                      // ...
+                    }
+                }
+                else // a module name, but no require() function :-(
+                {
+                    luaL_error( L, "lanes receiving deep userdata should register the 'package' library");
+                    lua_pop( L, 2);                                                                          // ...
+                }
+            }
+            else // no module name
+            {
+                lua_pop( L, 1);                                                                              // ...
             }
         }
-        else
-        {
-            lua_pop( L, 1);
-        }
+        STACK_END(L,0)
     }
     STACK_MID(L,2)
     ASSERT_L( lua_isuserdata(L,-2) );

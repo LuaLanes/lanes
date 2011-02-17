@@ -9,9 +9,9 @@ require "lanes"
 local function lane()
 
     local subf= function()  -- this so that we can see the call stack
-        --error "aa"
-        error({})
-        error(error)
+        error "aa"
+        --error({})
+        --error(error)
     end
     local subf2= function()
         subf()

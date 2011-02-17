@@ -70,6 +70,6 @@ assert( #right==99 )
 
 local N= 80
 local res= fib(N)
-print( right[N] )
+print( right[N], res )
 assert( res==right[N] )
 

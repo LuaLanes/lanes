@@ -171,7 +171,7 @@ local function PEEK() return linda:get("<-") end
 local function SEND(...) linda:send( "->", ... ) end
 local function RECEIVE() return linda:receive( "<-" ) end
 
-local t= lanes_gen("io,package",chunk)(linda)     -- prepare & launch
+local t= lanes_gen("io",chunk)(linda)     -- prepare & launch
 
 SEND(1);  WR( "1 sent\n" )
 SEND(2);  WR( "2 sent\n" )
