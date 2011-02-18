@@ -799,8 +799,31 @@ can be used for custom userdata as well. Here's what to do.
 </p>
 <ol>
     <li>Provide an <i>identity function</i> for your userdata, in C. This function is
-used for creation and deletion of your deep userdata (the shared resource),
-and for making metatables for the state-specific proxies for accessing it.
+      used for creation and deletion of your deep userdata (the shared resource),
+      and for making metatables for the state-specific proxies for accessing it. The
+      prototype is
+      <table border="1" bgcolor="#E0E0FF" cellpadding="10">
+        <tr>
+          <td>
+            <code>void idfunc( lua_State *L, char const * const which);</code>
+          </table>
+<tt>which</tt> can be one of:
+<ul>
+      <li>
+        <tt>"new"</tt>: requests the creation of a new object, whose pointer is pushed on the stack
+        as a light userdata.
+      </li>
+      <li>
+      <tt>"delete"</tt>: receives this same pointer on the stack, and should cleanup the object.</li>
+    <li>
+      <tt>"metatable"</tt>: should build a metatable for the object. Don't cache the metatable
+yourself, Lanes takes care of it ("metatable" should only be invoked once).</li>
+      <li>
+        <tt>"module"</tt>: is the name of the module that exports the idfunc,
+to be pushed on the stack as a string. It is necessary so that Lanes can require it in
+any Lane and keeper state that receives a userdata. This is to prevent crashes in situations
+where the module could be unloaded while the idfunc pointer is still held.</li>
+</ul>
 Take a look at <tt>linda_id</tt> in <tt>lanes.c</tt>.
     </li>
     <li>Instanciate your userdata using <tt>luaG_deep_userdata()</tt>,
