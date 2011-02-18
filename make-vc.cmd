@@ -114,13 +114,11 @@ goto ERR_NOLUA
 :LUA_LIB_OK
 
 @REM
-@REM Precompile src/.lua -> .lch
+@REM Embed src/keeper.lua -> .lch
 @REM 
 @REM Note: we cannot use piping in Windows since we need binary output.
 @REM 
-"%LUAC_EXE%" -o delme src/keeper.lua
-"%LUA_EXE%" tools/bin2c.lua -o src/keeper.lch delme
-@del delme
+"%LUA_EXE%" tools/bin2c.lua -o src/keeper.lch src/keeper.lua
 
 @if "%VCINSTALLDIR%"=="" goto ERR_NOVC
 

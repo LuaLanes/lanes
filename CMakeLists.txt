@@ -25,13 +25,11 @@ IF(CYGWIN)
 ENDIF(CYGWIN)
 
 #2DO - use provided bin2c
-# Compile Lua bytecode to C
+# Embed keeper.lua in text form in C (embedding bytecode is not LuaJIT2-compatible)
 ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/keeper.lch
   DEPENDS src/keeper.lua
-    COMMAND "${LUAC}" "-o" "${CMAKE_CURRENT_BINARY_DIR}/keeper.lo"
-                           "${CMAKE_CURRENT_SOURCE_DIR}/src/keeper.lua"
     COMMAND "${LUA}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/bin2c.lua"
-            "${CMAKE_CURRENT_BINARY_DIR}/keeper.lo"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/keeper.lua"
             "-o" "${CMAKE_CURRENT_BINARY_DIR}/keeper.lch")
 SET_SOURCE_FILES_PROPERTIES(src/lanes.c PROPERTIES OBJECT_DEPENDS
   ${CMAKE_CURRENT_BINARY_DIR}/keeper.lch)
@@ -40,7 +38,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
 # Build
 INCLUDE_DIRECTORIES(src)
-ADD_LIBRARY(lua51-lanes MODULE src/lanes.c src/threading.c src/tools.c)
+ADD_LIBRARY(lua51-lanes MODULE src/lanes.c src/threading.c src/tools.c src/keeper.c)
 
 IF(UNIX AND NOT CYGWIN)
   SET(LIBS pthread)

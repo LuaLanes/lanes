@@ -102,6 +102,7 @@ THE SOFTWARE.
 
 #include "threading.h"
 #include "tools.h"
+#include "keeper.h"
 
 #if !((defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC))
 # include <sys/time.h>
@@ -113,12 +114,6 @@ THE SOFTWARE.
 # include <sys/types.h>
 #endif
 
-/* The selected number is not optimal; needs to be tested. Even using just
-* one keeper state may be good enough (depends on the number of Lindas used
-* in the applications).
-*/
-#define KEEPER_STATES_N 1   // 6
-
 /* Do you want full call stacks, or just the line where the error happened?
 *
 * TBD: The full stack feature does not seem to work (try 'make error').
@@ -128,12 +123,6 @@ THE SOFTWARE.
 #ifdef ERROR_FULL_STACK
 # define STACK_TRACE_KEY ((void*)lane_error)     // used as registry key
 #endif
-
-/*
-* Lua code for the keeper states (baked in)
-*/
-static char keeper_chunk[]= 
-#include "keeper.lch"
 
 // NOTE: values to be changed by either thread, during execution, without
 //       locking, are marked "volatile"
@@ -251,199 +240,6 @@ static bool_t push_registry_table( lua_State *L, void *key, bool_t create ) {
         // [-1]: table that's also bound in registry
     }
     return TRUE;    // table pushed
-}
-
-
-/*---=== Serialize require ===---
-*/
-
-static MUTEX_T require_cs;
-
-//---
-// [val]= new_require( ... )
-//
-// Call 'old_require' but only one lane at a time.
-//
-// Upvalues: [1]: original 'require' function
-//
-static int new_require( lua_State *L ) {
-    int rc;
-    int args= lua_gettop(L);
-
-  STACK_GROW(L,1);
-  STACK_CHECK(L)
-    
-    // Using 'lua_pcall()' to catch errors; otherwise a failing 'require' would
-    // leave us locked, blocking any future 'require' calls from other lanes.
-    //
-    MUTEX_LOCK( &require_cs );
-    {
-        lua_pushvalue( L, lua_upvalueindex(1) );
-        lua_insert( L, 1 );
-
-        rc= lua_pcall( L, args, 1 /*retvals*/, 0 /*errfunc*/ );
-            //
-            // LUA_ERRRUN / LUA_ERRMEM
-    }
-    MUTEX_UNLOCK( &require_cs );
-
-    if (rc) lua_error(L);   // error message already at [-1]
-
-  STACK_END(L,0)
-    return 1;
-}
-
-/*
-* Serialize calls to 'require', if it exists
-*/
-static 
-void serialize_require( lua_State *L ) {
-
-  STACK_GROW(L,1);  
-  STACK_CHECK(L)
-    
-    // Check 'require' is there; if not, do nothing
-    //
-    lua_getglobal( L, "require" );
-    if (lua_isfunction( L, -1 )) {
-        // [-1]: original 'require' function
-
-        lua_pushcclosure( L, new_require, 1 /*upvalues*/ );
-        lua_setglobal( L, "require" );
-
-    } else {
-        // [-1]: nil
-        lua_pop(L,1);
-    }
-
-  STACK_END(L,0)
-}
-
-
-/*---=== Keeper states ===---
-*/
-
-/*
-* Pool of keeper states
-*
-* Access to keeper states is locked (only one OS thread at a time) so the 
-* bigger the pool, the less chances of unnecessary waits. Lindas map to the
-* keepers randomly, by a hash.
-*/
-struct s_Keeper
-{
-	MUTEX_T lock_;
-	lua_State *L;
-	//int count;
-} GKeepers[KEEPER_STATES_N];
-
-/* We could use an empty table in 'keeper.lua' as the sentinel, but maybe
-* checking for a lightuserdata is faster.
-*/
-static bool_t nil_sentinel;
-
-/*
-* Initialize keeper states
-*
-* If there is a problem, return an error message (NULL for okay).
-*
-* Note: Any problems would be design flaws; the created Lua state is left
-*       unclosed, because it does not really matter. In production code, this
-*       function never fails.
-*/
-static const char *init_keepers(void) {
-    unsigned int i;
-    for( i=0; i<KEEPER_STATES_N; i++ ) {
-        
-        // Initialize Keeper states with bare minimum of libs (those required
-        // by 'keeper.lua')
-        //
-        lua_State *L= luaL_newstate();
-        if (!L) return "out of memory";
-
-        luaG_openlibs( L, "io,table,package" );     // 'io' for debugging messages, package because we need to require modules exporting idfuncs
-        serialize_require( L);
-
-        lua_pushlightuserdata( L, &nil_sentinel );
-        lua_setglobal( L, "nil_sentinel" );
-
-        // Read in the preloaded chunk (and run it)
-        //
-        if (luaL_loadbuffer( L, keeper_chunk, sizeof(keeper_chunk), "=lanes_keeper" ))
-            return "luaL_loadbuffer() failed";   // LUA_ERRMEM
-
-        if (lua_pcall( L, 0 /*args*/, 0 /*results*/, 0 /*errfunc*/ )) {
-            // LUA_ERRRUN / LUA_ERRMEM / LUA_ERRERR
-            //
-            const char *err= lua_tostring(L,-1);
-            assert(err);
-            return err;
-        }
-
-        MUTEX_INIT( &GKeepers[i].lock_ );
-        GKeepers[i].L= L;
-        //GKeepers[i].count = 0;
-    }
-    return NULL;    // ok
-}
-
-static struct s_Keeper *keeper_acquire( const void *ptr)
-{
-	/*
-	* Any hashing will do that maps pointers to 0..KEEPER_STATES_N-1 
-	* consistently.
-	*
-	* Pointers are often aligned by 8 or so - ignore the low order bits
-	*/
-	unsigned int i= ((unsigned long)(ptr) >> 3) % KEEPER_STATES_N;
-	struct s_Keeper *K= &GKeepers[i];
-
-	MUTEX_LOCK( &K->lock_);
-	//++ K->count;
-	return K;
-}
-
-static void keeper_release( struct s_Keeper *K)
-{
-	//-- K->count;
-	MUTEX_UNLOCK( &K->lock_);
-}
-
-/*
-* Call a function ('func_name') in the keeper state, and pass on the returned
-* values to 'L'.
-*
-* 'linda':          deep Linda pointer (used only as a unique table key, first parameter)
-* 'starting_index': first of the rest of parameters (none if 0)
-*
-* Returns: number of return values (pushed to 'L') or -1 in case of error
-*/
-static int keeper_call( lua_State *K, char const *func_name, lua_State *L, struct s_Linda *linda, uint_t starting_index)
-{
-	int const args = starting_index ? (lua_gettop(L) - starting_index +1) : 0;
-	int const Ktos = lua_gettop(K);
-	int retvals = -1;
-
-	STACK_GROW( K, 2);
-
-	lua_getglobal( K, func_name);
-	ASSERT_L( lua_isfunction(K, -1));
-
-	lua_pushlightuserdata( K, linda);
-
-	if( (args == 0) || luaG_inter_copy( L, K, args) == 0) // L->K
-	{
-		lua_call( K, 1 + args, LUA_MULTRET);
-
-		retvals = lua_gettop( K) - Ktos;
-		if( (retvals > 0) && luaG_inter_move( K, L, retvals) != 0) // K->L
-		{
-			retvals = -1;
-		}
-	}
-	// whatever happens, restore the stack to where it was at the origin
-	lua_settop( K, Ktos);
-	return retvals;
 }
 
 
@@ -1189,14 +985,7 @@ static void selfdestruct_atexit( void ) {
         DEBUGEXEC(fprintf( stderr, "Killed %d lane(s) at process end.\n", n ));
 #endif
     }
-	{
-    int i;
-    for(i=0;i<KEEPER_STATES_N;i++){
-      lua_close( GKeepers[i].L);
-      GKeepers[i].L = 0;
-      //assert( GKeepers[i].count == 0);
-    }
-  }
+    close_keepers();
 }
 
 

@@ -43,11 +43,25 @@ assert( nil_sentinel )
 local table_remove= assert( table.remove )
 local table_concat= assert( table.concat )
 
+--[[
 local function WR(...)
     if io then 
         io.stderr:write( table_concat({...},'\t').."\n" ) 
     end
 end
+
+local function DEBUG(title,ud,key)
+    assert( title and ud and key )
+
+    local data,incoming,_= tables(ud)
+
+    local s= tostring(data[key])
+    for _,v in ipairs( incoming[key] or {} ) do
+        s= s..", "..tostring(v)
+    end
+    WR( "*** "..title.." ("..tostring(key).."): ", s )
+end
+--]]
 
 -----
 -- Actual data store
@@ -91,20 +105,6 @@ local function tables( ud )
     end
     return _data[ud], _incoming[ud], _limits[ud]
 end
-
-
-local function DEBUG(title,ud,key)
-    assert( title and ud and key )
-
-    local data,incoming,_= tables(ud)
-
-    local s= tostring(data[key])
-    for _,v in ipairs( incoming[key] or {} ) do
-        s= s..", "..tostring(v)
-    end
-    WR( "*** "..title.." ("..tostring(key).."): ", s )
-end
-
 
 -----
 -- bool= send( linda_deep_ud, key, ... )

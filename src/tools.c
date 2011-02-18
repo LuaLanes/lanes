@@ -1278,3 +1278,72 @@ int luaG_inter_move( lua_State* L, lua_State *L2, uint_t n )
 	lua_pop( L, (int) n);
 	return ret;
 }
+
+/*---=== Serialize require ===---
+*/
+
+MUTEX_T require_cs;
+
+//---
+// [val]= new_require( ... )
+//
+// Call 'old_require' but only one lane at a time.
+//
+// Upvalues: [1]: original 'require' function
+//
+static int new_require( lua_State *L )
+{
+	int rc;
+	int args= lua_gettop(L);
+
+	STACK_GROW(L,1);
+	STACK_CHECK(L)
+
+	// Using 'lua_pcall()' to catch errors; otherwise a failing 'require' would
+	// leave us locked, blocking any future 'require' calls from other lanes.
+	//
+	MUTEX_LOCK( &require_cs);
+	{
+		lua_pushvalue( L, lua_upvalueindex(1) );
+		lua_insert( L, 1 );
+
+		rc= lua_pcall( L, args, 1 /*retvals*/, 0 /*errfunc*/ );
+		//
+		// LUA_ERRRUN / LUA_ERRMEM
+	}
+	MUTEX_UNLOCK( &require_cs);
+
+	if (rc)
+		lua_error(L);   // error message already at [-1]
+
+	STACK_END(L,0)
+	return 1;
+}
+
+/*
+* Serialize calls to 'require', if it exists
+*/
+void serialize_require( lua_State *L )
+{
+	STACK_GROW(L,1);
+	STACK_CHECK(L)
+
+	// Check 'require' is there; if not, do nothing
+	//
+	lua_getglobal( L, "require" );
+	if (lua_isfunction( L, -1 ))
+	{
+		// [-1]: original 'require' function
+
+		lua_pushcclosure( L, new_require, 1 /*upvalues*/ );
+		lua_setglobal( L, "require" );
+
+	}
+	else
+	{
+		// [-1]: nil
+		lua_pop(L,1);
+	}
+
+	STACK_END(L,0)
+}

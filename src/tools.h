@@ -72,5 +72,8 @@ int luaG_inter_move( lua_State *L, lua_State *L2, uint_t n);
 extern MUTEX_T deep_lock;
 extern MUTEX_T mtid_lock;
 
+void serialize_require( lua_State *L);
+extern MUTEX_T require_cs;
+
 #endif
     // TOOLS_H

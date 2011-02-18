@@ -7,7 +7,7 @@
 
 MODULE=lanes
 
-SRC=lanes.c threading.c tools.c
+SRC=lanes.c threading.c tools.c keeper.c
 
 OBJ=$(SRC:.c=.o)
 
@@ -134,10 +134,14 @@ lanes.o: keeper.lch
 # Note: 'luac -o -' could be used on systems other than Windows (where pipes
 #       are binary). We need to support MinGW as well, so a temporary file.
 #
+# mode 1: embed bytecode version
+#%.lch: %.lua
+#	$(LUAC) -o $@.tmp $<
+#	$(LUA) ../tools/bin2c.lua $@.tmp -o $@
+#	-rm $@.tmp
+# mode 2: embed text version (LuaJIT2-compatible)
 %.lch: %.lua
-	$(LUAC) -o $@.tmp $<
-	$(LUA) ../tools/bin2c.lua $@.tmp -o $@
-	-rm $@.tmp
+	$(LUA) ../tools/bin2c.lua $< -o $@
 
 #---
 # NSLU2 "slug" Linux ARM

@@ -3,6 +3,10 @@ CHANGES:
 
 CHANGE X:
 
+CHANGE 28 BGe 18-Feb-2011
+    - moved keeper-related code in a separate source file
+    - keeper.lua is now embedded in text form instead of bytecode to improve LuaJIT2-compatibility
+
 CHANGE 27 BGe 17-Feb-2011
     - we know Lanes is loaded in the master state, so we don't force it
       to be required in every lane too when a linda deep userdata is copied
