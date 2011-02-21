@@ -3,9 +3,12 @@ CHANGES:
 
 CHANGE X:
 
+CHANGE 29 BGe 21-Feb-2011
+    Make the number of internal keeper states selectable by an optional parameter passed to require.
+
 CHANGE 28 BGe 18-Feb-2011
-    - moved keeper-related code in a separate source file
-    - keeper.lua is now embedded in text form instead of bytecode to improve LuaJIT2-compatibility
+    Moved keeper-related code in a separate source file
+    keeper.lua is now embedded in text form instead of bytecode to improve LuaJIT2-compatibility
 
 CHANGE 27 BGe 17-Feb-2011
     - we know Lanes is loaded in the master state, so we don't force it
@@ -26,7 +29,7 @@ CHANGE 26 BGe 14-Feb-2011:
     inter-state data copy for unsupported types
 
 CHANGE 25 BGe 12-Feb-2011:
-    Changed idfunc signature and contract to clarify that fact it is not lua-callable
+    Changed idfunc signature and contract to clarify the fact it is not lua-callable
     and to be able to require the module it was exported from in the target lanes
 
 CHANGE 24 DPtr 25-Jan-2011:
@@ -56,7 +59,7 @@ CHANGE 19 BGe 2-Dec-2010:
 
 CHANGE 18 BGe 6-Oct-2010:
     Fixed 'memory leak' in some situations where a free running lane is collected before application shutdown
-	A bit of code cleanup
+    A bit of code cleanup
 
 CHANGE 17 BGe 21-Sept-2010:
     Fixed stupid compilation errors.

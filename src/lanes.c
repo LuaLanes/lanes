@@ -4,20 +4,7 @@
  * Multithreading in Lua.
  * 
  * History:
- *      3-Jan-11  (2.0.10): linda_send bugfix, was waiting on the wrong signal
- *      3-Dec-10  (2.0.9): Added support to generate a lane from a string
- *      2-Dec-10  (2.0.8): Fix LuaJIT2 incompatibility (no 'tostring' hijack anymore)
- *      ????????  (2.0.7): Fixed 'memory leak' in some situations where a free running
- *                  lane is collected before application shutdown
- *      24-Aug-10 (2.0.6): Mem fixes, argument checking (lua_toLinda result), thread name
- *      24-Jun-09 (2.0.4): Made friendly to already multithreaded host apps.
- *      20-Oct-08 (2.0.2): Added closing of free-running threads, but it does
- *                  not seem to eliminate the occasional segfaults at process
- *                  exit.
- *          ...
- *      24-Jun-08 .. 14-Aug-08 AKa: Major revise, Lanes 2008 version (2.0 rc1)
- *          ...
- *      18-Sep-06 AKa: Started the module.
+ *      See CHANGES
  *
  * Platforms (tested internally):
  *      OS X (10.5.7 PowerPC/Intel)
@@ -64,7 +51,7 @@
  *      ...
  */
 
-const char *VERSION= "2.0.11";
+const char *VERSION= "2.1.0";
 
 /*
 ===============================================================================
@@ -1913,7 +1900,7 @@ static const struct luaL_reg lanes_functions [] = {
 /*
 * One-time initializations
 */
-static void init_once_LOCKED( lua_State *L, volatile DEEP_PRELUDE ** timer_deep_ref )
+static void init_once_LOCKED( lua_State *L, volatile DEEP_PRELUDE ** timer_deep_ref, int const nbKeepers)
 {
     const char *err;
 
@@ -1964,7 +1951,7 @@ static void init_once_LOCKED( lua_State *L, volatile DEEP_PRELUDE ** timer_deep_
         }
   #endif
 #endif
-    err= init_keepers();
+    err= init_keepers( nbKeepers);
     if (err)
     {
             luaL_error( L, "Unable to initialize: %s", err );
@@ -2001,8 +1988,11 @@ int
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 __declspec(dllexport)
 #endif
-	luaopen_lanes( lua_State *L ) {
-
+luaopen_lanes( lua_State *L )
+{
+    static volatile int /*bool*/ go_ahead; // = 0
+    int const nbKeepers = luaL_optint( L, 2, 1);
+    luaL_argcheck( L, nbKeepers > 0, 2, "Number of keeper states must be > 0");
     /*
     * Making one-time initializations.
     *
@@ -2010,7 +2000,6 @@ __declspec(dllexport)
     * there is no problem. But if the host is multithreaded, we need to lock around the
     * initializations. 
     */
-    static volatile int /*bool*/ go_ahead; // = 0
 #ifdef PLATFORM_WIN32
     {
         // TBD: Someone please replace this with reliable Win32 API code. Problem is,
@@ -2022,7 +2011,7 @@ __declspec(dllexport)
         static volatile unsigned my_number;   // = 0
         
         if (my_number++ == 0) {     // almost atomic
-            init_once_LOCKED(L, &timer_deep);
+            init_once_LOCKED(L, &timer_deep, nbKeepers);
             go_ahead= 1;    // let others pass
         } else {
             while( !go_ahead ) { Sleep(1); }    // changes threads
@@ -2036,7 +2025,7 @@ __declspec(dllexport)
             // Recheck now that we're within the lock
             //
             if (!go_ahead) {
-                init_once_LOCKED(L, &timer_deep);
+                init_once_LOCKED(L, &timer_deep, nbKeepers);
                 go_ahead= 1;
             }
         }

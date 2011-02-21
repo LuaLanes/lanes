@@ -8,7 +8,7 @@ struct s_Keeper
 	//int count;
 };
 
-const char *init_keepers(void);
+const char *init_keepers( int const _nbKeepers);
 struct s_Keeper *keeper_acquire( const void *ptr);
 void keeper_release( struct s_Keeper *K);
 int keeper_call( lua_State *K, char const *func_name, lua_State *L, void *linda, uint_t starting_index);

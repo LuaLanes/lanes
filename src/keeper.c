@@ -53,12 +53,6 @@
 /*---=== Keeper states ===---
 */
 
-/* The selected number is not optimal; needs to be tested. Even using just
-* one keeper state may be good enough (depends on the number of Lindas used
-* in the applications).
-*/
-#define KEEPER_STATES_N 1   // 6
-
 /*
 * Pool of keeper states
 *
@@ -66,12 +60,8 @@
 * bigger the pool, the less chances of unnecessary waits. Lindas map to the
 * keepers randomly, by a hash.
 */
-static struct s_Keeper GKeepers[KEEPER_STATES_N];
-
-/* We could use an empty table in 'keeper.lua' as the sentinel, but maybe
-* checking for a lightuserdata is faster.
-*/
-static bool_t nil_sentinel = 0;
+static struct s_Keeper *GKeepers = NULL;
+static int GNbKeepers = 0;
 
 /*
 * Lua code for the keeper states (baked in)
@@ -88,10 +78,13 @@ static char const keeper_chunk[]=
 *       unclosed, because it does not really matter. In production code, this
 *       function never fails.
 */
-const char *init_keepers(void)
+char const *init_keepers( int const _nbKeepers)
 {
-	unsigned int i;
-	for( i=0; i<KEEPER_STATES_N; i++ )
+	int i;
+	assert( _nbKeepers >= 1);
+	GNbKeepers = _nbKeepers;
+	GKeepers = malloc( _nbKeepers * sizeof( struct s_Keeper));
+	for( i = 0; i < _nbKeepers; ++ i)
 	{
 
 		// Initialize Keeper states with bare minimum of libs (those required
@@ -104,8 +97,11 @@ const char *init_keepers(void)
 		luaG_openlibs( L, "io,table,package" );     // 'io' for debugging messages, package because we need to require modules exporting idfuncs
 		serialize_require( L);
 
-		lua_pushlightuserdata( L, &nil_sentinel );
-		lua_setglobal( L, "nil_sentinel" );
+		/* We could use an empty table in 'keeper.lua' as the sentinel, but maybe
+		* checking for a lightuserdata is faster. (any unique value will do -> take the address of some global of ours)
+		*/
+		lua_pushlightuserdata( L, &GNbKeepers);
+		lua_setglobal( L, "nil_sentinel");
 
 		// Read in the preloaded chunk (and run it)
 		//
@@ -131,12 +127,12 @@ const char *init_keepers(void)
 struct s_Keeper *keeper_acquire( const void *ptr)
 {
 	/*
-	* Any hashing will do that maps pointers to 0..KEEPER_STATES_N-1 
+	* Any hashing will do that maps pointers to 0..GNbKeepers-1 
 	* consistently.
 	*
 	* Pointers are often aligned by 8 or so - ignore the low order bits
 	*/
-	unsigned int i= ((unsigned long)(ptr) >> 3) % KEEPER_STATES_N;
+	unsigned int i= ((unsigned long)(ptr) >> 3) % GNbKeepers;
 	struct s_Keeper *K= &GKeepers[i];
 
 	MUTEX_LOCK( &K->lock_);
@@ -190,10 +186,13 @@ int keeper_call( lua_State *K, char const *func_name, lua_State *L, void *linda,
 void close_keepers(void)
 {
 	int i;
-	for(i=0;i<KEEPER_STATES_N;i++)
+	for( i = 0; i < GNbKeepers; ++ i)
 	{
 		lua_close( GKeepers[i].L);
 		GKeepers[i].L = 0;
 		//assert( GKeepers[i].count == 0);
 	}
+	if( GKeepers) free( GKeepers);
+	GKeepers = NULL;
+	GNbKeepers = 0;
 }

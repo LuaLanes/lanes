@@ -52,7 +52,6 @@ local _version= assert(mm._version)
 
 local now_secs= assert( mm.now_secs )
 local wakeup_conv= assert( mm.wakeup_conv )
-local timer_gateway= assert( mm.timer_gateway )
 
 local max_prio= assert( mm.max_prio )
 
@@ -239,6 +238,7 @@ linda = mm.linda
 
 ---=== Timers ===---
 
+local timer_gateway= assert( mm.timer_gateway )
 --
 -- On first 'require "lanes"', a timer lane is spawned that will maintain
 -- timer tables and sleep in between the timer events. All interaction with
