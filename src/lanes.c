@@ -1656,7 +1656,7 @@ LUAG_FUNC( thread_cancel)
 //                   / "error"     finished at an error, error value is there
 //                   / "cancelled"   execution cancelled by M (state gone)
 //
-static char const * const thread_status_string( struct s_lane *s)
+static char const * thread_status_string( struct s_lane *s)
 {
 	enum e_status st = s->status;    // read just once (volatile)
 	char const * str;
