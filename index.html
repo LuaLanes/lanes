@@ -56,7 +56,7 @@
 
 <p><br/><font size="-1"><i>Copyright &copy; 2007-11 Asko Kauppi. All rights reserved.</i>
     <br>Lua Lanes is published under the same <A HREF="http://en.wikipedia.org/wiki/MIT_License">MIT license</A> as Lua 5.1.
-    </p><p>This document was revised on 21-Feb-11, and applies to version 2.1.0.
+    </p><p>This document was revised on 1-Mar-11, and applies to version 2.1.0.
 </font></p>
 
 </center>
@@ -243,6 +243,7 @@ also in the new lanes.
     <tt>:receive()</tt> or <tt>:send()</tt> call.
     With this option, one can set cancellation check to occur every <tt>N</tt>
     Lua statements. The value <tt>true</tt> uses a default value (100).
+    It is also possible to manually test for cancel requests with <tt>cancel_test()</tt>.
     </td></tr>
 
     <tr valign=top><td/><td>
@@ -250,20 +251,21 @@ also in the new lanes.
     <td>
     Sets the globals table for the launched threads. This can be used for giving
     them constants.
-    </p><p>
+    <br>
     The global values of different lanes are in no manner connected;
-    modifying one will only affect the particular lane. Settings the variable 'threadName' in this table makes VS display the sent name instead of the normal thread name while debugging.
+    modifying one will only affect the particular lane.
     </td></tr>
 
     <tr valign=top><td width=40><td>
         <code>.priority</code> <br/><nobr>-2..+2</nobr></td>
         <td>The priority of lanes generated. -2 is lowest, +2 is highest.
-        <p>
+        <br>
     Implementation and dependability of priorities varies
     by platform. Especially Linux kernel 2.6 is not supporting priorities in user mode.
     </td></tr>
   </table>
-
+  <p>Each lane also gets a function <tt>set_debug_threadname()</tt> that it can use anytime to do as the name says.
+Supported debuggers are Microsoft Visual Studio (for the C side) and Decoda (for the Lua side).
 </p>
 
 <h3>Free running lanes</h3>
@@ -374,10 +376,15 @@ that id over a Linda once that thread is done (as the last thing you do).
 <h2 id="cancelling">Cancelling</h2>
 
 <table border=1 bgcolor="#E0E0FF" cellpadding=10><tr><td>
-    <code>bool= lane_h:cancel( [timeout_secs=0.0,] [force_kill_bool=false] )</code>
+    <code>bool= lane_h:cancel( [timeout_secs=0.0,] [force_kill_bool=false] )
+    <br/>
+    <br/>
+      <code>
+     bool= cancel_test()
+      </code>
 </table>
 
-<p>Sends a cancellation request to the lane. If <tt>timeout_secs</tt> is non-zero, waits
+<p><tt>cancel()</tt>sends a cancellation request to the lane. If <tt>timeout_secs</tt> is non-zero, waits
 for the request to be processed, or a timeout to occur.
 Returns <tt>true</tt> if the lane was already done (in <tt>"done"</tt>, <tt>"error"</tt> or <tt>"cancelled"</tt> status)
 or if the cancellation was fruitful within timeout period.
@@ -387,8 +394,9 @@ OS thread running the lane is forcefully killed. This means no GC, and should
 generally be the last resort.
 </p>
 <p>Cancellation is tested <u>before</u> going to sleep in <tt>receive()</tt> or <tt>send()</tt> calls
-and after executing <tt>cancelstep</tt> Lua statements. A currently pending <tt>receive</tt>
-or <tt>send</tt> call is currently not awakened, and may be a reason for a non-detected cancel.
+and after executing <tt>cancelstep</tt> Lua statements. A currently pending <tt>receive()</tt>
+or <tt>send()</tt> call is currently not awakened, and may be a reason for a non-detected cancel.
+It is also possible to manually test for cancel requests with <tt>cancel_test()</tt>.
 </p>
 
 
@@ -799,7 +807,7 @@ can be used for custom userdata as well. Here's what to do.
 </p>
 <ol>
     <li>Provide an <i>identity function</i> for your userdata, in C. This function is
-      used for creation and deletion of your deep userdata (the shared resource),
+used for creation and deletion of your deep userdata (the shared resource),
       and for making metatables for the state-specific proxies for accessing it. The
       prototype is
       <table border="1" bgcolor="#E0E0FF" cellpadding="10">
@@ -817,12 +825,12 @@ can be used for custom userdata as well. Here's what to do.
       <tt>"delete"</tt>: receives this same pointer on the stack, and should cleanup the object.</li>
     <li>
       <tt>"metatable"</tt>: should build a metatable for the object. Don't cache the metatable
-      yourself, Lanes takes care of it ("metatable" should only be invoked once).</li>
+yourself, Lanes takes care of it ("metatable" should only be invoked once).</li>
       <li>
         <tt>"module"</tt>: is the name of the module that exports the idfunc,
-        to be pushed on the stack as a string. It is necessary so that Lanes can require it in
-        any Lane and keeper state that receives a userdata. This is to prevent crashes in situations
-        where the module could be unloaded while the idfunc pointer is still held.</li>
+to be pushed on the stack as a string. It is necessary so that Lanes can require it in
+any Lane and keeper state that receives a userdata. This is to prevent crashes in situations
+where the module could be unloaded while the idfunc pointer is still held.</li>
 </ul>
 Take a look at <tt>linda_id</tt> in <tt>lanes.c</tt>.
     </li>
@@ -917,10 +925,10 @@ Here are some things one should consider, if best performance is vital:
     merged into one main timer state (see <tt>timer.lua</tt>); no OS side
     timers are utilized.
     </li>
-    <li>Lindas are hashed to a number of "keeper states", which are a locking entity.
-    If you are using a lot of Linda objects, it may be useful to try having more of
-    these keeper states. By default, only one is used but this is an implementation detail.
-    It is possible to <tt>require( "lanes", N)</tt> to use more keeper states.
+    <li>Lindas are hashed to a fixed number of "keeper states", which are a locking entity.
+    If you are using a lot of Linda objects,
+    it may be useful to try having more of these keeper states. By default,
+    only one is used (see <tt>KEEPER_STATES_N</tt>), but this is an implementation detail.
     </li>
 </ul>
 </p>
@@ -952,31 +960,15 @@ its actual value.
 <h2 id="changes">Change log</h2>
 
 <p>
-Feb-2011 (2.1.0)
-<ul>
-  <li>Added an auto-require mechanism to ensure any deep userdata transiting in a lane causes its parent module to be required in that lane
-  <ul>
-    <li>Changed idfunc signature and contract to clarify the fact it is not lua-callable and to be able to require the module it was exported from in the target lanes</li>
-    <li>When a deep userdata idfunc requests a module to be required, manually check that it is not loaded before requiring it instead of relying on the require function's loop detection feature</li>
-    <li>When a module must be required, raise an error if the 'require' function is not found in the target state</li>
-    <li>We know Lanes is loaded in the master state, so we don't force it to be required in every lane too when a linda deep userdata is copied</li>
-  </ul>
-  </li>
-  <li>Fixed application hang-up because keeper state was not released in case of errors thrown by inter-state data copy for unsupported types</li>
-  <li>Refactor lane proxy implementation: it is now a full userdata instead of a table, and its methods are implemented in C instead of Lua
-    <ul>
-      <li>its metatable is no longer accessible</li>
-      <li>writing to the proxy raises an error</li>
-      <li>it is no longer possible to overwrite its join() and cancel() methods</li>
-    </ul>
-  </li>
-  <li>Moved keeper-related code in a separate source file</li>
-  <li>keeper.lua is now embedded in text form instead of bytecode to improve LuaJIT2-compatibility</li>
-  <li>Make the number of internal keeper states selctable by an optional parameter passed to require.</li>
-</ul>
 
-Feb-2011 (2.0.11):
+Mar-2011 (2.1.0)
 <ul>
+  <li>fixed potential crash at application shutdown when calling lua_close() on a killed thread's VM.</li>
+  <li>exposed cancel_test() in the lanes to enable manual testing for cancellation requests.</li>
+  <li>removed kludgy {globals={threadName}} support, replaced with a new function set_debug_threadname().</li>
+</ul>
+Feb-2011 (2.0.11):
+  <ul>
   <li>Fixed bug where reference to Linda object was dropped for a short time (crashing if GC was run during that time).</li>
   <li>Changed the atexit code to trip the timer thread's write signal.</li>
   <li>Changed lanes.c to export functions as a module rather than writing them directly to the globals table.</li>
