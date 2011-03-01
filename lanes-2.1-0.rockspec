@@ -5,6 +5,7 @@
 --      <http://luarocks.org/en/Rockspec_format>
 --
 -- History:
+--  BGe 1-Mar-2011: 2.1.0
 --  BGe 27-Jan-2011: 2.0.11 (see CHANGES)
 --  AKa 1-Sep-2008: 2.0-2 (NOT sent to list): fixed VC++ not finding DLL issue
 --  AKa 20-Aug-2008: 2.0-1 sent to luarocks-developers
@@ -12,11 +13,11 @@
 
 package = "Lanes"
 
-version = "2.0-11"
+version = "2.1-0"
 
 source= {
     url= "git://github.com/LuaLanes/lanes.git",
-    branch= "v2.0.11"
+    branch= "v2.1.0"
 }
 
 description = {
