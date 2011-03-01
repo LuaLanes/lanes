@@ -399,8 +399,8 @@ if first_time then
     -- We let the timer lane be a "free running" thread; no handle to it
     -- remains.
     --
-    gen( "io,package", { priority=max_prio, globals={threadName="LanesTimer"} }, function()
-
+    gen( "io,package", { priority=max_prio}, function()
+        set_debugger_threadname( "LanesTimer")
         while true do
             local next_wakeup= check_timers()
 

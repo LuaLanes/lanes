@@ -119,8 +119,6 @@ struct s_lane {
 	//
 	// M: sub-thread OS thread
 	// S: not used
-   
-   char threadName[64]; //Optional, for debugging and such. owerflowable by a strcpy.
 
 	lua_State *L;
 	//
@@ -131,6 +129,10 @@ struct s_lane {
 	// 
 	// M: sets to PENDING (before launching)
 	// S: updates -> RUNNING/WAITING -> DONE/ERROR_ST/CANCELLED
+
+	volatile SIGNAL_T waiting_on;
+	//
+	// When status is WAITING, points on the linda's signal the thread waits on, else NULL
 
 	volatile bool_t cancel_request;
 	//
@@ -333,17 +335,21 @@ LUAG_FUNC( linda_send)
 				{
 					prev_status = s->status;
 					s->status = WAITING;
+					ASSERT_L( s->waiting_on == NULL);
+					s->waiting_on = &linda->read_happened;
 				}
 				if( !SIGNAL_WAIT( &linda->read_happened, &K->lock_, timeout))
 				{
 					if( s)
 					{
+						s->waiting_on = NULL;
 						s->status = prev_status;
 					}
 					break;
 				}
 				if( s)
 				{
+					s->waiting_on = NULL;
 					s->status = prev_status;
 				}
 			}
@@ -450,17 +456,21 @@ LUAG_FUNC( linda_receive)
 				{
 					prev_status = s->status;
 					s->status = WAITING;
+					ASSERT_L( s->waiting_on == NULL);
+					s->waiting_on = &linda->write_happened;
 				}
 				if( !SIGNAL_WAIT( &linda->write_happened, &K->lock_, timeout))
 				{
 					if( s)
 					{
+						s->waiting_on = NULL;
 						s->status = prev_status;
 					}
 					break;
 				}
 				if( s)
 				{
+					s->waiting_on = NULL;
 					s->status = prev_status;
 				}
 			}
@@ -870,27 +880,32 @@ volatile DEEP_PRELUDE *timer_deep;  // = NULL
 /*
 * Process end; cancel any still free-running threads
 */
-static void selfdestruct_atexit( void ) {
-
+static void selfdestruct_atexit( void )
+{
     if (selfdestruct_first == SELFDESTRUCT_END) return;    // no free-running threads
 
-    // Signal _all_ still running threads to exit
+    // Signal _all_ still running threads to exit (including the timer thread)
     //
     MUTEX_LOCK( &selfdestruct_cs );
     {
         struct s_lane *s= selfdestruct_first;
-        while( s != SELFDESTRUCT_END ) {
-            s->cancel_request= TRUE;
-            s= s->selfdestruct_next;
+        while( s != SELFDESTRUCT_END )
+        {
+            // attempt a regular unforced cancel with a small timeout
+            bool_t cancelled = thread_cancel( s, 0.0001, FALSE);
+            // if we failed, and we know the thread is waiting on a linda
+            if( cancelled == FALSE && s->status == WAITING && s->waiting_on != NULL)
+            {
+                // signal the linda the wake up the thread so that it can react to the cancel query
+                // let us hope we never land here with a pointer on a linda that has been destroyed...
+                SIGNAL_T waiting_on = s->waiting_on;
+                s->waiting_on = NULL;
+                SIGNAL_ALL( waiting_on);
+            }
+            s = s->selfdestruct_next;
         }
     }
     MUTEX_UNLOCK( &selfdestruct_cs );
-
-    // Tell the timer thread to check it's cancel request
-    {
-        struct s_Linda *td = timer_deep->deep;
-        SIGNAL_ALL( &td->write_happened);
-    }
 
     // When noticing their cancel, the lanes will remove themselves from
     // the selfdestruct chain.
@@ -914,15 +929,37 @@ static void selfdestruct_atexit( void ) {
     //  -- AKa 25-Oct-2008
     //
     #ifndef ATEXIT_WAIT_SECS
-    # define ATEXIT_WAIT_SECS (0.1)
+    # define ATEXIT_WAIT_SECS (0.25)
     #endif
     {
         double t_until= now_secs() + ATEXIT_WAIT_SECS;
-    
-        while( selfdestruct_first != SELFDESTRUCT_END ) {
+
+        while( selfdestruct_first != SELFDESTRUCT_END )
+        {
             YIELD();    // give threads time to act on their cancel
-            
-            if (now_secs() >= t_until) break;
+            {
+                // count the number of cancelled thread that didn't have the time to act yet
+                int n = 0;
+                double t_now = 0.0;
+                MUTEX_LOCK( &selfdestruct_cs );
+                {
+                    struct s_lane *s = selfdestruct_first;
+                    while( s != SELFDESTRUCT_END)
+                    {
+                        if( s->cancel_request)
+                            ++ n;
+                        s = s->selfdestruct_next;
+                    }
+                }
+                MUTEX_UNLOCK( &selfdestruct_cs );
+                // if timeout elapsed, or we know all threads have acted, stop waiting
+                t_now = now_secs();
+                if( n == 0 || ( t_now >= t_until))
+                {
+                    DEBUGEXEC(fprintf( stderr, "%d uncancelled lane(s) remain after waiting %fs at process end.\n", n, ATEXIT_WAIT_SECS - (t_until - t_now)));
+                    break;
+                }
+            }
         }
     }
 #endif
@@ -951,18 +988,21 @@ static void selfdestruct_atexit( void ) {
         //
         DEBUGEXEC(fprintf( stderr, "Left %d lane(s) with cancel request at process end.\n", n ));
 #else
+        // first thing we did was to raise the linda signals the threads were waiting on (if any)
+        // therefore, any well-behaved thread should be in CANCELLED state
+        // these are not running, and the state can be closed
         n=0;
         MUTEX_LOCK( &selfdestruct_cs );
         {
             struct s_lane *s= selfdestruct_first;
-            while( s != SELFDESTRUCT_END ) {
+            while( s != SELFDESTRUCT_END)
+            {
                 struct s_lane *next_s= s->selfdestruct_next;
                 s->selfdestruct_next= NULL;     // detach from selfdestruct chain
-
-                THREAD_KILL( &s->thread );
-                lua_close(s->L);
-                free(s);
-                s= next_s;
+                THREAD_KILL( &s->thread);
+                // NO lua_close() in this case because we don't know where execution of the state was interrupted
+                free( s);
+                s = next_s;
                 n++;
             }
             selfdestruct_first= SELFDESTRUCT_END;
@@ -1020,6 +1060,19 @@ static void cancel_hook( lua_State *L, lua_Debug *ar ) {
     if (cancel_test(L)) cancel_error(L);
 }
 
+
+//---
+// bool= cancel_test()
+//
+// Available inside the global namespace of lanes
+// returns a boolean saying if a cancel request is pending
+//
+LUAG_FUNC( cancel_test)
+{
+	bool_t test = cancel_test( L);
+	lua_pushboolean( L, test);
+	return 1;
+}
 
 //---
 // = _single( [cores_uint=1] )
@@ -1131,12 +1184,12 @@ typedef struct tagTHREADNAME_INFO
 } THREADNAME_INFO;
 #pragma pack(pop)
 
-void SetThreadName( DWORD dwThreadID, char* threadName)
+void SetThreadName( DWORD dwThreadID, char const *_threadName)
 {
    THREADNAME_INFO info;
    Sleep(10);
    info.dwType = 0x1000;
-   info.szName = threadName;
+   info.szName = _threadName;
    info.dwThreadID = dwThreadID;
    info.dwFlags = 0;
 
@@ -1150,6 +1203,22 @@ void SetThreadName( DWORD dwThreadID, char* threadName)
 }
 #endif
 
+LUAG_FUNC( set_debug_threadname)
+{
+	char const *threadName;
+	luaL_checktype( L, -1, LUA_TSTRING);
+	threadName = lua_tostring( L, -1);
+
+#if defined PLATFORM_WIN32  && !defined __GNUC__
+	// to see thead name in Visual Studio C debugger
+	SetThreadName(-1, threadName);
+#endif
+
+	// to see VM name in Decoda debugger Virtual Machine window
+	lua_setglobal( L, "decoda_name");
+
+	return 0;
+}
 
 //---
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
@@ -1162,17 +1231,22 @@ void SetThreadName( DWORD dwThreadID, char* threadName)
     int rc, rc2;
     lua_State *L= s->L;
 
- 
-#if defined PLATFORM_WIN32  && !defined __GNUC__
-	SetThreadName(-1, s->threadName);
-#endif
-
    s->status= RUNNING;  // PENDING -> RUNNING
 
     // Tie "set_finalizer()" to the state
     //
     lua_pushcfunction( L, LG_set_finalizer );
     lua_setglobal( L, "set_finalizer" );
+
+    // Tie "set_debug_threadname()" to the state
+    //
+    lua_pushcfunction( L, LG_set_debug_threadname);
+    lua_setglobal( L, "set_debug_threadname" );
+
+    // Tie "cancel_test()" to the state
+    //
+    lua_pushcfunction( L, LG_cancel_test);
+    lua_setglobal( L, "cancel_test" );
 
 #ifdef ERROR_FULL_STACK
     STACK_GROW( L, 1 );
@@ -1240,7 +1314,7 @@ void SetThreadName( DWORD dwThreadID, char* threadName)
         //
         lua_newtable(L);
     }
-
+    s->waiting_on = NULL; // just in case
     if (s->selfdestruct_next != NULL) {
         // We're a free-running thread and no-one's there to clean us up.
         //
@@ -1276,7 +1350,6 @@ void SetThreadName( DWORD dwThreadID, char* threadName)
         MUTEX_UNLOCK( &s->done_lock_ );
     #endif
     }
-
     return 0;   // ignored
 }
 
@@ -1295,7 +1368,6 @@ LUAG_FUNC( thread_new )
 	lua_State *L2;
 	struct s_lane *s;
 	struct s_lane **ud;
-	const char *threadName = 0;
 
 	const char *libs= lua_tostring( L, 2 );
 	uint_t cs= luaG_optunsigned( L, 3,0);
@@ -1330,10 +1402,7 @@ LUAG_FUNC( thread_new )
 			luaL_error( L, "Expected table, got %s", luaG_typename(L,glob) );
 
 		lua_pushvalue( L, glob );
-		lua_pushstring( L, "threadName");
-		lua_gettable( L, -2);
-		threadName = lua_tostring( L, -1);
-		lua_pop( L, 1);
+
 		luaG_inter_move( L, L2, 1);     // moves the table to L2
 
 		// L2 [-1]: table of globals
@@ -1398,10 +1467,8 @@ LUAG_FUNC( thread_new )
 	//memset( s, 0, sizeof(struct s_lane) );
 	s->L= L2;
 	s->status= PENDING;
+	s->waiting_on = NULL;
 	s->cancel_request= FALSE;
-
-	threadName = threadName ? threadName : "<unnamed thread>";
-	strcpy(s->threadName, threadName);
 
 #if !( (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC) || (defined PTHREAD_TIMEDJOIN) )
 	MUTEX_INIT( &s->done_lock_ );
@@ -1484,7 +1551,7 @@ LUAG_FUNC( thread_gc )
 #if 0
 		lua_close( s->L );
 		s->L = 0;
-#else
+#else // 0
 		DEBUGEXEC(fprintf( stderr, "** Joining with a killed thread (needs testing) **" ));
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC) || (defined PTHREAD_TIMEDJOIN)
 		THREAD_WAIT( &s->thread, -1 );
@@ -1492,7 +1559,7 @@ LUAG_FUNC( thread_gc )
 		THREAD_WAIT( &s->thread, &s->done_signal_, &s->done_lock_, &s->status, -1 );
 #endif
 		DEBUGEXEC(fprintf( stderr, "** Joined ok **" ));
-#endif
+#endif // 0
 	}
 	else if( s->L)
 	{
@@ -1529,54 +1596,55 @@ LUAG_FUNC( thread_gc )
 //          managed to cancel it.
 //          false if the cancellation timed out, or a kill was needed.
 //
-LUAG_FUNC( thread_cancel )
+static bool_t thread_cancel( struct s_lane *s, double secs, bool_t force)
 {
-    struct s_lane *s= lua_toLane(L,1);
-    double secs= 0.0;
-    uint_t force_i=2;
-    bool_t force, done= TRUE;
-    
-    if (lua_isnumber(L,2)) {
-        secs= lua_tonumber(L,2);
-        force_i++;
-    } else if (lua_isnil(L,2))
-        force_i++;
-
-    force= lua_toboolean(L,force_i);     // FALSE if nothing there
-    
-    // We can read 's->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
-    //
-    if (s->status < DONE) {
-        s->cancel_request= TRUE;    // it's now signalled to stop
-
-        done= thread_cancel( s, secs, force );
-    }
-
-    lua_pushboolean( L, done );
-    return 1;
-}
-
-static bool_t thread_cancel( struct s_lane *s, double secs, bool_t force )
-{
-    bool_t done= 
+	bool_t done= TRUE;
+	// We can read 's->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
+	//
+	if( s->status < DONE)
+	{
+		s->cancel_request = TRUE;    // it's now signalled to stop
+		done= 
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC) || (defined PTHREAD_TIMEDJOIN)
-        THREAD_WAIT( &s->thread, secs );
+			THREAD_WAIT( &s->thread, secs);
 #else
-        THREAD_WAIT( &s->thread, &s->done_signal_, &s->done_lock_, &s->status, secs );
+			THREAD_WAIT( &s->thread, &s->done_signal_, &s->done_lock_, &s->status, secs);
 #endif
 
-    if ((!done) && force) {
-        // Killing is asynchronous; we _will_ wait for it to be done at
-        // GC, to make sure the data structure can be released (alternative
-        // would be use of "cancellation cleanup handlers" that at least
-        // PThread seems to have).
-        //
-        THREAD_KILL( &s->thread );
-        s->mstatus= KILLED;     // mark 'gc' to wait for it
-    }
-    return done;
+		if ((!done) && force)
+		{
+			// Killing is asynchronous; we _will_ wait for it to be done at
+			// GC, to make sure the data structure can be released (alternative
+			// would be use of "cancellation cleanup handlers" that at least
+			// PThread seems to have).
+			//
+			THREAD_KILL( &s->thread);
+			s->mstatus= KILLED;     // mark 'gc' to wait for it
+		}
+	}
+	return done;
 }
 
+LUAG_FUNC( thread_cancel)
+{
+	struct s_lane *s= lua_toLane(L,1);
+	double secs= 0.0;
+	uint_t force_i=2;
+	bool_t force, done= TRUE;
+
+	if (lua_isnumber(L,2)) {
+		secs= lua_tonumber(L,2);
+		force_i++;
+	} else if (lua_isnil(L,2))
+		force_i++;
+
+	force= lua_toboolean(L,force_i);     // FALSE if nothing there
+
+	done = thread_cancel( s, secs, force);
+
+	lua_pushboolean( L, done);
+	return 1;
+}
 
 //---
 // str= thread_status( lane )

@@ -84,6 +84,7 @@ test:
 	$(MAKE) fibonacci
 	$(MAKE) recursive
 	$(MAKE) func_is_string
+	$(MAKE) atexit
 
 basic: tests/basic.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
@@ -152,6 +153,9 @@ appendud: tests/appendud.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 func_is_string: tests/func_is_string.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+atexit: tests/atexit.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 #---

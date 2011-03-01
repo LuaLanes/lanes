@@ -94,6 +94,12 @@ char const *init_keepers( int const _nbKeepers)
 		if (!L)
 			return "out of memory";
 
+		// to see VM name in Decoda debugger
+		lua_pushliteral( L, "Keeper #");
+		lua_pushinteger( L, i + 1);
+		lua_concat( L, 2);
+		lua_setglobal( L, "decoda_name");
+
 		luaG_openlibs( L, "io,table,package" );     // 'io' for debugging messages, package because we need to require modules exporting idfuncs
 		serialize_require( L);
 
