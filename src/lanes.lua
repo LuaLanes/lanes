@@ -400,7 +400,7 @@ if first_time then
     -- remains.
     --
     gen( "io,package", { priority=max_prio}, function()
-        set_debugger_threadname( "LanesTimer")
+        set_debug_threadname( "LanesTimer")
         while true do
             local next_wakeup= check_timers()
 
