@@ -130,7 +130,7 @@ struct s_lane {
 	// M: sets to PENDING (before launching)
 	// S: updates -> RUNNING/WAITING -> DONE/ERROR_ST/CANCELLED
 
-	volatile SIGNAL_T waiting_on;
+	SIGNAL_T * volatile waiting_on;
 	//
 	// When status is WAITING, points on the linda's signal the thread waits on, else NULL
 
@@ -898,7 +898,7 @@ static void selfdestruct_atexit( void )
             {
                 // signal the linda the wake up the thread so that it can react to the cancel query
                 // let us hope we never land here with a pointer on a linda that has been destroyed...
-                SIGNAL_T waiting_on = s->waiting_on;
+                SIGNAL_T *waiting_on = s->waiting_on;
                 s->waiting_on = NULL;
                 SIGNAL_ALL( waiting_on);
             }
