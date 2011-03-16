@@ -44,37 +44,6 @@ IF(UNIX AND NOT CYGWIN)
   SET(LIBS pthread)
 ENDIF(UNIX AND NOT CYGWIN)
 
-IF(MINGW)
-#~ 	FIND_FILE(MSVCR80 NAMES msvcr80.dll msvcr90.dll)
-#~ 	SET(LIBS gcc ${MSVCR80})
-#~ 	IF(MSVC90)
-
-#~ 		from InstallRequiredSystemLibraries.cmake
-
-		IF(CMAKE_CL_64)
-			SET(CMAKE_MSVC_ARCH amd64)
-		ELSE(CMAKE_CL_64)
-			SET(CMAKE_MSVC_ARCH x86)
-		ENDIF(CMAKE_CL_64)
-
-		GET_FILENAME_COMPONENT(devenv_dir "${CMAKE_MAKE_PROGRAM}" PATH)
-		GET_FILENAME_COMPONENT(base_dir "${devenv_dir}/../.." ABSOLUTE)
-
-		# Find the runtime library redistribution directory.
-		FIND_PATH(MSVC90_REDIST_DIR NAMES ${CMAKE_MSVC_ARCH}/Microsoft.VC90.CRT/Microsoft.VC90.CRT.manifest
-		PATHS
-		"[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VisualStudio\\9.0;InstallDir]/../../VC/redist"
-		"[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\VCExpress\\9.0;InstallDir]/../../VC/redist"
-		"${base_dir}/VC/redist"
-		)
-		SET(MSVC90_CRT_DIR "${MSVC90_REDIST_DIR}/${CMAKE_MSVC_ARCH}/Microsoft.VC90.CRT")
-		SET(LIBS gcc msvcr90 "${MSVC90_CRT_DIR}/msvcr90.dll")
-
-#~ 	ENDIF()
-
-ENDIF()
-
-
 
 
 TARGET_LINK_LIBRARIES(lua51-lanes ${LUA_LIBRARY} ${LIBS})

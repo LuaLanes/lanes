@@ -32,13 +32,6 @@ typedef int bool_t;
 
 typedef unsigned int uint_t;
 
-#if defined(PLATFORM_WIN32) && defined(__GNUC__)
-/* MinGW with MSVCR80.DLL */
-/* Do this BEFORE including time.h so that it is declaring _mktime32()
- * as it would have declared mktime().
- */
-# define mktime _mktime32
-#endif
 #include <time.h>
 
 /* Note: ERROR is a defined entity on Win32
@@ -71,7 +64,7 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   typedef unsigned THREAD_RETURN_T;
 
   #define SIGNAL_T HANDLE
-  
+
   #define YIELD() Sleep(0)
 #else
   // PThread (Linux, OS X, ...)
@@ -101,7 +94,7 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   typedef pthread_cond_t SIGNAL_T;
 
   void SIGNAL_ONE( SIGNAL_T *ref );
-  
+
   // Yield is non-portable:
   //
   //    OS X 10.4.8/9 has pthread_yield_np()
@@ -143,7 +136,7 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
   void THREAD_CREATE( THREAD_T *ref,
                       THREAD_RETURN_T (__stdcall *func)( void * ),
                       void *data, int prio /* -3..+3 */ );
-                 
+
 # define THREAD_PRIO_MIN (-3)
 # define THREAD_PRIO_MAX (+3)
 
@@ -162,10 +155,10 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 
   typedef pthread_t THREAD_T;
 
-  void THREAD_CREATE( THREAD_T *ref, 
+  void THREAD_CREATE( THREAD_T *ref,
                       THREAD_RETURN_T (*func)( void * ),
                       void *data, int prio /* -2..+2 */ );
-                      
+
 # if defined(PLATFORM_LINUX)
   volatile bool_t sudo;
 #  ifdef LINUX_SCHED_RR
@@ -180,7 +173,7 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 # endif
 #endif
 
-/* 
+/*
 * Win32 and PTHREAD_TIMEDJOIN allow waiting for a thread with a timeout.
 * Posix without PTHREAD_TIMEDJOIN needs to use a condition variable approach.
 */
