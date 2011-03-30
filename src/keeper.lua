@@ -40,8 +40,9 @@ assert( nil_sentinel )
 
 -- We only need to have base and table libraries (and io for debugging)
 --
-local table_remove= assert( table.remove )
-local table_concat= assert( table.concat )
+local table_concat = assert( table.concat)
+local table_insert = assert( table.insert)
+local table_remove = assert( table.remove)
 
 --[[
 local function WR(...)
@@ -230,6 +231,21 @@ end
 
 
 -----
+-- [val]= keys( linda_deep_ud)
+--
+function keys( ud)
+
+    local data,_,_= tables(ud)
+
+    local out = {}
+    for key, v in pairs( data) do
+        table_insert( out, key)
+    end
+    return (#out > 0) and out or nil
+end
+
+
+-----
 -- void= clear( linda_deep_ud )
 --
 -- Clear the data structures used for a Linda (at its destructor)
@@ -240,5 +256,3 @@ function clear( ud )
     _incoming[ud]= nil
     _limits[ud]= nil
 end
-
-

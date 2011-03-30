@@ -3,6 +3,11 @@ CHANGES:
 
 CHANGE X:
 
+CHANGE 30 BGe 30-Mar-2011
+* linda honors __tostring and __concat
+* new accessor linda:keys(), to retrieve the list of keys with pending data inside a linda
+* new lanes options packagepath and packagecpath, in case one needs to set them differently than the default
+
 CHANGE 29 BGe 1-Mar-2011
     fixed potential crash at application shutdown when calling lua_close() on a killed thread's VM.
     exposed cancel_test() in the lanes to enable manual testing for cancellation requests.

@@ -204,7 +204,7 @@ function gen( ... )
         end
     end
     
-    local prio, cs, g_tbl
+    local prio, cs, g_tbl, packagepath, packagecpath
 
     for k,v in pairs(opt) do
             if k=="priority" then prio= v
@@ -213,6 +213,8 @@ function gen( ... )
                                         type(v)=="number" and v or
                                         error( "Bad cancelstep: "..tostring(v), lev )
         elseif k=="globals" then g_tbl= v
+        elseif k=="packagepath" then packagepath= v
+        elseif k=="packagecpath" then packagecpath= v
         --..
         elseif k==1 then error( "unkeyed option: ".. tostring(v), lev )
         else error( "Bad option: ".. tostring(k), lev )
@@ -222,7 +224,7 @@ function gen( ... )
     -- Lane generator
     --
     return function(...)
-              return thread_new( func, libs, cs, prio, g_tbl, ...)     -- args
+              return thread_new( func, libs, cs, prio, g_tbl, packagepath, packagecpath, ...)     -- args
            end
 end
 
@@ -237,6 +239,8 @@ linda = mm.linda
 
 
 ---=== Timers ===---
+local want_timers = true
+if want_timers then
 
 local timer_gateway= assert( mm.timer_gateway )
 --
@@ -452,6 +456,7 @@ function timer( linda, key, a, period )
     timer_gateway:send( TGW_KEY, linda, key, wakeup_at, period )
 end
 
+end -- want_timers
 
 ---=== Lock & atomic generators ===---
 

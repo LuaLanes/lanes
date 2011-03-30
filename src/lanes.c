@@ -537,6 +537,33 @@ LUAG_FUNC( linda_set)
 
 
 /*
+* [val]= linda_keys( linda_ud)
+*
+* Get the list of keys with pending data in the linda
+*/
+LUAG_FUNC( linda_keys)
+{
+	struct s_Linda *linda= lua_toLinda( L, 1);
+	int pushed;
+	luaL_argcheck( L, linda, 1, "expected a linda object!");
+
+	{
+		struct s_Keeper *K = keeper_acquire( linda);
+		pushed = keeper_call( K->L, "keys", L, linda, 2);
+		ASSERT_L( pushed==0 || pushed==1 );
+		keeper_release(K);
+		// must trigger error after keeper state has been released
+		if( pushed < 0)
+		{
+			luaL_error( L, "tried to copy unsupported types");
+		}
+	}
+
+	return pushed;
+}
+
+
+/*
 * [val]= linda_get( linda_ud, key_num|str|bool|lightuserdata )
 *
 * Get a value from Linda.
@@ -606,6 +633,57 @@ LUAG_FUNC( linda_deep ) {
     return 1;
 }
 
+
+/*
+* string = linda:__tostring( linda_ud)
+*
+* Return the stringification of a linda
+*
+* Useful for concatenation or debugging purposes
+*/
+LUAG_FUNC( linda_tostring)
+{
+	char text[32];
+	struct s_Linda *linda = lua_toLinda( L, 1);
+	luaL_argcheck( L, linda, 1, "expected a linda object!");
+	sprintf( text, "linda: %p", linda);
+	lua_pushstring( L, text);
+	return 1;
+}
+
+
+/*
+* string = linda:__concat( a, b)
+*
+* Return the concatenation of a pair of items, one of them being a linda
+*
+* Useful for concatenation or debugging purposes
+*/
+LUAG_FUNC( linda_concat)
+{
+	struct s_Linda *linda1 = lua_toLinda( L, 1);
+	struct s_Linda *linda2 = lua_toLinda( L, 2);
+	// lua semantics should enforce that one of the parameters we got is a linda
+	luaL_argcheck( L, linda1 || linda2, 1, "expected a linda object!");
+	// replace the lindas by their string equivalents in the stack
+	if ( linda1)
+	{
+		char text[32];
+		sprintf( text, "linda: %p", linda1);
+		lua_pushstring( L, text);
+		lua_replace( L, 1);
+	}
+	if ( linda2)
+	{
+		char text[32];
+		sprintf( text, "linda: %p", linda2);
+		lua_pushstring( L, text);
+		lua_replace( L, 2);
+	}
+	// concat the result
+	lua_concat( L, 2);
+	return 1;
+}
 
 /*
 * Identity function of a shared userdata object.
@@ -678,17 +756,28 @@ static void linda_id( lua_State *L, char const * const which)
         // metatable is its own index
         lua_pushvalue( L, -1);
         lua_setfield( L, -2, "__index");
+
         // protect metatable from external access
         lua_pushboolean( L, 0);
         lua_setfield( L, -2, "__metatable");
+
+        lua_pushcfunction( L, LG_linda_tostring);
+        lua_setfield( L, -2, "__tostring");
+
+        lua_pushcfunction( L, LG_linda_concat);
+        lua_setfield( L, -2, "__concat");
+
         //
         // [-1]: linda metatable
         lua_pushcfunction( L, LG_linda_send );
         lua_setfield( L, -2, "send" );
-    
+
         lua_pushcfunction( L, LG_linda_receive );
         lua_setfield( L, -2, "receive" );
-    
+
+        lua_pushcfunction( L, LG_linda_keys );
+        lua_setfield( L, -2, "keys" );
+
         lua_pushcfunction( L, LG_linda_limit );
         lua_setfield( L, -2, "limit" );
 
@@ -1359,6 +1448,7 @@ LUAG_FUNC( set_debug_threadname)
 //                          [cancelstep_uint=0], 
 //                          [prio_int=0],
 //                          [globals_tbl],
+//                          [packagepath],
 //                          [... args ...] )
 //
 // Upvalues: metatable to use for 'lane_ud'
@@ -1373,8 +1463,10 @@ LUAG_FUNC( thread_new )
 	uint_t cs= luaG_optunsigned( L, 3,0);
 	int prio= (int)luaL_optinteger( L, 4,0);
 	uint_t glob= luaG_isany(L,5) ? 5:0;
+	uint_t ppath = luaG_isany(L,6) ? 6:0;
+	uint_t pcpath = luaG_isany(L,7) ? 7:0;
 
-#define FIXED_ARGS (5)
+#define FIXED_ARGS (7)
 	uint_t args= lua_gettop(L) - FIXED_ARGS;
 
 	if (prio < THREAD_PRIO_MIN || prio > THREAD_PRIO_MAX)
@@ -1423,6 +1515,44 @@ LUAG_FUNC( thread_new )
 
 		serialize_require( L2 );
 	}
+
+	// package.path
+	STACK_CHECK(L2)
+	if( ppath)
+	{
+		if (lua_type(L,ppath) != LUA_TSTRING)
+			luaL_error( L, "expected packagepath as string, got %s", luaG_typename(L,ppath));
+		lua_getglobal( L2, "package");
+		if( lua_isnil( L2, -1))
+		{
+			lua_pop( L2, 1);
+			luaL_error( L, "specifying a new path for packages, but lane doesn't load package library");
+		}
+		lua_pushvalue( L, ppath);
+		luaG_inter_move( L, L2, 1);     // moves the new path to L2
+		lua_setfield( L2, -2, "path"); // set package.path
+		lua_pop( L2, 1);
+	}
+	STACK_END(L2,0)
+
+	// package.cpath
+	STACK_CHECK(L2)
+	if( pcpath)
+	{
+		if (lua_type(L,pcpath) != LUA_TSTRING)
+			luaL_error( L, "expected packagecpath as string, got %s", luaG_typename(L,pcpath));
+		lua_getglobal( L2, "package");
+		if( lua_isnil( L2, -1))
+		{
+			lua_pop( L2, 1);
+			luaL_error( L, "specifying a new cpath for packages, but lane doesn't load package library");
+		}
+		lua_pushvalue( L, pcpath);
+		luaG_inter_move( L, L2, 1);     // moves the new cpath to L2
+		lua_setfield( L2, -2, "cpath"); // set package.cpath
+		lua_pop( L2, 1);
+	}
+	STACK_END(L2,0)
 
 	// Lane main function
 	//
