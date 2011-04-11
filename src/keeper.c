@@ -197,6 +197,7 @@ void close_keepers(void)
 		lua_close( GKeepers[i].L);
 		GKeepers[i].L = 0;
 		//assert( GKeepers[i].count == 0);
+		MUTEX_FREE( &GKeepers[i].lock_);
 	}
 	if( GKeepers) free( GKeepers);
 	GKeepers = NULL;
