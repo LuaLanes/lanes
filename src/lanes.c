@@ -51,7 +51,7 @@
  *      ...
  */
 
-const char *VERSION= "2.1.0";
+const char *VERSION= "2.2.0";
 
 /*
 ===============================================================================
@@ -249,6 +249,20 @@ static void linda_id( lua_State*, char const * const which);
 #define lua_toLinda(L,n) ((struct s_Linda *)luaG_todeep( L, linda_id, n ))
 
 
+static void check_key_types( lua_State *L, int _start, int _end)
+{
+	int i;
+	for( i = _start; i <= _end; ++ i)
+	{
+		int t = lua_type( L, i);
+		if( t == LUA_TBOOLEAN || t == LUA_TNUMBER || t == LUA_TSTRING || t == LUA_TLIGHTUSERDATA)
+		{
+			continue;
+		}
+		luaL_error( L, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", i);
+	}
+}
+
 /*
 * bool= linda_send( linda_ud, [timeout_secs=-1,] key_num|str|bool|lightuserdata, ... )
 *
@@ -271,15 +285,18 @@ LUAG_FUNC( linda_send)
 	if( lua_isnumber(L, 2))
 	{
 		timeout= SIGNAL_TIMEOUT_PREPARE( lua_tonumber(L,2) );
-		key_i++;
+		++ key_i;
 	}
-	else if( lua_isnil( L, 2))
+	else if( lua_isnil( L, 2)) // alternate explicit "no timeout" by passing nil before the key
 	{
-		key_i++;
+		++ key_i;
 	}
 
-	if( lua_isnil( L, key_i))
-		luaL_error( L, "nil key" );
+	// make sure the keys are of a valid type
+	check_key_types( L, key_i, key_i);
+
+	// convert nils to some special non-nil sentinel in sent values
+	keeper_toggle_nil_sentinels( L, key_i + 1, 1);
 
 	STACK_GROW(L, 1);
 	{
@@ -315,11 +332,11 @@ LUAG_FUNC( linda_send)
 
 			cancel = cancel_test( L);   // testing here causes no delays
 			if (cancel)
+			{
 				break;
+			}
 
-			// Bugfix by Benoit Germain Dec-2009: change status of lane to "waiting"
-			//
-#if 1
+			// change status of lane to "waiting"
 			{
 				struct s_lane *s;
 				enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
@@ -338,6 +355,7 @@ LUAG_FUNC( linda_send)
 					ASSERT_L( s->waiting_on == NULL);
 					s->waiting_on = &linda->read_happened;
 				}
+				// could not send because no room: wait until some data was read before trying again, or until timeout is reached
 				if( !SIGNAL_WAIT( &linda->read_happened, &K->lock_, timeout))
 				{
 					if( s)
@@ -353,12 +371,6 @@ LUAG_FUNC( linda_send)
 					s->status = prev_status;
 				}
 			}
-#else
-			// K lock will be released for the duration of wait and re-acquired
-			//
-			if( !SIGNAL_WAIT( &linda->read_happened, &K->lock_, timeout))
-				break;  // timeout
-#endif
 		}
 		STACK_END( KL, 0)
 		keeper_release( K);
@@ -379,18 +391,23 @@ LUAG_FUNC( linda_send)
 
 
 /*
-* [val, key]= linda_receive( linda_ud, [timeout_secs_num=-1], key_num|str|bool|lightuserdata [, ...] )
-*
-* Receive a value from Linda, consuming it.
-*
-* Returns:  value received (which is consumed from the slot)
-*           key which had it
-*/
+ * 2 modes of operation
+ * [val, key]= linda_receive( linda_ud, [timeout_secs_num=-1], key_num|str|bool|lightuserdata [, ...] )
+ * Consumes a single value from the Linda, in any key.
+ * Returns: received value (which is consumed from the slot), and the key which had it
+
+ * [val1, ... valCOUNT]= linda_receive( linda_ud, [timeout_secs_num=-1], linda.batched, key_num|str|bool|lightuserdata, COUNT)
+ * Consumes COUNT values from the linda, from a single key.
+ * returns the COUNT consumed values, or nil if there weren't enough values to consume
+ *
+ */
+#define BATCH_SENTINEL "270e6c9d-280f-4983-8fee-a7ecdda01475"
 LUAG_FUNC( linda_receive)
 {
 	struct s_Linda *linda = lua_toLinda( L, 1);
-	int pushed;
+	int pushed, expected_pushed;
 	bool_t cancel = FALSE;
+	char *keeper_receive;
 	
 	time_d timeout = -1.0;
 	uint_t key_i = 2;
@@ -400,26 +417,44 @@ LUAG_FUNC( linda_receive)
 	if( lua_isnumber( L, 2))
 	{
 		timeout = SIGNAL_TIMEOUT_PREPARE( lua_tonumber( L, 2));
-		key_i++;
+		++ key_i;
 	}
-	else if( lua_isnil( L, 2))
+	else if( lua_isnil( L, 2)) // alternate explicit "no timeout" by passing nil before the key
 	{
-		key_i++;
+		++ key_i;
 	}
+
+	// make sure the keys are of a valid type
+	check_key_types( L, key_i, lua_gettop( L));
+
+	// are we in batched mode?
+	lua_pushliteral( L, BATCH_SENTINEL);
+	if( lua_equal( L, key_i, -1))
+	{
+		keeper_receive = "receive_batched";
+		expected_pushed = (int)luaL_checkinteger( L, key_i + 2);
+	}
+	else
+	{
+		keeper_receive = "receive";
+		expected_pushed = 2;
+	}
+	lua_pop( L, 1);
 
 	{
 		struct s_Keeper *K = keeper_acquire( linda);
 		for( ;;)
 		{
-			pushed = keeper_call( K->L, "receive", L, linda, key_i);
+			pushed = keeper_call( K->L, keeper_receive, L, linda, key_i);
 			if( pushed < 0)
 			{
 				break;
 			}
 			if( pushed > 0)
 			{
-				ASSERT_L( pushed == 2);
-
+				ASSERT_L( pushed == expected_pushed);
+				// replace sentinels with real nils
+				keeper_toggle_nil_sentinels( L, lua_gettop( L) - pushed, 0);
 				// To be done from within the 'K' locking area
 				//
 				SIGNAL_ALL( &linda->read_happened);
@@ -438,9 +473,7 @@ LUAG_FUNC( linda_receive)
 				break;
 			}
 
-			// Bugfix by Benoit Germain Dec-2009: change status of lane to "waiting"
-			//
-#if 1
+			// change status of lane to "waiting"
 			{
 				struct s_lane *s;
 				enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
@@ -459,6 +492,7 @@ LUAG_FUNC( linda_receive)
 					ASSERT_L( s->waiting_on == NULL);
 					s->waiting_on = &linda->write_happened;
 				}
+				// not enough data to read: wakeup when data was sent, or when timeout is reached
 				if( !SIGNAL_WAIT( &linda->write_happened, &K->lock_, timeout))
 				{
 					if( s)
@@ -474,12 +508,6 @@ LUAG_FUNC( linda_receive)
 					s->status = prev_status;
 				}
 			}
-#else
-			// Release the K lock for the duration of wait, and re-acquire
-			//
-			if( !SIGNAL_WAIT( &linda->write_happened, &K->lock_, timeout))
-				break;
-#endif
 		}
 		keeper_release( K);
 	}
@@ -501,6 +529,7 @@ LUAG_FUNC( linda_receive)
 * = linda_set( linda_ud, key_num|str|bool|lightuserdata [,value] )
 *
 * Set a value to Linda.
+* TODO: what do we do if we set to non-nil and limit is 0?
 *
 * Existing slot value is replaced, and possible queue entries removed.
 */
@@ -510,9 +539,14 @@ LUAG_FUNC( linda_set)
 	bool_t has_value = !lua_isnil( L, 3);
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
 
+	// make sure the key is of a valid type
+	check_key_types( L, 2, 2);
+
 	{
+		int pushed;
 		struct s_Keeper *K = keeper_acquire( linda);
-		int pushed = keeper_call( K->L, "set", L, linda, 2);
+		// no nil->sentinel toggling, we really clear the linda contents for the given key with a set()
+		pushed = keeper_call( K->L, "set", L, linda, 2);
 		if( pushed >= 0) // no error?
 		{
 			ASSERT_L( pushed == 0);
@@ -537,28 +571,28 @@ LUAG_FUNC( linda_set)
 
 
 /*
-* [val]= linda_keys( linda_ud)
-*
-* Get the list of keys with pending data in the linda
-*/
-LUAG_FUNC( linda_keys)
+ * [val] = linda_count( linda_ud, [key [, ...]])
+ *
+ * Get a count of the pending elements in the specified keys
+ */
+LUAG_FUNC( linda_count)
 {
 	struct s_Linda *linda= lua_toLinda( L, 1);
 	int pushed;
+
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
+	// make sure the keys are of a valid type
+	check_key_types( L, 2, lua_gettop( L));
 
 	{
 		struct s_Keeper *K = keeper_acquire( linda);
-		pushed = keeper_call( K->L, "keys", L, linda, 2);
-		ASSERT_L( pushed==0 || pushed==1 );
-		keeper_release(K);
-		// must trigger error after keeper state has been released
+		pushed = keeper_call( K->L, "count", L, linda, 2);
+		keeper_release( K);
 		if( pushed < 0)
 		{
-			luaL_error( L, "tried to copy unsupported types");
+			luaL_error( L, "tried to count an invalid key");
 		}
 	}
-
 	return pushed;
 }
 
@@ -567,17 +601,25 @@ LUAG_FUNC( linda_keys)
 * [val]= linda_get( linda_ud, key_num|str|bool|lightuserdata )
 *
 * Get a value from Linda.
+* TODO: add support to get multiple values?
 */
 LUAG_FUNC( linda_get)
 {
 	struct s_Linda *linda= lua_toLinda( L, 1);
 	int pushed;
+
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
+	// make sure the key is of a valid type
+	check_key_types( L, 2, 2);
 
 	{
 		struct s_Keeper *K = keeper_acquire( linda);
 		pushed = keeper_call( K->L, "get", L, linda, 2);
 		ASSERT_L( pushed==0 || pushed==1 );
+		if( pushed > 0)
+		{
+			keeper_toggle_nil_sentinels( L, lua_gettop( L) - pushed, 0);
+		}
 		keeper_release(K);
 		// must trigger error after keeper state has been released
 		if( pushed < 0)
@@ -598,7 +640,10 @@ LUAG_FUNC( linda_get)
 LUAG_FUNC( linda_limit)
 {
 	struct s_Linda *linda= lua_toLinda( L, 1 );
+
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
+	// make sure the key is of a valid type
+	check_key_types( L, 2, 2);
 
 	{
 		struct s_Keeper *K = keeper_acquire( linda);
@@ -775,20 +820,23 @@ static void linda_id( lua_State *L, char const * const which)
         lua_pushcfunction( L, LG_linda_receive );
         lua_setfield( L, -2, "receive" );
 
-        lua_pushcfunction( L, LG_linda_keys );
-        lua_setfield( L, -2, "keys" );
-
         lua_pushcfunction( L, LG_linda_limit );
         lua_setfield( L, -2, "limit" );
 
         lua_pushcfunction( L, LG_linda_set );
         lua_setfield( L, -2, "set" );
     
+        lua_pushcfunction( L, LG_linda_count );
+        lua_setfield( L, -2, "count" );
+    
         lua_pushcfunction( L, LG_linda_get );
         lua_setfield( L, -2, "get" );
 
         lua_pushcfunction( L, LG_linda_deep );
         lua_setfield( L, -2, "deep" );
+
+        lua_pushliteral( L, BATCH_SENTINEL);
+        lua_setfield(L, -2, "batched");
 
         STACK_END(L,1)
     }
@@ -803,6 +851,11 @@ static void linda_id( lua_State *L, char const * const which)
     }
 }
 
+/*
+ * ud = lanes.linda()
+ *
+ * returns a linda object
+ */
 LUAG_FUNC( linda)
 {
 	return luaG_deep_userdata( L, linda_id);

@@ -85,11 +85,12 @@ test:
 	$(MAKE) recursive
 	$(MAKE) func_is_string
 	$(MAKE) atexit
+	$(MAKE) linda_perf
 
 basic: tests/basic.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
-# 
+#
 # This tries to show out a bug which happens in lane cleanup (multicore CPU's only)
 #
 REP_ARGS=-llanes -e "print'say aaa'; for i=1,10 do print(i) end"
@@ -155,6 +156,9 @@ appendud: tests/appendud.lua $(_TARGET_SO)
 func_is_string: tests/func_is_string.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
+linda_perf: tests/linda_perf.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
 atexit: tests/atexit.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
@@ -190,7 +194,7 @@ LUA_LIBDIR=$(DESTDIR)/lib/lua/5.1
 LUA_SHAREDIR=$(DESTDIR)/share/lua/5.1
 
 #
-# AKa 17-Oct: changed to use 'install -m 644' and 'cp -p' 
+# AKa 17-Oct: changed to use 'install -m 644' and 'cp -p'
 #
 install: $(_TARGET_SO) src/lanes.lua
 	mkdir -p $(LUA_LIBDIR) $(LUA_SHAREDIR)
@@ -211,7 +215,7 @@ tar tgz:
 ifeq "$(VERSION)" ""
 	echo "Usage: make tar VERSION=x.x"; false
 else
-	$(MAKE) clean 
+	$(MAKE) clean
 	-rm -rf $(MODULE)-$(VERSION)
 	mkdir $(MODULE)-$(VERSION)
 	tar c * --exclude=.svn --exclude=.DS_Store --exclude="_*" \
@@ -223,8 +227,8 @@ else
 	rm -rf $(MODULE)-$(VERSION)
 	md5sum $(MODULE)-$(VERSION).tgz
 endif
-	
-	
+
+
 #--- Undocumented ---
 #
 

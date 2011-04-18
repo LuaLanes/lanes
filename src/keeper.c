@@ -103,15 +103,10 @@ char const *init_keepers( int const _nbKeepers)
 		luaG_openlibs( L, "io,table,package" );     // 'io' for debugging messages, package because we need to require modules exporting idfuncs
 		serialize_require( L);
 
-		/* We could use an empty table in 'keeper.lua' as the sentinel, but maybe
-		* checking for a lightuserdata is faster. (any unique value will do -> take the address of some global of ours)
-		*/
-		lua_pushlightuserdata( L, &GNbKeepers);
-		lua_setglobal( L, "nil_sentinel");
 
 		// Read in the preloaded chunk (and run it)
 		//
-		if (luaL_loadbuffer( L, keeper_chunk, sizeof(keeper_chunk), "=lanes_keeper" ))
+		if (luaL_loadbuffer( L, keeper_chunk, sizeof(keeper_chunk), "@keeper.lua"))
 			return "luaL_loadbuffer() failed";   // LUA_ERRMEM
 
 		if (lua_pcall( L, 0 /*args*/, 0 /*results*/, 0 /*errfunc*/ ))
@@ -150,6 +145,34 @@ void keeper_release( struct s_Keeper *K)
 {
 	//-- K->count;
 	MUTEX_UNLOCK( &K->lock_);
+}
+
+void keeper_toggle_nil_sentinels( lua_State *L, int _val_i, int _nil_to_sentinel)
+{
+	int i, n = lua_gettop( L);
+	/* We could use an empty table in 'keeper.lua' as the sentinel, but maybe
+	* checking for a lightuserdata is faster. (any unique value will do -> take the address of some global of ours)
+	*/
+	void *nil_sentinel = &GNbKeepers;
+	for( i = _val_i; i <= n; ++ i)
+	{
+		if( _nil_to_sentinel)
+		{
+			if( lua_isnil( L, i))
+			{
+				lua_pushlightuserdata( L, nil_sentinel);
+				lua_replace( L, i);
+			}
+		}
+		else
+		{
+			if( lua_touserdata( L, i) == nil_sentinel)
+			{
+				lua_pushnil( L);
+				lua_replace( L, i);
+			}
+		}
+	}
 }
 
 /*
@@ -197,6 +220,7 @@ void close_keepers(void)
 		lua_close( GKeepers[i].L);
 		GKeepers[i].L = 0;
 		//assert( GKeepers[i].count == 0);
+		MUTEX_FREE( &GKeepers[i].lock_);
 	}
 	if( GKeepers) free( GKeepers);
 	GKeepers = NULL;

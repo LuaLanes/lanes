@@ -3,6 +3,14 @@ CHANGES:
 
 CHANGE X:
 
+CHANGE 31 BGe 17-Apr-2011
+* linda uses a fast FIFO implementation to speed up data exchanges
+* new linda:count() method
+* new linda batched data read mode
+* proper key type check in all linda methods
+* fix setup-vc.cmd to support Visual Studio 2010 and Windows 7 64 bits
+* bugfix: release keeper state mutex at desinit
+
 CHANGE 30 BGe 30-Mar-2011
 * linda honors __tostring and __concat
 * new accessor linda:keys(), to retrieve the list of keys with pending data inside a linda

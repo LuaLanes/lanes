@@ -34,30 +34,27 @@ THE SOFTWARE.
 ===============================================================================
 ]]--
 
--- unique key instead of 'nil' in queues
---
-assert( nil_sentinel )
-
 -- We only need to have base and table libraries (and io for debugging)
 --
 local table_concat = assert( table.concat)
 local table_insert = assert( table.insert)
 local table_remove = assert( table.remove)
+local select, unpack = assert( select), assert( unpack)
 
 --[[
 local function WR(...)
-    if io then 
-        io.stderr:write( table_concat({...},'\t').."\n" ) 
+    if io then
+        io.stderr:write( table_concat({...},'\t').."\n" )
     end
 end
 
 local function DEBUG(title,ud,key)
     assert( title and ud and key )
 
-    local data,incoming,_= tables(ud)
+    local data,_= tables(ud)
 
     local s= tostring(data[key])
-    for _,v in ipairs( incoming[key] or {} ) do
+    for _,v in ipairs( data[key] or {} ) do
         s= s..", "..tostring(v)
     end
     WR( "*** "..title.." ("..tostring(key).."): ", s )
@@ -65,34 +62,64 @@ end
 --]]
 
 -----
+-- FIFO for a key
+--
+
+local fifo_new = function()
+    return { first = 1, count = 0}
+end
+
+local fifo_push = function( fifo, ...)
+    local first, count, added = fifo.first, fifo.count, select( '#', ...)
+    local start = first + count - 1
+    for i = 1, added do
+        fifo[start + i] = select( i, ...)
+    end
+    fifo.count = count + added
+end
+
+local fifo_peek = function( fifo, count)
+    if count <= fifo.count then
+			local first = fifo.first
+			local last = first + count - 1
+			return unpack( fifo, first, last)
+    end
+end
+
+local fifo_pop = function( fifo, count)
+    if count > fifo.count then error("list is too short") end
+    local first = fifo.first
+    local last = first + count - 1
+    local out = { unpack( fifo, first, last)}
+    for i = first, last do
+        fifo[i] = nil
+    end
+    fifo.first = first + count
+    fifo.count = fifo.count - count
+    return unpack( out)
+end
+
+
+-----
 -- Actual data store
 --
--- { [linda_deep_ud]= { key= val [, ...] }
+-- { [linda_deep_ud]= { key= { val [, ... ] } [, ...] }
 --      ...
 -- }
 --
 local _data= {}
 
 -----
--- Entries queued for use when the existing 'data[ud][key]' entry is consumed.
---
--- { [linda_deep_ud]= { key= { val [, ... } [, ...] }
---      ...
--- }
---
-local _incoming= {}
-
------
 -- Length limits (if any) for queues
 --
 -- 0:   don't queue values at all; ':send()' waits if the slot is not vacant
 -- N:   allow N values to be queued (slot itself + N-1); wait if full
--- nil: no limits, '_incoming' may grow endlessly
+-- nil: no limits, '_data' may grow endlessly
 --
 local _limits= {}
 
 -----
--- data_tbl, incoming_tbl, limits_tbl = tables( linda_deep_ud )
+-- data_tbl, limits_tbl = tables( linda_deep_ud )
 --
 -- Gives appropriate tables for a certain Linda (creates them if needed)
 --
@@ -101,14 +128,13 @@ local function tables( ud )
     --
     if not _data[ud] then
         _data[ud]= {}
-        _incoming[ud]= {}
         _limits[ud]= {}
     end
-    return _data[ud], _incoming[ud], _limits[ud]
+    return _data[ud], _limits[ud]
 end
 
 -----
--- bool= send( linda_deep_ud, key, ... )
+-- bool= send( linda_deep_ud, key, ...)
 --
 -- Send new data (1..N) to 'key' slot. This send is atomic; all the values
 -- end up one after each other (this is why having possibility for sending
@@ -119,42 +145,28 @@ end
 -- Returns: 'true' if all the values were placed
 --          'false' if sending would exceed the queue limit (wait & retry)
 --
-function send( ud, key, ... )
+function send( ud, key, ...)
 
-    local data,incoming,limits= tables(ud)
+    local data, limits = tables( ud)
 
-    local n= select('#',...)
-    if n==0 then return true end    -- nothing to send
+    local n = select( '#', ...)
+    if n == 0 then return true end    -- nothing to send
 
     -- Initialize queue for all keys that have been used with ':send()'
     --
-    if incoming[key]==nil then
-        incoming[key]= {}
+    if data[key] == nil then
+        data[key] = fifo_new()
     end
+    local fifo = data[key]
 
-    local len= data[key] and 1+#incoming[key] or 0
-    local m= limits[key]
+    local len = fifo.count
+    local m = limits[key]
 
     if m and len+n > m then
         return false    -- would exceed the limit; try again later
     end
 
-    for i=1,n do
-        local val= select(i,...)
-
-        -- 'nil' in the data replaced by sentinel
-        if val==nil then
-            val= nil_sentinel
-        end
-
-        if len==0 then
-            data[key]= val
-            len= 1
-        else
-            incoming[key][len]= val
-            len= len+1
-        end
-    end
+    fifo_push( fifo, ...)
     return true
 end
 
@@ -165,94 +177,125 @@ end
 -- Read any of the given keys, consuming the data found. Keys are read in
 -- order.
 --
-function receive( ud, ... )
+function receive( ud, ...)
 
-    local data,incoming,_= tables(ud)
+    local data, _ = tables( ud)
 
-    for i=1,select('#',...) do
-        local key= select(i,...)
-        local val= data[key]
-
-        if val~=nil then
-            if incoming[key] and incoming[key][1]~=nil then
-                -- pop [1] from 'incoming[key]' into the actual slot
-                data[key]= table_remove( incoming[key], 1 )
-            else
-                data[key]= nil  -- empty the slot
+    for i = 1, select( '#', ...) do
+        local key = select( i, ...)
+        local fifo = data[key]
+        if fifo and fifo.count > 0 then
+            local val = fifo_pop( fifo, 1)
+            if val ~= nil then
+                    return val, key
             end
-            if val==nil_sentinel then
-                val= nil
-            end
-            return val, key
         end
     end
-    --return nil
+end
+
+
+-----
+-- [val1, ... valCOUNT]= receive_batched( linda_deep_ud, batch_sentinel, key , COUNT)
+--
+-- Read any of the given keys, consuming the data found. Keys are read in
+-- order.
+--
+receive_batched = function( ud, batch_sentinel, key, count)
+    if count > 0 then
+        local data, _ = tables( ud)
+        local fifo = data[key]
+        if fifo and fifo.count >= count then
+            return fifo_pop( fifo, count)
+        end
+    end
 end
 
 
 -----
 -- = limit( linda_deep_ud, key, uint )
 --
-function limit( ud, key, n )
+function limit( ud, key, n)
 
-    local _,_,limits= tables(ud)
+    local _, limits = tables( ud)
 
-    limits[key]= n
+    limits[key] = n
 end
 
 
 -----
 -- void= set( linda_deep_ud, key, [val] )
 --
-function set( ud, key, val )
+function set( ud, key, val)
 
-    local data,incoming,_= tables(ud)
+    local data, _ = tables( ud)
 
     -- Setting a key to 'nil' really clears it; only queing uses sentinels.
     --
-    data[key]= val
-    incoming[key]= nil
+    if val ~= nil then
+        local fifo = fifo_new()
+        fifo_push( fifo, val)
+        data[key] = fifo
+    else
+        data[key] = nil
+    end
 end
 
 
 -----
 -- [val]= get( linda_deep_ud, key )
 --
-function get( ud, key )
-
-    local data,_,_= tables(ud)
-
-    local val= data[key]
-    if val==nil_sentinel then
-        val= nil
-    end
-    return val
+function get( ud, key)
+    local data, _ = tables( ud)
+    local fifo = data[key]
+    return fifo and fifo_peek( fifo, 1)
 end
 
 
 -----
--- [val]= keys( linda_deep_ud)
+-- [val]= count( linda_deep_ud, ...)
 --
-function keys( ud)
-
-    local data,_,_= tables(ud)
-
-    local out = {}
-    for key, v in pairs( data) do
-        table_insert( out, key)
+-- 3 modes of operation
+-- linda:count() -> returns a table of key/count pairs
+-- linda:count(key) returns the number of items waiting in the key
+-- linda:count(key,...) -> returns a table telling, for each key, the number of items
+function count( ud, ...)
+    local data, _ = tables( ud)
+    local n = select( '#', ...)
+    if n == 0 then
+        local out
+        for key, _ in pairs( data) do
+			local fifo = data[key]
+			local count = fifo and fifo.count or 0
+			out = out or {}
+            out[key] = count
+            found = true
+        end
+        return out
+    elseif n == 1 then
+        local key = ...
+        local fifo = data[key]
+		return fifo and fifo.count or nil
+    else -- more than 1 key
+        local out
+        for i = 1, n do
+            local key = select( i, ...)
+			local fifo = data[key]
+			local count = fifo and fifo.count or nil
+			out = out or {}
+            out[key] = count
+		end
+        return out
     end
-    return (#out > 0) and out or nil
 end
 
 
 -----
--- void= clear( linda_deep_ud )
+-- void= clear( linda_deep_ud)
 --
 -- Clear the data structures used for a Linda (at its destructor)
 --
-function clear( ud )
+function clear( ud)
 
     _data[ud]= nil
-    _incoming[ud]= nil
     _limits[ud]= nil
 end

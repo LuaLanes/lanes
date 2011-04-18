@@ -483,7 +483,7 @@ level locking is required; each Linda operation is atomic.
 <p>Characteristics of the Lanes implementation of Lindas are:
 
 <ul>
-    <li>keys can be of number, string or boolean type
+    <li>keys can be of boolean, number, string or light userdata type
     </li>
     <li>values can be any type supported by inter-state copying (same limits
     as for function parameters and upvalues)
@@ -560,17 +560,23 @@ They can be used for making shared tables of storage among the lanes.
 Writing to a slot overwrites existing value, and clears any possible queued
 entries. Table access and <tt>send</tt>/<tt>receive</tt> can be used together;
 reading a slot essentially peeks the next outcoming value of a queue.
-</p><p>
+</p>
+  <p>
 
     <table border="1" bgcolor="#E0E0FF" cellpadding="10">
       <tr>
         <td>
-          <code>[val]= linda_h:keys()</code>
+          <code>[val]= linda_h:count( [key[,...]])</code>
         </table>
 
   </p>
   <p>
-    A way to examine the slots in which a linda contains some pending data to be read.
+    Returns some information about the contents of the linda.
+    <br/>If no key is specified, and the linda is empty, returns nothing.
+    <br/>If no key is specified, and the linda is not empty, returns a table of key/count pairs that counts the number of items in each
+    of the exiting keys of the linda. This count can be 0 if the key has been used but is empty.
+    <br/>If a single key is specified, returns the number of pending items, or nothing if the key is unknown.
+    <br/>If more than one key is specified, return a table of key/count pairs for the known keys.
   </p>
 
 <!--

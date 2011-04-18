@@ -30,10 +30,19 @@ goto FOUND_VC
 
 :TRY_VC9
 set VSINSTALLDIR=%ProgramFiles%\Microsoft Visual Studio 9.0
-if not exist "%VSINSTALLDIR%\VC\vcvarsall.bat" goto ERR_NOVC
+if exist "%VSINSTALLDIR%\VC\vcvarsall.bat" goto WARN_VC
+set VSINSTALLDIR=%ProgramFiles(x86)%\Microsoft Visual Studio 9.0
+if exist "%VSINSTALLDIR%\VC\vcvarsall.bat" goto WARN_VC
 
+:TRY_VC10
+set VSINSTALLDIR=%ProgramFiles%\Microsoft Visual Studio 10.0
+if exist "%VSINSTALLDIR%\VC\vcvarsall.bat" goto WARN_VC
+set VSINSTALLDIR=%ProgramFiles(x86)%\Microsoft Visual Studio 10.0
+if exist "%VSINSTALLDIR%\VC\vcvarsall.bat" goto WARN_VC
+
+:WARN_VC
 echo.
-echo *** Warning: Visual C++ 2008 in use ***
+echo *** Warning: Visual C++ 2008/2010 in use ***
 echo.
 echo Using VC++2005 is recommended for runtime compatibility issues
 echo (LuaBinaries and LfW use it; if you compile everything from
@@ -70,7 +79,7 @@ goto EXIT
 REM ---
 :ERR_NOVC
 echo.
-echo ** ERROR: Visual C++ 2005/08 Express - not detected
+echo ** ERROR: Visual C++ 2005/08/10 Express - not detected
 echo           You can set the environment variables separately, and run 'make-vc.cmd'
 echo           or download the compiler from:
 echo           http://msdn.microsoft.com/vstudio/express/downloads/
