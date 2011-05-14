@@ -295,6 +295,12 @@ LUAG_FUNC( linda_send)
 	// make sure the keys are of a valid type
 	check_key_types( L, key_i, key_i);
 
+	// make sure there is something to send
+	if( lua_gettop( L) == key_i)
+	{
+		luaL_error( L, "no data to send");
+	}
+
 	// convert nils to some special non-nil sentinel in sent values
 	keeper_toggle_nil_sentinels( L, key_i + 1, 1);
 

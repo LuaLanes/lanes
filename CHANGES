@@ -3,6 +3,9 @@ CHANGES:
 
 CHANGE X:
 
+CHANGE 32 BGe 14-May-2011
+* raise an error when linda:send() has nothing to send
+
 CHANGE 31 BGe 17-Apr-2011
 * linda uses a fast FIFO implementation to speed up data exchanges
 * new linda:count() method

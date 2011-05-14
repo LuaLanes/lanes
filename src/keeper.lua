@@ -150,7 +150,6 @@ function send( ud, key, ...)
     local data, limits = tables( ud)
 
     local n = select( '#', ...)
-    if n == 0 then return true end    -- nothing to send
 
     -- Initialize queue for all keys that have been used with ':send()'
     --
