@@ -890,6 +890,8 @@ static void push_cached_func( lua_State *L2, uint_t L2_cache_i, lua_State *L, ui
 }
 
 
+#define LOG_FUNC_INFO 0
+
 /*
 * Copy a function over, which has not been found in the cache.
 */
@@ -914,19 +916,20 @@ static void inter_copy_func( lua_State *L2, uint_t L2_cache_i, lua_State *L, uin
         size_t sz;
         int tmp;
         const char *name= NULL;
+        int linedefined = 0;
 
-#if 0
+#if LOG_FUNC_INFO
         // "To get information about a function you push it onto the 
         // stack and start the what string with the character '>'."
         //
         { lua_Debug ar;
         lua_pushvalue( L, i );
-        lua_getinfo(L, ">n", &ar);      // fills 'name' and 'namewhat', pops function
+        lua_getinfo(L, ">nS", &ar);      // fills 'name' 'namewhat' and 'linedefined', pops function
         name= ar.namewhat;
-        
-        fprintf( stderr, "NAME: %s\n", name );  // just gives NULL
+        linedefined = ar.linedefined;
+        fprintf( stderr, "NAME: %s @ %d\n", ar.short_src, linedefined);  // just gives NULL
         }
-#endif 
+#endif // LOG_FUNC_INFO
         // 'lua_dump()' needs the function at top of stack
         //
         if (i!=-1) lua_pushvalue( L, i );
@@ -960,6 +963,12 @@ static void inter_copy_func( lua_State *L2, uint_t L2_cache_i, lua_State *L, uin
         lua_pop(L,1);   // remove the dumped string
   STACK_MID(L,0)
     }
+#if LOG_FUNC_INFO
+    else
+    {
+        fprintf( stderr, "NAME: [C] function %p \n", cfunc);
+    }
+#endif // LOG_FUNC_INFO
 
     /* push over any upvalues; references to this function will come from
     * cache so we don't end up in eternal loop.
