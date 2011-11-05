@@ -2,7 +2,8 @@
 -- Test case for hang on [1]s and :join()s.
 --
 
-require "lanes"
+local lanes = require "lanes"
+lanes.configure( 1)
 
 local function ret(b)
     return b

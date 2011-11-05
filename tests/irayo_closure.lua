@@ -10,7 +10,8 @@ haven't investigated further.
 e.g. { globals = { data = 1, func = function() useclosurehere() end } }"
 ]]
 
-require "lanes"
+local lanes = require "lanes"
+lanes.configure( 1)
 
 local function testrun()
     assert( print )
@@ -20,7 +21,7 @@ local function testrun()
     return true
 end
 
--- When some function dereferences a global key, the asssociated global in the source state
+-- When some function dereferences a global key, the associated global in the source state
 -- isn't sent over the target lane
 -- therefore, the necessary functions must either be pulled as upvalues (hence locals)
 -- or the globals must exist in the target lanes because the modules have been required there

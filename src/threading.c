@@ -74,6 +74,7 @@ THE SOFTWARE.
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 static void FAIL( const char *funcname, int rc ) {
     fprintf( stderr, "%s() failed! (%d)\n", funcname, rc );
+    __debugbreak(); // give a chance to the debugger!
     abort();
 }
 #endif

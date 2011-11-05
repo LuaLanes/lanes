@@ -36,7 +36,7 @@ else
   LUAC=$(word 1,$(shell which luac5.1) $(shell which luac51) luac)
 endif
 
-_PREFIX=LUA_CPATH=./src/?$(_SO) LUA_PATH="src/?.lua;./tests/?.lua"
+_PREFIX=LUA_CPATH="./src/?$(_SO)" LUA_PATH="./src/?.lua;./tests/?.lua"
 
 #---
 all: $(_TARGET_SO)

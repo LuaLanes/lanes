@@ -39,11 +39,19 @@ THE SOFTWARE.
 ===============================================================================
 ]]--
 
-module( "lanes", package.seeall )
+-- Lua 5.1: module() creates a global variable
+-- Lua 5.2: module() might go away
+-- almost everything module() does is done by require()
+-- -> simply create a table, populate it, return it, and be done
+local lanes = {}
+
+lanes.configure = function( _nb_keepers, _timers)
 
 local mm = require "lua51-lanes"
 assert( type(mm)=="table" )
 
+-- configure() is available only the first time lua51-lanes is required process-wide, and we *must* call it to have the other functions in the interface
+if mm.configure then mm.configure( _nb_keepers) end
 
 local thread_new = assert(mm.thread_new)
 
@@ -140,6 +148,7 @@ end
 --
 --        .globals:  table of globals to set for a new thread (passed by value)
 --
+--        .required:  table of packages to require
 --        ... (more options may be introduced later) ...
 --
 -- Calling with a function parameter ('lane_func') ends the string/table
@@ -161,7 +170,8 @@ local valid_libs= {
     ["*"]= true
 }
 
-function gen( ... )
+-- PUBLIC LANES API
+local function gen( ... )
     local opt= {}
     local libs= nil
     local lev= 2  -- level for errors
@@ -204,27 +214,34 @@ function gen( ... )
         end
     end
     
-    local prio, cs, g_tbl, packagepath, packagecpath
+    local prio, cs, g_tbl, packagepath, packagecpath, required
 
     for k,v in pairs(opt) do
             if k=="priority" then prio= v
-        elseif k=="cancelstep" then cs= (v==true) and 100 or
-                                        (v==false) and 0 or 
-                                        type(v)=="number" and v or
-                                        error( "Bad cancelstep: "..tostring(v), lev )
+        elseif k=="cancelstep" then
+            cs = (v==true) and 100 or
+                (v==false) and 0 or 
+                type(v)=="number" and v or
+                error( "Bad cancelstep: "..tostring(v), lev )
         elseif k=="globals" then g_tbl= v
-        elseif k=="packagepath" then packagepath= v
-        elseif k=="packagecpath" then packagecpath= v
+        elseif k=="packagepath" then
+            packagepath = (type( v) == "string") and v or error( "Bad packagepath: " .. tostring( v), lev)
+        elseif k=="packagecpath" then
+            packagecpath = (type( v) == "string") and v or error( "Bad packagecpath: " .. tostring( v), lev)
+        elseif k=="required" then
+            required= (type( v) == "table") and v or error( "Bad required: " .. tostring( v), lev)
         --..
         elseif k==1 then error( "unkeyed option: ".. tostring(v), lev )
         else error( "Bad option: ".. tostring(k), lev )
         end
     end
 
+    if not packagepath then packagepath = package.path end
+    if not packagecpath then packagecpath = package.cpath end
     -- Lane generator
     --
     return function(...)
-              return thread_new( func, libs, cs, prio, g_tbl, packagepath, packagecpath, ...)     -- args
+              return thread_new( func, libs, cs, prio, g_tbl, packagepath, packagecpath, required, ...)     -- args
            end
 end
 
@@ -235,12 +252,16 @@ end
 -----
 -- lanes.linda() -> linda_ud
 --
-linda = mm.linda
+-- PUBLIC LANES API
+local linda = mm.linda
 
 
 ---=== Timers ===---
-local want_timers = true
-if want_timers then
+
+-- PUBLIC LANES API
+local timer = function() error "timers are not active" end
+
+if _timers ~= "NO_TIMERS" then
 
 local timer_gateway= assert( mm.timer_gateway )
 --
@@ -424,6 +445,8 @@ if first_time then
                 assert( key and wakeup_at and period )
 
                 set_timer( linda, key, wakeup_at, period>0 and period or nil )
+            elseif secs == 0 then -- got no value while block-waiting?
+                WR( "timer lane: no linda, aborted?")
             end
         end
     end )()
@@ -432,7 +455,8 @@ end
 -----
 -- = timer( linda_h, key_val, date_tbl|first_secs [,period_secs] )
 --
-function timer( linda, key, a, period )
+-- PUBLIC LANES API
+timer = function( linda, key, a, period )
 
     if a==0.0 then
         -- Caller expects to get current time stamp in Linda, on return
@@ -456,7 +480,7 @@ function timer( linda, key, a, period )
     timer_gateway:send( TGW_KEY, linda, key, wakeup_at, period )
 end
 
-end -- want_timers
+end -- _timers
 
 ---=== Lock & atomic generators ===---
 
@@ -473,7 +497,8 @@ end -- want_timers
 -- Returns an access function that allows 'N' simultaneous entries between
 -- acquire (+M) and release (-M). For binary locks, use M==1.
 --
-function genlock( linda, key, N )
+-- PUBLIC LANES API
+local function genlock( linda, key, N )
     linda:limit(key,N)
     linda:set(key,nil)  -- clears existing data
 
@@ -506,7 +531,8 @@ end
 -- Returns an access function that allows atomic increment/decrement of the
 -- number in 'key'.
 --
-function genatomic( linda, key, initial_val )
+-- PUBLIC LANES API
+local function genatomic( linda, key, initial_val )
     linda:limit(key,2)          -- value [,true]
     linda:set(key,initial_val or 0.0)   -- clears existing data (also queue)
 
@@ -522,4 +548,23 @@ end
 
 -- newuserdata = mm.newuserdata
 
+	-- activate full interface
+	lanes.gen = gen
+	lanes.linda = mm.linda
+	lanes.timer = timer
+	lanes.genlock = genlock
+	lanes.genatomic = genatomic
+	-- from now on, calling configure does nothing but checking that we don't call it with parameters that changed compared to the first invocation
+	lanes.configure = function( _nk, _t)
+		if _nk ~= _nb_keepers then
+			error( "mismatched configuration: " .. tostring( _nk) .. " keepers instead of " .. tostring( _nb_keepers))
+		end
+		if _t ~= _timers  then
+			error( "mismatched configuration: " .. tostring( _t) .. " timer activity instead of " .. tostring( _timers))
+		end
+	end
+end -- lanes.configure
+
 --the end
+return lanes
+

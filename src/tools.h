@@ -10,10 +10,10 @@
 
 #include <assert.h>
 
-// Note: The < -10000 test is to leave registry/global/upvalue indices untouched
+// Note: The < LUA_REGISTRYINDEX test is to leave registry/global/upvalue indices untouched
 //
 #define /*int*/ STACK_ABS(L,n) \
-	( ((n) >= 0 || (n) <= -10000) ? (n) : lua_gettop(L) +(n) +1 )
+	( ((n) >= 0 || (n) <= LUA_REGISTRYINDEX) ? (n) : lua_gettop(L) +(n) +1 )
 
 #ifdef NDEBUG
   #define _ASSERT_L(lua,c)  /*nothing*/
@@ -24,7 +24,7 @@
   #define DEBUG()   /*nothing*/
   #define DEBUGEXEC(_code) {}  /*nothing*/
 #else
-  #define _ASSERT_L(lua,c)  { if (!(c)) luaL_error( lua, "ASSERT failed: %s:%d '%s'", __FILE__, __LINE__, #c ); }
+  #define _ASSERT_L(lua,c)  do { if (!(c)) luaL_error( lua, "ASSERT failed: %s:%d '%s'", __FILE__, __LINE__, #c ); } while( 0)
   //
   #define STACK_CHECK(L)     { int _oldtop_##L = lua_gettop(L);
   #define STACK_MID(L,change)  { int a= lua_gettop(L)-_oldtop_##L; int b= (change); \
@@ -37,7 +37,7 @@
 #endif
 #define ASSERT_L(c) _ASSERT_L(L,c)
 
-#define STACK_GROW(L,n) { if (!lua_checkstack(L,n)) luaL_error( L, "Cannot grow stack!" ); }
+#define STACK_GROW(L,n) do { if (!lua_checkstack(L,n)) luaL_error( L, "Cannot grow stack!" ); } while( 0)
 
 #define LUAG_FUNC( func_name ) static int LG_##func_name( lua_State *L )
 
@@ -72,6 +72,7 @@ int luaG_inter_move( lua_State *L, lua_State *L2, uint_t n);
 extern MUTEX_T deep_lock;
 extern MUTEX_T mtid_lock;
 
+void populate_func_lookup_table( lua_State *L, int _i, char const *_name);
 void serialize_require( lua_State *L);
 extern MUTEX_T require_cs;
 

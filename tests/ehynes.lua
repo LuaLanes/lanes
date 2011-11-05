@@ -1,7 +1,8 @@
 --
 -- Test from <ehynes at dharmagaia.com>
 --
-require 'lanes'
+local lanes = require "lanes"
+lanes.configure( 1)
 
 local function PRINT_FMT( fmt, ... )
     io.stderr:write( string.format(fmt,...).."\n" )

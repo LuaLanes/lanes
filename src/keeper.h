@@ -9,6 +9,7 @@ struct s_Keeper
 };
 
 const char *init_keepers( int const _nbKeepers);
+void populate_keepers( lua_State *L);
 struct s_Keeper *keeper_acquire( const void *ptr);
 void keeper_release( struct s_Keeper *K);
 void keeper_toggle_nil_sentinels( lua_State *L, int _val_i, int _nil_to_sentinel);

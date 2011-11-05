@@ -8,7 +8,8 @@
 -- thing to do.     -- AKa 22-Jan-2009
 --
 
-require "lanes"
+local lanes = require "lanes"
+lanes.configure( 1)
 
 local FN= "finalizer-test.tmp"
 

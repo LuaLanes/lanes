@@ -4,7 +4,8 @@
 -- Sample program for Lua Lanes
 --
 
-require "lanes"
+local lanes = require "lanes"
+lanes.configure( 1)
 
 local linda= lanes.linda()
 local atomic_inc= lanes.genatomic( linda, "FIFO_n" )
@@ -18,8 +19,12 @@ local function FIFO()
     return {
         -- Giving explicit 'nil' timeout allows numbers to be used as 'my_channel'
         --
-        send= function(...) linda:send( nil, my_channel, ... ) end,
-        receive= function(timeout) linda:receive( timeout, my_channel ) end
+        send= function(self, ...)
+					linda:send( nil, my_channel, ... )
+				end,
+        receive = function(self, timeout)
+					linda:receive( timeout, my_channel )
+				end
     }
 end
 

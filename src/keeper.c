@@ -90,61 +90,119 @@ char const *init_keepers( int const _nbKeepers)
 		// Initialize Keeper states with bare minimum of libs (those required
 		// by 'keeper.lua')
 		//
-		lua_State *L= luaL_newstate();
-		if (!L)
+		lua_State *K = luaL_newstate();
+		if (!K)
 			return "out of memory";
 
 		// to see VM name in Decoda debugger
-		lua_pushliteral( L, "Keeper #");
-		lua_pushinteger( L, i + 1);
-		lua_concat( L, 2);
-		lua_setglobal( L, "decoda_name");
+		lua_pushliteral( K, "Keeper #");
+		lua_pushinteger( K, i + 1);
+		lua_concat( K, 2);
+		lua_setglobal( K, "decoda_name");
 
-		luaG_openlibs( L, "io,table,package" );     // 'io' for debugging messages, package because we need to require modules exporting idfuncs
-		serialize_require( L);
-
+		// 'io' for debugging messages, 'package' because we need to require modules exporting idfuncs
+		// the others because they export functions that we may store in a keeper for transfer between lanes
+		luaG_openlibs( K, "*");
+		serialize_require( K);
 
 		// Read in the preloaded chunk (and run it)
 		//
-		if (luaL_loadbuffer( L, keeper_chunk, sizeof(keeper_chunk), "@keeper.lua"))
+		if( luaL_loadbuffer( K, keeper_chunk, sizeof(keeper_chunk), "@keeper.lua"))
 			return "luaL_loadbuffer() failed";   // LUA_ERRMEM
 
-		if (lua_pcall( L, 0 /*args*/, 0 /*results*/, 0 /*errfunc*/ ))
+		if( lua_pcall( K, 0 /*args*/, 0 /*results*/, 0 /*errfunc*/))
 		{
 			// LUA_ERRRUN / LUA_ERRMEM / LUA_ERRERR
 			//
-			const char *err= lua_tostring(L,-1);
-			assert(err);
+			const char *err = lua_tostring(K, -1);
+			assert( err);
 			return err;
 		}
 
-		MUTEX_INIT( &GKeepers[i].lock_ );
-		GKeepers[i].L= L;
+		MUTEX_INIT( &GKeepers[i].lock_);
+		GKeepers[i].L = K;
 		//GKeepers[i].count = 0;
 	}
 	return NULL;    // ok
 }
 
+// cause each keeper state to populate its database of transferable functions with those from the specified module
+void populate_keepers( lua_State *L)
+{
+	size_t name_len;
+	char const *name = luaL_checklstring( L, -1, &name_len);
+	size_t package_path_len;
+	char const *package_path;
+	size_t package_cpath_len;
+	char const *package_cpath;
+	int i;
+
+	// we need to make sure that package.path & package.cpath are the same in the keepers
+// than what is currently in use when the module is required in the caller's Lua state
+	STACK_CHECK(L)
+	STACK_GROW( L, 3);
+	lua_getglobal( L, "package");
+	lua_getfield( L, -1, "path");
+	package_path = luaL_checklstring( L, -1, &package_path_len);
+	lua_getfield( L, -2, "cpath");
+	package_cpath = luaL_checklstring( L, -1, &package_cpath_len);
+
+	for( i = 0; i < GNbKeepers; ++ i)
+	{
+		lua_State *K = GKeepers[i].L;
+		int res;
+		MUTEX_LOCK( &GKeepers[i].lock_);
+		STACK_CHECK(K)
+		STACK_GROW( K, 2);
+		lua_getglobal( K, "package");
+		lua_pushlstring( K, package_path, package_path_len);
+		lua_setfield( K, -2, "path");
+		lua_pushlstring( K, package_cpath, package_cpath_len);
+		lua_setfield( K, -2, "cpath");
+		lua_pop( K, 1);
+		lua_getglobal( K, "require");
+		lua_pushlstring( K, name, name_len);
+		res = lua_pcall( K, 1, 0, 0);
+		if( res != 0)
+		{
+			char const *err = luaL_checkstring( K, -1);
+			luaL_error( L, "error requiring '%s' in keeper state: %s", name, err);
+		}
+		STACK_END(K, 0)
+		MUTEX_UNLOCK( &GKeepers[i].lock_);
+	}
+	lua_pop( L, 3);
+	STACK_END(L, 0)
+}
+
 struct s_Keeper *keeper_acquire( const void *ptr)
 {
-	/*
-	* Any hashing will do that maps pointers to 0..GNbKeepers-1 
-	* consistently.
-	*
-	* Pointers are often aligned by 8 or so - ignore the low order bits
-	*/
-	unsigned int i= ((unsigned long)(ptr) >> 3) % GNbKeepers;
-	struct s_Keeper *K= &GKeepers[i];
+	// can be 0 if this happens during main state shutdown (lanes is being GC'ed -> no keepers)
+	if( GNbKeepers == 0)
+	{
+		return NULL;
+	}
+	else
+	{
+		/*
+		* Any hashing will do that maps pointers to 0..GNbKeepers-1 
+		* consistently.
+		*
+		* Pointers are often aligned by 8 or so - ignore the low order bits
+		*/
+		unsigned int i= ((unsigned long)(ptr) >> 3) % GNbKeepers;
+		struct s_Keeper *K= &GKeepers[i];
 
-	MUTEX_LOCK( &K->lock_);
-	//++ K->count;
-	return K;
+		MUTEX_LOCK( &K->lock_);
+		//++ K->count;
+		return K;
+	}
 }
 
 void keeper_release( struct s_Keeper *K)
 {
 	//-- K->count;
-	MUTEX_UNLOCK( &K->lock_);
+	if( K) MUTEX_UNLOCK( &K->lock_);
 }
 
 void keeper_toggle_nil_sentinels( lua_State *L, int _val_i, int _nil_to_sentinel)

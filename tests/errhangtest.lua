@@ -1,4 +1,5 @@
-lanes = require('lanes')
+local lanes = require "lanes"
+lanes.configure( 1)
 
 local linda = lanes.linda()
 

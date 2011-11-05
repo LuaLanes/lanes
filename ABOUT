@@ -14,4 +14,6 @@ in the manual).
 
 Lua Lanes has been optimized for performance, and provides around 50-60%
 speed increase when running heavily threaded applications on dual core
-processors (compared to running a non-threaded plain Lua implementation). 
+processors (compared to running a non-threaded plain Lua implementation).
+
+Starting with version 3.0, Lanes is compatible with LuaJIT 2.

@@ -4,7 +4,8 @@
 -- Note: this code is supposed to end in errors; not included in 'make test'
 --
 
-require "lanes"
+local lanes = require "lanes"
+lanes.configure( 1)
 
 local function lane()
 

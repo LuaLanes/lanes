@@ -3,21 +3,39 @@ CHANGES:
 
 CHANGE X:
 
+CHANGE 33 BGe 5-Nov-2011: Lanes version 3.0-beta
+   * process exit change: close everything at GC when main state closes, not when atexit() handlers are processed
+   * Lua 5.2-style module:
+      * module() is no longer used to implement lanes.lua
+      * a global "lanes" variable is no longer created when the module is required
+      * the Lanes module table is returned instead
+   * Lanes must be initialized before used:
+      * the first occurence of 'require "lanes"' produces a minimal interface that only contains a configure() function
+      * the remainder of the interface is made available once this function is called
+      * subsequent calls to configure() do nothing
+      * configure() controls the number of keeper states and the startup of timers
+   * LuaJIT 2 compatibility
+      * non-Lua functions are no longer copied by creating a C closure from a C pointer, but through 2-way lookup tables
+      * this means that if a lane function body pulls non-Lua functions, the lane generator description must contain the list of libraries and modules that exports them
+      * introduces a change in configuration .globals management: contents are copied *after* std libs are loaded
+      * new .required configuration entry to list modules that must be require()'ed before lane body is transferred
+   * lane:cancel() wakes up waiting lindas like what is done at lane shutdown
+
 CHANGE 32 BGe 14-May-2011
-* raise an error when linda:send() has nothing to send
+   * raise an error when linda:send() has nothing to send
 
 CHANGE 31 BGe 17-Apr-2011
-* linda uses a fast FIFO implementation to speed up data exchanges
-* new linda:count() method
-* new linda batched data read mode
-* proper key type check in all linda methods
-* fix setup-vc.cmd to support Visual Studio 2010 and Windows 7 64 bits
-* bugfix: release keeper state mutex at desinit
+   * linda uses a fast FIFO implementation to speed up data exchanges
+   * new linda:count() method
+   * new linda batched data read mode
+   * proper key type check in all linda methods
+   * fix setup-vc.cmd to support Visual Studio 2010 and Windows 7 64 bits
+   * bugfix: release keeper state mutex at desinit
 
 CHANGE 30 BGe 30-Mar-2011
-* linda honors __tostring and __concat
-* new accessor linda:keys(), to retrieve the list of keys with pending data inside a linda
-* new lanes options packagepath and packagecpath, in case one needs to set them differently than the default
+   * linda honors __tostring and __concat
+   * new accessor linda:keys(), to retrieve the list of keys with pending data inside a linda
+   * new lanes options packagepath and packagecpath, in case one needs to set them differently than the default
 
 CHANGE 29 BGe 1-Mar-2011
     fixed potential crash at application shutdown when calling lua_close() on a killed thread's VM.
