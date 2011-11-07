@@ -136,6 +136,7 @@ static bool_t openlib( lua_State *L, const char *name, size_t len ) {
 
 static int dummy_writer(lua_State *L, const void* p, size_t sz, void* ud)
 {
+	(void)L; (void)p; (void)sz; (void) ud; // unused
 	return 666;
 }
 
@@ -1229,7 +1230,6 @@ static void inter_copy_func( lua_State *L2, uint_t L2_cache_i, lua_State *L, uin
 {
 	FuncSubType funcSubType;
 	lua_CFunction cfunc = luaG_tocfunction( L, i, &funcSubType); // NULL for LuaJIT-fast && bytecode functions
-	i = STACK_ABS( L, i);
 
 	ASSERT_L( L2_cache_i != 0 );
 	STACK_GROW(L,2);
@@ -1241,7 +1241,7 @@ static void inter_copy_func( lua_State *L2, uint_t L2_cache_i, lua_State *L, uin
 		luaL_Buffer b;
 		// 'lua_dump()' needs the function at top of stack
 		// if already on top of the stack, no need to push again
-		int needToPush = (i != lua_gettop( L));
+		int needToPush = (i != (uint_t)lua_gettop( L));
 		if( needToPush)
 			lua_pushvalue( L, i);
 

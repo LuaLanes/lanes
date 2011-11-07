@@ -74,7 +74,9 @@ THE SOFTWARE.
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 static void FAIL( const char *funcname, int rc ) {
     fprintf( stderr, "%s() failed! (%d)\n", funcname, rc );
+#ifdef _MSC_VER
     __debugbreak(); // give a chance to the debugger!
+#endif // _MSC_VER
     abort();
 }
 #endif
@@ -281,9 +283,9 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
   }
   //
   bool_t THREAD_WAIT( THREAD_T *ref, double secs ) {
-    long ms= (long)((secs*1000.0)+0.5);
+    DWORD ms = (secs<0.0) ? INFINITE : (DWORD)((secs*1000.0)+0.5);
 
-    DWORD rc= WaitForSingleObject( *ref, ms<0 ? INFINITE:ms /*timeout*/ );
+    DWORD rc= WaitForSingleObject( *ref, ms /*timeout*/ );
         //
         // (WAIT_ABANDONED)
         // WAIT_OBJECT_0    success (0)

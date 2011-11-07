@@ -296,7 +296,7 @@ LUAG_FUNC( linda_send)
 	check_key_types( L, key_i, key_i);
 
 	// make sure there is something to send
-	if( lua_gettop( L) == key_i)
+	if( (uint_t)lua_gettop( L) == key_i)
 	{
 		luaL_error( L, "no data to send");
 	}
@@ -994,8 +994,9 @@ static void selfdestruct_add( struct s_lane *s ) {
 /*
 * A free-running lane has ended; remove it from selfdestruct chain
 */
-static void selfdestruct_remove( struct s_lane *s ) {
-
+static bool_t selfdestruct_remove( struct s_lane *s )
+{
+    bool_t found = FALSE;
     MUTEX_LOCK( &selfdestruct_cs );
     {
         // Make sure (within the MUTEX) that we actually are in the chain
@@ -1004,7 +1005,6 @@ static void selfdestruct_remove( struct s_lane *s ) {
         //
         if (s->selfdestruct_next != NULL) {
             struct s_lane **ref= (struct s_lane **) &selfdestruct_first;
-            bool_t found= FALSE;
     
             while( *ref != SELFDESTRUCT_END ) {
                 if (*ref == s) {
@@ -1019,6 +1019,7 @@ static void selfdestruct_remove( struct s_lane *s ) {
         }
     }
     MUTEX_UNLOCK( &selfdestruct_cs );
+    return found;
 }
 
 // Initialized by 'init_once_LOCKED()': the deep userdata Linda object
@@ -1031,6 +1032,7 @@ volatile DEEP_PRELUDE *timer_deep;  // = NULL
 */
 static int selfdestruct_atexit( lua_State *L)
 {
+    (void)L; // unused
     if (selfdestruct_first == SELFDESTRUCT_END) return 0;    // no free-running threads
 
     // Signal _all_ still running threads to exit (including the timer thread)
@@ -1466,7 +1468,8 @@ LUAG_FUNC( set_debug_threadname)
         lua_newtable(L);
     }
     s->waiting_on = NULL; // just in case
-    if (s->selfdestruct_next != NULL) {
+    if( selfdestruct_remove( s)) // check and remove (under lock!)
+    {
         // We're a free-running thread and no-one's there to clean us up.
         //
         lua_close( s->L );
@@ -1476,7 +1479,6 @@ LUAG_FUNC( set_debug_threadname)
         SIGNAL_FREE( &s->done_signal_ );
         MUTEX_FREE( &s->done_lock_ );
     #endif
-        selfdestruct_remove(s);     // away from selfdestruct chain
         free(s);
 
     } else {
@@ -2201,7 +2203,7 @@ LUAG_FUNC( now_secs )
 LUAG_FUNC( wakeup_conv )
 {
     int year, month, day, hour, min, sec, isdst;
-    struct tm tm= {0};
+    struct tm t = {0,0,0,0,0,0,0,0,0};
         //
         // .year (four digits)
         // .month (1..12)
@@ -2228,15 +2230,15 @@ LUAG_FUNC( wakeup_conv )
     lua_pop(L,1);
   STACK_END(L,0)
 
-    tm.tm_year= year-1900;
-    tm.tm_mon= month-1;     // 0..11
-    tm.tm_mday= day;        // 1..31
-    tm.tm_hour= hour;       // 0..23
-    tm.tm_min= min;         // 0..59
-    tm.tm_sec= sec;         // 0..60
-    tm.tm_isdst= isdst;     // 0/1/negative
+    t.tm_year= year-1900;
+    t.tm_mon= month-1;     // 0..11
+    t.tm_mday= day;        // 1..31
+    t.tm_hour= hour;       // 0..23
+    t.tm_min= min;         // 0..59
+    t.tm_sec= sec;         // 0..60
+    t.tm_isdst= isdst;     // 0/1/negative
 
-    lua_pushnumber( L, (double) mktime( &tm ) );   // ms=0
+    lua_pushnumber( L, (double) mktime( &t));   // ms=0
     return 1;
 }
 
