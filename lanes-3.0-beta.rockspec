@@ -17,7 +17,7 @@ version = "3.0-0"
 
 source= {
     url= "git://github.com/LuaLanes/lanes.git",
-    branch= "v3.0.0"
+    branch= "v3.0-beta"
 }
 
 description = {
