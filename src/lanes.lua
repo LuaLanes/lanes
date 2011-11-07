@@ -562,7 +562,9 @@ end
 		if _t ~= _timers  then
 			error( "mismatched configuration: " .. tostring( _t) .. " timer activity instead of " .. tostring( _timers))
 		end
+		return lanes
 	end
+	return lanes
 end -- lanes.configure
 
 --the end
