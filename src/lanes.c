@@ -1358,15 +1358,15 @@ void SetThreadName( DWORD dwThreadID, char const *_threadName)
 
 LUAG_FUNC( set_debug_threadname)
 {
-	char const *threadName;
 	luaL_checktype( L, -1, LUA_TSTRING);
-	threadName = lua_tostring( L, -1);
-
 #if defined PLATFORM_WIN32  && !defined __GNUC__
-	// to see thead name in Visual Studio C debugger
-	SetThreadName(-1, threadName);
-#endif
+	{
+		char const *threadName = lua_tostring( L, -1);
 
+		// to see thead name in Visual Studio C debugger
+		SetThreadName(-1, threadName);
+	}
+#endif // defined PLATFORM_WIN32  && !defined __GNUC__
 	// to see VM name in Decoda debugger Virtual Machine window
 	lua_setglobal( L, "decoda_name");
 
@@ -2203,7 +2203,8 @@ LUAG_FUNC( now_secs )
 LUAG_FUNC( wakeup_conv )
 {
     int year, month, day, hour, min, sec, isdst;
-    struct tm t = {0,0,0,0,0,0,0,0,0};
+    struct tm t;
+    memset( &t, 0, sizeof( t));
         //
         // .year (four digits)
         // .month (1..12)

@@ -288,7 +288,7 @@ static void populate_func_lookup_table_recur( lua_State *L, int _ctx_base, int _
 		{
 			if( luaG_getfuncsubtype( L, -1) != FST_Bytecode)
 			{
-				char const *fqnString;
+				//char const *fqnString; for debugging
 				bool_t not_registered;
 				// first, skip everything if the function is already known
 				lua_pushvalue( L, -1);                                                              // ... {_i} {bfc} k func func
@@ -302,7 +302,7 @@ static void populate_func_lookup_table_recur( lua_State *L, int _ctx_base, int _
 					lua_pushvalue( L, -2);                                                            // ... {_i} {bfc} k func k
 					lua_rawseti( L, fqn, _depth);                                                     // ... {_i} {bfc} k func
 					// generate name
-					fqnString = luaG_pushFQN( L, fqn, _depth);                                        // ... {_i} {bfc} k func "f.q.n"
+					/*fqnString =*/ (void) luaG_pushFQN( L, fqn, _depth);                             // ... {_i} {bfc} k func "f.q.n"
 					//puts( fqnString);
 					// prepare the stack for database feed
 					lua_pushvalue( L, -1);                                                            // ... {_i} {bfc} k func "f.q.n" "f.q.n"

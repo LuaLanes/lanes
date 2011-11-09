@@ -698,6 +698,7 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
     /* Since we've set the thread up as PTHREAD_CREATE_DETACHED, we cannot
      * join with it. Use the cond.var.
     */
+    (void) ref; // unused
     MUTEX_LOCK( mu_ref );
     
         // 'secs'==0.0 does not need to wait, just take the current status
