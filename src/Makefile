@@ -124,7 +124,7 @@ all: lua51-$(MODULE)$(_SO)
 # Note: Don't put $(LUA_LIBS) ahead of $^; MSYS will not like that (I think)
 #
 lua51-$(MODULE)$(_SO): $(OBJ)
-	$(CC) $(LIBFLAG) $(LIBS) $^ $(LUA_LIBS) -o $@
+	$(CC) $(LIBFLAG) $^ $(LIBS) $(LUA_LIBS) -o $@
 
 clean:
 	-rm -rf lua51-$(MODULE)$(_SO) *.lch *.o *.tmp *.map
