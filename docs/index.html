@@ -329,13 +329,12 @@ also in the new lanes.
     <tr valign="top">
       <td width="40">
         <td>
-          <code>.packagepath</code>
-          <br/><code>.packagecpath</code>
+          <code>.package</code><br/>
         </td>
         <td>
-          <code>package.path</code> and <code>package.cpath</code> overrides, if needed.
-          Specifying these when <code>libs_str</code> doesn't cause the <code>package</code> library to be loaded will generate an error.
-          If not specified, the created lane will receive the current values of <tt>package.path</tt> and <tt>package.cpath</tt>.
+          <code>package</code> contents overrides, if needed.
+          Specifying it when <code>libs_str</code> doesn't cause the <code>package</code> library to be loaded will generate an error.
+          If not specified, the created lane will receive the current values of <tt>package</tt>. Only path, cpath, preload and loaders are transfered.
           <br>
     </td>
     </tr>
@@ -1086,6 +1085,7 @@ its actual value.
       <li>new .required configuration entry to list modules that must be require()'ed before lane body is transferred</li>
     </ul>
     <li>lane:cancel() wakes up waiting lindas like what is done at lane shutdown</li>
+    <li>removed packagepath and packagecpath options, replaced by a package table, whose fields path, cpath, loaders, preload are transfered</li>
   </ul>
 
   Mar-2011 (not yet versioned)

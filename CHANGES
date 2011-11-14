@@ -3,6 +3,11 @@ CHANGES:
 
 CHANGE X:
 
+CHANGE 34 BGe 14-Nov-2011
+   * removed packagepath and packagecpath options, replaced by a package table, whose fields path, cpath, loaders, preload are transfered
+   * code cleanup to facilitate transition between WIN32 and PTHREAD impleentations
+   * tentative fix for desinit crashes when free running lanes are killed at process shutdown
+
 CHANGE 33 BGe 5-Nov-2011: Lanes version 3.0-beta
    * process exit change: close everything at GC when main state closes, not when atexit() handlers are processed
    * Lua 5.2-style module:

@@ -41,9 +41,9 @@ THE SOFTWARE.
 #include "threading.h"
 #include "lua.h"
 
-#if !((defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC))
+#if THREADAPI == THREADAPI_PTHREAD
 # include <sys/time.h>
-#endif
+#endif // THREADAPI == THREADAPI_PTHREAD
 
 
 #if defined(PLATFORM_LINUX) || defined(PLATFORM_CYGWIN)
@@ -71,7 +71,7 @@ THE SOFTWARE.
 * FAIL is for unexpected API return values - essentially programming 
 * error in _this_ code. 
 */
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
+#if THREADAPI == THREADAPI_WINDOWS
 static void FAIL( const char *funcname, int rc ) {
     fprintf( stderr, "%s() failed! (%d)\n", funcname, rc );
 #ifdef _MSC_VER
@@ -79,7 +79,7 @@ static void FAIL( const char *funcname, int rc ) {
 #endif // _MSC_VER
     abort();
 }
-#endif
+#endif // THREADAPI == THREADAPI_WINDOWS
 
 
 /*
@@ -90,7 +90,7 @@ static void FAIL( const char *funcname, int rc ) {
 */
 time_d now_secs(void) {
 
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
+#if THREADAPI == THREADAPI_WINDOWS
     /*
     * Windows FILETIME values are "100-nanosecond intervals since 
     * January 1, 1601 (UTC)" (MSDN). Well, we'd want Unix Epoch as
@@ -145,7 +145,7 @@ time_d now_secs(void) {
     // <= 2.0.2 code
     return (double)(uli.QuadPart - uli_epoch.QuadPart) / 10000000.0;
 # endif
-#else
+#else // THREADAPI == THREADAPI_PTHREAD
     struct timeval tv;
         // {
         //   time_t       tv_sec;   /* seconds since Jan. 1, 1970 */
@@ -156,7 +156,7 @@ time_d now_secs(void) {
     assert( rc==0 );
 
     return ((double)tv.tv_sec) + ((tv.tv_usec)/1000) / 1000.0;
-#endif
+#endif // THREADAPI THREADAPI_PTHREAD
 }
 
 
@@ -168,7 +168,7 @@ time_d SIGNAL_TIMEOUT_PREPARE( double secs ) {
 }
 
 
-#if !((defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC))
+#if THREADAPI == THREADAPI_PTHREAD
 /*
 * Prepare 'abs_secs' kind of timeout to 'timespec' format
 */
@@ -187,7 +187,7 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
         ts->tv_sec = ts->tv_sec + 1;
     }
 }
-#endif
+#endif // THREADAPI == THREADAPI_PTHREAD
 
 
 /*---=== Threading ===---*/
@@ -230,7 +230,7 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
 # endif
 #endif
 
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
+#if THREADAPI == THREADAPI_WINDOWS
   //
   void MUTEX_INIT( MUTEX_T *ref ) {
      *ref= CreateMutex( NULL /*security attr*/, FALSE /*not locked*/, NULL );
@@ -282,7 +282,8 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
     *ref= h;
   }
   //
-  bool_t THREAD_WAIT( THREAD_T *ref, double secs ) {
+bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
+{
     DWORD ms = (secs<0.0) ? INFINITE : (DWORD)((secs*1000.0)+0.5);
 
     DWORD rc= WaitForSingleObject( *ref, ms /*timeout*/ );
@@ -373,7 +374,7 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
     if (!PulseEvent( *ref ))
         FAIL( "PulseEvent", GetLastError() );
   }
-#else
+#else // THREADAPI == THREADAPI_PTHREAD
   // PThread (Linux, OS X, ...)
   //
   // On OS X, user processes seem to be able to change priorities.
@@ -652,7 +653,7 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
     }
   }
   //
-  /*
+ /*
   * Wait for a thread to finish.
   *
   * 'mu_ref' is a lock we should use for the waiting; initially unlocked.
@@ -660,11 +661,7 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
   *
   * Returns TRUE for succesful wait, FALSE for timed out
   */
-#ifdef PTHREAD_TIMEDJOIN
-  bool_t THREAD_WAIT( THREAD_T *ref, double secs )
-#else
-  bool_t THREAD_WAIT( THREAD_T *ref, SIGNAL_T *signal_ref, MUTEX_T *mu_ref, volatile enum e_status *st_ref, double secs )
-#endif
+bool_t THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *mu_ref, volatile enum e_status *st_ref)
 {
     struct timespec ts_store;
     const struct timespec *timeout= NULL;
@@ -672,16 +669,17 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
 
     // Do timeout counting before the locks
     //
-#ifdef PTHREAD_TIMEDJOIN
-    if (secs>=0.0) {
-#else
-    if (secs>0.0) {
-#endif
+#if THREADWAIT_METHOD == THREADWAIT_TIMEOUT
+    if (secs>=0.0)
+#else // THREADWAIT_METHOD == THREADWAIT_CONDVAR
+    if (secs>0.0)
+#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
+    {
         prepare_timeout( &ts_store, now_secs()+secs );
         timeout= &ts_store;
     }
 
-#ifdef PTHREAD_TIMEDJOIN
+#if THREADWAIT_METHOD == THREADWAIT_TIMEOUT
     /* Thread is joinable
     */
     if (!timeout) {
@@ -694,7 +692,7 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
         }
         done= rc==0;
     }
-#else
+#else // THREADWAIT_METHOD == THREADWAIT_CONDVAR
     /* Since we've set the thread up as PTHREAD_CREATE_DETACHED, we cannot
      * join with it. Use the cond.var.
     */
@@ -718,13 +716,13 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
         done= *st_ref >= DONE;  // DONE|ERROR_ST|CANCELLED
 
     MUTEX_UNLOCK( mu_ref );
-#endif
+#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
     return done;
-  }    
+  }
   //
   void THREAD_KILL( THREAD_T *ref ) {
     pthread_cancel( *ref );
   }
-#endif
+#endif // THREADAPI == THREADAPI_PTHREAD
 
 static const lua_Alloc alloc_f= 0;

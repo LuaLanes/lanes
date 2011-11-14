@@ -214,7 +214,7 @@ local function gen( ... )
         end
     end
     
-    local prio, cs, g_tbl, packagepath, packagecpath, required
+    local prio, cs, g_tbl, package_tbl, required
 
     for k,v in pairs(opt) do
             if k=="priority" then prio= v
@@ -224,10 +224,8 @@ local function gen( ... )
                 type(v)=="number" and v or
                 error( "Bad cancelstep: "..tostring(v), lev )
         elseif k=="globals" then g_tbl= v
-        elseif k=="packagepath" then
-            packagepath = (type( v) == "string") and v or error( "Bad packagepath: " .. tostring( v), lev)
-        elseif k=="packagecpath" then
-            packagecpath = (type( v) == "string") and v or error( "Bad packagecpath: " .. tostring( v), lev)
+        elseif k=="package" then
+            package_tbl = (type( v) == "table") and v or error( "Bad package: " .. tostring( v), lev)
         elseif k=="required" then
             required= (type( v) == "table") and v or error( "Bad required: " .. tostring( v), lev)
         --..
@@ -236,12 +234,11 @@ local function gen( ... )
         end
     end
 
-    if not packagepath then packagepath = package.path end
-    if not packagecpath then packagecpath = package.cpath end
+    if not package_tbl then package_tbl = package end
     -- Lane generator
     --
     return function(...)
-              return thread_new( func, libs, cs, prio, g_tbl, packagepath, packagecpath, required, ...)     -- args
+              return thread_new( func, libs, cs, prio, g_tbl, package_tbl, required, ...)     -- args
            end
 end
 

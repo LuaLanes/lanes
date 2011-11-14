@@ -139,7 +139,7 @@ struct s_lane {
 	// M: sets to FALSE, flags TRUE for cancel request
 	// S: reads to see if cancel is requested
 
-#if !( (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC) || (defined PTHREAD_TIMEDJOIN) )
+#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
 	SIGNAL_T done_signal_;
 	//
 	// M: Waited upon at lane ending  (if Posix with no PTHREAD_TIMEDJOIN)
@@ -149,7 +149,7 @@ struct s_lane {
 	// 
 	// Lock required by 'done_signal' condition variable, protecting
 	// lane status changes to DONE/ERROR_ST/CANCELLED.
-#endif
+#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 
 	volatile enum { 
 		NORMAL,         // normal master side state
@@ -1150,9 +1150,17 @@ static int selfdestruct_atexit( lua_State *L)
             {
                 struct s_lane *next_s= s->selfdestruct_next;
                 s->selfdestruct_next= NULL;     // detach from selfdestruct chain
-                if( s->thread) // can be NULL if previous 'soft' termination succeeded
+                if( !THREAD_ISNULL( s->thread)) // can be NULL if previous 'soft' termination succeeded
+                {
                     THREAD_KILL( &s->thread);
+                    // make sure the thread is really stopped!
+                    THREAD_WAIT( &s->thread, -1, &s->done_signal_, &s->done_lock_, &s->status);
+                }
                 // NO lua_close() in this case because we don't know where execution of the state was interrupted
+#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
+                SIGNAL_FREE( &s->done_signal_);
+                MUTEX_FREE( &s->done_lock_);
+#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
                 free( s);
                 s = next_s;
                 n++;
@@ -1374,11 +1382,7 @@ LUAG_FUNC( set_debug_threadname)
 }
 
 //---
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
-  static THREAD_RETURN_T __stdcall lane_main( void *vs )
-#else
-  static THREAD_RETURN_T lane_main( void *vs )
-#endif
+static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
 {
     struct s_lane *s= (struct s_lane *)vs;
     int rc, rc2;
@@ -1475,13 +1479,15 @@ LUAG_FUNC( set_debug_threadname)
         lua_close( s->L );
         s->L = L = 0;
 
-    #if !( (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC) || (defined PTHREAD_TIMEDJOIN) )
-        SIGNAL_FREE( &s->done_signal_ );
-        MUTEX_FREE( &s->done_lock_ );
-    #endif
+    #if THREADWAIT_METHOD == THREADWAIT_CONDVAR
+        SIGNAL_FREE( &s->done_signal_);
+        MUTEX_FREE( &s->done_lock_);
+    #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
         free(s);
 
-    } else {
+    }
+    else
+    {
         // leave results (1..top) or error message + stack trace (1..2) on the stack - master will copy them
 
         enum e_status st= 
@@ -1492,16 +1498,16 @@ LUAG_FUNC( set_debug_threadname)
         // Posix no PTHREAD_TIMEDJOIN:
         // 		'done_lock' protects the -> DONE|ERROR_ST|CANCELLED state change
         //
-    #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC) || (defined PTHREAD_TIMEDJOIN)
-        s->status= st;
-    #else
-        MUTEX_LOCK( &s->done_lock_ );
+#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
+        MUTEX_LOCK( &s->done_lock_);
         {
-            s->status= st;
-            SIGNAL_ONE( &s->done_signal_ );   // wake up master (while 's->done_lock' is on)
+#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
+            s->status = st;
+#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
+            SIGNAL_ONE( &s->done_signal_);   // wake up master (while 's->done_lock' is on)
         }
-        MUTEX_UNLOCK( &s->done_lock_ );
-    #endif
+        MUTEX_UNLOCK( &s->done_lock_);
+#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
     }
     return 0;   // ignored
 }
@@ -1512,7 +1518,7 @@ LUAG_FUNC( set_debug_threadname)
 //                          [cancelstep_uint=0], 
 //                          [prio_int=0],
 //                          [globals_tbl],
-//                          [packagepath],
+//                          [package_tbl],
 //                          [required],
 //                          [... args ...] )
 //
@@ -1553,11 +1559,10 @@ LUAG_FUNC( thread_new )
 	uint_t cs= luaG_optunsigned( L, 3,0);
 	int prio= (int)luaL_optinteger( L, 4,0);
 	uint_t glob= luaG_isany(L,5) ? 5:0;
-	uint_t ppath = luaG_isany(L,6) ? 6:0;
-	uint_t pcpath = luaG_isany(L,7) ? 7:0;
-	uint_t required = luaG_isany(L,8) ? 8:0;
+	uint_t package = luaG_isany(L,6) ? 6:0;
+	uint_t required = luaG_isany(L,7) ? 7:0;
 
-#define FIXED_ARGS (8)
+#define FIXED_ARGS (7)
 	uint_t args= lua_gettop(L) - FIXED_ARGS;
 
 	if (prio < THREAD_PRIO_MIN || prio > THREAD_PRIO_MAX)
@@ -1588,46 +1593,35 @@ LUAG_FUNC( thread_new )
 	ASSERT_L( lua_gettop(L2) == 0);
 
 	// package.path
+	STACK_CHECK(L)
 	STACK_CHECK(L2)
-	if( ppath)
+	if( package)
 	{
-		if (lua_type(L,ppath) != LUA_TSTRING)
-			luaL_error( L, "expected packagepath as string, got %s", luaG_typename(L,ppath));
+		if (lua_type(L,package) != LUA_TTABLE)
+			luaL_error( L, "expected package as table, got %s", luaG_typename(L,package));
 		lua_getglobal( L2, "package");
-		if( lua_isnil( L2, -1)) // package library not loaded: do nothing
+		if( !lua_isnil( L2, -1)) // package library not loaded: do nothing
 		{
-			lua_pop( L2, 1);
+			int i;
+			char const *entries[] = { "path", "cpath", "preload", "loaders", NULL};
+			for( i = 0; entries[i]; ++ i)
+			{
+				lua_getfield( L, package, entries[i]);
+				if( lua_isnil( L, -1))
+				{
+					lua_pop( L, 1);
+				}
+				else
+				{
+					luaG_inter_move( L, L2, 1); // moves the entry to L2
+					lua_setfield( L2, -2, entries[i]); // set package[entries[i]]
+				}
+			}
 		}
-		else
-		{
-			lua_pushvalue( L, ppath);
-			luaG_inter_move( L, L2, 1);     // moves the new path to L2
-			lua_setfield( L2, -2, "path"); // set package.path
-			lua_pop( L2, 1);
-		}
+		lua_pop( L2, 1);
 	}
 	STACK_END(L2,0)
-
-	// package.cpath
-	STACK_CHECK(L2)
-	if( pcpath)
-	{
-		if (lua_type(L,pcpath) != LUA_TSTRING)
-			luaL_error( L, "expected packagecpath as string, got %s", luaG_typename(L,pcpath));
-		lua_getglobal( L2, "package");
-		if( lua_isnil( L2, -1)) // // package library not loaded: do nothing
-		{
-			lua_pop( L2, 1);
-		}
-		else
-		{
-			lua_pushvalue( L, pcpath);
-			luaG_inter_move( L, L2, 1);     // moves the new cpath to L2
-			lua_setfield( L2, -2, "cpath"); // set package.cpath
-			lua_pop( L2, 1);
-		}
-	}
-	STACK_END(L2,0)
+	STACK_END(L,0)
 
 	// modules to require in the target lane *before* the function is transfered!
 
@@ -1738,10 +1732,10 @@ LUAG_FUNC( thread_new )
 	s->waiting_on = NULL;
 	s->cancel_request= FALSE;
 
-#if !( (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC) || (defined PTHREAD_TIMEDJOIN) )
-	MUTEX_INIT( &s->done_lock_ );
-	SIGNAL_INIT( &s->done_signal_ );
-#endif
+#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
+	MUTEX_INIT( &s->done_lock_);
+	SIGNAL_INIT( &s->done_signal_);
+#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 	s->mstatus= NORMAL;
 	s->selfdestruct_next= NULL;
 
@@ -1813,6 +1807,7 @@ LUAG_FUNC( thread_gc )
 	{
 		// Make sure a kill has proceeded, before cleaning up the data structure.
 		//
+		// NO lua_close() in this case because we don't know where execution of the state was interrupted
 		// If not doing 'THREAD_WAIT()' we should close the Lua state here
 		// (can it be out of order, since we killed the lane abruptly?)
 		//
@@ -1821,11 +1816,7 @@ LUAG_FUNC( thread_gc )
 		s->L = 0;
 #else // 0
 		DEBUGEXEC(fprintf( stderr, "** Joining with a killed thread (needs testing) **" ));
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC) || (defined PTHREAD_TIMEDJOIN)
-		THREAD_WAIT( &s->thread, -1 );
-#else
-		THREAD_WAIT( &s->thread, &s->done_signal_, &s->done_lock_, &s->status, -1 );
-#endif
+		THREAD_WAIT( &s->thread, -1, &s->done_signal_, &s->done_lock_, &s->status);
 		DEBUGEXEC(fprintf( stderr, "** Joined ok **" ));
 #endif // 0
 	}
@@ -1837,12 +1828,12 @@ LUAG_FUNC( thread_gc )
 
 	// Clean up after a (finished) thread
 	//
-#if (! ((defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC) || (defined PTHREAD_TIMEDJOIN)))
-	SIGNAL_FREE( &s->done_signal_ );
-	MUTEX_FREE( &s->done_lock_ );
-#endif
+#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
+	SIGNAL_FREE( &s->done_signal_);
+	MUTEX_FREE( &s->done_lock_);
+#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 
-	free(s);
+	free( s);
 
 	return 0;
 }
@@ -1871,6 +1862,7 @@ static bool_t thread_cancel( struct s_lane *s, double secs, bool_t force)
 	//
 	if( s->status < DONE)
 	{
+		s->cancel_request = TRUE;    // it's now signaled to stop
 		// signal the linda the wake up the thread so that it can react to the cancel query
 		// let us hope we never land here with a pointer on a linda that has been destroyed...
 		//MUTEX_LOCK( &selfdestruct_cs );
@@ -1882,13 +1874,7 @@ static bool_t thread_cancel( struct s_lane *s, double secs, bool_t force)
 			}
 		}
 		//MUTEX_UNLOCK( &selfdestruct_cs );
-		s->cancel_request = TRUE;    // it's now signalled to stop
-		done= 
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC) || (defined PTHREAD_TIMEDJOIN)
-			THREAD_WAIT( &s->thread, secs);
-#else
-			THREAD_WAIT( &s->thread, &s->done_signal_, &s->done_lock_, &s->status, secs);
-#endif
+		done = THREAD_WAIT( &s->thread, secs, &s->done_signal_, &s->done_lock_, &s->status);
 
 		if ((!done) && force)
 		{
@@ -1986,12 +1972,7 @@ LUAG_FUNC( thread_join )
 	int ret;
 	bool_t done;
 
-	done = (s->thread == 0) ||
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC) || (defined PTHREAD_TIMEDJOIN)
-		THREAD_WAIT( &s->thread, wait_secs );
-#else
-		THREAD_WAIT( &s->thread, &s->done_signal_, &s->done_lock_, &s->status, wait_secs);
-#endif
+	done = THREAD_ISNULL( s->thread) || THREAD_WAIT( &s->thread, wait_secs, &s->done_signal_, &s->done_lock_, &s->status);
 	if (!done || !L2)
 		return 0;      // timeout: pushes none, leaves 'L2' alive
 
@@ -2365,7 +2346,7 @@ LUAG_FUNC( configure )
     * there is no problem. But if the host is multithreaded, we need to lock around the
     * initializations. 
     */
-#ifdef PLATFORM_WIN32
+#if THREADAPI == THREADAPI_WINDOWS
     {
         static volatile int /*bool*/ go_ahead; // = 0
         if( InterlockedCompareExchange( &s_initCount, 1, 0) == 0)
@@ -2378,7 +2359,7 @@ LUAG_FUNC( configure )
             while( !go_ahead ) { Sleep(1); }    // changes threads
         }
     }
-#else
+#else // THREADAPI == THREADAPI_PTHREAD
     if( s_initCount == 0)
     {
         static pthread_mutex_t my_lock= PTHREAD_MUTEX_INITIALIZER;
@@ -2394,7 +2375,7 @@ LUAG_FUNC( configure )
         }
         pthread_mutex_unlock(&my_lock);
     }
-#endif
+#endif // THREADAPI == THREADAPI_PTHREAD
     assert( timer_deep != 0 );
 
     // Create main module interface table
@@ -2453,7 +2434,7 @@ LUAG_FUNC( configure )
 int 
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 __declspec(dllexport)
-#endif
+#endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 luaopen_lanes( lua_State *L )
 {
 	// Create main module interface table

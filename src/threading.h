@@ -1,8 +1,8 @@
 /*
 * THREADING.H
 */
-#ifndef THREADING_H
-#define THREADING_H
+#ifndef __threading_h__
+#define __threading_h__ 1
 
 /* Platform detection
 */
@@ -45,11 +45,19 @@ typedef unsigned int uint_t;
 */
 enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
 
+#define THREADAPI_WINDOWS 1
+#define THREADAPI_PTHREAD 2
+
+#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
+#define THREADAPI THREADAPI_WINDOWS
+#else // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
+#define THREADAPI THREADAPI_PTHREAD
+#endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 
 /*---=== Locks & Signals ===---
 */
 
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
+#if THREADAPI == THREADAPI_WINDOWS
   #define WIN32_LEAN_AND_MEAN
   // 'SignalObjectAndWait' needs this (targets Windows 2000 and above)
   #define _WIN32_WINNT 0x0400
@@ -68,12 +76,13 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   void MUTEX_LOCK( MUTEX_T *ref );
   void MUTEX_UNLOCK( MUTEX_T *ref );
 
-  typedef unsigned THREAD_RETURN_T;
+  typedef unsigned int THREAD_RETURN_T;
 
   #define SIGNAL_T HANDLE
   
   #define YIELD() Sleep(0)
-#else
+	#define THREAD_CALLCONV __stdcall
+#else // THREADAPI == THREADAPI_PTHREAD
   // PThread (Linux, OS X, ...)
   //
   #include <pthread.h>
@@ -114,7 +123,8 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   #else
     #define YIELD() pthread_yield()
   #endif
-#endif
+	#define THREAD_CALLCONV
+#endif //THREADAPI == THREADAPI_PTHREAD
 
 void SIGNAL_INIT( SIGNAL_T *ref );
 void SIGNAL_FREE( SIGNAL_T *ref );
@@ -136,9 +146,10 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 /*---=== Threading ===---
 */
 
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
+#if THREADAPI == THREADAPI_WINDOWS
 
   typedef HANDLE THREAD_T;
+# define THREAD_ISNULL( _h) (_h == 0)
   //
   void THREAD_CREATE( THREAD_T *ref,
                       THREAD_RETURN_T (__stdcall *func)( void * ),
@@ -147,7 +158,7 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 # define THREAD_PRIO_MIN (-3)
 # define THREAD_PRIO_MAX (+3)
 
-#else
+#else // THREADAPI == THREADAPI_PTHREAD
     /* Platforms that have a timed 'pthread_join()' can get away with a simpler
     * implementation. Others will use a condition variable.
     */
@@ -161,6 +172,7 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 # endif
 
   typedef pthread_t THREAD_T;
+# define THREAD_ISNULL( _h) 0 // pthread_t may be a structure: never 'null' by itself
 
   void THREAD_CREATE( THREAD_T *ref, 
                       THREAD_RETURN_T (*func)( void * ),
@@ -178,19 +190,30 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 #  define THREAD_PRIO_MIN (-2)
 #  define THREAD_PRIO_MAX (+2)
 # endif
-#endif
+#endif // THREADAPI == THREADAPI_WINDOWS
 
 /* 
 * Win32 and PTHREAD_TIMEDJOIN allow waiting for a thread with a timeout.
 * Posix without PTHREAD_TIMEDJOIN needs to use a condition variable approach.
 */
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC) || (defined PTHREAD_TIMEDJOIN)
-  bool_t THREAD_WAIT( THREAD_T *ref, double secs );
-#else
-  bool_t THREAD_WAIT( THREAD_T *ref, SIGNAL_T *signal_ref, MUTEX_T *mu_ref, volatile enum e_status *st_ref, double secs );
-#endif
+#define THREADWAIT_TIMEOUT 1
+#define THREADWAIT_CONDVAR 2
+
+#if THREADAPI == THREADAPI_WINDOWS || (defined PTHREAD_TIMEDJOIN)
+#define THREADWAIT_METHOD THREADWAIT_TIMEOUT
+#else // THREADAPI == THREADAPI_WINDOWS || (defined PTHREAD_TIMEDJOIN)
+#define THREADWAIT_METHOD THREADWAIT_CONDVAR
+#endif // THREADAPI == THREADAPI_WINDOWS || (defined PTHREAD_TIMEDJOIN)
+
+
+#if THREADWAIT_METHOD == THREADWAIT_TIMEOUT
+bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs);
+#define THREAD_WAIT( a, b, c, d, e) THREAD_WAIT_IMPL( a, b)
+#else // THREADWAIT_METHOD == THREADWAIT_CONDVAR
+bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs, SIGNAL_T *signal_ref, MUTEX_T *mu_ref, volatile enum e_status *st_ref);
+#define THREAD_WAIT THREAD_WAIT_IMPL
+#endif // // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 
 void THREAD_KILL( THREAD_T *ref );
 
-#endif
-    // THREADING_H
+#endif // __threading_h__
