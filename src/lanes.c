@@ -1153,8 +1153,10 @@ static int selfdestruct_atexit( lua_State *L)
                 if( !THREAD_ISNULL( s->thread)) // can be NULL if previous 'soft' termination succeeded
                 {
                     THREAD_KILL( &s->thread);
-                    // make sure the thread is really stopped!
+#if THREADAPI == THREADAPI_PTHREAD
+                    // pthread: make sure the thread is really stopped!
                     THREAD_WAIT( &s->thread, -1, &s->done_signal_, &s->done_lock_, &s->status);
+#endif // THREADAPI == THREADAPI_PTHREAD
                 }
                 // NO lua_close() in this case because we don't know where execution of the state was interrupted
 #if THREADWAIT_METHOD == THREADWAIT_CONDVAR

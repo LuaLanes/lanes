@@ -82,7 +82,7 @@ local pairs= assert( pairs )
 local tostring= assert( tostring )
 local error= assert( error )
 
-ABOUT= 
+lanes.ABOUT= 
 {
     author= "Asko Kauppi <akauppi@gmail.com>",
     description= "Running multiple Lua states in parallel",
