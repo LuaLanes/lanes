@@ -56,7 +56,7 @@
 
 <p><br/><font size="-1"><i>Copyright &copy; 2007-12 Asko Kauppi, Benoit Germain. All rights reserved.</i>
     <br>Lua Lanes is published under the same <A HREF="http://en.wikipedia.org/wiki/MIT_License">MIT license</A> as Lua 5.1.
-    </p><p>This document was revised on 5-Nov-11, and applies to version 3.0-beta.
+    </p><p>This document was revised on 17-Feb-11, and applies to version 3.1.0
 </font></p>
 
 </center>
@@ -173,8 +173,7 @@ Or use <A HREF="http://www.luarocks.org" TARGET="_blank">Lua Rocks</A> package m
     <tr>
       <td>
         <pre>
-          local lanes = require "lanes"
-          lanes.configure( 1)
+          local lanes = require "lanes".configure()
         </pre>
       </table>
 
@@ -182,11 +181,11 @@ Or use <A HREF="http://www.luarocks.org" TARGET="_blank">Lua Rocks</A> package m
     Starting with version 3.0-beta, requiring the module follows Lua 5.2 rules:
     the module is not available under the global name "lanes", but has to be accessed
     through require's return value.
-    After lanes is required, it is necessary to call lanes.configure(), which is the
-    only function exposed by the module at this point. Calling configure() will
+    After lanes is required, it is necessary to call <tt>lanes.configure()</tt>, which is the
+    only function exposed by the module at this point. Calling <tt>configure()</tt> will
     perform one-time initializations and make the rest of the API available.
-    At the same time, configure() itself will be replaced by another function that
-    raises an error if called with differing arguments.
+    At the same time, <tt>configure()</tt> itself will be replaced by another function that
+    raises an error if called again with differing arguments.
   </p>
 
   <p>
@@ -194,19 +193,39 @@ Or use <A HREF="http://www.luarocks.org" TARGET="_blank">Lua Rocks</A> package m
       <tr>
         <td>
           <code>
-            lanes.configure( [nb_keepers] [, "NO_TIMERS"])
+            lanes.configure( [opt_tbl])
           </code>
         </table>
   </p>
   <p>
-    <tt>lanes.configure</tt> accepts 2 arguments. The first one controls the number
-    of keeper states used internally by lindas to transfer data between lanes. (see below).
-    Default is 1.
-  </p>
-  <p>If the second argument is equal to <tt>"NO_TIMERS"</tt>, Lanes doesn't start the timer service,
+    <tt>lanes.configure</tt> accepts an optional options table as sole argument.
+  <table>
+    <tr valign=top><td width=40></td><td>
+        <code>.nb_keepers</code> <br/><nobr>N</nobr></td><td width=40></td>
+    <td>
+    Controls the number of keeper states used internally by lindas to transfer data between lanes. (see below). Default is 1.
+    </td></tr>
+
+    <tr valign=top><td/><td>
+        <code>.with_timers</code> <br/>nil/false/anything</td><td/>
+    <td>
+    If equal to <tt>false</tt>, Lanes doesn't start the timer service,
   and the associated API will be absent from the interface (see below).
-  </p>
-  <h2 id="creation">Creation</h2>
+  Any other value (including <tt>nil</tt>), starts the timer service.
+    </td></tr>
+
+    <tr valign="top">
+      <td/>
+      <td>
+        <code>.on_create_state</code> <br/>C function/nil
+      </td><td/>
+      <td>
+        If provided, will be called in every created Lua state (keepers and lanes) right after it is created, and *before* any library is loaded.
+        That way, all C functions it loads in the state can be added to the function lookup database.
+    </td>
+    </tr>
+  </table>
+<h2 id="creation">Creation</h2>
 
 <p>The following sample shows preparing a function for parallel calling, and
 calling it with varying arguments. Each of the two results is calculated in
@@ -217,7 +236,7 @@ joins the threads, waiting for any results not already there.
 <table border=1 bgcolor="#FFFFE0" width=500><tr><td>
 <pre>
   local lanes = require "lanes"
-  lanes.configure( 1)
+  lanes.configure()
 
   f= lanes.gen( function(n) return 2*n end )
   a= f(1)
@@ -240,8 +259,8 @@ joins the threads, waiting for any results not already there.
     but the particular arguments may vary. Only calling the generator function
     actually launches a lane, and provides a handle for controlling it.
     Alternatively, <tt>lane_func</tt> may be a string, in which case it will be compiled
-    in the lane. This is to be able to launch lanes whith LuaJIT,
-    which does not support lua_dump, used internally to transfer functions to the lane.
+    in the lane. This was to be able to launch lanes with older versions of LuaJIT,
+    which didn't not support lua_dump, used internally to transfer functions to the lane.
 <!--
 </p>
 <p>This prepares <tt>lane_func</tt> to be called in parallel. It does not yet start
@@ -257,19 +276,21 @@ also in the new lanes.
     <code>libs_str</code> defines the standard libraries made available to the
     new Lua state:
     <table>
-        <tr><td/><td>(nothing)</td><td>no standard libraries (default)</td></tr>
-        <tr><td width=40><td><tt>"base"</tt> or <tt>""</tt></td>
-            <td>root level names, <tt>print</tt>, <tt>assert</tt>, <tt>unpack</tt> etc.</td></tr>
-        <tr><td/><td><tt>"coroutine"</tt></td><td><tt>coroutine.*</tt> namespace <font size="-1">(part of base in Lua 5.1)</font></td></tr>
-        <tr><td/><td><tt>"debug"</tt></td><td><tt>debug.*</tt> namespace</td></tr>
-        <tr><td/><td><tt>"io"</tt></td><td><tt>io.*</tt> namespace</td></tr>
-        <tr><td/><td><tt>"math"</tt></td><td><tt>math.*</tt> namespace</td></tr>
-        <tr><td/><td><tt>"os"</tt></td><td><tt>os.*</tt> namespace</td></tr>
-        <tr><td/><td><tt>"package"</tt></td><td><tt>package.*</tt> namespace and <tt>require</tt></td></tr>
-        <tr><td/><td><tt>"string"</tt></td><td><tt>string.*</tt> namespace</td></tr>
-        <tr><td/><td><tt>"table"</tt></td><td><tt>table.*</tt> namespace</td></tr>
+        <tr><td width=40></td><td>(nothing)</td><td width=40></td><td>no standard libraries (default)</td></tr>
+        <tr><td/>
+            <td><tt>"base"</tt> or <tt>""</tt></td><td/>
+            <td>root level names, <tt>print</tt>, <tt>assert</tt>, <tt>unpack</tt> etc.</td>
+        </tr>
+        <tr><td/><td><tt>"coroutine"</tt></td><td/><td><tt>coroutine.*</tt> namespace <font size="-1">(part of base in Lua 5.1)</font></td></tr>
+        <tr><td/><td><tt>"debug"</tt></td><td/><td><tt>debug.*</tt> namespace</td></tr>
+        <tr><td/><td><tt>"io"</tt></td><td/><td><tt>io.*</tt> namespace</td></tr>
+        <tr><td/><td><tt>"math"</tt></td><td/><td><tt>math.*</tt> namespace</td></tr>
+        <tr><td/><td><tt>"os"</tt></td><td/><td><tt>os.*</tt> namespace</td></tr>
+        <tr><td/><td><tt>"package"</tt></td><td/><td><tt>package.*</tt> namespace and <tt>require</tt></td></tr>
+        <tr><td/><td><tt>"string"</tt></td><td/><td><tt>string.*</tt> namespace</td></tr>
+        <tr><td/><td><tt>"table"</tt></td><td/><td><tt>table.*</tt> namespace</td></tr>
         <br/>
-        <tr><td/><td><tt>"*"</tt></td><td>all standard libraries</td></tr>
+        <tr><td/><td><tt>"*"</tt></td><td/><td>all standard libraries</td></tr>
     </table>
 
 </p><p>
@@ -281,9 +302,9 @@ also in the new lanes.
     lanes are run:
 </p><p>
   <table>
-    <tr valign=top><td/><td>
+    <tr valign=top><td width=40></td><td>
         <code>.cancelstep</code> <br/><nobr>N / true</nobr></td>
-    <td>
+    <td width=40></td><td>
     By default, lanes are only cancellable when they <u>enter</u> a pending
     <tt>:receive()</tt> or <tt>:send()</tt> call.
     With this option, one can set cancellation check to occur every <tt>N</tt>
@@ -292,7 +313,7 @@ also in the new lanes.
     </td></tr>
 
     <tr valign=top><td/><td>
-        <code>.globals</code> <br/>globals_tbl</td>
+        <code>.globals</code> <br/>globals_tbl</td><td/>
     <td>
     Sets the globals table for the launched threads. This can be used for giving
     them constants.
@@ -305,21 +326,18 @@ also in the new lanes.
       <td/>
       <td>
         <code>.required</code> <br/>modules_tbl
-      </td>
+      </td><td/>
       <td>
         Lists modules that have to be required in order to be able to trasnfer
         functions they exposed. Starting with Lanes 3.0-beta, non-Lua functions are
         no longer copied by recreating a C closure from a C pointer, but are searched
         in lookup tables. These tables are built from the modules listed here. <tt>required</tt>
         must be a list of strings, each one being the name of a module to be required.
-        <br>
-    The global values of different lanes are in no manner connected;
-    modifying one will only affect the particular lane.
     </td>
     </tr>
 
     <tr valign=top><td width=40><td>
-        <code>.priority</code> <br/><nobr>-2..+2</nobr></td>
+        <code>.priority</code> <br/><nobr>-2..+2</nobr></td><td/>
         <td>The priority of lanes generated. -2 is lowest, +2 is highest.
         <br>
     Implementation and dependability of priorities varies
@@ -331,7 +349,7 @@ also in the new lanes.
         <td>
           <code>.package</code><br/>
         </td>
-        <td>
+        <td><td/>
           <code>package</code> contents overrides, if needed.
           Specifying it when <code>libs_str</code> doesn't cause the <code>package</code> library to be loaded will generate an error.
           If not specified, the created lane will receive the current values of <tt>package</tt>. Only path, cpath, preload and loaders are transfered.
@@ -704,7 +722,7 @@ events to a common Linda, but... :).</font>
     <code>= lanes.timer( linda_h, key, date_tbl|first_secs [,period_secs] )</code>
 </table>
 
-  <p>
+<p>
     Timers are implemented as a lane. They can be disabled by passing <tt>"NO_TIMERS"</tt>
     to <tt>lanes.configure()</tt>.
   </p>
@@ -1060,6 +1078,12 @@ its actual value.
 <h2 id="changes">Change log</h2>
 
 <p>
+  Feb-2012
+  <ul>
+    <li>Added support for an on_state_create callback invoked on a pristine Lua state created by Lanes.</li>
+    <li>This required a change in the <tt>lanes.configure()</tt> signature, hence the minor version bump.</li>
+  </ul>
+
 
   Nov-2011
   <ul>
