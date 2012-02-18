@@ -4,7 +4,7 @@
 -- Test that 'require' works from sublanes
 --
 local lanes = require "lanes"
-lanes.configure( 1)
+lanes.configure()
 
 local function a_lane()
     -- To require 'math' we still actually need to have it initialized for

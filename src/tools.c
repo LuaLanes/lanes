@@ -91,7 +91,7 @@ void luaG_dump( lua_State* L ) {
 }
 
 
-/*---=== luaG_openlibs ===---*/
+/*---=== luaG_newstate ===---*/
 
 static const luaL_Reg libs[] = {
   { LUA_LOADLIBNAME, luaopen_package },
@@ -371,7 +371,7 @@ static void populate_func_lookup_table_recur( lua_State *L, int _ctx_base, int _
 }
 
 /*
- * create a "fully.qualified.name" <-> function equivalence dabase
+ * create a "fully.qualified.name" <-> function equivalence database
  */
 void populate_func_lookup_table( lua_State *L, int _i, char const *_name)
 {
@@ -422,39 +422,52 @@ void populate_func_lookup_table( lua_State *L, int _i, char const *_name)
 */
 #define is_name_char(c) (isalpha(c) || (c)=='*')
 
-const char *luaG_openlibs( lua_State *L, const char *libs)
+lua_State* luaG_newstate( char const* libs, lua_CFunction _on_state_create)
 {
-	const char *p;
-	unsigned len;
+	char const* p;
+	unsigned int len;
+	lua_State* const L = luaL_newstate();
 
-	if (!libs) return NULL;     // no libs, not even 'base'
-
-	// 'lua.c' stops GC during initialization so perhaps its a good idea. :)
-	//
-	lua_gc( L, LUA_GCSTOP, 0);
-
-	// Anything causes 'base' to be taken in
-	//
-	STACK_GROW(L,2);
-	STACK_CHECK(L)
-	lua_pushcfunction( L, luaopen_base);
-	lua_call( L, 0, 1);
-	// after opening base, register the functions they exported in our name<->function database
-	populate_func_lookup_table( L, LUA_GLOBALSINDEX, NULL);
-	lua_pop( L, 1);
-	STACK_MID( L, 0);
-	for( p= libs; *p; p+=len )
+	// no libs, or special init func (not even 'base')
+	if (libs || _on_state_create)
 	{
-		len=0;
-		while (*p && !is_name_char(*p)) p++;    // bypass delimiters
-		while (is_name_char(p[len])) len++;     // bypass name
-		if (len && (!openlib( L, p, len )))
-			break;
-	}
-	STACK_END(L,0)
-	lua_gc(L, LUA_GCRESTART, 0);
+		// 'lua.c' stops GC during initialization so perhaps its a good idea. :)
+		//
+		lua_gc( L, LUA_GCSTOP, 0);
 
-	return *p ? p : NULL;
+		// Anything causes 'base' to be taken in
+		//
+		STACK_GROW( L, 2);
+		STACK_CHECK( L)
+		if( _on_state_create)
+		{
+			lua_pushcfunction( L, _on_state_create);
+			lua_call( L, 0, 0);
+		}
+		if( libs)
+		{
+			lua_pushcfunction( L, luaopen_base);
+			lua_call( L, 0, 0);
+		}
+		// after opening base, register the functions it exported in our name<->function database
+		populate_func_lookup_table( L, LUA_GLOBALSINDEX, NULL);
+		STACK_MID( L, 0);
+		if( libs)
+		{
+			for( p = libs; *p; p += len)
+			{
+				len=0;
+				while (*p && !is_name_char(*p)) p++;    // bypass delimiters
+				while (is_name_char(p[len])) len++;     // bypass name
+				if (len && (!openlib( L, p, len )))
+					break;
+			}
+			serialize_require( L);
+		}
+		STACK_END(L,0)
+		lua_gc( L, LUA_GCRESTART, 0);
+	}
+	return L;
 }
 
 
@@ -1317,7 +1330,7 @@ static void inter_copy_func( lua_State *L2, uint_t L2_cache_i, lua_State *L, uin
 				else
 				{
 					if( !inter_copy_one_( L2, L2_cache_i, L, lua_gettop(L), VT_NORMAL))
-						luaL_error( L, "Cannot copy upvalue type '%s'", luaG_typename( L, -1));
+						luaL_error( L, "Cannot copy upvalue type '%s'", luaL_typename( L, -1));
 				}
 				lua_pop( L, 1);
 			}
@@ -1475,7 +1488,7 @@ static bool_t inter_copy_one_( lua_State *L2, uint_t L2_cache_i, lua_State *L, u
                         lua_rawset( L2, -3 );    // add to table (pops key & val)
                     } else {
                         luaL_error( L, "Unable to copy over type '%s' (in %s)", 
-                                        luaG_typename(L,val_i), 
+                                        luaL_typename(L,val_i), 
                                         vt==VT_NORMAL ? "table":"metatable" );
                     }
                 }
@@ -1647,7 +1660,7 @@ static int new_require( lua_State *L)
 {
 	int rc, i;
 	int args = lua_gettop( L);
-	//char const *modname = luaL_checkstring( L, 1);
+	//char const* modname = luaL_checkstring( L, 1);
 
 	STACK_GROW( L, args + 1);
 	STACK_CHECK( L)

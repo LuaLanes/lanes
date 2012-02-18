@@ -2,7 +2,7 @@
 -- Test from <ehynes at dharmagaia.com>
 --
 local lanes = require "lanes"
-lanes.configure( 1)
+lanes.configure()
 
 local function PRINT_FMT( fmt, ... )
     io.stderr:write( string.format(fmt,...).."\n" )

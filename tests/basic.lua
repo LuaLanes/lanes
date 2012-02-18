@@ -8,7 +8,7 @@
 --
 
 local lanes = require "lanes"
-lanes.configure( 1)
+lanes.configure()
 require "assert"    -- assert.fails()
 
 local lanes_gen=    assert( lanes.gen )

@@ -45,13 +45,21 @@ THE SOFTWARE.
 -- -> simply create a table, populate it, return it, and be done
 local lanes = {}
 
-lanes.configure = function( _nb_keepers, _timers)
+lanes.configure = function( _params)
+_params = _params or { nb_keepers = 1, with_timers = true, on_state_create = nil}
+if type( _params) ~= "table" then
+	error( "Bad parameter #1 to lanes.configure(), should be a table")
+end
+-- on_state_create may be nil or a function
+if _params.on_state_create and (type( _params.on_state_create) ~= "function") then
+	error( "Bad on_state_create: " .. tostring( _params.on_state_create), 2)
+end
 
 local mm = require "lua51-lanes"
 assert( type(mm)=="table" )
 
 -- configure() is available only the first time lua51-lanes is required process-wide, and we *must* call it to have the other functions in the interface
-if mm.configure then mm.configure( _nb_keepers) end
+if mm.configure then mm.configure( _params.nb_keepers, _params.on_state_create) end
 
 local thread_new = assert(mm.thread_new)
 
@@ -238,7 +246,7 @@ local function gen( ... )
     -- Lane generator
     --
     return function(...)
-              return thread_new( func, libs, cs, prio, g_tbl, package_tbl, required, ...)     -- args
+              return thread_new( func, libs, _params.on_state_create, cs, prio, g_tbl, package_tbl, required, ...)     -- args
            end
 end
 
@@ -258,7 +266,7 @@ local linda = mm.linda
 -- PUBLIC LANES API
 local timer = function() error "timers are not active" end
 
-if _timers ~= "NO_TIMERS" then
+if _params.with_timers ~= false then
 
 local timer_gateway= assert( mm.timer_gateway )
 --
@@ -477,7 +485,7 @@ timer = function( linda, key, a, period )
     timer_gateway:send( TGW_KEY, linda, key, wakeup_at, period )
 end
 
-end -- _timers
+end -- _params.with_timers
 
 ---=== Lock & atomic generators ===---
 
@@ -552,12 +560,16 @@ end
 	lanes.genlock = genlock
 	lanes.genatomic = genatomic
 	-- from now on, calling configure does nothing but checking that we don't call it with parameters that changed compared to the first invocation
-	lanes.configure = function( _nk, _t)
-		if _nk ~= _nb_keepers then
-			error( "mismatched configuration: " .. tostring( _nk) .. " keepers instead of " .. tostring( _nb_keepers))
+	lanes.configure = function( _params2)
+		_params2 = _params2 or _params
+		if _params2.nb_keepers ~= _params.nb_keepers then
+			error( "mismatched configuration: " .. tostring( _params2.nb_keepers) .. " keepers instead of " .. tostring( _params.nb_keepers))
 		end
-		if _t ~= _timers  then
-			error( "mismatched configuration: " .. tostring( _t) .. " timer activity instead of " .. tostring( _timers))
+		if _params2.with_timers ~= _params.with_timers then
+			error( "mismatched configuration: " .. tostring( _params2.with_timers) .. " timer activity instead of " .. tostring( _params.with_timers))
+		end
+		if _params2.on_create_state and _params2.on_create_state ~= _params.on_create_state then
+			error( "mismatched configuration: " .. tostring( _params2.on_create_state) .. " timer activity instead of " .. tostring( _params.on_create_state))
 		end
 		return lanes
 	end

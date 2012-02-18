@@ -13,7 +13,7 @@ local function func( depth )
 
     local lanes = require "lanes"
     -- lanes.configure() is gone after we call it...
-    lanes.configure( 1)
+    lanes.configure()
     local lane= lanes.gen("*", func)( depth+1 )
     return lane[1]
 end

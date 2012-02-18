@@ -5,7 +5,7 @@
 --
 
 local lanes = require "lanes"
-lanes.configure( 1)
+lanes.configure()
 
 local table_concat= assert(table.concat)
 

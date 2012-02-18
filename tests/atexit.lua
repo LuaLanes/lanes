@@ -1,5 +1,5 @@
 local lanes = require "lanes"
-lanes.configure( 1)
+lanes.configure()
 
 -- create a free-running lane
 

@@ -1,5 +1,5 @@
 local lanes = require "lanes"
-lanes.configure( 1)
+lanes.configure()
 
 -- this lane eats items in the linda one by one
 local eater = function( l, loop)

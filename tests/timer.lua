@@ -9,7 +9,7 @@ io.stderr:setvbuf "no"
 
 
 local lanes = require "lanes"
-lanes.configure( 1)
+lanes.configure()
 
 local linda= lanes.linda()
 

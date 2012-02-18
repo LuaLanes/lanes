@@ -13,7 +13,7 @@
 -- Need to say it's 'local' so it can be an upvalue
 --
 local lanes = require "lanes"
-lanes.configure( 1, "NO_TIMERS")
+lanes.configure{ nb_keepers =1, with_timers = false}
 
 local function WR(str)
     io.stderr:write( str.."\n" )

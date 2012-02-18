@@ -78,7 +78,7 @@ static char const keeper_chunk[]=
 *       unclosed, because it does not really matter. In production code, this
 *       function never fails.
 */
-char const *init_keepers( int const _nbKeepers)
+char const* init_keepers( int const _nbKeepers, lua_CFunction _on_state_create)
 {
 	int i;
 	assert( _nbKeepers >= 1);
@@ -87,10 +87,11 @@ char const *init_keepers( int const _nbKeepers)
 	for( i = 0; i < _nbKeepers; ++ i)
 	{
 
-		// Initialize Keeper states with bare minimum of libs (those required
-		// by 'keeper.lua')
-		//
-		lua_State *K = luaL_newstate();
+		// Initialize Keeper states with bare minimum of libs (those required by 'keeper.lua')
+		// 
+		// 'io' for debugging messages, 'package' because we need to require modules exporting idfuncs
+		// the others because they export functions that we may store in a keeper for transfer between lanes
+		lua_State* K = luaG_newstate( "*", _on_state_create);
 		if (!K)
 			return "out of memory";
 
@@ -99,11 +100,6 @@ char const *init_keepers( int const _nbKeepers)
 		lua_pushinteger( K, i + 1);
 		lua_concat( K, 2);
 		lua_setglobal( K, "decoda_name");
-
-		// 'io' for debugging messages, 'package' because we need to require modules exporting idfuncs
-		// the others because they export functions that we may store in a keeper for transfer between lanes
-		luaG_openlibs( K, "*");
-		serialize_require( K);
 
 		// Read in the preloaded chunk (and run it)
 		//
@@ -114,7 +110,7 @@ char const *init_keepers( int const _nbKeepers)
 		{
 			// LUA_ERRRUN / LUA_ERRMEM / LUA_ERRERR
 			//
-			const char *err = lua_tostring(K, -1);
+			char const* err = lua_tostring( K, -1);
 			assert( err);
 			return err;
 		}

@@ -5,7 +5,7 @@
 --
 
 local lanes = require "lanes"
-lanes.configure( 1)
+lanes.configure()
 
 local linda= lanes.linda()
 local atomic_inc= lanes.genatomic( linda, "FIFO_n" )

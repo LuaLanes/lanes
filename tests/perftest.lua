@@ -28,7 +28,7 @@ local MSYS= os.getenv("OSTYPE")=="msys"
 
 
 local lanes = require "lanes"
-lanes.configure( 1)
+lanes.configure()
 
 local m= require "argtable"
 local argtable= assert( m.argtable )

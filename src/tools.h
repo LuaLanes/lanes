@@ -46,13 +46,11 @@
 
 #define luaG_isany(L,i)  (!lua_isnil(L,i))
 
-#define luaG_typename( L, index ) lua_typename( L, lua_type(L,index) )
-
 typedef void (*luaG_IdFunction)( lua_State *L, char const * const which);
 
 void luaG_dump( lua_State* L );
 
-const char *luaG_openlibs( lua_State *L, const char *libs );
+lua_State* luaG_newstate( char const* libs, lua_CFunction _on_state_create);
 
 int luaG_deep_userdata( lua_State *L, luaG_IdFunction idfunc);
 void *luaG_todeep( lua_State *L, luaG_IdFunction idfunc, int index );

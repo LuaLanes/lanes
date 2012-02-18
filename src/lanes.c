@@ -51,7 +51,7 @@
  *      ...
  */
 
-const char *VERSION= "3.0-beta";
+char const* VERSION = "3.1.0";
 
 /*
 ===============================================================================
@@ -1540,7 +1540,7 @@ static void require_one_module( lua_State *L, lua_State *L2, bool_t _fatal)
 	{
 		lua_pop( L2, 1);
 		if( _fatal)
-			luaL_error( L, "cannot pre-require modules without loading package library first");
+			luaL_error( L, "cannot pre-require modules without loading 'package' library first");
 	}
 	else
 	{
@@ -1557,14 +1557,15 @@ LUAG_FUNC( thread_new )
 	struct s_lane *s;
 	struct s_lane **ud;
 
-	const char *libs= lua_tostring( L, 2 );
-	uint_t cs= luaG_optunsigned( L, 3,0);
-	int prio= (int)luaL_optinteger( L, 4,0);
-	uint_t glob= luaG_isany(L,5) ? 5:0;
-	uint_t package = luaG_isany(L,6) ? 6:0;
-	uint_t required = luaG_isany(L,7) ? 7:0;
+	char const* libs = lua_tostring( L, 2);
+	lua_CFunction on_state_create = lua_iscfunction( L, 3) ? lua_tocfunction( L, 3) : NULL;
+	uint_t cs = luaG_optunsigned( L, 4, 0);
+	int prio = (int) luaL_optinteger( L, 5, 0);
+	uint_t glob = luaG_isany( L, 6) ? 6 : 0;
+	uint_t package = luaG_isany( L,7) ? 7 : 0;
+	uint_t required = luaG_isany( L, 8) ? 8 : 0;
 
-#define FIXED_ARGS (7)
+#define FIXED_ARGS 8
 	uint_t args= lua_gettop(L) - FIXED_ARGS;
 
 	if (prio < THREAD_PRIO_MIN || prio > THREAD_PRIO_MAX)
@@ -1575,22 +1576,12 @@ LUAG_FUNC( thread_new )
 
 	/* --- Create and prepare the sub state --- */
 
-	L2 = luaL_newstate();   // uses standard 'realloc()'-based allocator,
-	// sets the panic callback
-
+	// populate with selected libraries at  the same time
+	//
+	L2 = luaG_newstate( libs, on_state_create);
 	if (!L2) luaL_error( L, "'luaL_newstate()' failed; out of memory" );
 
 	STACK_GROW( L, 2);
-
-	// Selected libraries
-	//
-	if (libs)
-	{
-		const char *err= luaG_openlibs( L2, libs);
-		ASSERT_L( !err );   // bad libs should have been noticed by 'lanes.lua'
-
-		serialize_require( L2);
-	}
 
 	ASSERT_L( lua_gettop(L2) == 0);
 
@@ -1600,7 +1591,7 @@ LUAG_FUNC( thread_new )
 	if( package)
 	{
 		if (lua_type(L,package) != LUA_TTABLE)
-			luaL_error( L, "expected package as table, got %s", luaG_typename(L,package));
+			luaL_error( L, "expected package as table, got %s", luaL_typename(L,package));
 		lua_getglobal( L2, "package");
 		if( !lua_isnil( L2, -1)) // package library not loaded: do nothing
 		{
@@ -1628,7 +1619,7 @@ LUAG_FUNC( thread_new )
 	// modules to require in the target lane *before* the function is transfered!
 
 	//start by requiring lua51-lanes, since it is a bit special
-	// it not fatal if 'require' isn't loaded, just ignore (may cause function transfer errors later on if the lane pulls the lanes module itself)
+	// it is not fatal if 'require' isn't loaded, just ignore (may cause function transfer errors later on if the lane pulls the lanes module itself)
 	STACK_CHECK(L)
 	STACK_CHECK(L2)
 	lua_pushliteral( L, "lua51-lanes");
@@ -1644,7 +1635,7 @@ LUAG_FUNC( thread_new )
 		int nbRequired = 1;
 		// should not happen, was checked in lanes.lua before calling thread_new()
 		if (lua_type(L, required) != LUA_TTABLE)
-			luaL_error( L, "expected required module list as a table, got %s", luaG_typename( L, required));
+			luaL_error( L, "expected required module list as a table, got %s", luaL_typename( L, required));
 		lua_pushnil( L);
 		while( lua_next( L, required) != 0)
 		{
@@ -1671,7 +1662,7 @@ LUAG_FUNC( thread_new )
 		STACK_CHECK(L)
 		STACK_CHECK(L2)
 		if (!lua_istable(L,glob)) 
-			luaL_error( L, "Expected table, got %s", luaG_typename(L,glob));
+			luaL_error( L, "Expected table, got %s", luaL_typename(L,glob));
 
 		lua_pushnil( L);
 		while( lua_next( L, glob))
@@ -2240,7 +2231,7 @@ static const struct luaL_reg lanes_functions [] = {
 /*
 * One-time initializations
 */
-static void init_once_LOCKED( lua_State *L, volatile DEEP_PRELUDE ** timer_deep_ref, int const nbKeepers)
+static void init_once_LOCKED( lua_State* L, volatile DEEP_PRELUDE** timer_deep_ref, int const nbKeepers, lua_CFunction _on_state_create)
 {
     const char *err;
 
@@ -2291,7 +2282,7 @@ static void init_once_LOCKED( lua_State *L, volatile DEEP_PRELUDE ** timer_deep_
         }
   #endif
 #endif
-    err= init_keepers( nbKeepers);
+    err = init_keepers( nbKeepers, _on_state_create);
     if (err)
     {
             luaL_error( L, "Unable to initialize: %s", err );
@@ -2338,9 +2329,11 @@ static volatile long s_initCount = 0;
 
 LUAG_FUNC( configure )
 {
-    char const *name = luaL_checkstring( L, lua_upvalueindex( 1));
+    char const* name = luaL_checkstring( L, lua_upvalueindex( 1));
     int const nbKeepers = luaL_optint( L, 1, 1);
-    luaL_argcheck( L, nbKeepers > 0, 2, "Number of keeper states must be > 0");
+    lua_CFunction on_state_create = lua_iscfunction( L, 2) ? lua_tocfunction( L, 2) : NULL;
+    luaL_argcheck( L, nbKeepers > 0, 1, "Number of keeper states must be > 0");
+    luaL_argcheck( L, lua_iscfunction( L, 2) || lua_isnil( L, 2), 2, "on_state_create should be a C function");
     /*
     * Making one-time initializations.
     *
@@ -2353,7 +2346,7 @@ LUAG_FUNC( configure )
         static volatile int /*bool*/ go_ahead; // = 0
         if( InterlockedCompareExchange( &s_initCount, 1, 0) == 0)
         {
-            init_once_LOCKED(L, &timer_deep, nbKeepers);
+            init_once_LOCKED( L, &timer_deep, nbKeepers, on_state_create);
             go_ahead= 1;    // let others pass
         }
         else
@@ -2365,13 +2358,13 @@ LUAG_FUNC( configure )
     if( s_initCount == 0)
     {
         static pthread_mutex_t my_lock= PTHREAD_MUTEX_INITIALIZER;
-        pthread_mutex_lock(&my_lock);
+        pthread_mutex_lock( &my_lock);
         {
             // Recheck now that we're within the lock
             //
-            if (s_initCount == 0)
+            if( s_initCount == 0)
             {
-                init_once_LOCKED(L, &timer_deep, nbKeepers);
+                init_once_LOCKED( L, &timer_deep, nbKeepers, on_state_create);
                 s_initCount = 1;
             }
         }
@@ -2451,10 +2444,11 @@ luaopen_lanes( lua_State *L )
 	{
 		lua_setfield( L, -2, "configure");
 	}
-	else // already initialized: call it mmediately and be done
+	else // already initialized: call it immediately and be done
 	{
 		lua_pushinteger( L, 666); // any value will do, it will be ignored
-		lua_call( L, 1, 0);
+		lua_pushnil( L); // almost idem
+		lua_call( L, 2, 0);
 	}
 	STACK_END( L, 1)
 	return 1;

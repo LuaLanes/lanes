@@ -46,7 +46,7 @@ for k,v in pairs( argtable(...) ) do
 end
 
 local lanes = require "lanes"
-lanes.configure( 1)
+lanes.configure()
 
 local g= lanes.gen( LIBS, function(i) 
                         --io.stderr:write( i.."\t" )

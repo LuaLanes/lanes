@@ -9,7 +9,7 @@
 --
 
 local lanes = require "lanes"
-lanes.configure( 1)
+lanes.configure()
 
 local FN= "finalizer-test.tmp"
 

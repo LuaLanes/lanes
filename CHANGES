@@ -3,6 +3,10 @@ CHANGES:
 
 CHANGE X:
 
+CHANGE 35 BGe 17-Feb-2012
+   * changed lanes.configure signature to receive a table instead of individual parameters
+   * added support for an on_state_create callback called to load custom functions in a state in addition to the base libraries
+
 CHANGE 34 BGe 14-Nov-2011
    * removed packagepath and packagecpath options, replaced by a package table, whose fields path, cpath, loaders, preload are transfered
    * code cleanup to facilitate transition between WIN32 and PTHREAD impleentations
