@@ -1219,10 +1219,7 @@ static void lookup_native_func( lua_State *L2, lua_State *L, uint_t i)
 	lua_rawget( L2, -2);                                                            // {} f
 	if( !lua_isfunction( L2, -1))
 	{
-		// yarglah: luaL_error formatting doesn't support string width modifier!
-		char message[256];
-		sprintf( message, "function %*s not found in destination transfer database.", len, fqn);
-		luaL_error( L, message);
+		luaL_error( L, "function %s not found in destination transfer database.", fqn);
 	}
 	lua_remove( L2, -2);                                                            // f
 	STACK_END( L2, 1)
