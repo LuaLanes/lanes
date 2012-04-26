@@ -446,8 +446,16 @@ lua_State* luaG_newstate( char const* libs, lua_CFunction _on_state_create)
 		}
 		if( libs)
 		{
-			lua_pushcfunction( L, luaopen_base);
-			lua_call( L, 0, 0);
+			if( libs[0] == '*' && libs[1] == 0) // special "*" case (mainly to help with LuaJIT compatibility)
+			{
+				luaL_openlibs( L);
+				libs = NULL; // done with libs
+			}
+			else
+			{
+				lua_pushcfunction( L, luaopen_base);
+				lua_call( L, 0, 0);
+			}
 		}
 		// after opening base, register the functions it exported in our name<->function database
 		populate_func_lookup_table( L, LUA_GLOBALSINDEX, NULL);
