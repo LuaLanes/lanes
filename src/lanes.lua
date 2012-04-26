@@ -429,7 +429,7 @@ if first_time then
     -- We let the timer lane be a "free running" thread; no handle to it
     -- remains.
     --
-    gen( "io,package", { priority=max_prio}, function()
+    gen( "*", { priority=max_prio}, function() -- "*" instead of "io,package" for LuaJIT compatibility...
         set_debug_threadname( "LanesTimer")
         while true do
             local next_wakeup= check_timers()
