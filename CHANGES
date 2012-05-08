@@ -3,6 +3,9 @@ CHANGES:
 
 CHANGE X:
 
+CHANGE 36 BGe 26-Apr-2012
+   * improved LuaJIT2 compatibility by handling "*" library set through luaL_openlibs()
+
 CHANGE 35 BGe 17-Feb-2012
    * changed lanes.configure signature to receive a table instead of individual parameters
    * added support for an on_state_create callback called to load custom functions in a state in addition to the base libraries
