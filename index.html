@@ -56,7 +56,7 @@
 
 <p><br/><font size="-1"><i>Copyright &copy; 2007-12 Asko Kauppi, Benoit Germain. All rights reserved.</i>
     <br>Lua Lanes is published under the same <A HREF="http://en.wikipedia.org/wiki/MIT_License">MIT license</A> as Lua 5.1.
-    </p><p>This document was revised on 17-Feb-11, and applies to version 3.1.0
+    </p><p>This document was revised on 17-Feb-11, and applies to version 3.1.2
 </font></p>
 
 </center>
@@ -431,9 +431,17 @@ Returns <tt>nil</tt> on timeout, <tt>nil,err,stack_tbl</tt> if the lane hit an e
 or the return values of the lane. Unlike in reading the results in table
 fashion, errors are not propagated.
 </p><p>
-<tt>stack_tbl</tt> is an array of "&lt;filename&gt;:&lt;line&gt;" strings,
-describing where the error was thrown. Use <tt>table.concat()</tt> to format
-it to your liking (or just ignore it).
+
+<table border=1 bgcolor="#E0E0FF" cellpadding=10><tr><td>
+    <code>set_error_reporting("basic"|"extended")</code>
+</table>
+</p><p>
+  Sets the error reporting mode. "basic" is selected by default.
+</p><p>
+  <tt>stack_tbl</tt> is a table describing where the error was thrown.<br/>
+  In extended mode, <tt>stack_tbl</tt> is an array of tables containing info gathered with <tt>lua_getinfo()</tt> (<tt>"source"</tt>,<tt>"currentline"</tt>,<tt>"name"</tt>,<tt>"namewhat"</tt>,<tt>"what"</tt>).<br/>
+In "basic mode", <tt>stack_tbl</tt> is an array of "&lt;filename&gt;:&lt;line&gt;" strings. Use <tt>table.concat()</tt> to format it to your liking (or just ignore it).
+  
 </p><p>
 If you use <tt>:join</tt>, make sure your lane main function returns
 a non-nil value so you can tell timeout and error cases apart from succesful
