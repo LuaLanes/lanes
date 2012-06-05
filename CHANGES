@@ -1,7 +1,9 @@
 
 CHANGES:
 
-CHANGE X:
+CHANGE 37: BGe 4-Jun-2012 (fix and idea courtesy of sonoro1234)
+   * fixed thread_cancel() not working when called without argument
+   * new lane-global function set_error_reporting() to enable more data detailed data provided by lane_error()
 
 CHANGE 36 BGe 26-Apr-2012
    * improved LuaJIT2 compatibility by handling "*" library set through luaL_openlibs()

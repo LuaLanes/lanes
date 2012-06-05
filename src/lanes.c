@@ -51,7 +51,7 @@
  *      ...
  */
 
-char const* VERSION = "3.1.1";
+char const* VERSION = "3.1.2";
 
 /*
 ===============================================================================
@@ -106,10 +106,6 @@ THE SOFTWARE.
 * TBD: The full stack feature does not seem to work (try 'make error').
 */
 #define ERROR_FULL_STACK
-
-#ifdef ERROR_FULL_STACK
-# define STACK_TRACE_KEY ((void*)lane_error)     // used as registry key
-#endif
 
 // NOTE: values to be changed by either thread, during execution, without
 //       locking, are marked "volatile"
@@ -695,10 +691,11 @@ LUAG_FUNC( linda_deep ) {
 LUAG_FUNC( linda_tostring)
 {
 	char text[32];
-	struct s_Linda *linda = lua_toLinda( L, 1);
+	int len;
+	struct s_Linda* linda = lua_toLinda( L, 1);
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
-	sprintf( text, "linda: %p", linda);
-	lua_pushstring( L, text);
+	len = sprintf( text, "linda: %p", linda);
+	lua_pushlstring( L, text, len);
 	return 1;
 }
 
@@ -720,15 +717,15 @@ LUAG_FUNC( linda_concat)
 	if ( linda1)
 	{
 		char text[32];
-		sprintf( text, "linda: %p", linda1);
-		lua_pushstring( L, text);
+		int len = sprintf( text, "linda: %p", linda1);
+		lua_pushlstring( L, text, len);
 		lua_replace( L, 1);
 	}
 	if ( linda2)
 	{
 		char text[32];
-		sprintf( text, "linda: %p", linda2);
-		lua_pushstring( L, text);
+		int len = sprintf( text, "linda: %p", linda2);
+		lua_pushlstring( L, text, len);
 		lua_replace( L, 2);
 	}
 	// concat the result
@@ -1281,58 +1278,118 @@ LUAG_FUNC( _single ) {
 */
 #ifdef ERROR_FULL_STACK
 
-static int lane_error( lua_State *L ) {
-    lua_Debug ar;
-    unsigned lev,n;
+# define STACK_TRACE_KEY ((void*)lane_error)     // used as registry key
+# define EXTENDED_STACK_TRACE_KEY ((void*)LG_set_error_reporting)     // used as registry key
 
-    // [1]: error message (any type)
-
-    assert( lua_gettop(L)==1 );
-
-    // Don't do stack survey for cancelled lanes.
-    //
-#if 1
-    if (lua_touserdata(L,1) == CANCEL_ERROR)
-        return 1;   // just pass on
-#endif
-
-    // Place stack trace at 'registry[lane_error]' for the 'luc_pcall()'
-    // caller to fetch. This bypasses the Lua 5.1 limitation of only one
-    // return value from error handler to 'lua_pcall()' caller.
-
-    // It's adequate to push stack trace as a table. This gives the receiver
-    // of the stack best means to format it to their liking. Also, it allows
-    // us to add more stack info later, if needed.
-    //
-    // table of { "sourcefile.lua:<line>", ... }
-    //
-    STACK_GROW(L,3);
-    lua_newtable(L);
-
-    // Best to start from level 1, but in some cases it might be a C function
-    // and we don't get '.currentline' for that. It's okay - just keep level
-    // and table index growing separate.    --AKa 22-Jan-2009
-    //
-    lev= 0;
-    n=1;
-    while( lua_getstack(L, ++lev, &ar ) ) {
-        lua_getinfo(L, "Sl", &ar);
-        if (ar.currentline > 0) {
-            lua_pushinteger( L, n++ );
-            lua_pushfstring( L, "%s:%d", ar.short_src, ar.currentline );
-            lua_settable( L, -3 );
-        }
-    }
-
-    lua_pushlightuserdata( L, STACK_TRACE_KEY );
-    lua_insert(L,-2);
-    lua_settable( L, LUA_REGISTRYINDEX );
-
-    assert( lua_gettop(L)== 1 );
-
-    return 1;   // the untouched error value
+#ifdef ERROR_FULL_STACK
+LUAG_FUNC( set_error_reporting)
+{
+	bool_t equal;
+	luaL_checktype( L, 1, LUA_TSTRING);
+	lua_pushliteral( L, "extended");
+	equal = lua_rawequal( L, -1, 1);
+	lua_pop( L, 1);
+	if( equal)
+	{
+		goto done;
+	}
+	lua_pushliteral( L, "basic");
+	equal = !lua_rawequal( L, -1, 1);
+	lua_pop( L, 1);
+	if( equal)
+	{
+		return luaL_error( L, "unsupported error reporting model");
+	}
+done:
+	lua_pushlightuserdata( L, EXTENDED_STACK_TRACE_KEY);
+	lua_pushboolean( L, equal);
+	lua_rawset( L, LUA_REGISTRYINDEX);
+	return 0;
 }
+#endif // ERROR_FULL_STACK
+
+static int lane_error( lua_State* L)
+{
+	lua_Debug ar;
+	unsigned lev, n;
+	bool_t extended;
+
+	// [1]: error message (any type)
+
+	assert( lua_gettop( L) == 1);
+
+	// Don't do stack survey for cancelled lanes.
+	//
+#if 1
+	if( lua_touserdata( L, 1) == CANCEL_ERROR)
+		return 1;   // just pass on
 #endif
+
+	lua_pushlightuserdata( L, EXTENDED_STACK_TRACE_KEY);
+	lua_gettable( L, LUA_REGISTRYINDEX);
+	extended = lua_toboolean( L, -1);
+	lua_pop( L, 1);
+
+	// Place stack trace at 'registry[lane_error]' for the 'lua_pcall()'
+	// caller to fetch. This bypasses the Lua 5.1 limitation of only one
+	// return value from error handler to 'lua_pcall()' caller.
+
+	// It's adequate to push stack trace as a table. This gives the receiver
+	// of the stack best means to format it to their liking. Also, it allows
+	// us to add more stack info later, if needed.
+	//
+	// table of { "sourcefile.lua:<line>", ... }
+	//
+	STACK_GROW( L, 4);
+	lua_newtable( L);
+
+	// Best to start from level 1, but in some cases it might be a C function
+	// and we don't get '.currentline' for that. It's okay - just keep level
+	// and table index growing separate.    --AKa 22-Jan-2009
+	//
+	lev = 0;
+	n = 1;
+	while( lua_getstack( L, ++ lev, &ar))
+	{
+		lua_getinfo( L, extended ? "Sln" : "Sl", &ar);
+		if( extended)
+		{
+			lua_newtable( L);
+
+			lua_pushstring( L, ar.source);
+			lua_setfield( L, -2, "source");
+
+			lua_pushinteger( L, ar.currentline);
+			lua_setfield( L, -2, "currentline");
+
+			lua_pushstring( L, ar.name);
+			lua_setfield( L, -2, "name");
+
+			lua_pushstring( L, ar.namewhat);
+			lua_setfield( L, -2, "namewhat");
+
+			lua_pushstring( L, ar.what);
+			lua_setfield( L, -2, "what");
+
+			lua_rawseti(L, -2, n ++);
+		}
+		else if (ar.currentline > 0)
+		{
+			lua_pushinteger( L, n++ );
+			lua_pushfstring( L, "%s:%d", ar.short_src, ar.currentline );
+			lua_settable( L, -3 );
+		}
+	}
+
+	lua_pushlightuserdata( L, STACK_TRACE_KEY);
+	lua_insert( L ,-2);
+	lua_settable( L, LUA_REGISTRYINDEX);
+
+	assert( lua_gettop( L) == 1);
+
+	return 1;   // the untouched error value
+}
+#endif // ERROR_FULL_STACK
 
 #if defined PLATFORM_WIN32  && !defined __GNUC__
 //see http://msdn.microsoft.com/en-us/library/xcb2z8hs.aspx
@@ -1408,6 +1465,11 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
     lua_setglobal( L, "cancel_test" );
 
 #ifdef ERROR_FULL_STACK
+    // Tie "set_error_reporting()" to the state
+    //
+    lua_pushcfunction( L, LG_set_error_reporting);
+    lua_setglobal( L, "set_error_reporting");
+
     STACK_GROW( L, 1 );
     lua_pushcfunction( L, lane_error );
     lua_insert( L, 1 );
@@ -1885,7 +1947,7 @@ static bool_t thread_cancel( struct s_lane *s, double secs, bool_t force)
 
 LUAG_FUNC( thread_cancel)
 {
-	if( lua_gettop( L) != 1 || lua_type( L, 1) != LUA_TUSERDATA)
+	if( lua_gettop( L) < 1 || lua_type( L, 1) != LUA_TUSERDATA)
 	{
 		return luaL_error( L, "invalid argument #1, did you use ':' as you should?");
 	}
