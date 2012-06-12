@@ -56,7 +56,7 @@
 
 <p><br/><font size="-1"><i>Copyright &copy; 2007-12 Asko Kauppi, Benoit Germain. All rights reserved.</i>
     <br>Lua Lanes is published under the same <A HREF="http://en.wikipedia.org/wiki/MIT_License">MIT license</A> as Lua 5.1.
-    </p><p>This document was revised on 17-Feb-11, and applies to version 3.1.2
+    </p><p>This document was revised on 17-Feb-11, and applies to version 3.1.3
 </font></p>
 
 </center>
@@ -588,6 +588,9 @@ level locking is required; each Linda operation is atomic.
     </li>
     <li><tt>receive</tt> can wait for multiple keys at once
     </li>
+  <li>
+    <tt>receive</tt> has a batched mode to consume more than one value from a single key, as in <tt>linda:receive( 1.0, linda.batched, "key", 3, 6)</tt>
+  </li>
     <li>individual keys' queue length can be limited, balancing speed differences
     in a producer/consumer scenario (making <tt>:send</tt> wait)
     </li>
