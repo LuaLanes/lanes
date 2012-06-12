@@ -1,6 +1,9 @@
 
 CHANGES:
 
+CHANGE 38: BGe 11-Jun-2012
+   * linda:receive() batched mode now accepts a max_count optional argument
+
 CHANGE 37: BGe 4-Jun-2012 (fix and idea courtesy of sonoro1234)
    * fixed thread_cancel() not working when called without argument
    * new lane-global function set_error_reporting() to enable more data detailed data provided by lane_error()

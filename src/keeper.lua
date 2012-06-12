@@ -87,7 +87,6 @@ local fifo_peek = function( fifo, count)
 end
 
 local fifo_pop = function( fifo, count)
-    if count > fifo.count then error("list is too short") end
     local first = fifo.first
     local last = first + count - 1
     local out = { unpack( fifo, first, last)}
@@ -178,7 +177,7 @@ end
 --
 function receive( ud, ...)
 
-    local data, _ = tables( ud)
+    local data = tables( ud)
 
     for i = 1, select( '#', ...) do
         local key = select( i, ...)
@@ -186,7 +185,7 @@ function receive( ud, ...)
         if fifo and fifo.count > 0 then
             local val = fifo_pop( fifo, 1)
             if val ~= nil then
-                    return val, key
+                return val, key
             end
         end
     end
@@ -194,17 +193,20 @@ end
 
 
 -----
--- [val1, ... valCOUNT]= receive_batched( linda_deep_ud, batch_sentinel, key , COUNT)
+-- [val1, ... valCOUNT]= receive_batched( linda_deep_ud, key , min_COUNT, max_COUNT)
 --
--- Read any of the given keys, consuming the data found. Keys are read in
--- order.
+-- Read a single key, consuming the data found.
 --
-receive_batched = function( ud, batch_sentinel, key, count)
-    if count > 0 then
-        local data, _ = tables( ud)
-        local fifo = data[key]
-        if fifo and fifo.count >= count then
-            return fifo_pop( fifo, count)
+receive_batched = function( ud, key, min_count, max_count)
+    if min_count > 0 then
+        local fifo = tables( ud)[key]
+        if fifo then
+            local fifo_count = fifo.count
+            if fifo_count >= min_count then
+                max_count = max_count or min_count
+                max_count = (max_count > fifo_count) and fifo_count or max_count
+                return fifo_pop( fifo, max_count)
+            end
         end
     end
 end
