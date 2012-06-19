@@ -556,6 +556,7 @@ end
 	-- activate full interface
 	lanes.gen = gen
 	lanes.linda = mm.linda
+	lanes.cancel_error = mm.cancel_error
 	lanes.timer = timer
 	lanes.genlock = genlock
 	lanes.genatomic = genatomic
