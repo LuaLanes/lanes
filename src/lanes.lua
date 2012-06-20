@@ -450,8 +450,8 @@ if first_time then
                 assert( key and wakeup_at and period )
 
                 set_timer( linda, key, wakeup_at, period>0 and period or nil )
-            elseif secs == 0 then -- got no value while block-waiting?
-                WR( "timer lane: no linda, aborted?")
+            --elseif secs == nil then -- got no value while block-waiting?
+            --    WR( "timer lane: no linda, aborted?")
             end
         end
     end )()
