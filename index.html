@@ -56,7 +56,7 @@
 
 <p><br/><font size="-1"><i>Copyright &copy; 2007-12 Asko Kauppi, Benoit Germain. All rights reserved.</i>
     <br>Lua Lanes is published under the same <A HREF="http://en.wikipedia.org/wiki/MIT_License">MIT license</A> as Lua 5.1.
-    </p><p>This document was revised on 17-Feb-11, and applies to version 3.1.3
+    </p><p>This document was revised on 23-Jun-12, and applies to version 3.1.4
 </font></p>
 
 </center>
@@ -509,7 +509,7 @@ It is also possible to manually test for cancel requests with <tt>cancel_test()<
 <table border=1 bgcolor="#E0E0FF" cellpadding=10><tr><td>
     <code>set_finalizer( finalizer_func )</code>
     <br/><br/>
-    <code>void= finalizer_func( [error] )</code>
+    <code>void= finalizer_func( [err, stack_tbl] )</code>
 </table>
 
 <p>The <tt>error</tt> call is used for throwing exceptions in Lua. What Lua
@@ -734,7 +734,7 @@ events to a common Linda, but... :).</font>
 </table>
 
 <p>
-    Timers are implemented as a lane. They can be disabled by passing <tt>"NO_TIMERS"</tt>
+    Timers are implemented as a lane. They can be disabled by setting <tt>"with_timers"</tt> to <tt>nil</tt> or <tt>false</tt>
     to <tt>lanes.configure()</tt>.
   </p>
 <p>
@@ -748,7 +748,7 @@ Once a timer expires, the <tt>key</tt> is set with the current time
 The key can be waited upon using the regular Linda <tt>:receive()</tt>
 method.
 </p><p>
-A timer can be stopped simply by <tt>first_secs=0</tt> and no period.
+A timer can be stopped simply with <tt>first_secs=0|nil</tt> and no period.
 </p><p>
 
 <table border=1 bgcolor="#FFFFE0" width=500><tr><td>
