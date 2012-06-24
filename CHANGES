@@ -1,6 +1,11 @@
 
 CHANGES:
 
+CHANGE 39: BGe 23-Jun-2012
+   * lanes.timer() accepts a first_secs=nil to stop a timer
+   * timer lane catches errors and prints them
+   * fixed some typos in manual
+
 CHANGE 38: BGe 11-Jun-2012
    * linda:receive() batched mode now accepts a max_count optional argument
 

@@ -92,10 +92,10 @@ local error= assert( error )
 
 lanes.ABOUT= 
 {
-    author= "Asko Kauppi <akauppi@gmail.com>",
+    author= "Asko Kauppi <akauppi@gmail.com>, Benoit Germain <bnt.germain@gmail.com>",
     description= "Running multiple Lua states in parallel",
     license= "MIT/X11",
-    copyright= "Copyright (c) 2007-10, Asko Kauppi",
+    copyright= "Copyright (c) 2007-10, Asko Kauppi; (c) 2011-12, Benoit Germain",
     version= _version,
 }
 
@@ -315,7 +315,6 @@ if first_time then
     -- set_timer( linda_h, key [,wakeup_at_secs [,period_secs]] )
     --
     local function set_timer( linda, key, wakeup_at, period )
-
         assert( wakeup_at==nil or wakeup_at>0.0 )
         assert( period==nil or period>0.0 )
 
@@ -429,32 +428,40 @@ if first_time then
     -- We let the timer lane be a "free running" thread; no handle to it
     -- remains.
     --
-    gen( "*", { priority=max_prio}, function() -- "*" instead of "io,package" for LuaJIT compatibility...
-        set_debug_threadname( "LanesTimer")
-        while true do
-            local next_wakeup= check_timers()
+	local timer_body = function()
+		local timer_gateway_batched = timer_gateway.batched
+		set_debug_threadname( "LanesTimer")
+		set_finalizer( function( err, stk)
+			if err and type( err) ~= "userdata" then
+				WR( "LanesTimer error: "..tostring(err))
+			--elseif type( err) == "userdata" then
+			--	WR( "LanesTimer after cancel" )
+			--else
+			--	WR("LanesTimer finalized")
+			end
+		end)
+		while true do
+			local next_wakeup= check_timers()
 
-            -- Sleep until next timer to wake up, or a set/clear command
-            --
-            local secs
-            if next_wakeup then
-                secs =  next_wakeup - now_secs()
-                if secs < 0 then secs = 0 end
-            end
-            local linda= timer_gateway:receive( secs, TGW_KEY )
+			-- Sleep until next timer to wake up, or a set/clear command
+			--
+			local secs
+			if next_wakeup then
+				secs =  next_wakeup - now_secs()
+				if secs < 0 then secs = 0 end
+			end
+			local linda = timer_gateway:receive( secs, TGW_KEY)
 
-            if linda then
-                local key= timer_gateway:receive( 0.0, TGW_KEY )
-                local wakeup_at= timer_gateway:receive( 0.0, TGW_KEY )
-                local period= timer_gateway:receive( 0.0, TGW_KEY )
-                assert( key and wakeup_at and period )
-
-                set_timer( linda, key, wakeup_at, period>0 and period or nil )
-            --elseif secs == nil then -- got no value while block-waiting?
-            --    WR( "timer lane: no linda, aborted?")
-            end
-        end
-    end )()
+			if linda then
+				local key, wakeup_at, period = timer_gateway:receive( 0, timer_gateway_batched, TGW_KEY, 3)
+				assert( key)
+				set_timer( linda, key, wakeup_at, period and period > 0 and period or nil)
+			--elseif secs == nil then -- got no value while block-waiting?
+			--	WR( "timer lane: no linda, aborted?")
+			end
+		end
+	end
+	gen( "*", { priority=max_prio}, timer_body)() -- "*" instead of "io,package" for LuaJIT compatibility...
 end
 
 -----
@@ -479,7 +486,7 @@ timer = function( linda, key, a, period )
     end
 
     local wakeup_at= type(a)=="table" and wakeup_conv(a)    -- given point of time
-                                       or now_secs()+a
+                                       or (a and now_secs()+a or nil)
     -- queue to timer
     --
     timer_gateway:send( TGW_KEY, linda, key, wakeup_at, period )
