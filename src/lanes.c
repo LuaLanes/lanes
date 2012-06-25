@@ -1057,7 +1057,7 @@ static int selfdestruct_atexit( lua_State *L)
         while( s != SELFDESTRUCT_END )
         {
             // attempt a regular unforced cancel with a small timeout
-            bool_t cancelled = thread_cancel( s, 0.0001, FALSE);
+            bool_t cancelled = THREAD_ISNULL( s->thread) || thread_cancel( s, 0.0001, FALSE);
             // if we failed, and we know the thread is waiting on a linda
             if( cancelled == FALSE && s->status == WAITING && s->waiting_on != NULL)
             {
