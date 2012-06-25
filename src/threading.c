@@ -294,7 +294,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
         // WAIT_FAILED      more info via GetLastError()
 
     if (rc == WAIT_TIMEOUT) return FALSE;
-    if (rc != 0) FAIL( "WaitForSingleObject", rc );
+    if( rc !=0) FAIL( "WaitForSingleObject", rc==WAIT_FAILED ? GetLastError() : rc);
     *ref= NULL;     // thread no longer usable
     return TRUE;
   }
