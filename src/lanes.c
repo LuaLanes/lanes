@@ -2303,6 +2303,7 @@ static const struct luaL_reg lanes_functions [] = {
     {"linda", LG_linda},
     {"now_secs", LG_now_secs},
     {"wakeup_conv", LG_wakeup_conv},
+    {"nameof", luaG_nameof},
     {"_single", LG__single},
     {NULL, NULL}
 };

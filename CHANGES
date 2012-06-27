@@ -1,6 +1,10 @@
 
 CHANGES:
 
+CHANGE 40: BGe 26-Jun-2012
+   * when a transfered function is not found in source, guess its name to help the user find out what's wrong
+   * new function lanes.nameof()
+
 CHANGE 39: BGe 23-Jun-2012
    * lanes.timer() accepts a first_secs=nil to stop a timer
    * timer lane catches errors and prints them

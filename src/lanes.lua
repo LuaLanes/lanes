@@ -564,6 +564,7 @@ end
 	lanes.gen = gen
 	lanes.linda = mm.linda
 	lanes.cancel_error = mm.cancel_error
+	lanes.nameof = mm.nameof
 	lanes.timer = timer
 	lanes.genlock = genlock
 	lanes.genatomic = genatomic

@@ -65,6 +65,8 @@ void luaG_push_proxy( lua_State *L, luaG_IdFunction idfunc, DEEP_PRELUDE *deep_u
 int luaG_inter_copy( lua_State *L, lua_State *L2, uint_t n);
 int luaG_inter_move( lua_State *L, lua_State *L2, uint_t n);
 
+int luaG_nameof( lua_State* L);
+
 // Lock for reference counter inc/dec locks (to be initialized by outside code)
 //
 extern MUTEX_T deep_lock;

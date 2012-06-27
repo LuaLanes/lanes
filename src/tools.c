@@ -1200,38 +1200,149 @@ static void push_cached_func( lua_State *L2, uint_t L2_cache_i, lua_State *L, ui
 }
 
 /*
+ * Return some name helping to identify an object
+ */
+int discover_object_name_recur( lua_State* L, int _shortest, int _length)
+{
+	int const what = 1;                                     // o "r" {c} {fqn} ... {?}
+	int const result = 2;
+	int const cache = 3;
+	int const fqn = 4;
+	// no need to scan this table if the name we will discover is longer than one we already know
+	if( _shortest <= _length + 1)
+	{
+		return _shortest;
+	}
+	STACK_GROW( L, 3);
+	STACK_CHECK(L)
+	// stack top contains the table to search in
+	lua_pushvalue( L, -1);                                  // o "r" {c} {fqn} ... {?} {?}
+	lua_rawget( L, cache);                                  // o "r" {c} {fqn} ... {?} nil/1
+	// if table is already visited, we are done
+	if( !lua_isnil( L, -1))
+	{
+		lua_pop( L, 1);                                       // o "r" {c} {fqn} ... {?}
+		return _shortest;
+	}
+	// examined table is not in the cache, add it now
+	lua_pop( L, 1);                                         // o "r" {c} {fqn} ... {?}
+	lua_pushvalue( L, -1);                                  // o "r" {c} {fqn} ... {?} {?}
+	lua_pushinteger( L, 1);                                 // o "r" {c} {fqn} ... {?} {?} 1
+	lua_rawset( L, cache);                                  // o "r" {c} {fqn} ... {?}
+	// scan table contents
+	lua_pushnil( L);                                        // o "r" {c} {fqn} ... {?} nil
+	while( lua_next( L, -2))                                // o "r" {c} {fqn} ... {?} k v
+	{
+		//char const *const key = lua_tostring( L, -2); // only for debugging (BEWARE, IT MAY CHANGE THE VALUE IF IT IS CONVERTIBLE, AND WRECK THE LOOP ITERATION PROCESS!)
+		// append key name to fqn stack
+		++ _length;
+		lua_pushvalue( L, -2);                                // o "r" {c} {fqn} ... {?} k v k
+		lua_rawseti( L, fqn, _length);                        // o "r" {c} {fqn} ... {?} k v
+		if( lua_rawequal( L, -1, what)) // is it what we are looking for?
+		{
+			// update shortest name
+			if( _length < _shortest)
+			{
+				_shortest = _length;
+				luaG_pushFQN( L, fqn, _length);                   // o "r" {c} {fqn} ... {?} k v "fqn"
+				lua_replace( L, result);                          // o "r" {c} {fqn} ... {?} k v
+			}
+			// no need to search further at this level
+			lua_pop( L, 2);                                     // o "r" {c} {fqn} ... {?}
+			break;
+		}
+		else if( lua_istable( L, -1))
+		{
+			_shortest = discover_object_name_recur( L, _shortest, _length);
+		}
+		// make ready for next iteration
+		lua_pop( L, 1);                                       // o "r" {c} {fqn} ... {?} k
+		// remove name from fqn stack
+		lua_pushnil( L);                                      // o "r" {c} {fqn} ... {?} k nil
+		lua_rawseti( L, fqn, _length);                        // o "r" {c} {fqn} ... {?} k
+		-- _length;
+	}                                                       // o "r" {c} {fqn} ... {?}
+	// remove the visited table from the cache, in case a shorter path to the searched object exists
+	lua_pushvalue( L, -1);                                  // o "r" {c} {fqn} ... {?} {?}
+	lua_pushnil( L);                                        // o "r" {c} {fqn} ... {?} {?} nil
+	lua_rawset( L, cache);                                  // o "r" {c} {fqn} ... {?}
+	STACK_END( L, 0)
+	return _shortest;
+}
+
+/*
+ * "type", "name" = lanes.nameof( o)
+ */
+int luaG_nameof( lua_State* L)
+{
+	int what = lua_gettop( L);
+	if( what > 1)
+	{
+		luaL_argerror( L, what, "too many arguments.");
+	}
+
+	// numbers, strings, booleans and nil can't be identified
+	if( lua_type( L, 1) < LUA_TTABLE)
+	{
+		lua_pushstring( L, luaL_typename( L, 1));             // o "type"
+		lua_insert( L, -2);                                   // "type" o
+		return 2;
+	}
+	STACK_GROW( L, 4);
+	// this slot will contain the shortest name we found when we are done
+	lua_pushnil( L);                                        // o nil
+	// push a cache that will contain all already visited tables
+	lua_newtable( L);                                       // o nil {c}
+	// push a table whose contents are strings that, when concatenated, produce unique name
+	lua_newtable( L);                                       // o nil {c} {fqn}
+	// this is where we start the search
+	lua_pushvalue( L, LUA_GLOBALSINDEX);                    // o nil {c} {fqn} _G
+	(void) discover_object_name_recur( L, 6666, 0);
+	lua_pop( L, 3);                                         // o "result"
+	lua_pushstring( L, luaL_typename( L, 1));               // o "result" "type"
+	lua_replace( L, -3);                                    // "type" "result"
+	return 2;
+}
+
+/*
 * Push a looked-up native/LuaJIT function.
 */
 static void lookup_native_func( lua_State *L2, lua_State *L, uint_t i)
 {
-	char const *fqn;
+	char const *fqn;                                         // L                        // L2
 	size_t len;
-	_ASSERT_L( L, lua_isfunction( L, i));
+	_ASSERT_L( L, lua_isfunction( L, i));                    // ... f ...
 	STACK_CHECK( L)
-	STACK_CHECK( L2)
 	// fetch the name from the source state's lookup table
-	lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY);         // {}
+	lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY);         // ... f ... {}
 	_ASSERT_L( L, lua_istable( L, -1));
-	lua_pushvalue( L, i);                                    // {} f
-	lua_rawget( L, -2);                                      // {} "f.q.n"
+	lua_pushvalue( L, i);                                    // ... f ... {} f
+	lua_rawget( L, -2);                                      // ... f ... {} "f.q.n"
 	fqn = lua_tolstring( L, -1, &len);
+	// popping doesn't invalidate the pointer since this is an interned string gotten from the lookup database
+	lua_pop( L, 2);                                          // ... f ...
 	if( !fqn)
 	{
-		luaL_error( L, "function not found in origin transfer database.");
+		lua_pushvalue( L, i);                                  // ... f ... f
+		// try to discover the name of the function we want to send
+		luaG_nameof( L);                                       // ... f ... "type" "name"
+		(void) luaL_error( L, "%s %s not found in origin transfer database.", lua_tostring( L, -2), lua_tostring( L, -1));
+		return;
 	}
+	STACK_END( L, 0)
 	// push the equivalent function in the destination's stack, retrieved from the lookup table
-	lua_getfield( L2, LUA_REGISTRYINDEX, LOOKUP_KEY);                               // {}
+	STACK_CHECK( L2)
+	lua_getfield( L2, LUA_REGISTRYINDEX, LOOKUP_KEY);                                    // {}
 	_ASSERT_L( L2, lua_istable( L2, -1));
-	lua_pushlstring( L2, fqn, len);                                                 // {} "f.q.n"
-	lua_pop( L, 2);                                          //
-	lua_rawget( L2, -2);                                                            // {} f
+	lua_pushlstring( L2, fqn, len);                                                      // {} "f.q.n"
+	lua_rawget( L2, -2);                                                                 // {} f
 	if( !lua_isfunction( L2, -1))
 	{
-		luaL_error( L, "function %s not found in destination transfer database.", fqn);
+		(void) luaL_error( L, "function %s not found in destination transfer database.", fqn);
+		return;
 	}
-	lua_remove( L2, -2);                                                            // f
+	lua_remove( L2, -2);                                                                 // f
 	STACK_END( L2, 1)
-	STACK_END( L, 0)
 }
 
 #define LOG_FUNC_INFO 0
