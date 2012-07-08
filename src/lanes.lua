@@ -567,6 +567,7 @@ end
 	lanes.nameof = mm.nameof
 	lanes.timer = timer
 	lanes.genlock = genlock
+	lanes.now_secs = now_secs
 	lanes.genatomic = genatomic
 	-- from now on, calling configure does nothing but checking that we don't call it with parameters that changed compared to the first invocation
 	lanes.configure = function( _params2)
