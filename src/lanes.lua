@@ -55,10 +55,10 @@ if _params.on_state_create and (type( _params.on_state_create) ~= "function") th
 	error( "Bad on_state_create: " .. tostring( _params.on_state_create), 2)
 end
 
-local mm = require "lua51-lanes"
+local mm = require "lanes.core"
 assert( type(mm)=="table" )
 
--- configure() is available only the first time lua51-lanes is required process-wide, and we *must* call it to have the other functions in the interface
+-- configure() is available only the first time lanes.core is required process-wide, and we *must* call it to have the other functions in the interface
 if mm.configure then mm.configure( _params.nb_keepers, _params.on_state_create) end
 
 local thread_new = assert(mm.thread_new)

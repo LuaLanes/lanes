@@ -1,6 +1,11 @@
 
 CHANGES:
 
+CHANGE 41: BGe 07-Jul-2012
+   * lua51-lanes renamed lanes/core
+   * keeper state microcode is no longer embedded inside lanes.core, but located and loaded with package.loaders[2]
+   * changed rockspec build type from "make" to "builtin"
+
 CHANGE 40: BGe 26-Jun-2012
    * when a transfered function is not found in source, guess its name to help the user find out what's wrong
    * new function lanes.nameof()

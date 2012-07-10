@@ -17,39 +17,40 @@ MODULE = lanes
 
 N=1000
 
-_SO=.so
-_TARGET_SO=src/lua51-lanes.so
+_TARGET_DIR=src/lanes
 TIME=time
 
 ifeq "$(findstring MINGW32,$(shell uname -s))" "MINGW32"
   # MinGW MSYS on XP
   #
-  LUA=lua.exe
-  LUAC=luac.exe
-  _SO=.dll
-  _TARGET_SO=./lua51-lanes.dll
+  _SO=dll
+  _LUAEXT=.exe
   TIME=timeit.exe
 else
-  # Autodetect LUA & LUAC
-  #
-  LUA=$(word 1,$(shell which lua5.1) $(shell which lua51) lua)
-  LUAC=$(word 1,$(shell which luac5.1) $(shell which luac51) luac)
+  _SO=so
+  _LUAEXT=
 endif
 
-_PREFIX=LUA_CPATH="./src/?$(_SO)" LUA_PATH="./src/?.lua;./tests/?.lua"
+# Autodetect LUA
+#
+LUA=$(word 1,$(shell which lua5.1$(_LUAEXT)) $(shell which lua51$(_LUAEXT)) lua$(_LUAEXT))
+
+_TARGET_SO=$(_TARGET_DIR)/core.$(_SO)
+
+_PREFIX=LUA_CPATH="./src/?.$(_SO)" LUA_PATH="./src/?.lua;./tests/?.lua"
 
 #---
 all: $(_TARGET_SO)
 
 $(_TARGET_SO): src/*.lua src/*.c src/*.h
-	cd src && $(MAKE) LUA=$(LUA) LUAC=$(LUAC)
+	cd src && $(MAKE) LUA=$(LUA)
 
 clean:
 	cd src && $(MAKE) clean
 
 debug:
 	$(MAKE) clean
-	cd src && $(MAKE) LUA=$(LUA) LUAC=$(LUAC) OPT_FLAGS="-O0 -g"
+	cd src && $(MAKE) LUA=$(LUA) OPT_FLAGS="-O0 -g"
 	@echo ""
 	@echo "** Now, try 'make repetitive' or something and if it crashes, 'gdb $(LUA) ...core file...'"
 	@echo "   Then 'bt' for a backtrace."
@@ -65,7 +66,7 @@ gdb:
 #--- LuaRocks automated build ---
 #
 rock:
-	cd src && $(MAKE) LUAROCKS=1 CFLAGS="$(CFLAGS)" LIBFLAG="$(LIBFLAG)" LUA=$(LUA) LUAC=$(LUAC)
+	cd src && $(MAKE) LUAROCKS=1 CFLAGS="$(CFLAGS)" LIBFLAG="$(LIBFLAG)" LUA=$(LUA)
 
 
 #--- Testing ---
@@ -196,10 +197,11 @@ LUA_SHAREDIR=$(DESTDIR)/share/lua/5.1
 #
 # AKa 17-Oct: changed to use 'install -m 644' and 'cp -p'
 #
-install: $(_TARGET_SO) src/lanes.lua
-	mkdir -p $(LUA_LIBDIR) $(LUA_SHAREDIR)
-	install -m 644 $(_TARGET_SO) $(LUA_LIBDIR)
+install: $(_TARGET_SO) src/lanes.lua src/lanes-keeper.lua
+	mkdir -p $(LUA_LIBDIR) $(LUA_LIBDIR)/lanes $(LUA_SHAREDIR)
+	install -m 644 $(_TARGET_SO) $(LUA_LIBDIR)/lanes
 	cp -p src/lanes.lua $(LUA_SHAREDIR)
+	cp -p src/lanes-keeper.lua $(LUA_SHAREDIR)
 
 
 #--- Packaging ---

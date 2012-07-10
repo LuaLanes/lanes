@@ -51,7 +51,7 @@
  *      ...
  */
 
-char const* VERSION = "3.1.4";
+char const* VERSION = "3.1.5";
 
 /*
 ===============================================================================
@@ -868,7 +868,7 @@ static void linda_id( lua_State *L, char const * const which)
         // in other words, forever.
         lua_pushnil( L);
         // other idfuncs must push a string naming the module they come from
-        //lua_pushliteral( L, "lua51-lanes");
+        //lua_pushliteral( L, "lanes.core");
     }
 }
 
@@ -1697,11 +1697,11 @@ LUAG_FUNC( thread_new )
 
 	// modules to require in the target lane *before* the function is transfered!
 
-	//start by requiring lua51-lanes, since it is a bit special
+	//start by requiring lanes.core, since it is a bit special
 	// it is not fatal if 'require' isn't loaded, just ignore (may cause function transfer errors later on if the lane pulls the lanes module itself)
 	STACK_CHECK(L)
 	STACK_CHECK(L2)
-	lua_pushliteral( L, "lua51-lanes");
+	lua_pushliteral( L, "lanes.core");
 	require_one_module( L, L2, FALSE);
 	lua_pop( L, 1);
 	STACK_END(L2,0)
@@ -2510,7 +2510,7 @@ int
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 __declspec(dllexport)
 #endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
-luaopen_lanes( lua_State *L )
+luaopen_lanes_core( lua_State *L )
 {
 	// Create main module interface table
 	// we only have 1 closure, which must be called to configure Lanes
