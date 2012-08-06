@@ -238,6 +238,7 @@ static bool_t push_registry_table( lua_State *L, void *key, bool_t create ) {
 struct s_Linda {
     SIGNAL_T read_happened;
     SIGNAL_T write_happened;
+    char name[1];
 };
 
 static void linda_id( lua_State*, char const * const which);
@@ -711,7 +712,10 @@ LUAG_FUNC( linda_tostring)
 	int len;
 	struct s_Linda* linda = lua_toLinda( L, 1);
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
-	len = sprintf( text, "linda: %p", linda);
+	if( linda->name[0])
+		len = sprintf( text, "linda: %.*s", sizeof(text) - 8, linda->name);
+	else
+		len = sprintf( text, "linda: %p", linda);
 	lua_pushlstring( L, text, len);
 	return 1;
 }
@@ -734,14 +738,22 @@ LUAG_FUNC( linda_concat)
 	if ( linda1)
 	{
 		char text[32];
-		int len = sprintf( text, "linda: %p", linda1);
+		int len;
+		if( linda1->name[0])
+			len = sprintf( text, "linda: %.*s", sizeof(text) - 8, linda1->name);
+		else
+			len = sprintf( text, "linda: %p", linda1);
 		lua_pushlstring( L, text, len);
 		lua_replace( L, 1);
 	}
 	if ( linda2)
 	{
 		char text[32];
-		int len = sprintf( text, "linda: %p", linda2);
+		int len;
+		if( linda2->name[0])
+			len = sprintf( text, "linda: %.*s", sizeof(text) - 8, linda2->name);
+		else
+			len = sprintf( text, "linda: %p", linda2);
 		lua_pushlstring( L, text, len);
 		lua_replace( L, 2);
 	}
@@ -779,16 +791,26 @@ static void linda_id( lua_State *L, char const * const which)
     if (strcmp( which, "new" )==0)
     {
         struct s_Linda *s;
+        size_t name_len = 0;
+        char const* linda_name = NULL;
+
+        if( lua_type( L, lua_gettop( L)) == LUA_TSTRING)
+        {
+            linda_name = lua_tostring( L, lua_gettop( L));
+            name_len = strlen( linda_name);
+        }
 
         /* The deep data is allocated separately of Lua stack; we might no
         * longer be around when last reference to it is being released.
         * One can use any memory allocation scheme.
         */
-        s= (struct s_Linda *) malloc( sizeof(struct s_Linda) );
+        s= (struct s_Linda *) malloc( sizeof(struct s_Linda) + name_len); // terminating 0 is already included
         ASSERT_L(s);
 
         SIGNAL_INIT( &s->read_happened );
         SIGNAL_INIT( &s->write_happened );
+        s->name[0] = 0;
+        memcpy( s->name, linda_name, name_len ? name_len + 1 : 0);
 
         lua_pushlightuserdata( L, s );
     }
@@ -879,6 +901,10 @@ static void linda_id( lua_State *L, char const * const which)
  */
 LUAG_FUNC( linda)
 {
+	int const top = lua_gettop( L);
+	luaL_argcheck( L, top <= 1, top, "too many arguments");
+	if( top == 1)
+		luaL_checktype( L, 1, LUA_TSTRING);
 	return luaG_deep_userdata( L, linda_id);
 }
 
@@ -2376,7 +2402,10 @@ static void init_once_LOCKED( lua_State* L, volatile DEEP_PRELUDE** timer_deep_r
     {
         // proxy_ud= deep_userdata( idfunc )
         //
+        lua_pushliteral( L, "lanes-timer"); // push a name for debug purposes
         luaG_deep_userdata( L, linda_id);
+        STACK_MID( L, 2)
+        lua_remove( L, -2); // remove the name as we no longer need it
 
         ASSERT_L( lua_isuserdata(L,-1) );
         
@@ -2533,5 +2562,3 @@ luaopen_lanes_core( lua_State *L )
 	STACK_END( L, 1)
 	return 1;
 }
-
-
