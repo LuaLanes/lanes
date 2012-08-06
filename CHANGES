@@ -1,5 +1,7 @@
-
 CHANGES:
+
+CHANGE 42: BGe 06-Aug-2012
+   * lanes.linda() accepts an optional name for debug purposes
 
 CHANGE 41: BGe 07-Jul-2012
    * lua51-lanes renamed lanes/core
