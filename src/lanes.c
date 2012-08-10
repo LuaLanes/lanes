@@ -823,7 +823,7 @@ static void linda_id( lua_State *L, char const * const which)
         /* Clean associated structures in the keeper state.
         */
         K= keeper_acquire(s);
-        if( K) // can be NULL if this happens during main state shutdown (lanes is GC'ed -> no keepers -> no need to cleanup)
+        if( K && K->L) // can be NULL if this happens during main state shutdown (lanes is GC'ed -> no keepers -> no need to cleanup)
         {
             keeper_call( K->L, "clear", L, s, 0 );
             keeper_release(K);
