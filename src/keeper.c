@@ -69,12 +69,12 @@ static void atexit_close_keepers(void)
 	// 2-pass close, in case a keeper holds a reference to a linda bound to another keeoer
 	for( i = 0; i < GNbKeepers; ++ i)
 	{
-		lua_close( GKeepers[i].L);
+		lua_State* L = GKeepers[i].L;
+		GKeepers[i].L = 0;
+		lua_close( L);
 	}
 	for( i = 0; i < GNbKeepers; ++ i)
 	{
-		GKeepers[i].L = 0;
-		//assert( GKeepers[i].count == 0);
 		MUTEX_FREE( &GKeepers[i].lock_);
 	}
 	if( GKeepers) free( GKeepers);
