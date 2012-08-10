@@ -255,7 +255,7 @@ end
 -- We let the C code attach methods to userdata directly
 
 -----
--- lanes.linda() -> linda_ud
+-- lanes.linda(["name"]) -> linda_ud
 --
 -- PUBLIC LANES API
 local linda = mm.linda

@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 43: BGe 09-Aug-2012
+   * fix possible crash at application shutdown when a race condition causes linda objects to be collected after the keeper states are cleaned up.
+
 CHANGE 42: BGe 06-Aug-2012
    * lanes.linda() accepts an optional name for debug purposes
 

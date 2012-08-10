@@ -1070,7 +1070,7 @@ volatile DEEP_PRELUDE *timer_deep;  // = NULL
 /*
 * Process end; cancel any still free-running threads
 */
-static int selfdestruct_atexit( lua_State *L)
+static int selfdestruct_gc( lua_State *L)
 {
     (void)L; // unused
     if (selfdestruct_first == SELFDESTRUCT_END) return 0;    // no free-running threads
@@ -1214,7 +1214,6 @@ static int selfdestruct_atexit( lua_State *L)
         DEBUGEXEC(fprintf( stderr, "Killed %d lane(s) at process end.\n", n ));
 #endif
     }
-    close_keepers();
     return 0;
 }
 
@@ -2363,7 +2362,6 @@ static void init_once_LOCKED( lua_State* L, volatile DEEP_PRELUDE** timer_deep_r
         // Selfdestruct chain handling
         //
         MUTEX_INIT( &selfdestruct_cs );
-        //atexit( selfdestruct_atexit );
 
         //---
         // Linux needs SCHED_RR to change thread priorities, and that is only
@@ -2421,7 +2419,7 @@ static void init_once_LOCKED( lua_State* L, volatile DEEP_PRELUDE** timer_deep_r
         {
             lua_newuserdata( L, 1);
             lua_newtable( L);
-            lua_pushcfunction( L, selfdestruct_atexit);
+            lua_pushcfunction( L, selfdestruct_gc);
             lua_setfield( L, -2, "__gc");
             lua_pushliteral( L, "AtExit");
             lua_setfield( L, -2, "__metatable");

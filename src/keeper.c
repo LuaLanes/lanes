@@ -63,6 +63,21 @@
 static struct s_Keeper *GKeepers = NULL;
 static int GNbKeepers = 0;
 
+static void atexit_close_keepers(void)
+{
+	int i;
+	for( i = 0; i < GNbKeepers; ++ i)
+	{
+		lua_close( GKeepers[i].L);
+		GKeepers[i].L = 0;
+		//assert( GKeepers[i].count == 0);
+		MUTEX_FREE( &GKeepers[i].lock_);
+	}
+	if( GKeepers) free( GKeepers);
+	GKeepers = NULL;
+	GNbKeepers = 0;
+}
+
 /*
 * Initialize keeper states
 *
@@ -118,6 +133,9 @@ char const* init_keepers( int const _nbKeepers, lua_CFunction _on_state_create)
 		GKeepers[i].L = K;
 		//GKeepers[i].count = 0;
 	}
+	// call close_keepers at the very last as we want to be sure no thread is GCing after.
+	// (and therefore may perform linda object dereferencing after keepers are gone)
+	atexit( atexit_close_keepers);
 	return NULL;    // ok
 }
 
@@ -263,19 +281,4 @@ int keeper_call( lua_State *K, char const *func_name, lua_State *L, void *linda,
 	// whatever happens, restore the stack to where it was at the origin
 	lua_settop( K, Ktos);
 	return retvals;
-}
-
-void close_keepers(void)
-{
-	int i;
-	for( i = 0; i < GNbKeepers; ++ i)
-	{
-		lua_close( GKeepers[i].L);
-		GKeepers[i].L = 0;
-		//assert( GKeepers[i].count == 0);
-		MUTEX_FREE( &GKeepers[i].lock_);
-	}
-	if( GKeepers) free( GKeepers);
-	GKeepers = NULL;
-	GNbKeepers = 0;
 }
