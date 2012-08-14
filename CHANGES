@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 44: BGe 13-Aug-2012
+   * lanes code updated to build against Lua 5.1 and Lua 5.2
+   * removed the search for MSVCR80.DLL when building for MinGW32 since it no longer seems to be necessary
+
 CHANGE 43: BGe 09-Aug-2012
    * fix possible crash at application shutdown when a race condition causes linda objects to be collected after the keeper states are cleaned up.
 

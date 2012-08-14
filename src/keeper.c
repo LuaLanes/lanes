@@ -116,7 +116,7 @@ char const* init_keepers( int const _nbKeepers, lua_CFunction _on_state_create)
 		lua_setglobal( K, "decoda_name");
 
 		// use package.loaders[2] to find keeper microcode
-		lua_getfield( K, LUA_GLOBALSINDEX, "package"); // package
+		lua_getglobal( K, "package");                  // package
 		lua_getfield( K, -1, "loaders");               // package package.loaders
 		lua_rawgeti( K, -1, 2);                        // package package.loaders package.loaders[2]
 		lua_pushliteral( K, "lanes-keeper");           // package package.loaders package.loaders[2] "lanes-keeper"

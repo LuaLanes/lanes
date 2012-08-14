@@ -51,7 +51,7 @@
  *      ...
  */
 
-char const* VERSION = "3.1.5";
+char const* VERSION = "3.1.6";
 
 /*
 ===============================================================================
@@ -928,7 +928,7 @@ LUAG_FUNC( set_finalizer )
     //
     push_registry_table( L, FINALIZER_REG_KEY, TRUE /*do create if none*/ );
 
-    lua_pushinteger( L, lua_objlen(L,-1)+1 );
+    lua_pushinteger( L, lua_rawlen(L,-1)+1 );
     lua_pushvalue( L, 1 );  // copy of the function
     lua_settable( L, -3 );
     
@@ -966,7 +966,8 @@ static int run_finalizers( lua_State *L, int lua_rc )
 
     // [-1]: { func [, ...] }
     //
-    for( n= (unsigned int)lua_objlen(L,-1); n>0; n-- ) {
+    for( n = (unsigned int)lua_rawlen( L, -1); n > 0; -- n)
+    {
         unsigned args= 0;
         lua_pushinteger( L,n );
         lua_gettable( L, -2 );
@@ -1686,6 +1687,7 @@ LUAG_FUNC( thread_new )
 	if (!L2) luaL_error( L, "'luaL_newstate()' failed; out of memory" );
 
 	STACK_GROW( L, 2);
+	STACK_GROW( L2, 3);
 
 	ASSERT_L( lua_gettop(L2) == 0);
 
@@ -1769,13 +1771,15 @@ LUAG_FUNC( thread_new )
 			luaL_error( L, "Expected table, got %s", luaL_typename(L,glob));
 
 		lua_pushnil( L);
+		lua_pushglobaltable( L2); // Lua 5.2 wants us to push the globals table on the stack
 		while( lua_next( L, glob))
 		{
 			luaG_inter_copy( L, L2, 2);     // moves the key/value pair to the L2 stack
-			// assign it in the globals table
-			lua_rawset( L2, LUA_GLOBALSINDEX);
+			// assign it in L2's globals table
+			lua_rawset( L2, -3);
 			lua_pop( L, 1);
 		}
+		lua_pop( L2, 1);
 
 		STACK_END(L2, 0)
 		STACK_END(L, 0)
@@ -1845,7 +1849,7 @@ LUAG_FUNC( thread_new )
 	// Clear environment for the userdata
 	//
 	lua_newtable( L);
-	lua_setfenv( L, -2);
+	lua_setuservalue( L, -2);
 
 	// Place 's' in registry, for 'cancel_test()' (even if 'cs'==0 we still
 	// do cancel tests at pending send/receive).
@@ -2134,7 +2138,7 @@ LUAG_FUNC( thread_index)
 		// first, check that we don't already have an environment that holds the requested value
 		{
 			// If key is found in the environment, return it
-			lua_getfenv( L, UD);
+			lua_getuservalue( L, UD);
 			lua_pushvalue( L, KEY);
 			lua_rawget( L, ENV);
 			if( !lua_isnil( L, -1))
@@ -2324,7 +2328,7 @@ LUAG_FUNC( wakeup_conv )
 /*---=== Module linkage ===---
 */
 
-static const struct luaL_reg lanes_functions [] = {
+static const struct luaL_Reg lanes_functions [] = {
     {"linda", LG_linda},
     {"now_secs", LG_now_secs},
     {"wakeup_conv", LG_wakeup_conv},
@@ -2485,7 +2489,8 @@ LUAG_FUNC( configure )
     // remove configure() (this function) from the module interface
     lua_pushnil( L);
     lua_setfield( L, -2, "configure");
-    luaL_register(L, NULL, lanes_functions);
+    // add functions to the module's table
+    luaG_registerlibfuncs(L, lanes_functions);
 
     // metatable for threads
     // contains keys: { __gc, __index, cached_error, cached_tostring, cancel, join }
@@ -2495,10 +2500,10 @@ LUAG_FUNC( configure )
     lua_setfield( L, -2, "__gc");
     lua_pushcfunction( L, LG_thread_index);
     lua_setfield( L, -2, "__index");
-    lua_getfield( L, LUA_GLOBALSINDEX, "error");
+    lua_getglobal( L, "error");
     ASSERT_L( lua_isfunction( L, -1));
     lua_setfield( L, -2, "cached_error");
-    lua_getfield( L, LUA_GLOBALSINDEX, "tostring");
+    lua_getglobal( L, "tostring");
     ASSERT_L( lua_isfunction( L, -1));
     lua_setfield( L, -2, "cached_tostring");
     lua_pushcfunction( L, LG_thread_join);
@@ -2526,10 +2531,12 @@ LUAG_FUNC( configure )
     // register all native functions found in that module in the transferable functions database
     // we process it before _G because we don't want to find the module when scanning _G (this would generate longer names)
     populate_func_lookup_table( L, -1, name);
-    // record all existing C/JIT-fast functions
-    populate_func_lookup_table( L, LUA_GLOBALSINDEX, NULL);
-    // Return nothing
     lua_pop( L, 1);
+    // record all existing C/JIT-fast functions
+    lua_pushglobaltable( L); // Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
+    populate_func_lookup_table( L, -1, NULL);
+    lua_pop( L, 1); // done with globals table, pop it
+    // Return nothing
     return 0;
 }
 

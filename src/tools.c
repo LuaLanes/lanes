@@ -171,7 +171,7 @@ FuncSubType luaG_getfuncsubtype( lua_State *L, int _i)
 	}
 	{
 		int mustpush = 0, dumpres;
-		if( STACK_ABS( L, _i) != lua_gettop( L))
+		if( lua_absindex( L, _i) != lua_gettop( L))
 		{
 			lua_pushvalue( L, _i);
 			mustpush = 1;
@@ -376,7 +376,7 @@ static void populate_func_lookup_table_recur( lua_State *L, int _ctx_base, int _
 void populate_func_lookup_table( lua_State *L, int _i, char const *_name)
 {
 	int const ctx_base = lua_gettop( L) + 1;
-	int const in_base = STACK_ABS( L, _i);
+	int const in_base = lua_absindex( L, _i);
 	int const start_depth = _name ? 1 : 0;
 	//printf( "%p: populate_func_lookup_table('%s')\n", L, _name ? _name : "NULL");
 	STACK_GROW( L, 3);
@@ -458,7 +458,9 @@ lua_State* luaG_newstate( char const* libs, lua_CFunction _on_state_create)
 			}
 		}
 		// after opening base, register the functions it exported in our name<->function database
-		populate_func_lookup_table( L, LUA_GLOBALSINDEX, NULL);
+		lua_pushglobaltable( L); // Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
+		populate_func_lookup_table( L, -1, NULL);
+		lua_pop( L, 1);
 		STACK_MID( L, 0);
 		if( libs)
 		{
@@ -594,7 +596,7 @@ luaG_IdFunction get_idfunc( lua_State *L, int index )
 {
     luaG_IdFunction ret;
 
-    index = STACK_ABS( L, index);
+    index = lua_absindex( L, index);
 
     STACK_GROW(L,1);
 
@@ -1006,7 +1008,7 @@ uint_t get_mt_id( lua_State *L, int i ) {
     static uint_t last_id= 0;
     uint_t id;
 
-    i = STACK_ABS( L, i);
+    i = lua_absindex( L, i);
 
     STACK_GROW(L,3);
 
@@ -1296,7 +1298,7 @@ int luaG_nameof( lua_State* L)
 	// push a table whose contents are strings that, when concatenated, produce unique name
 	lua_newtable( L);                                       // o nil {c} {fqn}
 	// this is where we start the search
-	lua_pushvalue( L, LUA_GLOBALSINDEX);                    // o nil {c} {fqn} _G
+	lua_pushglobaltable( L);                                // o nil {c} {fqn} _G
 	(void) discover_object_name_recur( L, 6666, 0);
 	lua_pop( L, 3);                                         // o "result"
 	lua_pushstring( L, luaL_typename( L, 1));               // o "result" "type"

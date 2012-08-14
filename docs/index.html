@@ -55,8 +55,8 @@
   <!-- ... -->
 
 <p><br/><font size="-1"><i>Copyright &copy; 2007-12 Asko Kauppi, Benoit Germain. All rights reserved.</i>
-    <br>Lua Lanes is published under the same <A HREF="http://en.wikipedia.org/wiki/MIT_License">MIT license</A> as Lua 5.1.
-    </p><p>This document was revised on 09-Jul-12, and applies to version 3.1.5
+    <br>Lua Lanes is published under the same <A HREF="http://en.wikipedia.org/wiki/MIT_License">MIT license</A> as Lua 5.1 and 5.2.
+    </p><p>This document was revised on 13-Aug-12, and applies to version 3.1.6
 </font></p>
 
 </center>
@@ -74,6 +74,8 @@
     Lanes is included into your software by the regular
     <tt>require "lanes"</tt> method. No C side programming is needed; all APIs are Lua side, and most existing extension modules should
     work seamlessly together with the multiple lanes.
+</p><p>
+  Starting with version 3.1.6, Lanes should build and run identically with either Lua 5.1 or Lua 5.2.
 </p><p>
     See <A HREF="comparison.html">comparison</A> of Lua Lanes with other Lua multithreading solutions.
 </p><p>
@@ -281,7 +283,7 @@ also in the new lanes.
             <td><tt>"base"</tt> or <tt>""</tt></td><td/>
             <td>root level names, <tt>print</tt>, <tt>assert</tt>, <tt>unpack</tt> etc.</td>
         </tr>
-        <tr><td/><td><tt>"coroutine"</tt></td><td/><td><tt>coroutine.*</tt> namespace <font size="-1">(part of base in Lua 5.1)</font></td></tr>
+        <tr><td/><td><tt>"coroutine"</tt></td><td/><td><tt>coroutine.*</tt> namespace <font size="-1">(part of base in Lua 5.1 and 5.2)</font></td></tr>
         <tr><td/><td><tt>"debug"</tt></td><td/><td><tt>debug.*</tt> namespace</td></tr>
         <tr><td/><td><tt>"io"</tt></td><td/><td><tt>io.*</tt> namespace</td></tr>
         <tr><td/><td><tt>"math"</tt></td><td/><td><tt>math.*</tt> namespace</td></tr>
