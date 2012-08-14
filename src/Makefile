@@ -36,15 +36,8 @@ ifeq "$(LUAROCKS)" ""
     ifeq "$(LUA_DEV)" ""
       $(error LUA_DEV not defined - try i.e. 'make LUA_DEV=/c/Program\ Files/Lua/5.1')
     endif
-    ifeq "$(MSVCR80)" ""
-      MSVCR80:=$(LUA_DEV)/install/support/Microsoft.VC80.CRT.SP1/MSVCR80.DLL
-      ifneq '$(shell test -f "$(MSVCR80)" && echo found)' 'found'
-        $(error MSVCR80 not defined - set it to full path of msvcr80.dll')
-      endif
-      $(warning MSVCR80=$(MSVCR80))
-    endif
     LUA_FLAGS:=-I "$(LUA_DEV)/include"
-    LUA_LIBS:="$(LUA_DEV)/lua5.1.dll" -lgcc -lmsvcr80 "$(MSVCR80)"
+    LUA_LIBS:="$(LUA_DEV)/lua5.1.dll" -lgcc
     LIBFLAG=-shared -Wl,-Map,lanes.map
   else
     # Autodetect LUA_FLAGS and/or LUA_LIBS
