@@ -713,7 +713,7 @@ LUAG_FUNC( linda_tostring)
 	struct s_Linda* linda = lua_toLinda( L, 1);
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
 	if( linda->name[0])
-		len = sprintf( text, "linda: %.*s", sizeof(text) - 8, linda->name);
+		len = sprintf( text, "linda: %.*s", (int)sizeof(text) - 8, linda->name);
 	else
 		len = sprintf( text, "linda: %p", linda);
 	lua_pushlstring( L, text, len);
@@ -740,7 +740,7 @@ LUAG_FUNC( linda_concat)
 		char text[32];
 		int len;
 		if( linda1->name[0])
-			len = sprintf( text, "linda: %.*s", sizeof(text) - 8, linda1->name);
+			len = sprintf( text, "linda: %.*s", (int)sizeof(text) - 8, linda1->name);
 		else
 			len = sprintf( text, "linda: %p", linda1);
 		lua_pushlstring( L, text, len);
@@ -751,7 +751,7 @@ LUAG_FUNC( linda_concat)
 		char text[32];
 		int len;
 		if( linda2->name[0])
-			len = sprintf( text, "linda: %.*s", sizeof(text) - 8, linda2->name);
+			len = sprintf( text, "linda: %.*s", (int)sizeof(text) - 8, linda2->name);
 		else
 			len = sprintf( text, "linda: %p", linda2);
 		lua_pushlstring( L, text, len);
