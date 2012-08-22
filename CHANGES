@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 45: BGe 21-Aug-2012
+   * keeper internals implemented in C instead of Lua for better performances
+   * fixed arguments checks in linda:limit() and linda:set()
+
 CHANGE 44: BGe 13-Aug-2012
    * lanes code updated to build against Lua 5.1 and Lua 5.2
    * removed the search for MSVCR80.DLL when building for MinGW32 since it no longer seems to be necessary

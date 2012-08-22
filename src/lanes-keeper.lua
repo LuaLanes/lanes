@@ -2,6 +2,8 @@
 -- KEEPER.LUA
 --
 -- Keeper state logic
+-- DEPRECATED BY THE EQUIVALENT C IMPLEMENTATION, KEPT FOR REFERENCE ONLY
+-- SHOULD NOT BE PART OF THE INSTALLATION ANYMORE
 --
 -- This code is read in for each "keeper state", which are the hidden, inter-
 -- mediate data stores used by Lanes inter-state communication objects.

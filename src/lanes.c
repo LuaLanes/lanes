@@ -51,7 +51,7 @@
  *      ...
  */
 
-char const* VERSION = "3.1.6";
+char const* VERSION = "3.2.0";
 
 /*
 ===============================================================================
@@ -309,7 +309,7 @@ LUAG_FUNC( linda_send)
 		for( ;;)
 		{
 			STACK_MID(KL, 0)
-			pushed = keeper_call( KL, "send", L, linda, key_i);
+			pushed = keeper_call( KL, KEEPER_API( send), L, linda, key_i);
 			if( pushed < 0)
 			{
 				break;
@@ -410,7 +410,7 @@ LUAG_FUNC( linda_receive)
 	struct s_Linda *linda = lua_toLinda( L, 1);
 	int pushed, expected_pushed_min, expected_pushed_max;
 	bool_t cancel = FALSE;
-	char *keeper_receive;
+	keeper_api_t keeper_receive;
 	
 	time_d timeout = -1.0;
 	uint_t key_i = 2;
@@ -440,7 +440,7 @@ LUAG_FUNC( linda_receive)
 			// make sure the keys are of a valid type
 			check_key_types( L, key_i, key_i);
 			// receive multiple values from a single slot
-			keeper_receive = "receive_batched";
+			keeper_receive = KEEPER_API( receive_batched);
 			// we expect a user-defined amount of return value
 			expected_pushed_min = (int)luaL_checkinteger( L, key_i + 1);
 			expected_pushed_max = (int)luaL_optinteger( L, key_i + 2, expected_pushed_min);
@@ -454,7 +454,7 @@ LUAG_FUNC( linda_receive)
 			// make sure the keys are of a valid type
 			check_key_types( L, key_i, lua_gettop( L));
 			// receive a single value, checking multiple slots
-			keeper_receive = "receive";
+			keeper_receive = KEEPER_API( receive);
 			// we expect a single (value, key) pair of returned values
 			expected_pushed_min = expected_pushed_max = 2;
 		}
@@ -558,6 +558,7 @@ LUAG_FUNC( linda_set)
 	struct s_Linda *linda = lua_toLinda( L, 1);
 	bool_t has_value = !lua_isnil( L, 3);
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
+	luaL_argcheck( L, lua_gettop( L) <= 3, 4, "too many arguments");
 
 	// make sure the key is of a valid type
 	check_key_types( L, 2, 2);
@@ -566,7 +567,7 @@ LUAG_FUNC( linda_set)
 		int pushed;
 		struct s_Keeper *K = keeper_acquire( linda);
 		// no nil->sentinel toggling, we really clear the linda contents for the given key with a set()
-		pushed = keeper_call( K->L, "set", L, linda, 2);
+		pushed = keeper_call( K->L, KEEPER_API( set), L, linda, 2);
 		if( pushed >= 0) // no error?
 		{
 			ASSERT_L( pushed == 0);
@@ -606,7 +607,7 @@ LUAG_FUNC( linda_count)
 
 	{
 		struct s_Keeper *K = keeper_acquire( linda);
-		pushed = keeper_call( K->L, "count", L, linda, 2);
+		pushed = keeper_call( K->L, KEEPER_API( count), L, linda, 2);
 		keeper_release( K);
 		if( pushed < 0)
 		{
@@ -634,7 +635,7 @@ LUAG_FUNC( linda_get)
 
 	{
 		struct s_Keeper *K = keeper_acquire( linda);
-		pushed = keeper_call( K->L, "get", L, linda, 2);
+		pushed = keeper_call( K->L, KEEPER_API( get), L, linda, 2);
 		ASSERT_L( pushed==0 || pushed==1 );
 		if( pushed > 0)
 		{
@@ -659,15 +660,19 @@ LUAG_FUNC( linda_get)
 */
 LUAG_FUNC( linda_limit)
 {
-	struct s_Linda *linda= lua_toLinda( L, 1 );
+	struct s_Linda* linda= lua_toLinda( L, 1 );
 
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
+	// make sure we got a key and a limit
+	luaL_argcheck( L, lua_gettop( L) == 3, 2, "wrong number of arguments");
+	// make sure we got a numeric limit
+	luaL_checknumber( L, 3);
 	// make sure the key is of a valid type
 	check_key_types( L, 2, 2);
 
 	{
-		struct s_Keeper *K = keeper_acquire( linda);
-		int pushed = keeper_call( K->L, "limit", L, linda, 2);
+		struct s_Keeper* K = keeper_acquire( linda);
+		int pushed = keeper_call( K->L, KEEPER_API( limit), L, linda, 2);
 		ASSERT_L( pushed <= 0); // either error or no return values
 		keeper_release( K);
 		// must trigger error after keeper state has been released
@@ -825,8 +830,8 @@ static void linda_id( lua_State *L, char const * const which)
         K= keeper_acquire(s);
         if( K && K->L) // can be NULL if this happens during main state shutdown (lanes is GC'ed -> no keepers -> no need to cleanup)
         {
-            keeper_call( K->L, "clear", L, s, 0 );
-            keeper_release(K);
+            keeper_call( K->L, KEEPER_API( clear), L, s, 0 );
+            keeper_release( K);
         }
 
         /* There aren't any lanes waiting on these lindas, since all proxies

@@ -197,11 +197,10 @@ LUA_SHAREDIR=$(DESTDIR)/share/lua/5.1
 #
 # AKa 17-Oct: changed to use 'install -m 644' and 'cp -p'
 #
-install: $(_TARGET_SO) src/lanes.lua src/lanes-keeper.lua
+install: $(_TARGET_SO) src/lanes.lua
 	mkdir -p $(LUA_LIBDIR) $(LUA_LIBDIR)/lanes $(LUA_SHAREDIR)
 	install -m 644 $(_TARGET_SO) $(LUA_LIBDIR)/lanes
 	cp -p src/lanes.lua $(LUA_SHAREDIR)
-	cp -p src/lanes-keeper.lua $(LUA_SHAREDIR)
 
 
 #--- Packaging ---
