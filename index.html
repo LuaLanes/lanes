@@ -56,7 +56,7 @@
 
 <p><br/><font size="-1"><i>Copyright &copy; 2007-12 Asko Kauppi, Benoit Germain. All rights reserved.</i>
     <br>Lua Lanes is published under the same <A HREF="http://en.wikipedia.org/wiki/MIT_License">MIT license</A> as Lua 5.1 and 5.2.
-    </p><p>This document was revised on 13-Aug-12, and applies to version 3.1.6
+    </p><p>This document was revised on 21-Aug-12, and applies to version 3.2.0
 </font></p>
 
 </center>
@@ -147,7 +147,7 @@
 details and limitations.
 </p>
 
-<p>To install Lanes, all you need are the <tt>lanes.lua</tt> <tt>lanes-keeper.lua</tt> and <tt>lanes/core.so|dll</tt>
+<p>To install Lanes, all you need are the <tt>lanes.lua</tt> and <tt>lanes/core.so|dll</tt>
 files to be reachable by Lua (see LUA_PATH, LUA_CPATH).
 
 Or use <A HREF="http://www.luarocks.org" TARGET="_blank">Lua Rocks</A> package management.
@@ -1070,7 +1070,7 @@ Here are some things one should consider, if best performance is vital:
     <li>Lindas are hashed to a fixed number of "keeper states", which are a locking entity.
     If you are using a lot of Linda objects,
     it may be useful to try having more of these keeper states. By default,
-    only one is used (see <tt>KEEPER_STATES_N</tt>), but this is an implementation detail.
+    only one is used (see <tt>lanes.configure()</tt>).
     </li>
 </ul>
 </p>
