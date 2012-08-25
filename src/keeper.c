@@ -41,6 +41,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <ctype.h>
 
 #include "lua.h"
@@ -268,7 +269,7 @@ int keepercall_receive_batched( lua_State* L)
 		fifo = prepare_fifo_access( L, 1);                    // fifo
 		if( fifo && fifo->count >= min_count)
 		{
-			fifo_pop( L, fifo, min( max_count, fifo->count));   // fifo ...
+			fifo_pop( L, fifo, __min( max_count, fifo->count)); // fifo ...
 		}
 		return lua_gettop( L) - 1;
 	}
