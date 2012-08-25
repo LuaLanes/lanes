@@ -56,6 +56,10 @@
 // Keeper implementation
 //###################################################################################
 
+#ifndef __min
+#define __min( a, b) (((a) < (b)) ? (a) : (b))
+#endif // __min
+
 typedef struct
 {
 	int first;
