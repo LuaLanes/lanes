@@ -56,7 +56,7 @@
 
 <p><br/><font size="-1"><i>Copyright &copy; 2007-12 Asko Kauppi, Benoit Germain. All rights reserved.</i>
     <br>Lua Lanes is published under the same <A HREF="http://en.wikipedia.org/wiki/MIT_License">MIT license</A> as Lua 5.1 and 5.2.
-    </p><p>This document was revised on 21-Aug-12, and applies to version 3.2.0
+    </p><p>This document was revised on 10-Sep-12, and applies to version 3.3.0
 </font></p>
 
 </center>
@@ -205,7 +205,7 @@ Or use <A HREF="http://www.luarocks.org" TARGET="_blank">Lua Rocks</A> package m
     <tr valign=top><td width=40></td><td>
         <code>.nb_keepers</code> <br/><nobr>N</nobr></td><td width=40></td>
     <td>
-    Controls the number of keeper states used internally by lindas to transfer data between lanes. (see below). Default is 1.
+    Controls the number of keeper states used internally by lindas to transfer data between lanes. (see below). Default is <tt>1</tt>.
     </td></tr>
 
     <tr valign=top><td/><td>
@@ -213,7 +213,7 @@ Or use <A HREF="http://www.luarocks.org" TARGET="_blank">Lua Rocks</A> package m
     <td>
     If equal to <tt>false</tt>, Lanes doesn't start the timer service,
   and the associated API will be absent from the interface (see below).
-  Any other value (including <tt>nil</tt>), starts the timer service.
+  Any other value (including <tt>nil</tt>), starts the timer service. Default is <tt>true</tt>.
     </td></tr>
 
     <tr valign="top">
@@ -223,9 +223,15 @@ Or use <A HREF="http://www.luarocks.org" TARGET="_blank">Lua Rocks</A> package m
       </td><td/>
       <td>
         If provided, will be called in every created Lua state (keepers and lanes) right after it is created, and *before* any library is loaded.
-        That way, all C functions it loads in the state can be added to the function lookup database.
+        That way, all C functions it loads in the state can be added to the function lookup database. Default is <tt>nil</tt>.
     </td>
     </tr>
+
+    <tr valign=top><td width=40></td><td>
+        <code>.shutdown_timeout</code> <br/><nobr>N</nobr></td><td width=40></td>
+    <td>
+    (Since v3.3.0) Sets the duration in seconds Lanes will wait for graceful termination of running lanes at application shutdown. Irrelevant for builds using pthreads. Default is <tt>0.25</tt>.
+    </td></tr>
   </table>
 <h2 id="creation">Creation</h2>
 
@@ -292,7 +298,7 @@ also in the new lanes.
         <tr><td/><td><tt>"string"</tt></td><td/><td><tt>string.*</tt> namespace</td></tr>
         <tr><td/><td><tt>"table"</tt></td><td/><td><tt>table.*</tt> namespace</td></tr>
         <br/>
-        <tr><td/><td><tt>"*"</tt></td><td/><td>all standard libraries</td></tr>
+        <tr><td/><td><tt>"*"</tt></td><td/><td>all standard libraries (including those specific to LuaJIT and not listed above)</td></tr>
     </table>
 
 </p><p>
@@ -318,7 +324,7 @@ also in the new lanes.
         <code>.globals</code> <br/>globals_tbl</td><td/>
     <td>
     Sets the globals table for the launched threads. This can be used for giving
-    them constants.
+    them constants. The key/value pairs of <tt>globals_tbl</tt> are transfered in the lane globals after the libraries have been loaded and the modules required.
     <br>
     The global values of different lanes are in no manner connected;
     modifying one will only affect the particular lane.
@@ -354,7 +360,7 @@ also in the new lanes.
         <td><td/>
           <code>package</code> contents overrides, if needed.
           Specifying it when <code>libs_str</code> doesn't cause the <code>package</code> library to be loaded will generate an error.
-          If not specified, the created lane will receive the current values of <tt>package</tt>. Only path, cpath, preload and loaders are transfered.
+          If not specified, the created lane will receive the current values of <tt>package</tt>. Only <tt>path</tt>, <tt>cpath</tt>, <tt>preload</tt> and <tt>loaders</tt> are transfered.
           <br>
     </td>
     </tr>
@@ -406,9 +412,10 @@ member, providing one of these values: <sup>(<a href="#2">2</a></sup>
         <tr><td width=40><td><tt>"pending"</tt></td><td>not started, yet</td></tr>
         <tr><td/><td><tt>"running"</tt></td><td>running</td></tr>
         <tr><td/><td><tt>"waiting"</tt></td><td>waiting at a Linda <tt>:receive()</tt> or <tt>:send()</tt></td></tr>
-        <tr><td/><td><tt>"done"</tt></td><td>finished executing (results are ready)</td></tr>
+          <tr><td/><td><tt>"done"</tt></td><td>finished executing (results are ready)</td></tr>
         <tr><td/><td><tt>"error"</tt></td><td>met an error (reading results will propagate it)</td></tr>
         <tr><td/><td><tt>"cancelled"</tt></td><td>received cancellation and finished itself</td></tr>
+        <tr><td/><td><tt>"killed"</tt></td><td>was forcefully killed by <tt>lane_h:cancel()</tt> (since v3.3.0)</td></tr>
     </table>
 </p><p>
     This is similar to <tt>coroutine.status</tt>, which has: <tt>"running"</tt> /
@@ -441,8 +448,9 @@ If the lane ended in an error, it is propagated to master state at this place.
 <p>
 Waits until the lane finishes, or <tt>timeout</tt> seconds have passed.
 Returns <tt>nil</tt> on timeout, <tt>nil,err,stack_tbl</tt> if the lane hit an error,
-or the return values of the lane. Unlike in reading the results in table
-fashion, errors are not propagated.
+<tt>nil, "killed"</tt> if forcefully killed (starting with v3.3.0), or the return values of the lane.
+Unlike in reading the results in table fashion, errors are not propagated.
+
 </p><p>
 
 <table border=1 bgcolor="#E0E0FF" cellpadding=10><tr><td>
@@ -490,7 +498,7 @@ that id over a Linda once that thread is done (as the last thing you do).
 <h2 id="cancelling">Cancelling</h2>
 
 <table border=1 bgcolor="#E0E0FF" cellpadding=10><tr><td>
-    <code>bool= lane_h:cancel( [timeout_secs=0.0,] [force_kill_bool=false] )
+    <code>bool[,reason]= lane_h:cancel( [timeout_secs=0.0,] [force_kill_bool=false] )</code>
     <br/>
     <br/>
       <code>
@@ -506,6 +514,9 @@ or if the cancellation was fruitful within timeout period.
 If the lane is still running and <tt>force_kill</tt> is <tt>true</tt>, the
 OS thread running the lane is forcefully killed. This means no GC, and should
 generally be the last resort.
+</p>
+<p>
+Starting with v3.3.0, if <tt>cancel()</tt> returns false, it also returns either <tt>"timeout"</tt> or <tt>"killed"</tt> as second return value.
 </p>
 <p>Cancellation is tested <u>before</u> going to sleep in <tt>receive()</tt> or <tt>send()</tt> calls
 and after executing <tt>cancelstep</tt> Lua statements. Starting with version 3.0-beta, a pending <tt>receive()</tt>

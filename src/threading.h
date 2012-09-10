@@ -35,6 +35,9 @@ typedef unsigned int uint_t;
 #include <time.h>
 
 /* Note: ERROR is a defined entity on Win32
+  PENDING: The Lua VM hasn't done anything yet.
+  RUNNING, WAITING: Thread is inside the Lua VM. If the thread is forcefully stopped, we can't lua_close() the Lua State.
+  DONE, ERROR_ST, CANCELLED: Thread execution is outside the Lua VM. It can be lua_close()d.
 */
 enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
 

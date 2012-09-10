@@ -31,6 +31,7 @@ local function lane()
     io.stderr:write( "File "..FN.." created\n" )    
 
     if which==0 then
+        print "you loose"
         error("aa")    -- exception here; the value needs NOT be a string
     end
 
@@ -55,6 +56,7 @@ cleanup= function(err)
     end
         
     local _,err2= os.remove(FN)
+    print( "file removal result: ", tostring( err2))
     assert(not err2)    -- if this fails, it will be shown in the calling script
                         -- as an error from the lane itself
     

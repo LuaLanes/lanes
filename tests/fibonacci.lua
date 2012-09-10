@@ -4,7 +4,7 @@
 -- Parallel calculation of Fibonacci numbers
 --
 -- A sample of task splitting like Intel TBB library does.
--- 
+--
 -- References:
 --      Intel Threading Building Blocks, 'test all'
 --      <http://shareit.intel.com/WikiHome/Articles/111111316>
@@ -41,7 +41,7 @@ local function fib( n )
         --
         -- note that lanes is pulled in as upvalue, so we need package library to require internals properly
         -- (because lua51-lanes is always required internally if possible, which is necessary in that case)
-        local gen_f= lanes.gen( "package,string,io,math,debug", fib )
+        local gen_f= lanes.gen( "*", fib )
 
         local n1=floor(n/2) +1
         local n2=floor(n/2) -1 + n%2
@@ -60,7 +60,7 @@ local function fib( n )
     end
 
     io.stderr:write( "fib("..n..") = "..sum.."\n" )
-    
+
     return sum
 end
 

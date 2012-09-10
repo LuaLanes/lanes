@@ -40,55 +40,93 @@ THE SOFTWARE.
 ]]--
 
 -- Lua 5.1: module() creates a global variable
--- Lua 5.2: module() might go away
--- almost everything module() does is done by require()
+-- Lua 5.2: module() is gone
+-- almost everything module() does is done by require() anyway
 -- -> simply create a table, populate it, return it, and be done
 local lanes = {}
 
 lanes.configure = function( _params)
-_params = _params or { nb_keepers = 1, with_timers = true, on_state_create = nil}
-if type( _params) ~= "table" then
-	error( "Bad parameter #1 to lanes.configure(), should be a table")
-end
--- on_state_create may be nil or a function
-if _params.on_state_create and (type( _params.on_state_create) ~= "function") then
-	error( "Bad on_state_create: " .. tostring( _params.on_state_create), 2)
-end
 
-local mm = require "lanes.core"
-assert( type(mm)=="table" )
+	-- This check is for sublanes requiring Lanes
+	--
+	-- TBD: We could also have the C level expose 'string.gmatch' for us. But this is simpler.
+	--
+	if not string then
+		error( "To use 'lanes', you will also need to have 'string' available.", 2)
+	end
 
--- configure() is available only the first time lanes.core is required process-wide, and we *must* call it to have the other functions in the interface
-if mm.configure then mm.configure( _params.nb_keepers, _params.on_state_create) end
+	-- 
+	-- Cache globals for code that might run under sandboxing 
+	--
+	local assert = assert
+	local string_gmatch = assert( string.gmatch)
+	local select = assert( select)
+	local type = assert( type)
+	local pairs = assert( pairs)
+	local tostring = assert( tostring)
+	local error = assert( error)
 
-local thread_new = assert(mm.thread_new)
+	local default_params = { nb_keepers = 1, on_state_create = nil, shutdown_timeout = 0.25, with_timers = true}
+	local param_checkers =
+	{
+		nb_keepers = function( _val)
+			-- nb_keepers should be a number > 0
+			return type( _val) == "number" and _val > 0
+		end,
+		with_timers = function( _val)
+			-- with_timers may be nil or boolean
+			return _val and type( _val) == "boolean" or true
+		end,
+		on_state_create = function( _val)
+			-- on_state_create may be nil or a function
+			return _val and type( _val) == "function" or true
+		end,
+		shutdown_timeout = function( _val)
+			-- nb_keepers should be a number >= 0
+			return type( _val) == "number" and _val >= 0
+		end
+	}
 
-local _single= assert(mm._single)
-local _version= assert(mm._version)
+	local params_checker = function( _params)
+		if not _params then
+			return default_params
+		end
+		if type( _params) ~= "table" then
+			error( "Bad parameter #1 to lanes.configure(), should be a table")
+		end
+		-- any setting not present in the provided parameters takes the default value
+		for key, value in pairs( default_params) do
+			local my_param = _params[key]
+			local param
+			if my_param ~= nil then
+				param = my_param
+			else
+				param = default_params[key]
+			end
+			if not param_checkers[key]( param) then
+				error( "Bad " .. key .. ": " .. tostring( param), 2)
+			end
+			_params[key] = param
+		end
+		return _params
+	end
 
-local now_secs= assert( mm.now_secs )
-local wakeup_conv= assert( mm.wakeup_conv )
+	_params = params_checker( _params)
 
-local max_prio= assert( mm.max_prio )
+	local core = require "lanes.core"
+	assert( type( core)=="table")
 
--- This check is for sublanes requiring Lanes
---
--- TBD: We could also have the C level expose 'string.gmatch' for us. But this is simpler.
---
-if not string then
-    error( "To use 'lanes', you will also need to have 'string' available.", 2 )
-end
+	-- configure() is available only the first time lanes.core is required process-wide, and we *must* call it to have the other functions in the interface
+	if core.configure then core.configure( _params.nb_keepers, _params.on_state_create, _params.shutdown_timeout) end
 
--- 
--- Cache globals for code that might run under sandboxing 
---
-local assert= assert
-local string_gmatch= assert( string.gmatch )
-local select= assert( select )
-local type= assert( type )
-local pairs= assert( pairs )
-local tostring= assert( tostring )
-local error= assert( error )
+	local thread_new = assert( core.thread_new)
+
+	local set_singlethreaded = assert( core.set_singlethreaded)
+
+	local now_secs = assert( core.now_secs)
+	local wakeup_conv = assert( core.wakeup_conv)
+
+	local max_prio = assert( core.max_prio)
 
 lanes.ABOUT= 
 {
@@ -96,7 +134,7 @@ lanes.ABOUT=
     description= "Running multiple Lua states in parallel",
     license= "MIT/X11",
     copyright= "Copyright (c) 2007-10, Asko Kauppi; (c) 2011-12, Benoit Germain",
-    version= _version,
+    version = assert( core.version)
 }
 
 
@@ -258,7 +296,7 @@ end
 -- lanes.linda(["name"]) -> linda_ud
 --
 -- PUBLIC LANES API
-local linda = mm.linda
+local linda = core.linda
 
 
 ---=== Timers ===---
@@ -268,7 +306,7 @@ local timer = function() error "timers are not active" end
 
 if _params.with_timers ~= false then
 
-local timer_gateway= assert( mm.timer_gateway )
+local timer_gateway = assert( core.timer_gateway)
 --
 -- On first 'require "lanes"', a timer lane is spawned that will maintain
 -- timer tables and sleep in between the timer events. All interaction with
@@ -558,28 +596,23 @@ local function genatomic( linda, key, initial_val )
     end
 end
 
--- newuserdata = mm.newuserdata
-
 	-- activate full interface
 	lanes.gen = gen
-	lanes.linda = mm.linda
-	lanes.cancel_error = mm.cancel_error
-	lanes.nameof = mm.nameof
+	lanes.linda = core.linda
+	lanes.cancel_error = core.cancel_error
+	lanes.nameof = core.nameof
 	lanes.timer = timer
 	lanes.genlock = genlock
 	lanes.now_secs = now_secs
 	lanes.genatomic = genatomic
 	-- from now on, calling configure does nothing but checking that we don't call it with parameters that changed compared to the first invocation
 	lanes.configure = function( _params2)
-		_params2 = _params2 or _params
-		if _params2.nb_keepers ~= _params.nb_keepers then
-			error( "mismatched configuration: " .. tostring( _params2.nb_keepers) .. " keepers instead of " .. tostring( _params.nb_keepers))
-		end
-		if _params2.with_timers ~= _params.with_timers then
-			error( "mismatched configuration: " .. tostring( _params2.with_timers) .. " timer activity instead of " .. tostring( _params.with_timers))
-		end
-		if _params2.on_create_state and _params2.on_create_state ~= _params.on_create_state then
-			error( "mismatched configuration: " .. tostring( _params2.on_create_state) .. " timer activity instead of " .. tostring( _params.on_create_state))
+		_params2 = params_checker( _params2 or _params)
+		for key, value2 in pairs( _params2) do
+			local value = _params[key]
+			if value2 ~= value then
+				error( "mismatched configuration: " .. key .. " is " .. tostring( value2) .. " instead of " .. tostring( value))
+			end
 		end
 		return lanes
 	end
@@ -588,4 +621,3 @@ end -- lanes.configure
 
 --the end
 return lanes
-

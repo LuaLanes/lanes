@@ -1,5 +1,15 @@
 CHANGES:
 
+CHAGE 46: BGe 10-Sep-2012
+   * version 3.3.0
+   * lane.status can return "killed" if lane was forcefully killed with lanes:cancel()
+   * lane:join(): return nil, "killed" if called on a killed lane.
+   * lane[<n>]: produces [1] = nil, [2] = "killed" if the lane was killed
+   * lane:join(): fixed an assertion in debug builds when joining a lane forcefully cancelled with lane:cancel( <x>, true).
+   * indexing a lane with a string other than "join", "cancel" or "status" raises an error.
+   * fixed configure() to correctly apply defaults when they are missing from the provided settings
+   * added a shutdown_timeout to control the duration Lanes will wait for graceful termination of running lanes at application shutdown. Default is 0.25.
+
 CHANGE 45: BGe 21-Aug-2012
    * keeper internals implemented in C instead of Lua for better performances
    * fixed arguments checks in linda:limit() and linda:set()
