@@ -5,7 +5,10 @@
 #define __threading_h__ 1
 
 /* Platform detection
-*/
+ * win32-pthread:
+ * define HAVE_WIN32_PTHREAD and PTW32_INCLUDE_WINDOWS_H in your project configuration when building for win32-pthread.
+ * link against pthreadVC2.lib, and of course have pthreadVC2.dll somewhere in your path.
+ */
 #ifdef _WIN32_WCE
   #define PLATFORM_POCKETPC
 #elif (defined _WIN32)
@@ -44,7 +47,7 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
 #define THREADAPI_WINDOWS 1
 #define THREADAPI_PTHREAD 2
 
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
+#if( defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)) && !defined( HAVE_WIN32_PTHREAD)
 #define THREADAPI THREADAPI_WINDOWS
 #else // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 #define THREADAPI THREADAPI_PTHREAD
@@ -114,8 +117,11 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   //    FreeBSD 6.2 has pthread_yield()
   //    ...
   //
-  #ifdef PLATFORM_OSX
+  #if defined( PLATFORM_OSX)
     #define YIELD() pthread_yield_np()
+  #elif defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
+    // for some reason win32-pthread doesn't have pthread_yield(), but sched_yield()
+    #define YIELD() sched_yield()
   #else
     #define YIELD() pthread_yield()
   #endif

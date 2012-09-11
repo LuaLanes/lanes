@@ -41,9 +41,9 @@ THE SOFTWARE.
 #include "threading.h"
 #include "lua.h"
 
-#if THREADAPI == THREADAPI_PTHREAD
+#if !defined( PLATFORM_WIN32) && !defined( PLATFORM_POCKETPC)
 # include <sys/time.h>
-#endif // THREADAPI == THREADAPI_PTHREAD
+#endif // non-WIN32 timing
 
 
 #if defined(PLATFORM_LINUX) || defined(PLATFORM_CYGWIN)
@@ -71,7 +71,7 @@ THE SOFTWARE.
 * FAIL is for unexpected API return values - essentially programming 
 * error in _this_ code. 
 */
-#if THREADAPI == THREADAPI_WINDOWS
+#if defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
 static void FAIL( const char *funcname, int rc ) {
     fprintf( stderr, "%s() failed! (%d)\n", funcname, rc );
 #ifdef _MSC_VER
@@ -79,7 +79,7 @@ static void FAIL( const char *funcname, int rc ) {
 #endif // _MSC_VER
     abort();
 }
-#endif // THREADAPI == THREADAPI_WINDOWS
+#endif // win32 build
 
 
 /*
@@ -90,7 +90,7 @@ static void FAIL( const char *funcname, int rc ) {
 */
 time_d now_secs(void) {
 
-#if THREADAPI == THREADAPI_WINDOWS
+#if defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
     /*
     * Windows FILETIME values are "100-nanosecond intervals since 
     * January 1, 1601 (UTC)" (MSDN). Well, we'd want Unix Epoch as
@@ -124,7 +124,7 @@ time_d now_secs(void) {
     uli.HighPart= ft.dwHighDateTime;
 
     /* 'double' has less accuracy than 64-bit int, but if it were to degrade,
-     * it would do so gracefully. In practise, the integer accuracy is not
+     * it would do so gracefully. In practice, the integer accuracy is not
      * of the 100ns class but just 1ms (Windows XP).
      */
 # if 1
@@ -145,7 +145,7 @@ time_d now_secs(void) {
     // <= 2.0.2 code
     return (double)(uli.QuadPart - uli_epoch.QuadPart) / 10000000.0;
 # endif
-#else // THREADAPI == THREADAPI_PTHREAD
+#else // !(defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC))
     struct timeval tv;
         // {
         //   time_t       tv_sec;   /* seconds since Jan. 1, 1970 */
@@ -156,7 +156,7 @@ time_d now_secs(void) {
     assert( rc==0 );
 
     return ((double)tv.tv_sec) + ((tv.tv_usec)/1000) / 1000.0;
-#endif // THREADAPI THREADAPI_PTHREAD
+#endif // !(defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC))
 }
 
 
@@ -179,7 +179,7 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
     if (abs_secs==0.0)
         abs_secs= now_secs();
 
-    ts->tv_sec= floor( abs_secs );
+    ts->tv_sec= (time_t) floor( abs_secs );
     ts->tv_nsec= ((long)((abs_secs - ts->tv_sec) * 1000.0 +0.5)) * 1000000UL;   // 1ms = 1000000ns
     if (ts->tv_nsec == 1000000000UL)
     {
@@ -381,7 +381,6 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
   // On Linux, SCHED_RR and su privileges are required..  !-(
   //
   #include <errno.h>
-  #include <sys/time.h>
   //
   static void _PT_FAIL( int rc, const char *name, const char *file, uint_t line ) {
     const char *why= (rc==EINVAL) ? "EINVAL" : 
@@ -389,8 +388,9 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
                      (rc==EPERM) ? "EPERM" :
                      (rc==ENOMEM) ? "ENOMEM" :
                      (rc==ESRCH) ? "ESRCH" :
+                     (rc==ENOTSUP) ? "ENOTSUP":
                      //...
-                     "";
+                     "<UNKNOWN>";
     fprintf( stderr, "%s %d: %s failed, %d %s\n", file, line, name, rc, why );
     abort();
   }
@@ -440,6 +440,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
     pthread_attr_t _a;
     pthread_attr_t *a= &_a;
     struct sched_param sp;
+    bool_t normal;
 
     PT_CALL( pthread_attr_init(a) );
 
@@ -464,7 +465,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
     PT_CALL( pthread_attr_setstacksize( a, _THREAD_STACK_SIZE ) );
 #endif
     
-    bool_t normal= 
+    normal= 
 #if defined(PLATFORM_LINUX) && defined(LINUX_SCHED_RR)
         !sudo;          // with sudo, even normal thread must use SCHED_RR
 #else
@@ -574,6 +575,17 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 	//
 	// TBD: Find right values for Cygwin
 	//
+#elif defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
+        // any other value not supported by win32-pthread as of version 2.9.1
+        #define _PRIO_MODE SCHED_OTHER
+
+        // PTHREAD_SCOPE_PROCESS not supported by win32-pthread as of version 2.9.1
+        //#define _PRIO_SCOPE PTHREAD_SCOPE_SYSTEM // but do we need this at all to start with?
+
+        // win32-pthread seems happy with direct -2..+2 instead of some other remapping
+        #define _PRIO_HI (+2)
+        #define _PRIO_0  (0)
+        #define _PRIO_LO (-2)
 #else
         #error "Unknown OS: not implemented!"
 #endif
