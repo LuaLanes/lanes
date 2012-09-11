@@ -195,9 +195,6 @@ struct s_Linda;
     }
 #endif
 
-static bool_t thread_cancel( struct s_lane *s, double secs, bool_t force );
-
-
 /*
 * Push a table stored in registry onto Lua stack.
 *
@@ -228,9 +225,11 @@ static bool_t push_registry_table( lua_State *L, void *key, bool_t create ) {
     return TRUE;    // table pushed
 }
 
-
-/*---=== Linda ===---
-*/
+/*
+ * ###############################################################################################
+ * ############################################ Linda ############################################
+ * ###############################################################################################
+ */
 
 /*
 * Actual data is kept within a keeper state, which is hashed by the 's_Linda'
@@ -916,9 +915,11 @@ LUAG_FUNC( linda)
 	return luaG_deep_userdata( L, linda_id);
 }
 
-
-/*---=== Finalizer ===---
-*/
+/*
+ * ###############################################################################################
+ * ########################################## Finalizer ##########################################
+ * ###############################################################################################
+ */
 
 //---
 // void= finalizer( finalizer_func )
@@ -1009,9 +1010,83 @@ static int run_finalizers( lua_State *L, int lua_rc )
     return rc;
 }
 
+/*
+ * ###############################################################################################
+ * ########################################### Threads ###########################################
+ * ###############################################################################################
+ */
 
-/*---=== Threads ===---
-*/
+//---
+// = thread_cancel( lane_ud [,timeout_secs=0.0] [,force_kill_bool=false] )
+//
+// The originator thread asking us specifically to cancel the other thread.
+//
+// 'timeout': <0: wait forever, until the lane is finished
+//            0.0: just signal it to cancel, no time waited
+//            >0: time to wait for the lane to detect cancellation
+//
+// 'force_kill': if true, and lane does not detect cancellation within timeout,
+//            it is forcefully killed. Using this with 0.0 timeout means just kill
+//            (unless the lane is already finished).
+//
+// Returns: true if the lane was already finished (DONE/ERROR_ST/CANCELLED) or if we
+//          managed to cancel it.
+//          false if the cancellation timed out, or a kill was needed.
+//
+
+typedef enum
+{
+	CR_Timeout,
+	CR_Cancelled,
+	CR_Killed
+} cancel_result;
+
+static cancel_result thread_cancel( struct s_lane *s, double secs, bool_t force)
+{
+	cancel_result result;
+
+	// remember that lanes are not transferable: only one thread can cancel a lane, so no multithreading issue here
+	// We can read 's->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
+	if( s->mstatus == KILLED)
+	{
+		result = CR_Killed;
+	}
+	else if( s->status < DONE)
+	{
+		s->cancel_request = TRUE;    // it's now signaled to stop
+		// signal the linda the wake up the thread so that it can react to the cancel query
+		// let us hope we never land here with a pointer on a linda that has been destroyed...
+		{
+			SIGNAL_T *waiting_on = s->waiting_on;
+			if( s->status == WAITING && waiting_on != NULL)
+			{
+				SIGNAL_ALL( waiting_on);
+			}
+		}
+
+		result = THREAD_WAIT( &s->thread, secs, &s->done_signal, &s->done_lock, &s->status) ? CR_Cancelled : CR_Timeout;
+
+		if( (result == CR_Timeout) && force)
+		{
+			// Killing is asynchronous; we _will_ wait for it to be done at
+			// GC, to make sure the data structure can be released (alternative
+			// would be use of "cancellation cleanup handlers" that at least
+			// PThread seems to have).
+			//
+			THREAD_KILL( &s->thread);
+			s->mstatus = KILLED;     // mark 'gc' to wait for it
+			// note that s->status value must remain to whatever it was at the time of the kill
+			// because we need to know if we can lua_close() the Lua State or not.
+			result = CR_Killed;
+		}
+	}
+	else
+	{
+		// say "ok" by default, including when lane is already done
+		result = CR_Cancelled;
+	}
+	return result;
+}
 
 static MUTEX_T selfdestruct_cs;
     //
@@ -1954,78 +2029,6 @@ LUAG_FUNC( thread_gc)
 	return 0;
 }
 
-//---
-// = thread_cancel( lane_ud [,timeout_secs=0.0] [,force_kill_bool=false] )
-//
-// The originator thread asking us specifically to cancel the other thread.
-//
-// 'timeout': <0: wait forever, until the lane is finished
-//            0.0: just signal it to cancel, no time waited
-//            >0: time to wait for the lane to detect cancellation
-//
-// 'force_kill': if true, and lane does not detect cancellation within timeout,
-//            it is forcefully killed. Using this with 0.0 timeout means just kill
-//            (unless the lane is already finished).
-//
-// Returns: true if the lane was already finished (DONE/ERROR_ST/CANCELLED) or if we
-//          managed to cancel it.
-//          false if the cancellation timed out, or a kill was needed.
-//
-
-typedef enum
-{
-	CR_Timeout,
-	CR_Cancelled,
-	CR_Killed
-} cancel_result;
-
-static cancel_result thread_cancel( struct s_lane *s, double secs, bool_t force)
-{
-	cancel_result result;
-
-	// remember that lanes are not transferable: only one thread can cancel a lane, so no multithreading issue here
-	// We can read 's->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
-	if( s->mstatus == KILLED)
-	{
-		result = CR_Killed;
-	}
-	else if( s->status < DONE)
-	{
-		s->cancel_request = TRUE;    // it's now signaled to stop
-		// signal the linda the wake up the thread so that it can react to the cancel query
-		// let us hope we never land here with a pointer on a linda that has been destroyed...
-		{
-			SIGNAL_T *waiting_on = s->waiting_on;
-			if( s->status == WAITING && waiting_on != NULL)
-			{
-				SIGNAL_ALL( waiting_on);
-			}
-		}
-
-		result = THREAD_WAIT( &s->thread, secs, &s->done_signal, &s->done_lock, &s->status) ? CR_Cancelled : CR_Timeout;
-
-		if( (result == CR_Timeout) && force)
-		{
-			// Killing is asynchronous; we _will_ wait for it to be done at
-			// GC, to make sure the data structure can be released (alternative
-			// would be use of "cancellation cleanup handlers" that at least
-			// PThread seems to have).
-			//
-			THREAD_KILL( &s->thread);
-			s->mstatus = KILLED;     // mark 'gc' to wait for it
-			// note that s->status value must remain to whatever it was at the time of the kill
-			// because we need to know if we can lua_close() the Lua State or not.
-			result = CR_Killed;
-		}
-	}
-	else
-	{
-		// say "ok" by default, including when lane is already done
-		result = CR_Cancelled;
-	}
-	return result;
-}
-
 LUAG_FUNC( thread_cancel)
 {
 	if( lua_gettop( L) < 1 || lua_type( L, 1) != LUA_TUSERDATA)
@@ -2336,8 +2339,11 @@ LUAG_FUNC( thread_index)
 	return 0;
 }
 
-/*---=== Timer support ===---
-*/
+/*
+ * ###############################################################################################
+ * ######################################## Timer support ########################################
+ * ###############################################################################################
+ */
 
 /*
 * secs= now_secs()
@@ -2396,8 +2402,11 @@ LUAG_FUNC( wakeup_conv )
     return 1;
 }
 
-/*---=== Module linkage ===---
-*/
+/*
+ * ###############################################################################################
+ * ######################################## Module linkage #######################################
+ * ###############################################################################################
+ */
 
 static const struct luaL_Reg lanes_functions [] = {
     {"linda", LG_linda},
