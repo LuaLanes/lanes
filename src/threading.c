@@ -303,6 +303,41 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
     if (!TerminateThread( *ref, 0 )) FAIL("TerminateThread", GetLastError());
     *ref= NULL;
   }
+
+#if !defined __GNUC__
+	//see http://msdn.microsoft.com/en-us/library/xcb2z8hs.aspx
+	#define MS_VC_EXCEPTION 0x406D1388
+	#pragma pack(push,8)
+		typedef struct tagTHREADNAME_INFO
+		{
+			DWORD dwType; // Must be 0x1000.
+			LPCSTR szName; // Pointer to name (in user addr space).
+			DWORD dwThreadID; // Thread ID (-1=caller thread).
+			DWORD dwFlags; // Reserved for future use, must be zero.
+		} THREADNAME_INFO;
+	#pragma pack(pop)
+#endif // !__GNUC__
+
+	void THREAD_SETNAME( char const* _name)
+	{
+#if !defined __GNUC__
+		THREADNAME_INFO info;
+		info.dwType = 0x1000;
+		info.szName = _name;
+		info.dwThreadID = GetCurrentThreadId();
+		info.dwFlags = 0;
+
+		__try
+		{
+			RaiseException( MS_VC_EXCEPTION, 0, sizeof(info)/sizeof(ULONG_PTR), (ULONG_PTR*)&info );
+		}
+		__except(EXCEPTION_EXECUTE_HANDLER)
+		{
+		}
+#endif // !__GNUC__
+	}
+
+
   //
   void SIGNAL_INIT( SIGNAL_T *ref ) {
     // 'manual reset' event type selected, to be able to wake up all the
@@ -735,6 +770,19 @@ bool_t THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *
   void THREAD_KILL( THREAD_T *ref ) {
     pthread_cancel( *ref );
   }
-#endif // THREADAPI == THREADAPI_PTHREAD
 
-static const lua_Alloc alloc_f= 0;
+	void THREAD_SETNAME( char const* _name)
+	{
+		// exact API to set the thread name is platform-dependant
+		// if you need to fix the build, or if you know how to fill a hole, tell me (bnt.germain@gmail.com) so that I can submit the fix in github.
+#if defined PLATFORM_BSD
+		pthread_set_name_np( pthread_self(), _name);
+#elif defined PLATFORM_LINUX || defined PLATFORM_QNX || defined PLATFORM_CYGWIN
+		pthread_setname_np(_name pthread_self(), _name);
+#elif defined PLATFORM_OSX
+		pthread_setname_np(_name);
+#elif defined PLATFORM_WIN32 || defined PLATFORM_POCKETPC
+		// no API in win32-pthread yet :-(
+#endif
+	}
+#endif // THREADAPI == THREADAPI_PTHREAD

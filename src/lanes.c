@@ -713,18 +713,31 @@ LUAG_FUNC( linda_deep ) {
 *
 * Useful for concatenation or debugging purposes
 */
-LUAG_FUNC( linda_tostring)
+
+static int linda_tostring( lua_State* L, int _idx, bool_t _opt)
 {
 	char text[32];
 	int len;
-	struct s_Linda* linda = lua_toLinda( L, 1);
-	luaL_argcheck( L, linda, 1, "expected a linda object!");
-	if( linda->name[0])
-		len = sprintf( text, "linda: %.*s", (int)sizeof(text) - 8, linda->name);
-	else
-		len = sprintf( text, "linda: %p", linda);
-	lua_pushlstring( L, text, len);
-	return 1;
+	struct s_Linda* linda = lua_toLinda( L, _idx);
+	if( !_opt)
+	{
+		luaL_argcheck( L, linda, _idx, "expected a linda object!");
+	}
+	if( linda)
+	{
+		if( linda->name[0])
+			len = sprintf( text, "Linda: %.*s", (int)sizeof(text) - 8, linda->name);
+		else
+			len = sprintf( text, "Linda: %p", linda);
+		lua_pushlstring( L, text, len);
+		return 1;
+	}
+	return 0;
+}
+
+LUAG_FUNC( linda_tostring)
+{
+	return linda_tostring( L, 1, FALSE);
 }
 
 
@@ -736,35 +749,23 @@ LUAG_FUNC( linda_tostring)
 * Useful for concatenation or debugging purposes
 */
 LUAG_FUNC( linda_concat)
-{
-	struct s_Linda *linda1 = lua_toLinda( L, 1);
-	struct s_Linda *linda2 = lua_toLinda( L, 2);
-	// lua semantics should enforce that one of the parameters we got is a linda
-	luaL_argcheck( L, linda1 || linda2, 1, "expected a linda object!");
-	// replace the lindas by their string equivalents in the stack
-	if ( linda1)
+{                                   // linda1? linda2?
+	bool_t atLeastOneLinda = FALSE;
+	// Lua semantics enforce that one of the 2 arguments is a Linda, but not necessarily both.
+	if( linda_tostring( L, 1, TRUE))
 	{
-		char text[32];
-		int len;
-		if( linda1->name[0])
-			len = sprintf( text, "linda: %.*s", (int)sizeof(text) - 8, linda1->name);
-		else
-			len = sprintf( text, "linda: %p", linda1);
-		lua_pushlstring( L, text, len);
+		atLeastOneLinda = TRUE;
 		lua_replace( L, 1);
 	}
-	if ( linda2)
+	if( linda_tostring( L, 2, TRUE))
 	{
-		char text[32];
-		int len;
-		if( linda2->name[0])
-			len = sprintf( text, "linda: %.*s", (int)sizeof(text) - 8, linda2->name);
-		else
-			len = sprintf( text, "linda: %p", linda2);
-		lua_pushlstring( L, text, len);
+		atLeastOneLinda = TRUE;
 		lua_replace( L, 2);
 	}
-	// concat the result
+	if( !atLeastOneLinda) // should not be possible
+	{
+		return luaL_error( L, "internal error: linda_concat called on non-Linda");
+	}
 	lua_concat( L, 2);
 	return 1;
 }
@@ -853,7 +854,7 @@ static void linda_id( lua_State *L, char const * const which)
         lua_setfield( L, -2, "__index");
 
         // protect metatable from external access
-        lua_pushboolean( L, 0);
+        lua_pushliteral( L, "Linda");
         lua_setfield( L, -2, "__metatable");
 
         lua_pushcfunction( L, LG_linda_tostring);
@@ -1519,52 +1520,12 @@ static int lane_error( lua_State* L)
 }
 #endif // ERROR_FULL_STACK
 
-#if defined PLATFORM_WIN32  && !defined __GNUC__
-//see http://msdn.microsoft.com/en-us/library/xcb2z8hs.aspx
-#define MS_VC_EXCEPTION 0x406D1388
-#pragma pack(push,8)
-typedef struct tagTHREADNAME_INFO
-{
-   DWORD dwType; // Must be 0x1000.
-   LPCSTR szName; // Pointer to name (in user addr space).
-   DWORD dwThreadID; // Thread ID (-1=caller thread).
-   DWORD dwFlags; // Reserved for future use, must be zero.
-} THREADNAME_INFO;
-#pragma pack(pop)
-
-void SetThreadName( DWORD dwThreadID, char const *_threadName)
-{
-   THREADNAME_INFO info;
-   Sleep(10);
-   info.dwType = 0x1000;
-   info.szName = _threadName;
-   info.dwThreadID = dwThreadID;
-   info.dwFlags = 0;
-
-   __try
-   {
-      RaiseException( MS_VC_EXCEPTION, 0, sizeof(info)/sizeof(ULONG_PTR), (ULONG_PTR*)&info );
-   }
-   __except(EXCEPTION_EXECUTE_HANDLER)
-   {
-   }
-}
-#endif
-
 LUAG_FUNC( set_debug_threadname)
 {
 	luaL_checktype( L, -1, LUA_TSTRING);
-#if defined PLATFORM_WIN32  && !defined __GNUC__
-	{
-		char const *threadName = lua_tostring( L, -1);
-
-		// to see thead name in Visual Studio C debugger
-		SetThreadName(-1, threadName);
-	}
-#endif // defined PLATFORM_WIN32  && !defined __GNUC__
+	THREAD_SETNAME( lua_tostring( L, -1));
 	// to see VM name in Decoda debugger Virtual Machine window
 	lua_setglobal( L, "decoda_name");
-
 	return 0;
 }
 

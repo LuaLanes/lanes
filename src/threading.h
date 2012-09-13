@@ -217,5 +217,6 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs, SIGNAL_T *signal_ref, MUTEX
 #endif // // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 
 void THREAD_KILL( THREAD_T *ref );
+void THREAD_SETNAME( char const* _name);
 
 #endif // __threading_h__

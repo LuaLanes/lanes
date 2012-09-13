@@ -1,6 +1,10 @@
 CHANGES:
 
-CHAGE 46: BGe 10-Sep-2012
+CHANGE 47: BGe 13-Sep-2012
+   * implemented set_debug_threadname() for pthread builds where possible
+   * refactored linda __tostring and __concat
+
+CHANGE 46: BGe 10-Sep-2012
    * version 3.3.0
    * lane.status can return "killed" if lane was forcefully killed with lanes:cancel()
    * lane:join(): return nil, "killed" if called on a killed lane.
