@@ -35,7 +35,7 @@ local caught= {}     -- { [T1]= bool, [T2]= bool }
 
 while true do
     io.stderr:write("waiting...\t")
-    local v,channel= linda:receive( 6.0, T1,T2 )
+    local channel, v = linda:receive( 6.0, T1,T2 )
     assert( channel==T1 or channel==T2 )
     caught[channel]= true
 
@@ -89,6 +89,6 @@ assert( linda:get(T2) == nil )
 
 PRINT "...making sure no ticks are coming..."
 
-local v= linda:receive( 1.5, T1,T2 )    -- should not get any
+local k,v= linda:receive( 10, T1,T2 )    -- should not get any
 assert(v==nil)
 

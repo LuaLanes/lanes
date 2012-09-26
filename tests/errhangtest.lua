@@ -9,6 +9,6 @@ local coro = coroutine.create(function() end)
 -- however, this should raise an error, not hang the program...
 print( pcall(linda.send,linda, 'test', "oh boy"))
 print( pcall(linda.send,linda, 'test', coro))
-res = linda:receive('test')
+k,res = linda:receive('test')
 print( res)
 -- linda:send( 'test', coro)

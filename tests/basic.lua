@@ -136,6 +136,50 @@ end
 PRINT(" "..st)
 assert( st == "cancelled" )
 
+-- cancellation of lanes waiting on a linda
+local limited = lanes.linda()
+limited:limit( "key", 1)
+-- [[################################################
+limited:send( "key", "hello") -- saturate linda
+local wait_send = function()
+	local a,b
+	set_finalizer( function() print( "wait_send", a, b) end)
+	a,b = limited:send( "key", "bybye") -- infinite timeout, returns only when lane is cancelled
+end
+
+local wait_send_lane = lanes.gen( "*", wait_send)()
+repeat until wait_send_lane.status == "waiting"
+print "wait_send_lane is waiting"
+wait_send_lane:cancel()
+repeat until wait_send_lane.status == "cancelled"
+print "wait_send_lane is cancelled"
+--################################################]]
+local wait_receive = function()
+	local k, v
+	set_finalizer( function() print( "wait_receive", k, v) end)
+	k, v = limited:receive( "dummy") -- infinite timeout, returns only when lane is cancelled
+end
+
+local wait_receive_lane = lanes.gen( "*", wait_receive)()
+repeat until wait_receive_lane.status == "waiting"
+print "wait_receive_lane is waiting"
+wait_receive_lane:cancel()
+repeat until wait_receive_lane.status == "cancelled"
+print "wait_receive_lane is cancelled"
+--################################################]]
+local wait_receive_batched = function()
+	local k, v1, v2
+	set_finalizer( function() print( "wait_receive_batched", k, v1, v2) end)
+	k, v1, v2 = limited:receive( limited.batched, "dummy", 2) -- infinite timeout, returns only when lane is cancelled
+end
+
+local wait_receive_batched_lane = lanes.gen( "*", wait_receive_batched)()
+repeat until wait_receive_batched_lane.status == "waiting"
+print "wait_receive_batched_lane is waiting"
+wait_receive_batched_lane:cancel()
+repeat until wait_receive_batched_lane.status == "cancelled"
+print "wait_receive_batched_lane is cancelled"
+--################################################]]
 
 PRINT( "---=== Communications ===---")
 
@@ -148,16 +192,16 @@ local chunk= function( linda )
 
     WR( "Lane starts!\n" )
 
-    local v
-    v=receive(); WR( v.." received\n" ); assert( v==1 )
-    v=receive(); WR( v.." received\n" ); assert( v==2 )
-    v=receive(); WR( v.." received\n" ); assert( v==3 )
+    local k,v
+    k,v=receive(); WR( v.." received\n" ); assert( v==1 )
+    k,v=receive(); WR( v.." received\n" ); assert( v==2 )
+    k,v=receive(); WR( v.." received\n" ); assert( v==3 )
 
     send( 1,2,3 );              WR( "1,2,3 sent\n" )
     send 'a';                   WR( "'a' sent\n" )
     send { 'a', 'b', 'c', d=10 }; WR( "{'a','b','c',d=10} sent\n" )
 
-    v=receive(); WR( v.." received\n" ); assert( v==4 )
+    k,v=receive(); WR( v.." received\n" ); assert( v==4 )
 
     WR( "Lane ends!\n" )
 end
@@ -170,7 +214,7 @@ assert( type(linda) == "userdata" )
 
 local function PEEK() return linda:get("<-") end
 local function SEND(...) linda:send( "->", ... ) end
-local function RECEIVE() return linda:receive( "<-" ) end
+local function RECEIVE() local k,v = linda:receive( "<-" ) return v end
 
 local t= lanes_gen("io",chunk)(linda)     -- prepare & launch
 
@@ -226,7 +270,7 @@ local tc= lanes_gen( "io",
     local function STAGE(str)
         io.stderr:write( ch_in..": "..str.."\n" )
         linda:send( nil, ch_out, str )
-        local v= linda:receive( nil, ch_in )
+        local k,v= linda:receive( nil, ch_in )
         assert(v==str)
     end
     STAGE("Hello")
@@ -264,13 +308,13 @@ local function chunk2( linda )
     assert( info.linedefined > 200 )   -- start of 'chunk2'
     assert( info.currentline > info.linedefined )   -- line of 'debug.getinfo'
     assert( info.lastlinedefined > info.currentline )   -- end of 'chunk2'
-    local func,k= linda:receive( "down" )
+    local k,func= linda:receive( "down" )
     assert( type(func)=="function" )
     assert( k=="down" )
 
     func(linda)
 
-    local str= linda:receive( "down" )
+    local k,str= linda:receive( "down" )
     assert( str=="ok" )
 
     linda:send( "up", function() return ":)" end, "ok2" )
@@ -282,19 +326,19 @@ linda:send( "down", function(linda) linda:send( "up", "ready!" ) end,
                     "ok" )
 -- wait to see if the tiny function gets executed
 --
-local s= linda:receive( "up" )
+local k,s= linda:receive( "up" )
 PRINT(s)
 assert( s=="ready!" )
 
 -- returns of the 'chunk2' itself
 --
-local f= linda:receive( "up" )
+local k,f= linda:receive( "up" )
 assert( type(f)=="function" )
 
 local s2= f()
 assert( s2==":)" )
 
-local ok2= linda:receive( "up" )
+local k,ok2= linda:receive( "up" )
 assert( ok2 == "ok2" )
 
 

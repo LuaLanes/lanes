@@ -17,7 +17,7 @@ local receiver_gen = lanes.gen( 'base', 'os', 'string', 'io',
         PRINT_FMT( 'receiver for message %s entered', message_name )
         local n = 1
         while linda:receive(message_name) do
-            PRINT_FMT( '%s %d receieved', message_name, n )
+            PRINT_FMT( '%s %d received', message_name, n )
             n = n + 1
         end
     end

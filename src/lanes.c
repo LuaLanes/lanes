@@ -51,7 +51,7 @@
  *      ...
  */
 
-char const* VERSION = "3.3.0";
+char const* VERSION = "3.4.0";
 
 /*
 ===============================================================================
@@ -348,7 +348,7 @@ LUAG_FUNC( linda_send)
 				STACK_CHECK(L)
 				lua_pushlightuserdata( L, CANCEL_TEST_KEY);
 				lua_rawget( L, LUA_REGISTRYINDEX);
-				s = lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) / nil
+				s = lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) or nil if in the main Lua state
 				lua_pop(L, 1);
 				STACK_END(L,0)
 				if( s)
@@ -445,6 +445,9 @@ LUAG_FUNC( linda_receive)
 			// we expect a user-defined amount of return value
 			expected_pushed_min = (int)luaL_checkinteger( L, key_i + 1);
 			expected_pushed_max = (int)luaL_optinteger( L, key_i + 2, expected_pushed_min);
+			// don't forget to count the key in addition to the values
+			++ expected_pushed_min;
+			++ expected_pushed_max;
 			if( expected_pushed_min > expected_pushed_max)
 			{
 				return luaL_error( L, "batched min/max error");
@@ -503,7 +506,7 @@ LUAG_FUNC( linda_receive)
 				STACK_CHECK(L)
 				lua_pushlightuserdata( L, CANCEL_TEST_KEY);
 				lua_rawget( L, LUA_REGISTRYINDEX);
-				s= lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) / nil
+				s = lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) or nil if in the main Lua state
 				lua_pop(L, 1);
 				STACK_END(L, 0)
 				if( s)
@@ -771,6 +774,16 @@ LUAG_FUNC( linda_concat)
 }
 
 /*
+ * table = linda:dump()
+ * return a table listing all pending data inside the linda
+ */
+LUAG_FUNC( linda_dump)
+{
+	struct s_Linda* linda = lua_toLinda( L, 1);
+	return keeper_push_linda_storage( L, linda);
+}
+
+/*
 * Identity function of a shared userdata object.
 * 
 *   lightuserdata= linda_id( "new" [, ...] )
@@ -860,6 +873,10 @@ static void linda_id( lua_State *L, char const * const which)
         lua_pushcfunction( L, LG_linda_tostring);
         lua_setfield( L, -2, "__tostring");
 
+        // Decoda __towatch support
+        lua_pushcfunction( L, LG_linda_dump);
+        lua_setfield( L, -2, "__towatch");
+
         lua_pushcfunction( L, LG_linda_concat);
         lua_setfield( L, -2, "__concat");
 
@@ -886,6 +903,9 @@ static void linda_id( lua_State *L, char const * const which)
         lua_pushcfunction( L, LG_linda_deep );
         lua_setfield( L, -2, "deep" );
 
+        lua_pushcfunction( L, LG_linda_dump);
+        lua_setfield( L, -2, "dump" );
+        
         lua_pushliteral( L, BATCH_SENTINEL);
         lua_setfield(L, -2, "batched");
 
@@ -1752,7 +1772,8 @@ LUAG_FUNC( thread_new )
 		if( !lua_isnil( L2, -1)) // package library not loaded: do nothing
 		{
 			int i;
-			char const *entries[] = { "path", "cpath", "preload", "loaders", NULL};
+			// package.loaders is renamed package.searchers in Lua 5.2
+			char const* entries[] = { "path", "cpath", "preload", (LUA_VERSION_NUM == 501) ? "loaders" : "searchers", NULL};
 			for( i = 0; entries[i]; ++ i)
 			{
 				lua_getfield( L, package, entries[i]);

@@ -23,7 +23,7 @@ local function FIFO()
 					linda:send( nil, my_channel, ... )
 				end,
         receive = function(self, timeout)
-					linda:receive( timeout, my_channel )
+					return linda:receive( timeout, my_channel )
 				end
     }
 end

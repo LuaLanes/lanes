@@ -3,24 +3,24 @@ lanes.configure()
 
 -- this lane eats items in the linda one by one
 local eater = function( l, loop)
-	local val, key = l:receive( "go")
+	local key, val = l:receive( "go")
 	for i = 1, loop do
 		local val, key = l:receive( "key")
 		--print( val)
 	end
 	-- print "loop is over"
-	val, key = l:receive( "done")
+	key, val = l:receive( "done")
 	-- print( val)
 end
 
 -- this lane eats items in the linda in batches
 local batched = function( l, loop, batch)
-	local val, key = l:receive( "go")
+	local key, val = l:receive( "go")
 	for i = 1, loop/batch do
 		l:receive( l.batched, "key", batch)
 	end
 	print "loop is over"
-	val, key = l:receive( "done")
+	key, val = l:receive( "done")
 	print( val)
 end
 

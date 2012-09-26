@@ -488,10 +488,10 @@ if first_time then
 				secs =  next_wakeup - now_secs()
 				if secs < 0 then secs = 0 end
 			end
-			local linda = timer_gateway:receive( secs, TGW_KEY)
+			local _, linda = timer_gateway:receive( secs, TGW_KEY)
 
 			if linda then
-				local key, wakeup_at, period = timer_gateway:receive( 0, timer_gateway_batched, TGW_KEY, 3)
+				local _, key, wakeup_at, period = timer_gateway:receive( 0, timer_gateway_batched, TGW_KEY, 3)
 				assert( key)
 				set_timer( linda, key, wakeup_at, period and period > 0 and period or nil)
 			--elseif secs == nil then -- got no value while block-waiting?

@@ -1,5 +1,15 @@
 CHANGES:
 
+CHANGE 48: BGe 25-Sep-2012
+   * version 3.4.0
+   * new method linda:dump() that outputs the full contents of a linda as a table, also linked to __towatch for Decoda support
+   * linda:receive() API change!
+   * instead of [val, key], linda:receive( timeout, key) returns [key, val]
+   * instead of [val, [...]], linda:receive( timeout, linda.batched key) returns [key, val[, ...]]
+     this is to unify the return values of regular and batched mode, and to be able to tell when batched mode is interrupted by a lane cancellation
+   * fixed Lua 5.2 build to take into account the "loaders"->"searchers" name change in 'package' module.
+   * a bit of html cleanup and added some infos in the documentation regarding the Lanes internals
+
 CHANGE 47: BGe 13-Sep-2012
    * implemented set_debug_threadname() for pthread builds where possible
    * refactored linda __tostring and __concat

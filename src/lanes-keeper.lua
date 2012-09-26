@@ -187,7 +187,7 @@ function receive( ud, ...)
         if fifo and fifo.count > 0 then
             local val = fifo_pop( fifo, 1)
             if val ~= nil then
-                return val, key
+                return key, val
             end
         end
     end
@@ -207,7 +207,7 @@ receive_batched = function( ud, key, min_count, max_count)
             if fifo_count >= min_count then
                 max_count = max_count or min_count
                 max_count = (max_count > fifo_count) and fifo_count or max_count
-                return fifo_pop( fifo, max_count)
+                return key, fifo_pop( fifo, max_count)
             end
         end
     end
