@@ -186,28 +186,29 @@ static void push_table( lua_State* L, int idx)
 int keeper_push_linda_storage( lua_State* L, void* ptr)
 {
 	struct s_Keeper* K = keeper_acquire( ptr);
-	STACK_CHECK( K->L)
-	lua_pushlightuserdata( K->L, fifos_key);                      // fifos_key
-	lua_rawget( K->L, LUA_REGISTRYINDEX);                         // fifos
-	lua_pushlightuserdata( K->L, ptr);                            // fifos ud
-	lua_rawget( K->L, -2);                                        // fifos storage
-	lua_remove( K->L, -2);                                        // storage
-	if( !lua_istable( K->L, -1))
+	lua_State* KL = K->L;
+	STACK_CHECK( KL)
+	lua_pushlightuserdata( KL, fifos_key);                      // fifos_key
+	lua_rawget( KL, LUA_REGISTRYINDEX);                         // fifos
+	lua_pushlightuserdata( KL, ptr);                            // fifos ud
+	lua_rawget( KL, -2);                                        // fifos storage
+	lua_remove( KL, -2);                                        // storage
+	if( !lua_istable( KL, -1))
 	{
-		lua_pop( K->L, 1);                                          //
-		STACK_MID( K->L, 0);
+		lua_pop( KL, 1);                                          //
+		STACK_MID( KL, 0);
 		return 0;
 	}
-	lua_pushnil( K->L);                                           // storage nil
+	lua_pushnil( KL);                                           // storage nil
 	lua_newtable( L);                                                                        // out
-	while( lua_next( K->L, -2))                                   // storage key fifo
+	while( lua_next( KL, -2))                                   // storage key fifo
 	{
-		keeper_fifo* fifo = prepare_fifo_access( K->L, -1);         // storage key fifo
-		lua_pushvalue( K->L, -2);                                   // storage key fifo key
-		luaG_inter_move( K->L, L, 1);                               // storage key fifo        // out key
+		keeper_fifo* fifo = prepare_fifo_access( KL, -1);         // storage key fifo
+		lua_pushvalue( KL, -2);                                   // storage key fifo key
+		luaG_inter_move( KL, L, 1);                               // storage key fifo          // out key
 		STACK_CHECK( L)
 		lua_newtable( L);                                                                      // out key keyout
-		luaG_inter_move( K->L, L, 1);                               // storage key             // out key keyout fifo
+		luaG_inter_move( KL, L, 1);                               // storage key               // out key keyout fifo
 		lua_pushinteger( L, fifo->first);                                                      // out key keyout fifo first
 		lua_setfield( L, -3, "first");                                                         // out key keyout fifo
 		lua_pushinteger( L, fifo->count);                                                      // out key keyout fifo count
@@ -218,8 +219,8 @@ int keeper_push_linda_storage( lua_State* L, void* ptr)
 		lua_rawset( L, -3);                                                                    // out
 		STACK_END( L, 0)
 	}
-	lua_pop( K->L, 1);                                            //
-	STACK_END( K->L, 0)
+	lua_pop( KL, 1);                                            //
+	STACK_END( KL, 0)
 	keeper_release( K);
 	return 1;
 }

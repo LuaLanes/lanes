@@ -778,7 +778,7 @@ bool_t THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *
 #if defined PLATFORM_BSD
 		pthread_set_name_np( pthread_self(), _name);
 #elif defined PLATFORM_LINUX || defined PLATFORM_QNX || defined PLATFORM_CYGWIN
-		pthread_setname_np(_name pthread_self(), _name);
+		pthread_setname_np( pthread_self(), _name);
 #elif defined PLATFORM_OSX
 		pthread_setname_np(_name);
 #elif defined PLATFORM_WIN32 || defined PLATFORM_POCKETPC
