@@ -2611,12 +2611,22 @@ int
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 __declspec(dllexport)
 #endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
-luaopen_lanes_core( lua_State *L )
+luaopen_lanes_core( lua_State* L)
 {
-	// Create main module interface table
-	// we only have 1 closure, which must be called to configure Lanes
 	STACK_GROW( L, 3);
 	STACK_CHECK( L)
+
+	// sanity check: let's see if _"VERSION" matches what we we built against
+	lua_getglobal( L, "_VERSION");
+	lua_pushstring( L, LUA_VERSION_NUM == 501 ? "Lua 5.1" : "Lua 5.2");
+	if( !lua_rawequal( L, -1, -2))
+	{
+		return luaL_error( L, "Lanes is built against %s, but you are running %s", lua_tostring( L, -1), lua_tostring( L, -2));
+	}
+	lua_pop( L, 2);
+
+	// Create main module interface table
+	// we only have 1 closure, which must be called to configure Lanes
 	lua_newtable(L);
 	lua_pushvalue(L, 1); // module name
 	lua_pushvalue(L, -2); // module table
@@ -2631,6 +2641,7 @@ luaopen_lanes_core( lua_State *L )
 		lua_pushnil( L); // almost idem
 		lua_call( L, 2, 0);
 	}
+
 	STACK_END( L, 1)
 	return 1;
 }
