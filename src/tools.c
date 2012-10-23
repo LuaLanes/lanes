@@ -1348,7 +1348,7 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i)
 		from = lua_tostring( L, -1);
 		lua_getglobal( L2, "decoda_name");                                                 // {} f decoda_name
 		to = lua_tostring( L2, -1);
-		(void) luaL_error( L, "%s: function '%s' not found in %s destination transfer database.", from ? from : "main", to ? to : "main", fqn);
+		(void) luaL_error( L, "%s: function '%s' not found in %s destination transfer database.", from ? from : "main", fqn, to ? to : "main");
 		return;
 	}
 	lua_remove( L2, -2);                                                                 // f
