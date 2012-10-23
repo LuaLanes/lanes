@@ -533,7 +533,7 @@ char const* init_keepers( int const _nbKeepers, lua_CFunction _on_state_create)
 	for( i = 0; i < _nbKeepers; ++ i)
 	{
 
-		// Initialize Keeper states with bare minimum of libs (those required by 'keeper.lua')
+		// We need to load all base libraries in the keeper states so that the transfer databases are populated properly
 		// 
 		// 'io' for debugging messages, 'package' because we need to require modules exporting idfuncs
 		// the others because they export functions that we may store in a keeper for transfer between lanes
