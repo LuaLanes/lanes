@@ -1325,11 +1325,13 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i)
 	lua_pop( L, 2);                                          // ... f ...
 	if( !fqn)
 	{
+		char const* from;
 		lua_pushvalue( L, i);                                  // ... f ... f
 		// try to discover the name of the function we want to send
 		luaG_nameof( L);                                       // ... f ... "type" "name"
 		lua_getglobal( L, "decoda_name");                      // ... f ... "type" "name" decoda_name
-		(void) luaL_error( L, "%s '%s' not found in %s origin transfer database.", lua_tostring( L, -3), lua_tostring( L, -2), lua_tostring( L, -1));
+		from = lua_tostring( L, -1);
+		(void) luaL_error( L, "%s '%s' not found in %s origin transfer database.", lua_tostring( L, -3), lua_tostring( L, -2), from ? from : "main");
 		return;
 	}
 	STACK_END( L, 0)
@@ -1341,9 +1343,12 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i)
 	lua_rawget( L2, -2);                                                                 // {} f
 	if( !lua_isfunction( L2, -1))
 	{
+		char const* from, * to;
 		lua_getglobal( L, "decoda_name");                      // // ... f ... decoda_name
+		from = lua_tostring( L, -1);
 		lua_getglobal( L2, "decoda_name");                                                 // {} f decoda_name
-		(void) luaL_error( L, "%s: function '%s' not found in %s destination transfer database.", lua_tostring( L, -1), lua_tostring( L2, -1), fqn);
+		to = lua_tostring( L2, -1);
+		(void) luaL_error( L, "%s: function '%s' not found in %s destination transfer database.", from ? from : "main", to ? to : "main", fqn);
 		return;
 	}
 	lua_remove( L2, -2);                                                                 // f
