@@ -1757,6 +1757,10 @@ LUAG_FUNC( thread_new )
 	STACK_GROW( L, 2);
 	STACK_GROW( L2, 3);
 
+	// give a default "Lua" name to the thread to see VM name in Decoda debugger
+	lua_pushfstring( L2, "Lane #%p", L2);
+	lua_setglobal( L2, "decoda_name");
+
 	ASSERT_L( lua_gettop(L2) == 0);
 
 	// package.path
