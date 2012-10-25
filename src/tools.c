@@ -202,19 +202,19 @@ static lua_CFunction luaG_tocfunction( lua_State *L, int _i, FuncSubType *_out)
 
 
 // inspired from tconcat() in ltablib.c
-static char const * luaG_pushFQN(lua_State *L, int t, int last)
+static char const* luaG_pushFQN(lua_State *L, int t, int last)
 {
 	int i = 1;
 	luaL_Buffer b;
 	STACK_CHECK( L)
 	luaL_buffinit(L, &b);
-	for( ; i < last; i++)
+	for( ; i < last; ++ i)
 	{
 		lua_rawgeti( L, t, i);
 		luaL_addvalue( &b);
 		luaL_addlstring(&b, ".", 1);
 	}
-	if (i == last)  /* add last value (if interval was not empty) */
+	if( i == last)  // add last value (if interval was not empty)
 	{
 		lua_rawgeti( L, t, i);
 		luaL_addvalue( &b);
@@ -225,7 +225,7 @@ static char const * luaG_pushFQN(lua_State *L, int t, int last)
 }
 
 
-static void populate_func_lookup_table_recur( lua_State *L, int _ctx_base, int _i, int _depth)
+static void populate_func_lookup_table_recur( lua_State* L, int _ctx_base, int _i, int _depth)
 {
 	lua_Integer visit_count;
 	// slot 1 in the stack contains the table that receives everything we found
@@ -282,49 +282,47 @@ static void populate_func_lookup_table_recur( lua_State *L, int _ctx_base, int _
 			lua_pushvalue( L, -2);                                                                // ... {_i} {bfc} k {} k
 			lua_insert( L, -2);                                                                   // ... {_i} {bfc} k k {}
 			lua_rawset( L, breadth_first_cache);                                                  // ... {_i} {bfc} k
-			STACK_MID( L, 2)
 		}
-		else if( lua_isfunction( L, -1))                                                        // ... {_i} {bfc} k func
+		else if( lua_isfunction( L, -1) && (luaG_getfuncsubtype( L, -1) != FST_Bytecode))       // ... {_i} {bfc} k func
 		{
-			if( luaG_getfuncsubtype( L, -1) != FST_Bytecode)
+			char const* prevName, * newName;
+			// first, raise an error if the function is already known
+			lua_pushvalue( L, -1);                                                                // ... {_i} {bfc} k func func
+			lua_rawget( L, dest);                                                                 // ... {_i} {bfc} k func name?
+			prevName = lua_tostring( L, -1); // NULL if we got nil (first encounter of this function)
+			// push function name in fqn stack (note that concatenation will crash if name is a not string or a number)
+			lua_pushvalue( L, -3);                                                                // ... {_i} {bfc} k func name? k
+			++ _depth;
+			lua_rawseti( L, fqn, _depth);                                                         // ... {_i} {bfc} k func name?
+			// generate name
+			newName = luaG_pushFQN( L, fqn, _depth);                                              // ... {_i} {bfc} k func name? "f.q.n"
+			// Lua 5.2 introduced a hash randomizer seed which causes table iteration to yield a different key order
+			// on different VMs even when the tables are populated the exact same way.
+			// When Lua is built with compatibility options (such as LUA_COMPAT_ALL),
+			// this causes several base libraries to register functions under multiple names.
+			// This, with the randomizer, can cause the first name of a function to be different on different VMs,
+			// which breaks function transfer.
+			// This means that Lua 5.2 must be built with compatibility off to be able to use Lanes.
+			// Even under Lua 5.1, this may cause trouble (even if this would be much less frequent)
+			// Unfortunately, this fails with string.gfind/string.gmatch when Lua 5.1 is built with LUA_COMPAT_GFIND (which is the case of LuaBinaries),
+			// so for the time being, fail only for Lua 5.2 as the randomizer is the real show breaker here.
+			if( (LUA_VERSION_NUM > 501) && (prevName != NULL))
 			{
-				//char const *fqnString; for debugging
-				bool_t not_registered;
-				// first, skip everything if the function is already known
-				lua_pushvalue( L, -1);                                                              // ... {_i} {bfc} k func func
-				lua_rawget( L, dest);                                                               // ... {_i} {bfc} k func name?
-				not_registered = lua_isnil( L, -1);
-				lua_pop( L, 1);                                                                     // ... {_i} {bfc} k func
-				if( not_registered)
-				{
-					++ _depth;
-					// push function name in fqn stack (note that concatenation will crash if name is a not string!)
-					lua_pushvalue( L, -2);                                                            // ... {_i} {bfc} k func k
-					lua_rawseti( L, fqn, _depth);                                                     // ... {_i} {bfc} k func
-					// generate name
-					/*fqnString =*/ (void) luaG_pushFQN( L, fqn, _depth);                             // ... {_i} {bfc} k func "f.q.n"
-					//puts( fqnString);
-					// prepare the stack for database feed
-					lua_pushvalue( L, -1);                                                            // ... {_i} {bfc} k func "f.q.n" "f.q.n"
-					lua_pushvalue( L, -3);                                                            // ... {_i} {bfc} k func "f.q.n" "f.q.n" func
-					// t["f.q.n"] = func
-					lua_rawset( L, dest);                                                             // ... {_i} {bfc} k func "f.q.n"
-					// t[func] = "f.q.n"
-					lua_rawset( L, dest);                                                             // ... {_i} {bfc} k
-					// remove table name from fqn stack
-					lua_pushnil( L);                                                                  // ... {_i} {bfc} k nil
-					lua_rawseti( L, fqn, _depth);                                                     // ... {_i} {bfc} k
-					-- _depth;
-				}
-				else
-				{
-					lua_pop( L, 1);                                                                   // ... {_i} {bfc} k
-				}
+				(void) luaL_error( L, "multiple names detected (%s and %s)", prevName, newName);
+				return;
 			}
-			else
-			{
-				lua_pop( L, 1);                                                                     // ... {_i} {bfc} k
-			}
+			// prepare the stack for database feed
+			lua_remove( L, -2);                                                                   // ... {_i} {bfc} k func "f.q.n"
+			lua_pushvalue( L, -1);                                                                // ... {_i} {bfc} k func "f.q.n" "f.q.n"
+			lua_pushvalue( L, -3);                                                                // ... {_i} {bfc} k func "f.q.n" "f.q.n" func
+			// t["f.q.n"] = func 
+			lua_rawset( L, dest);                                                                 // ... {_i} {bfc} k func "f.q.n"
+			// t[func] = "f.q.n"
+			lua_rawset( L, dest);                                                                 // ... {_i} {bfc} k
+			// remove table name from fqn stack
+			lua_pushnil( L);                                                                      // ... {_i} {bfc} k nil
+			lua_rawseti( L, fqn, _depth);                                                         // ... {_i} {bfc} k
+			-- _depth;
 		}
 		else
 		{
