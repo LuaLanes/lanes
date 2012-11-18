@@ -69,7 +69,7 @@
 			</p>
 
 			<p>
-				This document was revised on 25-Sep-12, and applies to version <tt>3.4.0</tt>.
+				This document was revised on 25-Oct-12, and applies to version <tt>3.4.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -488,7 +488,7 @@
 
 <p>
     If a lane body pulls a C function imported by a module required before Lanes itself (thus not through a hooked <tt>require</tt>), the lane generator creation will raise an error.
-    The function name it shows is a path where it was found by scanning _G. As a utility, the name guessing functionality is exposed as such:
+    The function name it shows is a path where it was found by scanning <tt>_G</tt>. As a utility, the name guessing functionality is exposed as such:
 
 	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 		<tr>
@@ -1098,14 +1098,14 @@ events to a common Linda, but... :).</font>
 		// extract C function pointer from source
 		lua_CFunction func = lua_tocfunction( source, -1);
 		// transfer upvalues
-		int nup = trasnfer_upvalues( dest, source);
+		int nup = transfer_upvalues( dest, source);
 		// dest Lua stack contains a copy of all upvalues
 		lua_pushcfunction( dest, func, nup);
 	}
 </pre></td></tr></table>
 
 <p>
-	This has the main drawback of not being LuaJIT-compatible, because some functions registered by LuaJIT are not regular C functions, but specially optimized implementations. As a result, <tt>lua_tocfunction()</tt> returns NULL for them.
+	This has the main drawback of not being LuaJIT-compatible, because some functions registered by LuaJIT are not regular C functions, but specially optimized implementations. As a result, <tt>lua_tocfunction()</tt> returns <tt>NULL</tt> for them.
 	<br>
 	Therefore, Lanes no longer transfers functions that way. Instead, functions are transfered as follows (more or less):
 </p>
@@ -1136,11 +1136,11 @@ events to a common Linda, but... :).</font>
 	<br>
 	Then when a function is transfered from one state to another, all we have to do is retrieve the name associated to a function in the source Lua state, then with that name retrieve the equivalent function that already exists in the destination state.
 	<br>
-	Note that there is no need to transfer upvalues, as they are already bound to the function registered in the destination state. (And in any event, it is not possible to create a closure from a C function pushed on the stack, it can only be created with a lua_CFunction pointer).
+	Note that there is no need to transfer upvalues, as they are already bound to the function registered in the destination state. (And in any event, it is not possible to create a closure from a C function pushed on the stack, it can only be created with a <tt>lua_CFunction</tt> pointer).
 </p>
 
 <p>
-	There are two issues here:
+	There are several issues here:
 	<ul>
 		<li>Some base libraries register some C functions in the global environment. Because of that, Lanes must scan the global namespace to find all C functions (such as <tt>error</tt>, <tt>print</tt>, etc.).</li>
 		<li>
@@ -1151,10 +1151,19 @@ events to a common Linda, but... :).</font>
 			When iterating over all keys of the global table, Lanes has no guarantee that it will hit <tt>"string"</tt> before or after <tt>"string2"</tt>. However, the values associated to <tt>string.match</tt> and <tt>string2.match</tt> are the same C function.
 			Lanes doesn't expect a C function value to be encountered more than once. In the event it occurs, when the lookup table is populated with a [function, name] pair, an existing pair won't be updated if it is already found. In other words, the first name that was computed is retained.
 			If Lanes processed <tt>"string2"</tt> first, it means that if the Lua state that contains the <tt>"string2"</tt> global name sends function <tt>string.match</tt>, <tt>lookup_func_name</tt> would return name <tt>"string2.match"</tt>, with the obvious effect that <tt>push_resolved_func</tt>
-			won't find <tt>"string2.match"</tt> in the destination lookup database, thus failing the transfer (even though this function is referenced under name <tt>"string.match"</tt>).
+			won't find <tt>"string2.match"</tt> in the destination lookup database, thus failing the transfer (even though this function exists, but is referenced under name <tt>"string.match"</tt>).
+		</li>
+		<li>
+			Lua 5.2 introduced a hash randomizer seed which causes table iteration to yield a different key order on different VMs even when the tables are populated the exact same way.
+			When Lua is built with compatibility options (such as LUA_COMPAT_ALL), this causes several base libraries to register functions under multiple names.
+			This, with the randomizer, can cause the first name of a function to be different on different VMs, which breaks function transfer.
+			<b>This means that Lua 5.2 must be built WITHOUT compatibility options to be able to use Lanes.</b>
+			Even under Lua 5.1, this may cause trouble (even if this would be much less frequent).
+			Unfortunately, this fails with <tt>string.gfind</tt>/<tt>string.gmatch</tt> when Lua 5.1 is built with <tt>LUA_COMPAT_GFIND</tt> (which is the case of LuaBinaries),
+			so for the time being, Lanes fails only for Lua 5.2 as the randomizer is the real show breaker here.
 		</li>
 	</ul>
-	Another more direct reason of failed transfer is that the destination state doesn't know about the C function that has to be transferred. This occurs if a function is tranferred in a lane before it had a chance to scan the module.
+	Another more direct reason of failed transfer is that the destination state doesn't know about the C function that has to be transferred. This occurs if a function is transferred in a lane before it had a chance to scan the module.
 	If the C function is sent through a linda, it is enough for the destination lane body to have required the module before the function is sent.
 	But if the lane body provided to the generator has a C function as upvalue, the transfer itself must succeed, therefore the module that imported that C function must be required in the destination lane before the lane body starts executing. This is where the <a href = "#.required"><tt>.required</tt></a> options play their role.
 </p>
@@ -1186,7 +1195,7 @@ events to a common Linda, but... :).</font>
 </pre></td></tr></table>
 
 
-<h3 id="shared_userdata">Deep userdata in your own apps</h3>
+<h3 id="deep_userdata">Deep userdata in your own apps</h3>
 
 <p>
 	The mechanism Lanes uses for sharing Linda handles between separate Lua states can be used for custom userdata as well. Here's what to do.
@@ -1195,9 +1204,7 @@ events to a common Linda, but... :).</font>
 <ol>
 	<li>
 		Provide an <i>identity function</i> for your userdata, in C. This function is used for creation and deletion of your deep userdata (the shared resource), and for making metatables for the state-specific proxies for accessing it. The prototype is
-		<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-			void idfunc( lua_State *L, char const * const which);
-		</pre></td></tr></table>
+		<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>	void idfunc( lua_State *L, char const * const which);</pre></td></tr></table>
 		<tt>which</tt> can be one of:
 		<ul>
 			<li><tt>"new"</tt>: requests the creation of a new object, whose pointer is pushed on the stack as a light userdata.</li>
@@ -1207,6 +1214,7 @@ events to a common Linda, but... :).</font>
 		</ul>
 		Take a look at <tt>linda_id</tt> in <tt>lanes.c</tt>.
 	</li>
+	<li>Include <tt>"deep.h"</tt> and link against Lanes.
 	<li>Instanciate your userdata using <tt>luaG_deep_userdata()</tt>, instead of the regular <tt>lua_newuserdata()</tt>. Given an <tt>idfunc</tt>, it sets up the support structures and returns a state-specific proxy userdata for accessing your data. This proxy can also be copied over to other lanes.</li>
 	<li>Accessing the deep userdata from your C code, use <tt>luaG_todeep()</tt> instead of the regular <tt>lua_touserdata()</tt>.</li>
 </ol>
