@@ -6,6 +6,7 @@
 
 #include "lauxlib.h"
 #include "threading.h"
+#include "deep.h"
     // MUTEX_T
 
 #include <assert.h>
@@ -63,14 +64,9 @@
 
 #define luaG_isany(L,i)  (!lua_isnil(L,i))
 
-typedef void (*luaG_IdFunction)( lua_State *L, char const * const which);
-
 void luaG_dump( lua_State* L );
 
 lua_State* luaG_newstate( char const* libs, lua_CFunction _on_state_create);
-
-int luaG_deep_userdata( lua_State *L, luaG_IdFunction idfunc);
-void *luaG_todeep( lua_State *L, luaG_IdFunction idfunc, int index );
 
 typedef struct {
     volatile int refcount;
