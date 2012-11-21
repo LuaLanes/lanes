@@ -1317,6 +1317,9 @@ static int selfdestruct_gc( lua_State *L)
         DEBUGEXEC(fprintf( stderr, "Killed %d lane(s) at process end.\n", n ));
 #endif
     }
+#if !HAVE_KEEPER_ATEXIT_DESINIT
+    close_keepers();
+#endif // !HAVE_KEEPER_ATEXIT_DESINIT
     return 0;
 }
 

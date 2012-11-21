@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 49: BGe 21-Nov-2012
+   * fix application shutdown crash by not registering anything with atexit()
+   * rockspec for version v3.4.0
+
 CHANGE 48: BGe 25-Sep-2012
    * version 3.4.0
    * new method linda:dump() that outputs the full contents of a linda as a table, also linked to __towatch for Decoda support

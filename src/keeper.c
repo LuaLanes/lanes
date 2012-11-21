@@ -496,7 +496,11 @@ int keepercall_count( lua_State* L)
 static struct s_Keeper *GKeepers = NULL;
 static int GNbKeepers = 0;
 
-static void atexit_close_keepers(void)
+#if HAVE_KEEPER_ATEXIT_DESINIT
+static void atexit_close_keepers( void)
+#else // HAVE_KEEPER_ATEXIT_DESINIT
+void close_keepers( void)
+#endif // HAVE_KEEPER_ATEXIT_DESINIT
 {
 	int i;
 	// 2-pass close, in case a keeper holds a reference to a linda bound to another keeoer
@@ -579,10 +583,9 @@ char const* init_keepers( int const _nbKeepers, lua_CFunction _on_state_create)
 		GKeepers[i].L = K;
 		//GKeepers[i].count = 0;
 	}
-	// call close_keepers at the very last as we want to be sure no thread is GCing after.
-	// (and therefore may perform linda object dereferencing after keepers are gone)
-	// problem: maybe on some platforms atexit() is called after DLL/so are unloaded...
+#if HAVE_KEEPER_ATEXIT_DESINIT
 	atexit( atexit_close_keepers);
+#endif // HAVE_KEEPER_ATEXIT_DESINIT
 	return NULL;    // ok
 }
 
