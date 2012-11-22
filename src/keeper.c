@@ -369,28 +369,57 @@ int keepercall_limit( lua_State* L)
 //in: linda_ud key [val]
 int keepercall_set( lua_State* L)
 {
+	STACK_GROW( L, 6);
 	// make sure we have a value on the stack
-	if( lua_gettop( L) == 2)
+	if( lua_gettop( L) == 2)                          // ud key val?
 	{
-		lua_pushnil( L);
+		lua_pushnil( L);                                // ud key nil
 	}
+
+	// retrieve fifos associated with the linda
 	push_table( L, 1);                                // ud key val fifos
 	lua_replace( L, 1);                               // fifos key val
-	if( !lua_isnil( L, 3)) // replace contents stored at the specified key?
+
+	if( !lua_isnil( L, 3)) // set/replace contents stored at the specified key?
 	{
 		keeper_fifo* fifo;
-		fifo_new( L);                                   // fifos key val fifo
-		lua_pushvalue( L, 2);                           // fifos key val fifo key
-		lua_pushvalue( L, -2);                          // fifos key val fifo key fifo
-		lua_rawset( L, 1);                              // fifos key val fifo
+		lua_pushvalue( L, -2);                          // fifos key val key
+		lua_rawget( L, 1);                              // fifos key val fifo|nil
+		fifo = (keeper_fifo*) lua_touserdata( L, -1);
+		if( fifo == NULL) // might be NULL if we set a nonexistent key to nil
+		{
+			lua_pop( L, 1);                               // fifos key val
+			fifo_new( L);                                 // fifos key val fifo
+			lua_pushvalue( L, 2);                         // fifos key val fifo key
+			lua_pushvalue( L, -2);                        // fifos key val fifo key fifo
+			lua_rawset( L, 1);                            // fifos key val fifo
+		}
+		else // the fifo exists, we just want to clear its contents
+		{
+			// empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
+			lua_newtable( L);                             // fifos key val fifo {}
+			lua_setuservalue( L, -2);                     // fifos key val fifo
+			fifo->first = 1;
+			fifo->count = 0;
+		}
 		fifo = prepare_fifo_access( L, -1);
 		lua_insert( L, -2);                             // fifos key fifo val
 		fifo_push( L, fifo, 1);                         // fifos key fifo
 	}
-	else
+	else // val == nil                                // fifos key nil
 	{
-		// val == nil => stack contents: fifos key nil => remove the fifo associated with the current key
-		lua_rawset( L, 1);                                // fifos
+		keeper_fifo* fifo;
+		lua_pop( L, 1);                                 // fifos key
+		lua_rawget( L, 1);                              // fifos fifo|nil
+		// empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
+		fifo = (keeper_fifo*) lua_touserdata( L, -1);
+		if( fifo != NULL) // might be NULL if we set a nonexistent key to nil
+		{
+			lua_newtable( L);                             // fifos fifo {}
+			lua_setuservalue( L, -2);                     // fifos fifo
+			fifo->first = 1;
+			fifo->count = 0;
+		}
 	}
 	return 0;
 }
