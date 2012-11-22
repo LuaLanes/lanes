@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 40: BGe 22-Nov-2012
+   * bugfix: linda:set() no longer clears the storage limit
+
 CHANGE 49: BGe 21-Nov-2012
    * fix application shutdown crash by not registering anything with atexit()
    * rockspec for version v3.4.0
