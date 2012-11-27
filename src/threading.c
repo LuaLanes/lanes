@@ -57,6 +57,17 @@ THE SOFTWARE.
   volatile bool_t sudo;
 #endif
 
+/* Linux with older glibc (such as Debian) don't have pthread_setname_np, but have prctl
+*/
+#if defined PLATFORM_LINUX
+#if defined __GNU_LIBRARY__ && __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 12
+#define LINUX_USE_PTHREAD_SETNAME_NP 1
+#else // glibc without pthread_setname_np
+#include <sys/prctl.h>
+#define LINUX_USE_PTHREAD_SETNAME_NP 0
+#endif // glibc without pthread_setname_np
+#endif // PLATFORM_LINUX
+
 #ifdef _MSC_VER
 // ".. selected for automatic inline expansion" (/O2 option)
 # pragma warning( disable : 4711 )
@@ -777,7 +788,13 @@ bool_t THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *
 		// if you need to fix the build, or if you know how to fill a hole, tell me (bnt.germain@gmail.com) so that I can submit the fix in github.
 #if defined PLATFORM_BSD
 		pthread_set_name_np( pthread_self(), _name);
-#elif defined PLATFORM_LINUX || defined PLATFORM_QNX || defined PLATFORM_CYGWIN
+#elif defined PLATFORM_LINUX
+	#if LINUX_USE_PTHREAD_SETNAME_NP
+		pthread_setname_np( pthread_self(), _name);
+	#else // LINUX_USE_PTHREAD_SETNAME_NP
+		 prctl(PR_SET_NAME, _name, 0, 0, 0);
+	#endif // LINUX_USE_PTHREAD_SETNAME_NP
+#elif defined PLATFORM_QNX || defined PLATFORM_CYGWIN
 		pthread_setname_np( pthread_self(), _name);
 #elif defined PLATFORM_OSX
 		pthread_setname_np(_name);
