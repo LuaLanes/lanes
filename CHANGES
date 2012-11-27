@@ -1,6 +1,10 @@
 CHANGES:
 
-CHANGE 40: BGe 22-Nov-2012
+CHANGE 51: BGe 27-Nov-2012
+   * linux flavors with older glibc use prctl instead of pthread_setname_np
+   * selfdestruct chain handling is now the same on all platforms
+
+CHANGE 50: BGe 22-Nov-2012
    * bugfix: linda:set() no longer clears the storage limit
 
 CHANGE 49: BGe 21-Nov-2012
