@@ -1210,7 +1210,7 @@ static int selfdestruct_gc( lua_State *L)
     //      or single Yield. I don't have machine to test that (so leaving
     //      for timed approach).    -- AKa 25-Oct-2008
  
-#ifdef PLATFORM_LINUX
+#if 0 // def PLATFORM_LINUX
     // It seems enough for Linux to have a single yield here, which allows
     // other threads (timer lane) to proceed. Without the yield, there is
     // segfault.
