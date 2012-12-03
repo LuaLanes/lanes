@@ -279,9 +279,9 @@ LUAG_FUNC( linda_send)
 
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
 
-	if( lua_isnumber(L, 2))
+	if( lua_type( L, 2) == LUA_TNUMBER) // we don't want to use lua_isnumber() because of autocoercion
 	{
-		timeout= SIGNAL_TIMEOUT_PREPARE( lua_tonumber(L,2) );
+		timeout = SIGNAL_TIMEOUT_PREPARE( lua_tonumber( L,2));
 		++ key_i;
 	}
 	else if( lua_isnil( L, 2)) // alternate explicit "no timeout" by passing nil before the key
@@ -418,7 +418,7 @@ LUAG_FUNC( linda_receive)
 
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
 
-	if( lua_isnumber( L, 2))
+	if( lua_type( L, 2) == LUA_TNUMBER) // we don't want to use lua_isnumber() because of autocoercion
 	{
 		timeout = SIGNAL_TIMEOUT_PREPARE( lua_tonumber( L, 2));
 		++ key_i;
