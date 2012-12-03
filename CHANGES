@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 52: BGe 03-Dec-2012
+   * linda:send() and linda:receive() no longer triggers string->number autocoercion when checking for the optional timeout argument:
+      a string is always a linda slot, even if coercible.
+
 CHANGE 51: BGe 27-Nov-2012
    * linux flavors with older glibc use prctl instead of pthread_setname_np
    * selfdestruct chain handling is now the same on all platforms
