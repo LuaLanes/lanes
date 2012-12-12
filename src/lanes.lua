@@ -3,20 +3,16 @@
 --
 -- Multithreading and -core support for Lua
 --
--- Author: Asko Kauppi <akauppi@gmail.com>
+-- Authors: Asko Kauppi <akauppi@gmail.com>
+--          Benoit Germain <bnt.germain@gmail.com>
 --
--- History:
---    3-Dec-10  BGe: Added support to generate a lane from a string
---    Jun-08    AKa: major revise
---    15-May-07 AKa: pthread_join():less version, some speedup & ability to
---                   handle more threads (~ 8000-9000, up from ~ 5000)
---    26-Feb-07 AKa: serialization working (C side)
---    17-Sep-06 AKa: started the module (serialization)
+-- History: see CHANGES
 --
 --[[
 ===============================================================================
 
 Copyright (C) 2007-10 Asko Kauppi <akauppi@gmail.com>
+Copyright (C) 2010-13 Benoit Germain <bnt.germain@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -303,6 +299,7 @@ local linda = core.linda
 
 -- PUBLIC LANES API
 local timer = function() error "timers are not active" end
+local timers = timer
 
 if _params.with_timers ~= false then
 
@@ -318,6 +315,7 @@ local timer_gateway = assert( core.timer_gateway)
 --  TGW_KEY: linda_h, key, [wakeup_at_secs], [repeat_secs]
 --
 local TGW_KEY= "(timer control)"    -- the key does not matter, a 'weird' key may help debugging
+local TGW_QUERY, TGW_REPLY = "(timer query)", "(timer reply)"
 local first_time_key= "first time"
 
 local first_time= timer_gateway:get(first_time_key) == nil
@@ -349,6 +347,19 @@ if first_time then
     --
     local collection= {}
 
+    local function get_timers()
+        local r = {}
+        for deep, t in pairs( collection) do
+            -- WR( tostring( deep))
+            local l = t[deep]
+            for key, timer_data in pairs( t) do
+                if key ~= deep then
+                    table_insert( r, {l, key, timer_data})
+                end
+            end
+        end
+        return r
+    end
     --
     -- set_timer( linda_h, key [,wakeup_at_secs [,period_secs]] )
     --
@@ -488,12 +499,18 @@ if first_time then
 				secs =  next_wakeup - now_secs()
 				if secs < 0 then secs = 0 end
 			end
-			local _, linda = timer_gateway:receive( secs, TGW_KEY)
+			local key, what = timer_gateway:receive( secs, TGW_KEY, TGW_QUERY)
 
-			if linda then
+			if key == TGW_KEY then
+				assert( getmetatable( what) == "Linda") -- 'what' should be a linda on which the client sets a timer
 				local _, key, wakeup_at, period = timer_gateway:receive( 0, timer_gateway_batched, TGW_KEY, 3)
 				assert( key)
-				set_timer( linda, key, wakeup_at, period and period > 0 and period or nil)
+				set_timer( what, key, wakeup_at, period and period > 0 and period or nil)
+			elseif key == TGW_QUERY then
+				if what == "get_timers" then
+					timer_gateway:send( TGW_REPLY, get_timers())
+				end
+				timer_gateway:send( TGW_REPLY, "unknown query " .. what)
 			--elseif secs == nil then -- got no value while block-waiting?
 			--	WR( "timer lane: no linda, aborted?")
 			end
@@ -507,7 +524,9 @@ end
 --
 -- PUBLIC LANES API
 timer = function( linda, key, a, period )
-
+    if getmetatable( linda) ~= "Linda" then
+        error "expecting a Linda"
+    end
     if a==0.0 then
         -- Caller expects to get current time stamp in Linda, on return
         -- (like the timer had expired instantly); it would be good to set this
@@ -528,6 +547,16 @@ timer = function( linda, key, a, period )
     -- queue to timer
     --
     timer_gateway:send( TGW_KEY, linda, key, wakeup_at, period )
+end
+
+-----
+-- {[{linda, slot, when, period}[,...]]} = timers()
+--
+-- PUBLIC LANES API
+timers = function()
+	timer_gateway:send( TGW_QUERY, "get_timers")
+	local _, r = timer_gateway:receive( TGW_REPLY)
+	return r
 end
 
 end -- _params.with_timers
@@ -602,6 +631,7 @@ end
 	lanes.cancel_error = core.cancel_error
 	lanes.nameof = core.nameof
 	lanes.timer = timer
+	lanes.timers = timers
 	lanes.genlock = genlock
 	lanes.now_secs = now_secs
 	lanes.genatomic = genatomic
