@@ -1,5 +1,6 @@
 /*
- * LANES.C   	                          Copyright (c) 2007-08, Asko Kauppi
+ * LANES.C                              Copyright (c) 2007-08, Asko Kauppi
+ *                                      Copyright (C) 2009-13, Benoit Germain
  *
  * Multithreading in Lua.
  * 
@@ -51,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.4.0";
+char const* VERSION = "3.4.1";
 
 /*
 ===============================================================================
