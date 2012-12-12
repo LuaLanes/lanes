@@ -69,7 +69,7 @@
 			</p>
 
 			<p>
-				This document was revised on 25-Oct-12, and applies to version <tt>3.4.0</tt>.
+				This document was revised on 11-Dec-12, and applies to version <tt>3.4.1</tt>.
 			</p>
 		</font>
 	</center>
@@ -996,6 +996,16 @@ events to a common Linda, but... :).</font>
 		</td>
 	</tr>
 </table>
+
+<p></p>
+
+<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
+	{[{linda, slot, when, period}[,...]]} = lanes.timers()
+</pre></td></tr></table>
+
+<p>
+	The full list of active timers can be obtained. Obviously, this is a snapshot, and non-repeating timers might no longer exist by the time the results are inspected.
+</p>
 
 
 <!-- locks +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
