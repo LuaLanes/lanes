@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 53: BGe 11-Dec-2012
+   * version 3.4.1
+   * new function lanes.timers(), returns a list of all active timers.
+
 CHANGE 52: BGe 03-Dec-2012
    * linda:send() and linda:receive() no longer triggers string->number autocoercion when checking for the optional timeout argument:
       a string is always a linda slot, even if coercible.
