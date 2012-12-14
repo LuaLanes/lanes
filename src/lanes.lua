@@ -509,8 +509,9 @@ if first_time then
 			elseif key == TGW_QUERY then
 				if what == "get_timers" then
 					timer_gateway:send( TGW_REPLY, get_timers())
+				else
+					timer_gateway:send( TGW_REPLY, "unknown query " .. what)
 				end
-				timer_gateway:send( TGW_REPLY, "unknown query " .. what)
 			--elseif secs == nil then -- got no value while block-waiting?
 			--	WR( "timer lane: no linda, aborted?")
 			end
