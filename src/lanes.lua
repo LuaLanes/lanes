@@ -62,7 +62,7 @@ lanes.configure = function( _params)
 	local tostring = assert( tostring)
 	local error = assert( error)
 
-	local default_params = { nb_keepers = 1, on_state_create = nil, shutdown_timeout = 0.25, with_timers = true}
+	local default_params = { nb_keepers = 1, on_state_create = nil, shutdown_timeout = 0.25, with_timers = true, track_lanes = nil}
 	local param_checkers =
 	{
 		nb_keepers = function( _val)
@@ -80,6 +80,10 @@ lanes.configure = function( _params)
 		shutdown_timeout = function( _val)
 			-- nb_keepers should be a number >= 0
 			return type( _val) == "number" and _val >= 0
+		end,
+		track_lanes = function( _val)
+			-- track_lanes may be nil or boolean
+			return _val and type( _val) == "boolean" or true
 		end
 	}
 
@@ -113,7 +117,7 @@ lanes.configure = function( _params)
 	assert( type( core)=="table")
 
 	-- configure() is available only the first time lanes.core is required process-wide, and we *must* call it to have the other functions in the interface
-	if core.configure then core.configure( _params.nb_keepers, _params.on_state_create, _params.shutdown_timeout) end
+	if core.configure then core.configure( _params.nb_keepers, _params.on_state_create, _params.shutdown_timeout, _params.track_lanes) end
 
 	local thread_new = assert( core.thread_new)
 
@@ -631,6 +635,7 @@ end
 	lanes.linda = core.linda
 	lanes.cancel_error = core.cancel_error
 	lanes.nameof = core.nameof
+	lanes.threads = core.threads
 	lanes.timer = timer
 	lanes.timers = timers
 	lanes.genlock = genlock
