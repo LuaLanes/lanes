@@ -69,7 +69,7 @@
 			</p>
 
 			<p>
-				This document was revised on 11-Dec-12, and applies to version <tt>3.4.1</tt>.
+				This document was revised on 14-Dec-12, and applies to version <tt>3.4.1</tt>.
 			</p>
 		</font>
 	</center>
@@ -229,6 +229,19 @@
 			<td>
 				If equal to <tt>false</tt>, Lanes doesn't start the timer service, and the associated API will be absent from the interface (see below).
 				Any other non-<tt>nil</tt> value starts the timer service. Default is <tt>true</tt>.
+			</td>
+		</tr>
+
+		<tr valign=top>
+			<td id="track_lanes">
+				<code>.track_lanes</code>
+			</td>
+			<td>
+				<tt>nil</tt>/<tt>false</tt>/anything
+			</td>
+			<td>
+				Any non-<tt>nil|false</tt> value instructs Lanes keeps track of all lanes, so that <a href="#tracking"><tt>lanes.threads()</tt></a> can list them.
+				Default tracking behavior will only enable to get information about free-running garbage collected lanes.
 			</td>
 		</tr>
 
@@ -609,6 +622,27 @@
 
 <p>
 	This is similar to <tt>coroutine.status</tt>, which has: <tt>"running"</tt> / <tt>"suspended"</tt> / <tt>"normal"</tt> / <tt>"dead"</tt>. Not using the exact same names is intentional.
+</p>
+
+
+<!-- tracking +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+<hr/>
+<h2 id="tracking">Tracking</h2>
+
+	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
+		<tr>
+			<td>
+				<pre>	{}|nil = lanes.threads()</pre>
+			</td>
+		</tr>
+	</table>
+
+<p>
+	Only available if lane tracking feature is compiled (see <tt>HAVE_LANE_TRACKING</tt> in <tt>lanes.c</tt>).
+	<br>
+	Returns a table where keys are a lane's name and values are the lane's status. Returns <tt>nil</tt> if no lane is running.
+	<br>
+	The list contents depends on configuration option <a href="#track_lanes"><tt>track_lanes</tt></a>.
 </p>
 
 
