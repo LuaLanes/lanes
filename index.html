@@ -69,7 +69,7 @@
 			</p>
 
 			<p>
-				This document was revised on 14-Dec-12, and applies to version <tt>3.4.1</tt>.
+				This document was revised on 17-Dec-12, and applies to version <tt>3.4.1</tt>.
 			</p>
 		</font>
 	</center>
@@ -241,7 +241,6 @@
 			</td>
 			<td>
 				Any non-<tt>nil|false</tt> value instructs Lanes keeps track of all lanes, so that <a href="#tracking"><tt>lanes.threads()</tt></a> can list them.
-				Default tracking behavior will only enable to get information about free-running garbage collected lanes.
 			</td>
 		</tr>
 
@@ -638,11 +637,9 @@
 	</table>
 
 <p>
-	Only available if lane tracking feature is compiled (see <tt>HAVE_LANE_TRACKING</tt> in <tt>lanes.c</tt>).
+	Only available if lane tracking feature is compiled (see <tt>HAVE_LANE_TRACKING</tt> in <tt>lanes.c</tt>) and <a href="#track_lanes"><tt>track_lanes</tt></a> is set.
 	<br>
 	Returns a table where keys are a lane's name and values are the lane's status. Returns <tt>nil</tt> if no lane is running.
-	<br>
-	The list contents depends on configuration option <a href="#track_lanes"><tt>track_lanes</tt></a>.
 </p>
 
 
