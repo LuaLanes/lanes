@@ -169,6 +169,12 @@ struct s_lane {
 	// M: sets to non-NULL if facing lane handle '__gc' cycle but the lane
 	//    is still running
 	// S: cleans up after itself if non-NULL at lane exit
+
+#if HAVE_LANE_TRACKING
+	struct s_lane * volatile tracking_next;
+#endif // HAVE_LANE_TRACKING
+	//
+	// For tracking only
 };
 
 static bool_t cancel_test( lua_State*L );
@@ -231,6 +237,91 @@ static bool_t push_registry_table( lua_State*L, void *key, bool_t create ) {
         // [-1]: table that's also bound in registry
     }
     return TRUE;    // table pushed
+}
+
+#if HAVE_LANE_TRACKING
+
+static MUTEX_T tracking_cs;
+struct s_lane* volatile tracking_first = NULL; // will change to TRACKING_END if we want to activate tracking
+
+// The chain is ended by '(struct s_lane*)(-1)', not NULL:
+// 'tracking_first -> ... -> ... -> (-1)'
+#define TRACKING_END ((struct s_lane *)(-1))
+
+/*
+ * Add the lane to tracking chain; the ones still running at the end of the
+ * whole process will be cancelled.
+ */
+static void tracking_add( struct s_lane *s)
+{
+
+	MUTEX_LOCK( &tracking_cs);
+	{
+		assert( s->tracking_next == NULL);
+
+		s->tracking_next = tracking_first;
+		tracking_first = s;
+	}
+	MUTEX_UNLOCK( &tracking_cs);
+}
+
+/*
+ * A free-running lane has ended; remove it from tracking chain
+ */
+static bool_t tracking_remove( struct s_lane *s )
+{
+	bool_t found = FALSE;
+	MUTEX_LOCK( &tracking_cs);
+	{
+		// Make sure (within the MUTEX) that we actually are in the chain
+		// still (at process exit they will remove us from chain and then
+		// cancel/kill).
+		//
+		if (s->tracking_next != NULL)
+		{
+			struct s_lane **ref= (struct s_lane **) &tracking_first;
+
+			while( *ref != TRACKING_END)
+			{
+				if( *ref == s)
+				{
+					*ref = s->tracking_next;
+					s->tracking_next = NULL;
+					found = TRUE;
+					break;
+				}
+				ref = (struct s_lane **) &((*ref)->tracking_next);
+			}
+			assert( found);
+		}
+	}
+	MUTEX_UNLOCK( &tracking_cs);
+	return found;
+}
+
+#endif // HAVE_LANE_TRACKING
+
+//---
+// low-level cleanup
+
+static void lane_cleanup( struct s_lane* s)
+{
+	// Clean up after a (finished) thread
+	//
+#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
+	SIGNAL_FREE( &s->done_signal);
+	MUTEX_FREE( &s->done_lock);
+#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
+
+#if HAVE_LANE_TRACKING
+	if( tracking_first)
+	{
+		// Lane was cleaned up, no need to handle at process termination
+		tracking_remove( s);
+	}
+#endif // HAVE_LANE_TRACKING
+
+	free( s);
 }
 
 /*
@@ -843,27 +934,27 @@ static void linda_id( lua_State*L, char const * const which)
 
         lua_pushlightuserdata( L, s );
     }
-    else if (strcmp( which, "delete" )==0)
+    else if( strcmp( which, "delete" ) == 0)
     {
-        struct s_Keeper *K;
-        struct s_Linda *s= lua_touserdata(L,1);
-        ASSERT_L(s);
+        struct s_Keeper* K;
+        struct s_Linda* l= lua_touserdata( L, 1);
+        ASSERT_L( l);
 
         /* Clean associated structures in the keeper state.
         */
-        K= keeper_acquire(s);
+        K = keeper_acquire( l);
         if( K && K->L) // can be NULL if this happens during main state shutdown (lanes is GC'ed -> no keepers -> no need to cleanup)
         {
-            keeper_call( K->L, KEEPER_API( clear), L, s, 0 );
+            keeper_call( K->L, KEEPER_API( clear), L, l, 0);
             keeper_release( K);
         }
 
         /* There aren't any lanes waiting on these lindas, since all proxies
         * have been gc'ed. Right?
         */
-        SIGNAL_FREE( &s->read_happened );
-        SIGNAL_FREE( &s->write_happened );
-        free(s);
+        SIGNAL_FREE( &l->read_happened);
+        SIGNAL_FREE( &l->write_happened);
+        free( l);
     }
     else if (strcmp( which, "metatable" )==0)
     {
@@ -1126,12 +1217,12 @@ static MUTEX_T selfdestruct_cs;
     // The chain is ended by '(struct s_lane*)(-1)', not NULL:
     //      'selfdestruct_first -> ... -> ... -> (-1)'
 
-struct s_lane * volatile selfdestruct_first= SELFDESTRUCT_END;
+struct s_lane* volatile selfdestruct_first = SELFDESTRUCT_END;
 
 /*
-* Add the lane to selfdestruct chain; the ones still running at the end of the
-* whole process will be cancelled.
-*/
+ * Add the lane to selfdestruct chain; the ones still running at the end of the
+ * whole process will be cancelled.
+ */
 static void selfdestruct_add( struct s_lane *s ) {
 
     MUTEX_LOCK( &selfdestruct_cs );
@@ -1145,8 +1236,8 @@ static void selfdestruct_add( struct s_lane *s ) {
 }
 
 /*
-* A free-running lane has ended; remove it from selfdestruct chain
-*/
+ * A free-running lane has ended; remove it from selfdestruct chain
+ */
 static bool_t selfdestruct_remove( struct s_lane *s )
 {
     bool_t found = FALSE;
@@ -1310,11 +1401,7 @@ static int selfdestruct_gc( lua_State*L)
 #endif // THREADAPI == THREADAPI_PTHREAD
                 }
                 // NO lua_close() in this case because we don't know where execution of the state was interrupted
-#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-                SIGNAL_FREE( &s->done_signal);
-                MUTEX_FREE( &s->done_lock);
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-                free( s);
+                lane_cleanup( s);
                 s = next_s;
                 n++;
             }
@@ -1567,10 +1654,6 @@ LUAG_FUNC( set_debug_threadname)
 	return 0;
 }
 
-#if HAVE_LANE_TRACKING
-static bool_t GTrackLanes = FALSE;
-#endif // HAVE_LANE_TRACKING
-
 //---
 static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
 {
@@ -1579,11 +1662,9 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
     lua_State*L= s->L;
 
 #if HAVE_LANE_TRACKING
-    if( GTrackLanes)
+    if( tracking_first)
     {
-        // If we track lanes, we add them right now to the list so that its traversal hits all known lanes
-        // (else we get only the still running lanes for which GC was called, IOW not accessible anymore from a script)
-        selfdestruct_add( s);
+        tracking_add( s);
     }
 #endif // HAVE_LANE_TRACKING
 
@@ -1684,11 +1765,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
         lua_close( s->L );
         s->L = L = 0;
 
-    #if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-        SIGNAL_FREE( &s->done_signal);
-        MUTEX_FREE( &s->done_lock);
-    #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-        free(s);
+        lane_cleanup( s);
 
     }
     else
@@ -1955,6 +2032,9 @@ LUAG_FUNC( thread_new )
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 	s->mstatus= NORMAL;
 	s->selfdestruct_next= NULL;
+#if HAVE_LANE_TRACKING
+	s->tracking_next = NULL;
+#endif // HAVE_LANE_TRACKING
 
 	// Set metatable for the userdata
 	//
@@ -2024,14 +2104,9 @@ LUAG_FUNC( thread_gc)
 	}
 	else if( s->status < DONE)
 	{
-#if HAVE_LANE_TRACKING
-		if( !GTrackLanes)
-#endif // HAVE_LANE_TRACKING
-		{
-			// still running: will have to be cleaned up later
-			selfdestruct_add( s);
-			assert( s->selfdestruct_next);
-		}
+		// still running: will have to be cleaned up later
+		selfdestruct_add( s);
+		assert( s->selfdestruct_next);
 		return 0;
 
 	}
@@ -2042,22 +2117,8 @@ LUAG_FUNC( thread_gc)
 		s->L = 0;
 	}
 
-#if HAVE_LANE_TRACKING
-	if( GTrackLanes)
-	{
-		// Lane was cleaned up, no need to handle at process termination
-		selfdestruct_remove( s);
-	}
-#endif // HAVE_LANE_TRACKING
-
 	// Clean up after a (finished) thread
-	//
-#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-	SIGNAL_FREE( &s->done_signal);
-	MUTEX_FREE( &s->done_lock);
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-
-	free( s);
+	lane_cleanup( s);
 	return 0;
 }
 
@@ -2381,12 +2442,12 @@ LUAG_FUNC( threads)
 	int const top = lua_gettop( L);
 	// List _all_ still running threads
 	//
-	MUTEX_LOCK( &selfdestruct_cs);
-	if( selfdestruct_first != SELFDESTRUCT_END)
+	MUTEX_LOCK( &tracking_cs);
+	if( tracking_first && tracking_first != TRACKING_END)
 	{
-		struct s_lane* s = selfdestruct_first;
+		struct s_lane* s = tracking_first;
 		lua_newtable( L);                                          // {}
-		while( s != SELFDESTRUCT_END)
+		while( s != TRACKING_END)
 		{
 			if( s->debug_name)
 				lua_pushstring( L, s->debug_name);                     // {} "name"
@@ -2394,10 +2455,10 @@ LUAG_FUNC( threads)
 				lua_pushfstring( L, "Lane %p", s);                     // {} "name"
 			push_thread_status( L, s);                               // {} "name" "status"
 			lua_rawset( L, -3);                                      // {}
-			s = s->selfdestruct_next;
+			s = s->tracking_next;
 		}
 	}
-	MUTEX_UNLOCK( &selfdestruct_cs);
+	MUTEX_UNLOCK( &tracking_cs);
 	return lua_gettop( L) - top;
 }
 #endif // HAVE_LANE_TRACKING
@@ -2499,7 +2560,7 @@ static void init_once_LOCKED( lua_State* L, volatile DEEP_PRELUDE** timer_deep_r
 #endif
 
 #if HAVE_LANE_TRACKING
-    GTrackLanes = _track_lanes;
+    tracking_first = _track_lanes ? TRACKING_END : NULL;
 #endif // HAVE_LANE_TRACKING
 
         // Locks for 'tools.c' inc/dec counters
@@ -2513,9 +2574,12 @@ static void init_once_LOCKED( lua_State* L, volatile DEEP_PRELUDE** timer_deep_r
 
         serialize_require( L );
 
-        // Selfdestruct chain handling
+        // Linked chains handling
         //
         MUTEX_INIT( &selfdestruct_cs );
+#if HAVE_LANE_TRACKING
+        MUTEX_INIT( &tracking_cs);
+#endif // HAVE_LANE_TRACKING
 
         //---
         // Linux needs SCHED_RR to change thread priorities, and that is only
