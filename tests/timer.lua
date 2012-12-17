@@ -76,6 +76,15 @@ end
 assert( caught[T1] )
 assert( caught[T2] )
 
+
+PRINT( "\n*** Listing timers ***\n" )
+local r = lanes.timers() -- list of {linda, key, {}}
+for _,t in ipairs( r) do
+    local linda, key, timer = t[1], t[2], t[3]
+	print( tostring( linda), key, timer[1], timer[2])
+end
+
+
 PRINT( "\n*** Clearing timers ***\n" )
 
 lanes.timer( linda, T1, 0 )    -- reset; no reoccuring ticks
