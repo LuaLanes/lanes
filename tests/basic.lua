@@ -59,6 +59,7 @@ end
 PRINT( "---=== Tasking (basic) ===---")
 
 local function task( a, b, c )
+    set_debug_threadname( "task("..a..","..b..","..c..")")
     --error "111"     -- testing error messages
     assert(hey)
     local v=0
