@@ -635,7 +635,7 @@ end
 	lanes.linda = core.linda
 	lanes.cancel_error = core.cancel_error
 	lanes.nameof = core.nameof
-	lanes.threads = core.threads
+	lanes.threads = (_params.track_lanes and core.threads) and core.threads or function() error "lane tracking is not available" end
 	lanes.timer = timer
 	lanes.timers = timers
 	lanes.genlock = genlock
