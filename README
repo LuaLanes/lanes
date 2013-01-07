@@ -1,4 +1,3 @@
-
 =====================
   Usage on Windows:
 =====================
@@ -47,8 +46,8 @@ In short, have your Lua core compiled with LUA_USE_DLOPEN and LUA_USE_POSIX
 instead of the (default as of 5.1) LUA_DL_DYLD and LUA_USE_MACOSX. This is
 crucial to have each module loaded only once (even if initialized separately
 for each thread) and for the static & global variables within the modules to
-actually be process-wide. Lua Lanes cannot live without (and hopefully,
-LUA_DL_DYLD is long gone by Lua 5.2)...
+actually be process-wide. Lua Lanes cannot live without...
+Lua 5.2 is fine in that regard (check luaconf.h to be safe).
 
 Another issue is making sure you only have _one_ Lua core. Your 'lua' binary
 must link dynamically to a .dylib, it must _not_ carry a personal copy of Lua
