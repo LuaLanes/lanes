@@ -532,7 +532,7 @@ void set_deep_lookup( lua_State *L ) {
         lua_pushlightuserdata( L, DEEP_LOOKUP_KEY );
         lua_pushvalue(L,-2);
             //
-            // [-3]: {} (2nd ref)
+            // [-3]: {}Â (2nd ref)
             // [-2]: DEEP_LOOKUP_KEY
             // [-1]: {}
 
@@ -939,7 +939,7 @@ luaG_IdFunction luaG_copydeep( lua_State *L, lua_State *L2, int index )
 
 /*
  * 'reg[ REG_MT_KNOWN ]'= {
- *      [ table ]= id_uint,
+ *      [Â table ]= id_uint,
  *          ...
  *      [ id_uint ]= table,
  *          ...
@@ -1354,6 +1354,11 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i)
 }
 
 #define LOG_FUNC_INFO 0
+#if LOG_FUNC_INFO
+#define LOG_FUNC_INFO_CODE(_code) _code
+#else // LOG_FUNC_INFO
+#define LOG_FUNC_INFO_CODE(_code)
+#endif // LOG_FUNC_INFO
 
 /*
 * Copy a function over, which has not been found in the cache.
@@ -1374,7 +1379,7 @@ static void inter_copy_func( lua_State *L2, uint_t L2_cache_i, lua_State *L, uin
 
 	if( funcSubType == FST_Bytecode)
 	{
-		unsigned n;
+		int n;
 		luaL_Buffer b;
 		// 'lua_dump()' needs the function at top of stack
 		// if already on top of the stack, no need to push again
@@ -1443,49 +1448,51 @@ static void inter_copy_func( lua_State *L2, uint_t L2_cache_i, lua_State *L, uin
 			/* push over any upvalues; references to this function will come from
 			* cache so we don't end up in eternal loop.
 			*/
-			for( n=0; lua_getupvalue( L, i, 1+n ) != NULL; n++ )
 			{
-				if ((!cfunc) && lua_equal(L,i,-1))
+				LOG_FUNC_INFO_CODE( char const* upname);
+				for( n = 0; (LOG_FUNC_INFO_CODE( upname =) lua_getupvalue( L, i, 1 + n)) != NULL; ++ n)
 				{
-					/* Lua closure that has a (recursive) upvalue to itself
-					*/
-					lua_pushvalue( L2, -((int)n)-1 );
+					LOG_FUNC_INFO_CODE( fprintf( stderr, "UPNAME: %s\n", upname));
+					if( (!cfunc) && lua_equal( L, i, -1))
+					{
+						/* Lua closure that has a (recursive) upvalue to itself
+						*/
+						lua_pushvalue( L2, -n - 1);
+					}
+					else
+					{
+						if( !inter_copy_one_( L2, L2_cache_i, L, lua_gettop(L), VT_NORMAL))
+							luaL_error( L, "Cannot copy upvalue type '%s'", luaL_typename( L, -1));
+					}
+					lua_pop( L, 1);
 				}
-				else
-				{
-					if( !inter_copy_one_( L2, L2_cache_i, L, lua_gettop(L), VT_NORMAL))
-						luaL_error( L, "Cannot copy upvalue type '%s'", luaL_typename( L, -1));
-				}
-				lua_pop( L, 1);
 			}
 			// L2: function + 'n' upvalues (>=0)
 
-			STACK_MID(L,0)
+			STACK_MID( L, 0)
 
 			// Set upvalues (originally set to 'nil' by 'lua_load')
 			{
 				int func_index = lua_gettop( L2) - n;
 				for( ; n > 0; -- n)
 				{
-					char const *rc = lua_setupvalue( L2, func_index, n);
+					char const* rc = lua_setupvalue( L2, func_index, n);
 					//
 					// "assigns the value at the top of the stack to the upvalue and returns its name.
 					// It also pops the value from the stack."
 
-					ASSERT_L(rc);      // not having enough slots?
+					ASSERT_L( rc);      // not having enough slots?
 				}
 			}
 		}
 	}
 	else // C function OR LuaJIT fast function!!!
 	{
-#if LOG_FUNC_INFO
-		fprintf( stderr, "NAME: [C] function %p \n", cfunc);
-#endif // LOG_FUNC_INFO
+		LOG_FUNC_INFO_CODE( fprintf( stderr, "NAME: [C] function %p \n", cfunc));
 		// No need to transfer upvalues for C/JIT functions since they weren't actually copied, only looked up
 		lookup_native_func( L2, L, i);
 	}
-	STACK_END(L,0)
+	STACK_END( L, 0)
 }
 
 /*
