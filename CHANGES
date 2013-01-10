@@ -1,5 +1,10 @@
 CHANGES:
 
+CHANGE 54: BGe 10-Jan-13
+   * version 3.4.2
+   * Don't pull "package" settings in the timer lane
+   * removed a limitation preventing Lua functions with indirect recursive upvalue references from being transferable
+
 CHANGE 53: BGe 11-Dec-2012
    * version 3.4.1
    * new function lanes.timers(), returns a list of all active timers.
