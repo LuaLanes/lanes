@@ -521,7 +521,7 @@ if first_time then
 			end
 		end
 	end
-	gen( "*", { priority=max_prio}, timer_body)() -- "*" instead of "io,package" for LuaJIT compatibility...
+	gen( "*", { package= {}, priority = max_prio}, timer_body)() -- "*" instead of "io,package" for LuaJIT compatibility...
 end
 
 -----
