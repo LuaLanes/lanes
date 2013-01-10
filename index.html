@@ -69,7 +69,7 @@
 			</p>
 
 			<p>
-				This document was revised on 17-Dec-12, and applies to version <tt>3.4.1</tt>.
+				This document was revised on 10-Jan-13, and applies to version <tt>3.4.2</tt>.
 			</p>
 		</font>
 	</center>
@@ -1097,6 +1097,9 @@ events to a common Linda, but... :).</font>
 <p>
 	<ul>
 		<li>Booleans, numbers, strings, light userdata, Lua functions and tables of such can always be passed.</li>
+			<ul>
+				<li>Versions 3.4.1 and earlier had an undocumented limitation: Lua functions with an indirect recursive Lua function upvalue raised an error when transfered. This limitation disappeared with version 3.4.2.</li>
+			</ul>
 		<li>
 			Cyclic tables and/or duplicate references are allowed and reproduced appropriately, but only <u>within the same transmission</u>.
 			<ul>
