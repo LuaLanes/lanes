@@ -87,6 +87,7 @@ test:
 	$(MAKE) func_is_string
 	$(MAKE) atexit
 	$(MAKE) linda_perf
+	$(MAKE) rupval
 
 basic: tests/basic.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
@@ -161,6 +162,9 @@ linda_perf: tests/linda_perf.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 atexit: tests/atexit.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+rupval: tests/rupval.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 #---
