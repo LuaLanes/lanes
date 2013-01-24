@@ -557,7 +557,7 @@ void close_keepers( void)
 *       unclosed, because it does not really matter. In production code, this
 *       function never fails.
 */
-char const* init_keepers( int const _nbKeepers, lua_CFunction _on_state_create)
+char const* init_keepers( lua_State* L, int const _nbKeepers, lua_CFunction _on_state_create)
 {
 	int i;
 	assert( _nbKeepers >= 1);
@@ -565,14 +565,15 @@ char const* init_keepers( int const _nbKeepers, lua_CFunction _on_state_create)
 	GKeepers = malloc( _nbKeepers * sizeof( struct s_Keeper));
 	for( i = 0; i < _nbKeepers; ++ i)
 	{
-
 		// We need to load all base libraries in the keeper states so that the transfer databases are populated properly
 		// 
 		// 'io' for debugging messages, 'package' because we need to require modules exporting idfuncs
 		// the others because they export functions that we may store in a keeper for transfer between lanes
 		lua_State* K = luaG_newstate( "*", _on_state_create);
-		if (!K)
+		if( !K)
 			return "out of memory";
+
+		DEBUGSPEW_CODE( fprintf( stderr, "init_keepers %d\n", i));
 
 		STACK_CHECK( K)
 		// to see VM name in Decoda debugger
@@ -580,6 +581,11 @@ char const* init_keepers( int const _nbKeepers, lua_CFunction _on_state_create)
 		lua_pushinteger( K, i + 1);
 		lua_concat( K, 2);
 		lua_setglobal( K, "decoda_name");
+
+		// replace default 'package' contents with stuff gotten from the master state
+		lua_getglobal( L, "package");
+		luaG_inter_copy_package( L, K, -1);
+		lua_pop( L, 1);
 
 #if KEEPER_MODEL == KEEPER_MODEL_C
 		// create the fifos table in the keeper state
@@ -589,7 +595,7 @@ char const* init_keepers( int const _nbKeepers, lua_CFunction _on_state_create)
 #endif // KEEPER_MODEL == KEEPER_MODEL_C
 
 #if KEEPER_MODEL == KEEPER_MODEL_LUA
-		// use package.loaders[2] to find keeper microcode
+		// use package.loaders[2] to find keeper microcode (NOTE: this works only if nobody tampered with the loaders table...)
 		lua_getglobal( K, "package");                  // package
 		lua_getfield( K, -1, "loaders");               // package package.loaders
 		lua_rawgeti( K, -1, 2);                        // package package.loaders package.loaders[2]
@@ -619,55 +625,38 @@ char const* init_keepers( int const _nbKeepers, lua_CFunction _on_state_create)
 }
 
 // cause each keeper state to populate its database of transferable functions with those from the specified module
-void populate_keepers( lua_State *L)
+// do do this we simply require the module inside the keeper state, then populate the lookup database
+void populate_keepers( lua_State* L)
 {
 	size_t name_len;
-	char const *name = luaL_checklstring( L, -1, &name_len);
-	size_t package_path_len;
-	char const *package_path;
-	size_t package_cpath_len;
-	char const *package_cpath;
+	char const* name = luaL_checklstring( L, -1, &name_len);
 	int i;
 
-	// we need to make sure that package.path & package.cpath are the same in the keepers
-// than what is currently in use when the module is required in the caller's Lua state
-	STACK_CHECK(L)
+	STACK_CHECK( L)
 	STACK_GROW( L, 3);
-	lua_getglobal( L, "package");
-	lua_getfield( L, -1, "path");
-	package_path = luaL_checklstring( L, -1, &package_path_len);
-	lua_getfield( L, -2, "cpath");
-	package_cpath = luaL_checklstring( L, -1, &package_cpath_len);
 
 	for( i = 0; i < GNbKeepers; ++ i)
 	{
-		lua_State *K = GKeepers[i].L;
+		lua_State* K = GKeepers[i].L;
 		int res;
 		MUTEX_LOCK( &GKeepers[i].lock_);
-		STACK_CHECK(K)
+		STACK_CHECK( K)
 		STACK_GROW( K, 2);
-		lua_getglobal( K, "package");
-		lua_pushlstring( K, package_path, package_path_len);
-		lua_setfield( K, -2, "path");
-		lua_pushlstring( K, package_cpath, package_cpath_len);
-		lua_setfield( K, -2, "cpath");
-		lua_pop( K, 1);
 		lua_getglobal( K, "require");
 		lua_pushlstring( K, name, name_len);
 		res = lua_pcall( K, 1, 0, 0);
 		if( res != 0)
 		{
-			char const *err = luaL_checkstring( K, -1);
+			char const* err = luaL_checkstring( K, -1);
 			luaL_error( L, "error requiring '%s' in keeper state: %s", name, err);
 		}
-		STACK_END(K, 0)
+		STACK_END( K, 0)
 		MUTEX_UNLOCK( &GKeepers[i].lock_);
 	}
-	lua_pop( L, 3);
-	STACK_END(L, 0)
+	STACK_END( L, 0)
 }
 
-struct s_Keeper *keeper_acquire( const void *ptr)
+struct s_Keeper* keeper_acquire( void const* ptr)
 {
 	// can be 0 if this happens during main state shutdown (lanes is being GC'ed -> no keepers)
 	if( GNbKeepers == 0)
@@ -691,19 +680,19 @@ struct s_Keeper *keeper_acquire( const void *ptr)
 	}
 }
 
-void keeper_release( struct s_Keeper *K)
+void keeper_release( struct s_Keeper* K)
 {
 	//-- K->count;
 	if( K) MUTEX_UNLOCK( &K->lock_);
 }
 
-void keeper_toggle_nil_sentinels( lua_State *L, int _val_i, int _nil_to_sentinel)
+void keeper_toggle_nil_sentinels( lua_State* L, int _val_i, int _nil_to_sentinel)
 {
 	int i, n = lua_gettop( L);
 	/* We could use an empty table in 'keeper.lua' as the sentinel, but maybe
 	* checking for a lightuserdata is faster. (any unique value will do -> take the address of some global of ours)
 	*/
-	void *nil_sentinel = &GNbKeepers;
+	void* nil_sentinel = &GNbKeepers;
 	for( i = _val_i; i <= n; ++ i)
 	{
 		if( _nil_to_sentinel)

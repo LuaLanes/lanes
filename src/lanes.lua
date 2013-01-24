@@ -210,10 +210,10 @@ local valid_libs= {
     ["string"]= true,
     ["math"]= true,
     ["debug"]= true,
+    ["bit32"]= true, -- Lua 5.2 only, ignored silently under 5.1
     --
     ["base"]= true,
-    ["coroutine"]= true,
-    ["*"]= true
+    ["coroutine"]= true
 }
 
 -- PUBLIC LANES API
@@ -251,11 +251,19 @@ local function gen( ... )
 
     -- Check 'libs' already here, so the error goes in the right place
     -- (otherwise will be noticed only once the generator is called)
+    -- "*" is a special case that doesn't require individual checking
     --
-    if libs then
-        for s in string_gmatch(libs, "[%a*]+") do
+    if libs and libs ~= "*" then
+        local found = {}
+        -- check that the caller only provides reserved library names
+        for s in string_gmatch(libs, "[%a%d]+") do
             if not valid_libs[s] then
-                error( "Bad library name: "..s )
+                error( "Bad library name: " .. s)
+            else
+                found[s] = (found[s] or 0) + 1
+                if found[s] > 1 then
+                    error( "libs specification contains '" .. s .. "' more than once")
+                end
             end
         end
     end

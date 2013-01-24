@@ -1,5 +1,16 @@
 CHANGES:
 
+CHANGE 55: BGe 24-Jan-13
+   * version 3.4.3
+   * raise an error if lane generator libs specification contains a lib more than once
+   * bit32 is a valid lib name in the libs specification (silently ignored by the Lua 5.1 build)
+   * improved lanes.nameof to search inside table- and userdata- metatables for an object's name
+   * fixed an unwarranted error when trying to discover a function name upon a failed transfer
+   * contents of package.[path,cpath,preload,loaders|searchers] are pulled *only once* inside keeper states at initialisation
+   * Lua function upvalues equal to the global environment aren't copied by value, but bound to the destination's global environment
+     especially useful for Lua 5.2 _ENV
+   * fixed loading of base libraries that didn't create the global tables when built for Lua 5.2
+
 CHANGE 54: BGe 10-Jan-13
    * version 3.4.2
    * Don't pull "package" settings in the timer lane
@@ -92,7 +103,7 @@ CHANGE 35 BGe 17-Feb-2012
 
 CHANGE 34 BGe 14-Nov-2011
    * removed packagepath and packagecpath options, replaced by a package table, whose fields path, cpath, loaders, preload are transfered
-   * code cleanup to facilitate transition between WIN32 and PTHREAD impleentations
+   * code cleanup to facilitate transition between WIN32 and PTHREAD implementations
    * tentative fix for desinit crashes when free running lanes are killed at process shutdown
 
 CHANGE 33 BGe 5-Nov-2011: Lanes version 3.0-beta

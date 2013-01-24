@@ -63,13 +63,13 @@
 		<font size="-1">
 			<p>
 				<br>
-				<i>Copyright &copy; 2007-12 Asko Kauppi, Benoit Germain. All rights reserved.</i>
+				<i>Copyright &copy; 2007-13 Asko Kauppi, Benoit Germain. All rights reserved.</i>
 				<br>
 				Lua Lanes is published under the same <a href="http://en.wikipedia.org/wiki/MIT_License">MIT license</a> as Lua 5.1 and 5.2.
 			</p>
 
 			<p>
-				This document was revised on 10-Jan-13, and applies to version <tt>3.4.2</tt>.
+				This document was revised on 24-Jan-13, and applies to version <tt>3.4.3</tt>.
 			</p>
 		</font>
 	</center>
@@ -246,7 +246,7 @@
 
 		<tr valign=top>
 			<td>
-				<code>.on_create_state</code>
+				<code>.on_state_create</code>
 			</td>
 			<td>
 				C function/<tt>nil</tt>
@@ -415,7 +415,7 @@
 			</td>
 			<td/>
 			<td>
-				all standard libraries (including those specific to LuaJIT and not listed above)
+				All standard libraries (including those specific to LuaJIT and not listed above). This must be used alone.
 			</td>
 		</tr>
 	</table>
@@ -487,9 +487,13 @@
 			</td>
 			<td> table</td>
 			<td>
+				Introduced at version 3.0.
+				<br>
 				Specifying it when <code>libs_str</code> doesn't cause the <code>package</code> library to be loaded will generate an error.
 				<br>
 				If not specified, the created lane will receive the current values of <tt>package</tt>. Only <tt>path</tt>, <tt>cpath</tt>, <tt>preload</tt> and <tt>loaders</tt> (Lua 5.1)/<tt>searchers</tt> (Lua 5.2) are transfered.
+				<br>
+				IMPORTANT: The contents of whatever package table is actually provided to the lane won't be known to the keeper states: they will stick to whatever was found in the main state's package table when Lane was required.
 			</td>
 		</tr>
 	</table>
@@ -1119,12 +1123,17 @@ events to a common Linda, but... :).</font>
 			</ul>
 		</li>
 		<li>
+			Lua 5.2 functions may have a special <tt>_ENV</tt> upvalue if they perform 'global namespace' lookups. Unless special care is taken, this upvalue defaults to the table found at <tt>LUA_RIDX_GLOBALS</tt>.
+			Obviously, we don't want to transfer the whole global table along with each Lua function. Therefore, any upvalue equal to the global table is not transfered by value, but simply bound
+			to the global table in the destination state. Note that this also applies when Lanes is built for Lua 5.1, as it doesn't hurt.
+		</li>
+		<li>
 			Full userdata can be passed only if it's prepared using the <a href="#deep_userdata">deep userdata</a> system, which handles its lifespan management
 			<ul>
 				<li>In particular, lane handles cannot be passed between lanes.</li>
 			</ul>
 		</li>
-		<li>Coroutines cannot be passed. A coroutine's Lua state is tied to the Lua state that created it, and there is no way the mixed C/Lua stack of a couroutine can be transfered from one Lua state to another.</li>
+		<li>Coroutines cannot be passed. A coroutine's Lua state is tied to the Lua state that created it, and there is no way the mixed C/Lua stack of a coroutine can be transfered from one Lua state to another.</li>
 	</ul>
 </p>
 
@@ -1158,7 +1167,7 @@ events to a common Linda, but... :).</font>
 	// expects a C function on top of the source Lua stack
 	copy_func( lua_State *dest, lua_State* source)
 	{
-		// extract C function pointer from source
+		// fetch function 'name' from source lookup database
 		char const* funcname = lookup_func_name( source, -1);
 		// lookup a function bound to this name in the destination state, and push it on the stack
 		push_resolved_func( dest, funcname);
@@ -1200,14 +1209,14 @@ events to a common Linda, but... :).</font>
 		<li>
 			Lua 5.2 introduced a hash randomizer seed which causes table iteration to yield a different key order on different VMs even when the tables are populated the exact same way.
 			When Lua is built with compatibility options (such as LUA_COMPAT_ALL), this causes several base libraries to register functions under multiple names.
-			This, with the randomizer, can cause the first name of a function to be different on different VMs, which breaks function transfer.
+			This, with the randomizer, can cause the first encountered name of a function to be different on different VMs, which breaks function transfer.
 			<b>This means that Lua 5.2 must be built WITHOUT compatibility options to be able to use Lanes.</b>
 			Even under Lua 5.1, this may cause trouble (even if this would be much less frequent).
-			Unfortunately, this fails with <tt>string.gfind</tt>/<tt>string.gmatch</tt> when Lua 5.1 is built with <tt>LUA_COMPAT_GFIND</tt> (which is the case of LuaBinaries),
+			Unfortunately, we get bitten by <tt>string.gfind</tt>/<tt>string.gmatch</tt> when Lua 5.1 is built with <tt>LUA_COMPAT_GFIND</tt> (which is the case of LuaBinaries),
 			so for the time being, Lanes fails only for Lua 5.2 as the randomizer is the real show breaker here.
 		</li>
 	</ul>
-	Another more direct reason of failed transfer is that the destination state doesn't know about the C function that has to be transferred. This occurs if a function is transferred in a lane before it had a chance to scan the module.
+	Another more immediate reason of failed transfer is when the destination state doesn't know about the C function that has to be transferred. This occurs if a function is transferred in a lane before it had a chance to scan the module.
 	If the C function is sent through a linda, it is enough for the destination lane body to have required the module before the function is sent.
 	But if the lane body provided to the generator has a C function as upvalue, the transfer itself must succeed, therefore the module that imported that C function must be required in the destination lane before the lane body starts executing. This is where the <a href = "#.required"><tt>.required</tt></a> options play their role.
 </p>

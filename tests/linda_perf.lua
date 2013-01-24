@@ -1,6 +1,9 @@
 local lanes = require "lanes"
 lanes.configure()
 
+-- Lua 5.1/5.2 compatibility
+local table_unpack = unpack or table.unpack
+
 -- this lane eats items in the linda one by one
 local eater = function( l, loop)
 	local key, val = l:receive( "go")
@@ -131,7 +134,7 @@ local function ziva2( preloop, loop, batch)
 		end
 		-- create a function that can send several values in one shot
 		batch_send = function()
-			l:send( "key", unpack( batch_values))
+			l:send( "key", table_unpack( batch_values))
 		end
 		batch_read = function()
 			l:receive( l.batched, "key", batch)
