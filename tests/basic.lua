@@ -54,8 +54,11 @@ tables_match= function( a, b )
     return subtable( a, b ) and subtable( b, a )
 end
 
+--##############################################################
+--##############################################################
+--##############################################################
 
-PRINT( "---=== Tasking (basic) ===---")
+PRINT( "\n\n", "---=== Tasking (basic) ===---", "\n\n")
 
 local function task( a, b, c )
     set_debug_threadname( "task("..a..","..b..","..c..")")
@@ -98,8 +101,11 @@ assert( v2_hey == true )
 assert( lane1.status == "done" )
 assert( lane1.status == "done" )
 
+--##############################################################
+--##############################################################
+--##############################################################
 
-PRINT( "---=== Tasking (cancelling) ===---")
+PRINT( "\n\n", "---=== Tasking (cancelling) ===---", "\n\n")
 
 local task_launch2= lanes_gen( "", { cancelstep=100, globals={hey=true} }, task )
 
@@ -181,7 +187,11 @@ repeat until wait_receive_batched_lane.status == "cancelled"
 print "wait_receive_batched_lane is cancelled"
 --################################################]]
 
-PRINT( "---=== Communications ===---")
+--##############################################################
+--##############################################################
+--##############################################################
+
+PRINT( "\n\n", "---=== Communications ===---", "\n\n")
 
 local function WR(...) io.stderr:write(...) end
 
@@ -246,28 +256,64 @@ assert( tables_match( a, {'a','b','c',d=10} ) )
 assert( PEEK() == nil )
 SEND(4)
 
+-- wait
+linda: receive( 1, "wait")
 
-PRINT( "---=== Stdlib naming ===---")
+--##############################################################
+--##############################################################
+--##############################################################
 
-local function io_os_f()
-    assert(io)
-    assert(os)
-    assert(print)
-    return true
+PRINT( "\n\n", "---=== Stdlib naming ===---", "\n\n")
+
+local function dump_g( _x)
+	assert(print)
+	print( "### dumping _G for '" .. _x .. "'")
+	for k, v in pairs( _G) do
+		print( "\t" .. k .. ": " .. type( v))
+	end
+	return true
 end
 
-local f1= lanes_gen( "io,os", io_os_f )     -- any delimiter will do
-local f2= lanes_gen( "io+os", io_os_f )
-local f3= lanes_gen( "io,os,base", io_os_f )
+local function io_os_f( _x)
+	assert(print)
+	print( "### checking io and os libs existence for '" .. _x .. "'")
+	assert(io)
+	assert(os)
+	return true
+end
+
+local function coro_f( _x)
+	assert(print)
+	print( "### checking coroutine lib existence for '" .. _x .. "'")
+	assert(coroutine)
+	return true
+end
 
 assert.fails( function() lanes_gen( "xxx", io_os_f ) end )
 
-assert( f1()[1] )
-assert( f2()[1] )
-assert( f3()[1] )
+local stdlib_naming_tests =
+{
+	-- { "", dump_g},
+	-- { "coroutine", dump_g},
+	-- { "io", dump_g},
+	-- { "bit32", dump_g},
+	{ "coroutine", coro_f},
+	{ "*", io_os_f},
+	{ "io,os", io_os_f},
+	{ "io+os", io_os_f},
+	{ "io,os,base", io_os_f},
+}
 
+for _, t in ipairs( stdlib_naming_tests) do
+	local f= lanes_gen( t[1], t[2])     -- any delimiter will do
+	assert( f(t[1])[1] )
+end
 
-PRINT( "---=== Comms criss cross ===---")
+--##############################################################
+--##############################################################
+--##############################################################
+
+PRINT( "\n\n", "---=== Comms criss cross ===---", "\n\n")
 
 -- We make two identical lanes, which are using the same Linda channel.
 --
@@ -293,7 +339,11 @@ local a,b= tc(linda, "A","B"), tc(linda, "B","A")   -- launching two lanes, twis
 local _= a[1],b[1]  -- waits until they are both ready
 
 
-PRINT( "---=== Receive & send of code ===---")
+--##############################################################
+--##############################################################
+--##############################################################
+
+PRINT( "\n\n", "---=== Receive & send of code ===---", "\n\n")
 
 local upvalue="123"
 
@@ -351,8 +401,11 @@ assert( s2==":)" )
 local k,ok2= linda:receive( "up" )
 assert( ok2 == "ok2" )
 
+--##############################################################
+--##############################################################
+--##############################################################
 
-PRINT( "---=== :join test ===---")
+PRINT( "\n\n", "---=== :join test ===---", "\n\n")
 
 -- NOTE: 'unpack()' cannot be used on the lane handle; it will always return nil
 --       (unless [1..n] has been read earlier, in which case it would seemingly

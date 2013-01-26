@@ -569,9 +569,7 @@ char const* init_keepers( lua_State* L, int const _nbKeepers, lua_CFunction _on_
 		// 
 		// 'io' for debugging messages, 'package' because we need to require modules exporting idfuncs
 		// the others because they export functions that we may store in a keeper for transfer between lanes
-		lua_State* K = luaG_newstate( "*", _on_state_create);
-		if( !K)
-			return "out of memory";
+		lua_State* K = luaG_newstate( L, "*", _on_state_create);
 
 		DEBUGSPEW_CODE( fprintf( stderr, "init_keepers %d\n", i));
 

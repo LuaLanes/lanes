@@ -73,7 +73,7 @@ extern char const* debugspew_indent;
 
 void luaG_dump( lua_State* L );
 
-lua_State* luaG_newstate( char const* libs, lua_CFunction _on_state_create);
+lua_State* luaG_newstate( lua_State* _from, char const* libs, lua_CFunction _on_state_create);
 
 typedef struct {
     volatile int refcount;

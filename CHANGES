@@ -1,15 +1,23 @@
 CHANGES:
 
+CHANGE 56: BGe 25-Jan-13
+   * version 3.4.4
+   * bugfix: take into account the fact that "coroutine" is no longer part of base library in Lua 5.2
+   * bugfix: if "bit32" was listed in the libraries, it wouldn't open (library list parsing failing on digits)
+   * bugfix: Use luaL_requiref() to open standard libraries in Lua 5.2 as we should
+   * bugfix: any Lua state created by Lanes reuses the allocator function of the originating state
+   * bugfix: don't call on_state_create() while GC is suspended during lua state initialization
+
 CHANGE 55: BGe 24-Jan-13
    * version 3.4.3
    * raise an error if lane generator libs specification contains a lib more than once
    * bit32 is a valid lib name in the libs specification (silently ignored by the Lua 5.1 build)
    * improved lanes.nameof to search inside table- and userdata- metatables for an object's name
-   * fixed an unwarranted error when trying to discover a function name upon a failed transfer
+   * bugfix: fixed an unwarranted error when trying to discover a function name upon a failed transfer
    * contents of package.[path,cpath,preload,loaders|searchers] are pulled *only once* inside keeper states at initialisation
    * Lua function upvalues equal to the global environment aren't copied by value, but bound to the destination's global environment
      especially useful for Lua 5.2 _ENV
-   * fixed loading of base libraries that didn't create the global tables when built for Lua 5.2
+   * bugfix: fixed loading of base libraries that didn't create the global tables when built for Lua 5.2
 
 CHANGE 54: BGe 10-Jan-13
    * version 3.4.2

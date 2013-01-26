@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.4.3";
+char const* VERSION = "3.4.4";
 
 /*
 ===============================================================================
@@ -1894,11 +1894,7 @@ LUAG_FUNC( thread_new )
 
 	// populate with selected libraries at  the same time
 	//
-	L2 = luaG_newstate( libs, on_state_create);
-	if (!L2)
-	{
-		return luaL_error( L, "'luaL_newstate()' failed; out of memory");
-	}
+	L2 = luaG_newstate( L, libs, on_state_create);
 
 	STACK_GROW( L, 2);
 	STACK_GROW( L2, 3);

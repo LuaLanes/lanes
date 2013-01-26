@@ -100,17 +100,19 @@ static const luaL_Reg libs[] =
 {
 	{ LUA_LOADLIBNAME, luaopen_package},
 	{ LUA_TABLIBNAME, luaopen_table},
-	{ LUA_IOLIBNAME, luaopen_io},
-	{ LUA_OSLIBNAME, luaopen_os},
 	{ LUA_STRLIBNAME, luaopen_string},
 	{ LUA_MATHLIBNAME, luaopen_math},
+	{ LUA_OSLIBNAME, luaopen_os},
+	{ LUA_IOLIBNAME, luaopen_io},
 #if LUA_VERSION_NUM >= 502
 	{ LUA_BITLIBNAME, luaopen_bit32},
+	{ LUA_COLIBNAME, luaopen_coroutine}, // Lua 5.2: coroutine is no longer a part of base!
+#else // LUA_VERSION_NUM
+	{ LUA_COLIBNAME, NULL},              // Lua 5.1: part of base package
 #endif // LUA_VERSION_NUM
 	{ LUA_DBLIBNAME, luaopen_debug},
 	//
-	{ "base", NULL },         // ignore "base" (already acquired it)
-	{ LUA_COLIBNAME, NULL },    // part of Lua 5.[1|2] base package
+	{ "base", NULL},                     // ignore "base" (already acquired it)
 	{ NULL, NULL }
 };
 
@@ -124,18 +126,16 @@ static void open1lib( lua_State* L, char const* name, size_t len)
 			if( libs[i].func)
 			{
 				DEBUGSPEW_CODE( fprintf( stderr, "opening %.*s library\n", len, name));
-				STACK_GROW( L, 1);
 				STACK_CHECK( L)
+#if LUA_VERSION_NUM >= 502
+				// open the library as if through require(), and create a global as well (the library table is left on the stack)
+				luaL_requiref( L, libs[i].name, libs[i].func, 1);
+				lua_pop( L, 1);
+#else // LUA_VERSION_NUM
+				STACK_GROW( L, 1);
 				lua_pushcfunction( L, libs[i].func);
 				// pushes the module table on the stack
-				lua_call( L, 0, 1);
-				populate_func_lookup_table( L, -1, libs[i].name);
-#if LUA_VERSION_NUM >= 502
-				// Lua 5.2: luaopen_x doesn't create the global, we have to do it ourselves!
-				lua_setglobal( L, libs[i].name);
-#else // LUA_VERSION_NUM
-				// Lua 5.1: remove the module when we are done
-				lua_pop( L, 1);
+				lua_call( L, 0, 0);
 #endif // LUA_VERSION_NUM
 				STACK_END( L, 0)
 			}
@@ -427,75 +427,93 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* _name)
 *
 * Base ("unpack", "print" etc.) is always added, unless 'libs' is NULL.
 *
-* Returns NULL for ok, position of error within 'libs' on failure.
 */
-#define is_name_char(c) (isalpha(c) || (c)=='*')
 
-lua_State* luaG_newstate( char const* libs, lua_CFunction _on_state_create)
+lua_State* luaG_newstate( lua_State* _from, char const* libs, lua_CFunction _on_state_create)
 {
-	lua_State* const L = luaL_newstate();
+	// reuse alloc function from the originating state
+	void* allocUD;
+	lua_Alloc allocF = lua_getallocf( _from, &allocUD);
+	lua_State* L = lua_newstate( allocF, allocUD);
 
-	// no libs, or special init func (not even 'base')
-	if (libs || _on_state_create)
+	if( !L)
 	{
-		// 'lua.c' stops GC during initialization so perhaps its a good idea. :)
-		//
-		lua_gc( L, LUA_GCSTOP, 0);
-
-		// Anything causes 'base' to be taken in
-		//
-		STACK_GROW( L, 2);
-		STACK_CHECK( L)
-		if( _on_state_create)
-		{
-			lua_pushcfunction( L, _on_state_create);
-			lua_call( L, 0, 0);
-		}
-		if( libs)
-		{
-			if( libs[0] == '*' && libs[1] == 0) // special "*" case (mainly to help with LuaJIT compatibility)
-			{
-				DEBUGSPEW_CODE( fprintf( stderr, "opening ALL base libraries\n"));
-				luaL_openlibs( L);
-				libs = NULL; // done with libs
-			}
-			else
-			{
-				DEBUGSPEW_CODE( fprintf( stderr, "opening base library\n"));
-				lua_pushcfunction( L, luaopen_base);
-				lua_call( L, 0, 0);
-			}
-		}
-
-		// after opening base, register the functions it exported in our name<->function database
-		lua_pushglobaltable( L); // Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
-		populate_func_lookup_table( L, -1, NULL);
-		lua_pop( L, 1);
-
-		STACK_MID( L, 0);
-		{
-			char const* p;
-			unsigned int len = 0;
-			if( libs)
-			{
-				for( p = libs; *p; p += len)
-				{
-					len = 0;
-					// skip delimiters
-					while( *p && !is_name_char( *p))
-						++ p;
-					// skip name
-					while( is_name_char( p[len]))
-						++ len;
-					// open library
-					open1lib( L, p, len);
-				}
-				serialize_require( L);
-			}
-		}
-		STACK_END(L,0)
-		lua_gc( L, LUA_GCRESTART, 0);
+		luaL_error( _from, "'lua_newstate()' failed; out of memory");
 	}
+
+	// neither libs (not even 'base') nor special init func: we are done
+	if( !libs && !_on_state_create)
+	{
+		return L;
+	}
+
+	STACK_GROW( L, 2);
+	STACK_CHECK( L)
+	if( _on_state_create)
+	{
+		DEBUGSPEW_CODE( fprintf( stderr, "calling on_state_create()\n"));
+		lua_pushcfunction( L, _on_state_create);
+		lua_call( L, 0, 0);
+	}
+
+	// 'lua.c' stops GC during initialization so perhaps its a good idea. :)
+	// but do it after _on_state_create in case it does a lot of stuff...
+	lua_gc( L, LUA_GCSTOP, 0);
+
+	// Anything causes 'base' to be taken in
+	//
+	if( libs)
+	{
+		if( libs[0] == '*' && libs[1] == 0) // special "*" case (mainly to help with LuaJIT compatibility)
+		{
+			DEBUGSPEW_CODE( fprintf( stderr, "opening ALL standard libraries\n"));
+			luaL_openlibs( L);
+			libs = NULL; // done with libs
+		}
+		else
+		{
+			DEBUGSPEW_CODE( fprintf( stderr, "opening base library\n"));
+#if LUA_VERSION_NUM >= 502
+			// open base library the same way as in luaL_openlibs()
+			luaL_requiref( L, "_G", luaopen_base, 1);
+			lua_pop( L, 1);
+#else // LUA_VERSION_NUM
+			lua_pushcfunction( L, luaopen_base);
+			lua_pushstring( L, "");
+			lua_call( L, 1, 0);
+#endif // LUA_VERSION_NUM
+		}
+	}
+	STACK_END( L, 0)
+
+	// scan all libraries, open them one by one
+	if( libs)
+	{
+		char const* p;
+		unsigned int len = 0;
+		for( p = libs; *p; p += len)
+		{
+			len = 0;
+			// skip delimiters
+			while( *p && !isalnum( *p))
+				++ p;
+			// skip name
+			while( isalnum( p[len]))
+				++ len;
+			// open library
+			open1lib( L, p, len);
+		}
+		serialize_require( L);
+	}
+
+	lua_gc( L, LUA_GCRESTART, 0);
+
+	STACK_CHECK( L)
+	// after opening base, register the functions it exported in our name<->function database
+	lua_pushglobaltable( L); // Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
+	populate_func_lookup_table( L, -1, NULL);
+	lua_pop( L, 1);
+	STACK_END( L, 0)
 	return L;
 }
 
@@ -1895,25 +1913,23 @@ static int new_require( lua_State *L)
 */
 void serialize_require( lua_State *L )
 {
-	STACK_GROW(L,1);
-	STACK_CHECK(L)
+	STACK_GROW( L, 1);
+	STACK_CHECK( L)
 
 	// Check 'require' is there; if not, do nothing
 	//
-	lua_getglobal( L, "require" );
-	if (lua_isfunction( L, -1 ))
+	lua_getglobal( L, "require");
+	if( lua_isfunction( L, -1))
 	{
 		// [-1]: original 'require' function
-
-		lua_pushcclosure( L, new_require, 1 /*upvalues*/ );
-		lua_setglobal( L, "require" );
-
+		lua_pushcclosure( L, new_require, 1 /*upvalues*/);
+		lua_setglobal( L, "require");
 	}
 	else
 	{
 		// [-1]: nil
-		lua_pop(L,1);
+		lua_pop( L, 1);
 	}
 
-	STACK_END(L,0)
+	STACK_END( L, 0)
 }
