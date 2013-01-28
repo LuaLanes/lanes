@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 57: BGe 28-Jan-13
+   * More detailed DEBUG_SPEW logs
+   * A bit of code cosmetics
+
 CHANGE 56: BGe 25-Jan-13
    * version 3.4.4
    * bugfix: take into account the fact that "coroutine" is no longer part of base library in Lua 5.2

@@ -281,7 +281,7 @@ local function gen( ... )
         elseif k=="package" then
             package_tbl = (type( v) == "table") and v or error( "Bad package: " .. tostring( v), lev)
         elseif k=="required" then
-            required= (type( v) == "table") and v or error( "Bad required: " .. tostring( v), lev)
+            required= (type( v) == "table") and v or error( "Bad 'required' option: expecting table, got " .. type( v), lev)
         --..
         elseif k==1 then error( "unkeyed option: ".. tostring(v), lev )
         else error( "Bad option: ".. tostring(k), lev )

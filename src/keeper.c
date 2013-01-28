@@ -163,7 +163,7 @@ static void* const fifos_key = (void*) prepare_fifo_access;
 static void push_table( lua_State* L, int idx)
 {
 	STACK_GROW( L, 4);
-	STACK_CHECK( L)
+	STACK_CHECK( L);
 	idx = lua_absindex( L, idx);
 	lua_pushlightuserdata( L, fifos_key);        // ud fifos_key
 	lua_rawget( L, LUA_REGISTRYINDEX);           // ud fifos
@@ -187,7 +187,7 @@ int keeper_push_linda_storage( lua_State* L, void* ptr)
 {
 	struct s_Keeper* K = keeper_acquire( ptr);
 	lua_State* KL = K->L;
-	STACK_CHECK( KL)
+	STACK_CHECK( KL);
 	lua_pushlightuserdata( KL, fifos_key);                      // fifos_key
 	lua_rawget( KL, LUA_REGISTRYINDEX);                         // fifos
 	lua_pushlightuserdata( KL, ptr);                            // fifos ud
@@ -206,7 +206,7 @@ int keeper_push_linda_storage( lua_State* L, void* ptr)
 		keeper_fifo* fifo = prepare_fifo_access( KL, -1);         // storage key fifo
 		lua_pushvalue( KL, -2);                                   // storage key fifo key
 		luaG_inter_move( KL, L, 1);                               // storage key fifo          // out key
-		STACK_CHECK( L)
+		STACK_CHECK( L);
 		lua_newtable( L);                                                                      // out key keyout
 		luaG_inter_move( KL, L, 1);                               // storage key               // out key keyout fifo
 		lua_pushinteger( L, fifo->first);                                                      // out key keyout fifo first
@@ -217,10 +217,10 @@ int keeper_push_linda_storage( lua_State* L, void* ptr)
 		lua_setfield( L, -3, "limit");                                                         // out key keyout fifo
 		lua_setfield( L, -2, "fifo");                                                          // out key keyout
 		lua_rawset( L, -3);                                                                    // out
-		STACK_END( L, 0)
+		STACK_END( L, 0);
 	}
 	lua_pop( KL, 1);                                            //
-	STACK_END( KL, 0)
+	STACK_END( KL, 0);
 	keeper_release( K);
 	return 1;
 }
@@ -565,25 +565,30 @@ char const* init_keepers( lua_State* L, int const _nbKeepers, lua_CFunction _on_
 	GKeepers = malloc( _nbKeepers * sizeof( struct s_Keeper));
 	for( i = 0; i < _nbKeepers; ++ i)
 	{
+		lua_State* K;
+		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "### init_keepers %d BEGIN\n" INDENT_END, i));
+		DEBUGSPEW_CODE( ++ debugspew_indent_depth);
 		// We need to load all base libraries in the keeper states so that the transfer databases are populated properly
 		// 
 		// 'io' for debugging messages, 'package' because we need to require modules exporting idfuncs
 		// the others because they export functions that we may store in a keeper for transfer between lanes
-		lua_State* K = luaG_newstate( L, "*", _on_state_create);
+		K = luaG_newstate( L, "*", _on_state_create);
 
-		DEBUGSPEW_CODE( fprintf( stderr, "init_keepers %d\n", i));
-
-		STACK_CHECK( K)
-		// to see VM name in Decoda debugger
-		lua_pushliteral( K, "Keeper #");
-		lua_pushinteger( K, i + 1);
-		lua_concat( K, 2);
-		lua_setglobal( K, "decoda_name");
+		STACK_CHECK( K);
 
 		// replace default 'package' contents with stuff gotten from the master state
 		lua_getglobal( L, "package");
 		luaG_inter_copy_package( L, K, -1);
 		lua_pop( L, 1);
+
+		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "### init_keepers %d END\n" INDENT_END, i));
+		DEBUGSPEW_CODE( -- debugspew_indent_depth);
+
+		// to see VM name in Decoda debugger
+		lua_pushliteral( K, "Keeper #");
+		lua_pushinteger( K, i + 1);
+		lua_concat( K, 2);
+		lua_setglobal( K, "decoda_name");
 
 #if KEEPER_MODEL == KEEPER_MODEL_C
 		// create the fifos table in the keeper state
@@ -611,7 +616,7 @@ char const* init_keepers( lua_State* L, int const _nbKeepers, lua_CFunction _on_
 		STACK_MID( K, 2);
 		lua_pop( K, 2);
 #endif // KEEPER_MODEL == KEEPER_MODEL_LUA
-		STACK_END( K, 0)
+		STACK_END( K, 0);
 		MUTEX_INIT( &GKeepers[i].lock_);
 		GKeepers[i].L = K;
 		//GKeepers[i].count = 0;
@@ -630,7 +635,7 @@ void populate_keepers( lua_State* L)
 	char const* name = luaL_checklstring( L, -1, &name_len);
 	int i;
 
-	STACK_CHECK( L)
+	STACK_CHECK( L);
 	STACK_GROW( L, 3);
 
 	for( i = 0; i < GNbKeepers; ++ i)
@@ -638,20 +643,20 @@ void populate_keepers( lua_State* L)
 		lua_State* K = GKeepers[i].L;
 		int res;
 		MUTEX_LOCK( &GKeepers[i].lock_);
-		STACK_CHECK( K)
+		STACK_CHECK( K);
 		STACK_GROW( K, 2);
 		lua_getglobal( K, "require");
 		lua_pushlstring( K, name, name_len);
 		res = lua_pcall( K, 1, 0, 0);
-		if( res != 0)
+		if( res != LUA_OK)
 		{
 			char const* err = luaL_checkstring( K, -1);
 			luaL_error( L, "error requiring '%s' in keeper state: %s", name, err);
 		}
-		STACK_END( K, 0)
+		STACK_END( K, 0);
 		MUTEX_UNLOCK( &GKeepers[i].lock_);
 	}
-	STACK_END( L, 0)
+	STACK_END( L, 0);
 }
 
 struct s_Keeper* keeper_acquire( void const* ptr)
