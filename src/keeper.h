@@ -13,7 +13,7 @@ struct s_Keeper
 // problem: maybe on some platforms (linux) atexit() is called after DLL/so are unloaded...
 #define HAVE_KEEPER_ATEXIT_DESINIT 0
 
-char const* init_keepers( lua_State* L, int const _nbKeepers, lua_CFunction _on_state_create);
+char const* init_keepers( lua_State* L, int _on_state_create, int const _nbKeepers);
 #if !HAVE_KEEPER_ATEXIT_DESINIT
 void close_keepers( void);
 #endif // HAVE_KEEPER_ATEXIT_DESINIT

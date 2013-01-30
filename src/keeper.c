@@ -557,7 +557,7 @@ void close_keepers( void)
 *       unclosed, because it does not really matter. In production code, this
 *       function never fails.
 */
-char const* init_keepers( lua_State* L, int const _nbKeepers, lua_CFunction _on_state_create)
+char const* init_keepers( lua_State* L, int _on_state_create, int const _nbKeepers)
 {
 	int i;
 	assert( _nbKeepers >= 1);
@@ -572,7 +572,7 @@ char const* init_keepers( lua_State* L, int const _nbKeepers, lua_CFunction _on_
 		// 
 		// 'io' for debugging messages, 'package' because we need to require modules exporting idfuncs
 		// the others because they export functions that we may store in a keeper for transfer between lanes
-		K = luaG_newstate( L, "*", _on_state_create);
+		K = luaG_newstate( L, _on_state_create, "*");
 
 		STACK_CHECK( K);
 
@@ -635,8 +635,8 @@ void populate_keepers( lua_State* L)
 	char const* name = luaL_checklstring( L, -1, &name_len);
 	int i;
 
-	STACK_CHECK( L);
-	STACK_GROW( L, 3);
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "populate_keepers %s BEGIN\n" INDENT_END, name));
+	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
 
 	for( i = 0; i < GNbKeepers; ++ i)
 	{
@@ -647,16 +647,19 @@ void populate_keepers( lua_State* L)
 		STACK_GROW( K, 2);
 		lua_getglobal( K, "require");
 		lua_pushlstring( K, name, name_len);
-		res = lua_pcall( K, 1, 0, 0);
+		res = lua_pcall( K, 1, 1, 0);
 		if( res != LUA_OK)
 		{
 			char const* err = luaL_checkstring( K, -1);
 			luaL_error( L, "error requiring '%s' in keeper state: %s", name, err);
 		}
+		// after requiring the module, register the functions it exported in our name<->function database
+		populate_func_lookup_table( K, -1, name);
+		lua_pop( K, 1);
 		STACK_END( K, 0);
 		MUTEX_UNLOCK( &GKeepers[i].lock_);
 	}
-	STACK_END( L, 0);
+	DEBUGSPEW_CODE( -- debugspew_indent_depth);
 }
 
 struct s_Keeper* keeper_acquire( void const* ptr)

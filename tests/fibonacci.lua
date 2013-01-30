@@ -28,6 +28,7 @@ local KNOWN= { [0]=0, 1,1,2,3,5,8,13,21,34,55,89,144 }
 -- uint= fib( n_uint )
 --
 local function fib( n )
+	--local lanes = require"lanes".configure()
     --
     local sum
     local floor= assert(math.floor)
@@ -39,9 +40,11 @@ local function fib( n )
     else
         -- Splits into two; this task remains waiting for the results
         --
-        -- note that lanes is pulled in as upvalue, so we need package library to require internals properly
-        -- (because lua51-lanes is always required internally if possible, which is necessary in that case)
-        local gen_f= lanes.gen( "*", fib )
+        -- note that lanes is pulled in by upvalue, so we need lanes.core to be available
+				-- the other solution is to require "lanes" from inside the lane body, as in:
+				-- local lanes = require"lanes".configure()
+        -- local gen_f= lanes.gen( "*", fib)
+        local gen_f= lanes.gen( "*", {required={"lanes.core"}}, fib)
 
         local n1=floor(n/2) +1
         local n2=floor(n/2) -1 + n%2

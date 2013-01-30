@@ -69,7 +69,7 @@
 			</p>
 
 			<p>
-				This document was revised on 26-Jan-13, and applies to version <tt>3.4.4</tt>.
+				This document was revised on 30-Jan-13, and applies to version <tt>3.5.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -249,10 +249,17 @@
 				<code>.on_state_create</code>
 			</td>
 			<td>
-				C function/<tt>nil</tt>
+				function/<tt>nil</tt>
 			</td>
 			<td>
-				If provided, will be called in every created Lua state (keepers and lanes) right after it is created, and *before* any library is loaded. That way, all C functions it loads in the state can be added to the function lookup database. Default is <tt>nil</tt>.
+				If provided, will be called in every created Lua state (keepers and lanes) right after initializing the base libraries.
+				<br>
+				Typical usage is twofold:
+				<ul>
+					<li>Tweak <tt>package.loaders</tt></li>
+					<li>Load some additional C functions in the global space (of course only a C function will be able to do this).</li>
+				</ul>
+				That way, all changes in the state can be properly taken into account when building the function lookup database. Default is <tt>nil</tt>.
 			</td>
 		</tr>
 
@@ -269,6 +276,22 @@
 		</tr>
 	</table>
 </p>
+
+<p>
+	NEW (version 3.5.0)
+	<br>
+	Once Lanes is configured, one should register with Lanes the modules exporting functions that will be transferred either during lane generation or through <a href="#lindas">lindas</a>.
+	<br>
+	Use <tt>lanes.require()</tt> for this purpose. This will call the original <tt>require()</tt>, then add the result to the lookup databases.
+</p>
+
+<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%">
+	<tr>
+		<td>
+			<pre>	local m = lanes.require "modname"</pre>
+		</td>
+	</tr>
+</table>
 
 <hr/>
 <h2 id="creation">Creation</h2>
@@ -468,6 +491,8 @@
 				These tables are built from the modules listed here. <tt>required</tt> must be a list of strings, each one being the name of a module to be required. Each module is required with <tt>require()</tt> before the lanes function is invoked.
 				So, from the required module's point of view, requiring it manually from inside the lane body or having it required this way doesn't change anything. From the lane body's point of view, the only difference is that a module not creating a global won't be accessible.
 				Therefore, a lane body will also have to require a module manually, but this won't do anything more (see Lua's <tt>require</tt> documentation).
+				<br>
+				ATTEMPTING TO TRANSFER A FUNCTION REGISTERED BY A MODULE NOT LISTED HERE WILL RAISE AN ERROR.
 			</td>
 		</tr>
 		<tr valign=top>
@@ -567,7 +592,7 @@
 			</td>
 			<td/>
 			<td>
-				running, not suspended on a Linda call.
+				running, not suspended on a <a href="#lindas">Linda</a> call.
 			</td>
 		</tr>
 		<tr>
@@ -577,7 +602,7 @@
 			</td>
 			<td/>
 			<td>
-				waiting at a Linda <tt>:receive()</tt> or <tt>:send()</tt>
+				waiting at a <a href="#lindas">Linda</a> <tt>:receive()</tt> or <tt>:send()</tt>
 			</td>
 		</tr>
 		<tr>
@@ -711,7 +736,7 @@
 </pre></td></tr></table>
 
 <p>
-	If you want to wait for multiple lanes to finish (any of a set of lanes), use a <a href="#lindas">Linda</a> object. Give each lane a specific id, and send that id over a Linda once that thread is done (as the last thing you do).
+	If you want to wait for multiple lanes to finish (any of a set of lanes), use a <a href="#lindas">Linda</a> object. Give each lane a specific id, and send that id over a <a href="#lindas">Linda</a> once that thread is done (as the last thing you do).
 </p>
 
 <table border=1 bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
@@ -750,7 +775,7 @@
 <p>
 	Cancellation is tested <u>before</u> going to sleep in <tt>receive()</tt> or <tt>send()</tt> calls and after executing <tt>cancelstep</tt> Lua statements. Starting with version 3.0-beta, a pending <tt>receive()</tt>or <tt>send()</tt> call is awakened.
 	<br>
-	This means the execution of the lane will resume although the operation has not completed, to give the lane a chance to detect cancellation (even in the case the code waits on a linda with infinite timeout).
+	This means the execution of the lane will resume although the operation has not completed, to give the lane a chance to detect cancellation (even in the case the code waits on a <a href="#lindas">linda</a> with infinite timeout).
 	<br>
 	The code should be able to handle this situation appropriately if required (in other words, it should gracefully handle the fact that it didn't receive the expected values).
 	<br>

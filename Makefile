@@ -88,6 +88,8 @@ test:
 	$(MAKE) atexit
 	$(MAKE) linda_perf
 	$(MAKE) rupval
+	$(MAKE) package
+	$(MAKE) pingpong
 
 basic: tests/basic.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
@@ -165,6 +167,12 @@ atexit: tests/atexit.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 rupval: tests/rupval.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+package: tests/package.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+pingpong: tests/pingpong.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 #---

@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.4.4";
+char const* VERSION = "3.5.0";
 
 /*
 ===============================================================================
@@ -1529,7 +1529,6 @@ LUAG_FUNC( set_singlethreaded)
 # define STACK_TRACE_KEY ((void*)lane_error)     // used as registry key
 # define EXTENDED_STACK_TRACE_KEY ((void*)LG_set_error_reporting)     // used as registry key
 
-#ifdef ERROR_FULL_STACK
 LUAG_FUNC( set_error_reporting)
 {
 	bool_t equal;
@@ -1554,7 +1553,6 @@ done:
 	lua_rawset( L, LUA_REGISTRYINDEX);
 	return 0;
 }
-#endif // ERROR_FULL_STACK
 
 static int lane_error( lua_State* L)
 {
@@ -1735,8 +1733,8 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
     // [3..top]: parameters
     //
     rc= lua_pcall( L, lua_gettop(L)-2, LUA_MULTRET, 1 /*error handler*/ );
-        // 0: no error
-        // LUA_ERRRUN: a runtime error (error pushed on stack)
+        // 0: no error, body return values are on the stack
+        // LUA_ERRRUN: cancellation or a runtime error (error pushed on stack)
         // LUA_ERRMEM: memory allocation error
         // LUA_ERRERR: error while running the error handler (if any)
 
@@ -1744,14 +1742,12 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
 
     lua_remove(L,1);    // remove error handler
 
-    // Lua 5.1 error handler is limited to one return value; taking stack trace
-    // via registry
-    //
-    if( rc != 0)
+    // Lua 5.1 error handler is limited to one return value; taking stack trace via registry
+    if( rc != LUA_OK)
     {
         STACK_GROW(L,1);
         lua_pushlightuserdata( L, STACK_TRACE_KEY );
-        lua_gettable(L, LUA_REGISTRYINDEX);
+        lua_gettable(L, LUA_REGISTRYINDEX); // yields nil if no stack was generated (in case of cancellation for example)
 
         // For cancellation, a stack trace isn't placed
         //
@@ -1773,7 +1769,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
         // LUA_ERRMEM(4): memory allocation error
 #endif
 
-    DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "Lane %p body: %s\n" INDENT_END, L, get_errcode_name( rc)));
+    DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "Lane %p body: %s (%s)\n" INDENT_END, L, get_errcode_name( rc), (lua_touserdata(L,1)==CANCEL_ERROR) ? "cancelled" : lua_typename( L, lua_type( L, 1))));
     //STACK_DUMP(L);
     // Call finalizers, if the script has set them up.
     //
@@ -1831,6 +1827,26 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
     return 0;   // ignored
 }
 
+// --- If a client wants to transfer stuff of a given module from the current state to another Lane, the module must be required
+// with lanes.require, that will call the regular 'require', then populate lookup databases in source and keeper states
+// module = lanes.require( "modname")
+// upvalue[1]: _G.require
+LUAG_FUNC( require)
+{
+	char const* name = lua_tostring( L, 1);
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lanes.require %s BEGIN\n" INDENT_END, name));
+	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
+	lua_pushvalue( L, lua_upvalueindex(1));   // "name" require
+	lua_pushvalue( L, 1);                     // "name" require "name"
+	lua_call( L, 1, 1);                       // "name" module
+	populate_func_lookup_table( L, -1, name);
+	lua_insert( L, -2);                       // module "name"
+	populate_keepers( L);
+	lua_pop( L, 1);                           // module
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lanes.require %s END\n" INDENT_END, name));
+	DEBUGSPEW_CODE( -- debugspew_indent_depth);
+	return 1;
+}
 
 //---
 // lane_ud= thread_new( function, [libs_str], 
@@ -1844,32 +1860,6 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
 // Upvalues: metatable to use for 'lane_ud'
 //
 
-// helper function to require a module in the keeper states and in the target state
-// source state contains module name at the top of the stack
-static void require_one_module( lua_State* L, lua_State* L2, bool_t _fatal)
-{
-	size_t len;
-	char const* name = lua_tolstring( L, -1, &len);
-	// require the module in the target lane
-	STACK_GROW( L2, 2);
-	lua_getglobal( L2, "require");
-	if( lua_isnil( L2, -1))
-	{
-		lua_pop( L2, 1);
-		if( _fatal)
-		{
-			luaL_error( L, "cannot pre-require modules without loading 'package' library first");
-		}
-	}
-	else
-	{
-		lua_pushlstring( L2, name, len);
-		lua_pcall( L2, 1, 0, 0);
-		// we need to require this module in the keeper states as well
-		populate_keepers( L);
-	}
-}
-
 LUAG_FUNC( thread_new)
 {
 	lua_State* L2;
@@ -1877,17 +1867,17 @@ LUAG_FUNC( thread_new)
 	struct s_lane** ud;
 
 	char const* libs = lua_tostring( L, 2);
-	lua_CFunction on_state_create = lua_iscfunction( L, 3) ? lua_tocfunction( L, 3) : NULL;
+	int const on_state_create = lua_isfunction( L, 3) ? 3 : 0;
 	uint_t cs = luaG_optunsigned( L, 4, 0);
 	int prio = (int) luaL_optinteger( L, 5, 0);
-	uint_t glob = luaG_isany( L, 6) ? 6 : 0;
-	uint_t package = luaG_isany( L,7) ? 7 : 0;
-	uint_t required = luaG_isany( L, 8) ? 8 : 0;
+	uint_t glob = lua_isnoneornil( L, 6) ? 0 : 6;
+	uint_t package = lua_isnoneornil( L,7) ? 0 : 7;
+	uint_t required = lua_isnoneornil( L, 8) ? 0 : 8;
 
 #define FIXED_ARGS 8
 	uint_t args= lua_gettop(L) - FIXED_ARGS;
 
-	if (prio < THREAD_PRIO_MIN || prio > THREAD_PRIO_MAX)
+	if( prio < THREAD_PRIO_MIN || prio > THREAD_PRIO_MAX)
 	{
 		return luaL_error( L, "Priority out of range: %d..+%d (%d)", THREAD_PRIO_MIN, THREAD_PRIO_MAX, prio);
 	}
@@ -1898,7 +1888,7 @@ LUAG_FUNC( thread_new)
 
 	// populate with selected libraries at  the same time
 	//
-	L2 = luaG_newstate( L, libs, on_state_create);
+	L2 = luaG_newstate( L, on_state_create, libs);
 
 	STACK_GROW( L, 2);
 	STACK_GROW( L2, 3);
@@ -1918,17 +1908,6 @@ LUAG_FUNC( thread_new)
 
 	// modules to require in the target lane *before* the function is transfered!
 
-	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "thread_new: require 'lanes.core'\n" INDENT_END));
-	//start by requiring lanes.core, since it is a bit special
-	// it is not fatal if 'require' isn't loaded, just ignore (may cause function transfer errors later on if the lane pulls the lanes module itself)
-	STACK_CHECK( L);
-	STACK_CHECK( L2);
-	lua_pushliteral( L, "lanes.core");
-	require_one_module( L, L2, FALSE);
-	lua_pop( L, 1);
-	STACK_END( L2, 0);
-	STACK_END (L, 0);
-
 	STACK_CHECK( L);
 	STACK_CHECK( L2);
 	if( required)
@@ -1941,6 +1920,7 @@ LUAG_FUNC( thread_new)
 		{
 			return luaL_error( L, "expected required module list as a table, got %s", luaL_typename( L, required));
 		}
+
 		lua_pushnil( L);
 		while( lua_next( L, required) != 0)
 		{
@@ -1950,7 +1930,32 @@ LUAG_FUNC( thread_new)
 			}
 			else
 			{
-				require_one_module( L, L2, TRUE);
+				// require the module in the target state, and populate the lookup table there too
+				size_t len;
+				char const* name = lua_tolstring( L, -1, &len);
+
+				// require the module in the target lane
+				STACK_GROW( L2, 2);
+				STACK_CHECK( L2);
+				lua_getglobal( L2, "require");                       // require()?
+				if( lua_isnil( L2, -1))
+				{
+					lua_pop( L2, 1);                                   //
+					luaL_error( L, "cannot pre-require modules without loading 'package' library first");
+				}
+				else
+				{
+					lua_pushlstring( L2, name, len);                   // require() name
+					lua_pcall( L2, 1, 1, 0);                           // ret
+					STACK_MID( L2, 1);
+					// after requiring the module, register the functions it exported in our name<->function database
+					populate_func_lookup_table( L2, -1, name);
+					STACK_MID( L2, 1);
+					lua_pop( L2, 1);
+					// don't require this module in the keeper states as well, use lanes.require() for that!
+					//populate_keepers( L);
+				}
+				STACK_END( L2, 0);
 			}
 			lua_pop( L, 1);
 			++ nbRequired;
@@ -2578,7 +2583,7 @@ static const struct luaL_Reg lanes_functions [] = {
 /*
 * One-time initializations
 */
-static void init_once_LOCKED( lua_State* L, int const nbKeepers, lua_CFunction _on_state_create, lua_Number _shutdown_timeout, bool_t _track_lanes)
+static void init_once_LOCKED( lua_State* L, int const _on_state_create, int const nbKeepers, lua_Number _shutdown_timeout, bool_t _track_lanes)
 {
     char const* err;
 
@@ -2603,7 +2608,7 @@ static void init_once_LOCKED( lua_State* L, int const nbKeepers, lua_CFunction _
         //
         MUTEX_RECURSIVE_INIT( &require_cs );
 
-        serialize_require( L );
+        serialize_require( L);
 
         // Linked chains handling
         //
@@ -2635,7 +2640,7 @@ static void init_once_LOCKED( lua_State* L, int const nbKeepers, lua_CFunction _
         }
   #endif
 #endif
-    err = init_keepers( L, nbKeepers, _on_state_create);
+    err = init_keepers( L, _on_state_create, nbKeepers);
     if (err)
     {
             (void) luaL_error( L, "Unable to initialize: %s", err );
@@ -2691,7 +2696,7 @@ LUAG_FUNC( configure)
 	char const* name = luaL_checkstring( L, lua_upvalueindex( 1));
 	// all parameter checks are done lua-side
 	int const nbKeepers = (int)lua_tointeger( L, 1);
-	lua_CFunction on_state_create = lua_iscfunction( L, 2) ? lua_tocfunction( L, 2) : NULL;
+	int const on_state_create = lua_isfunction( L, 2) ? 2 : 0;
 	lua_Number shutdown_timeout = lua_tonumber( L, 3);
 	bool_t track_lanes = lua_toboolean( L, 4);
 
@@ -2732,6 +2737,11 @@ LUAG_FUNC( configure)
 	lua_pushcclosure( L, LG_thread_new, 1);                                // ... M LG_thread_new
 	lua_setfield(L, -2, "thread_new");                                     // ... M
 
+	// we can't register 'lanes.require' normally because we want to create an upvalued closure
+	lua_getglobal( L, "require");                                          // ... M require
+	lua_pushcclosure( L, LG_require, 1);                                   // ... M lanes.require
+	lua_setfield( L, -2, "require");                                       // ... M
+
 	lua_pushstring(L, VERSION);                                            // ... M VERSION
 	lua_setfield(L, -2, "version");                                        // ... M
 
@@ -2743,7 +2753,7 @@ LUAG_FUNC( configure)
 
 	// register all native functions found in that module in the transferable functions database
 	// we process it before _G because we don't want to find the module when scanning _G (this would generate longer names)
-	// for example in package.loaded.lanes.core.*
+	// for example in package.loaded["lanes.core"].*
 	populate_func_lookup_table( L, -1, name);
 
 	// record all existing C/JIT-fast functions
@@ -2768,7 +2778,7 @@ LUAG_FUNC( configure)
 		static volatile int /*bool*/ go_ahead; // = 0
 		if( InterlockedCompareExchange( &s_initCount, 1, 0) == 0)
 		{
-			init_once_LOCKED( L, nbKeepers, on_state_create, shutdown_timeout, track_lanes);
+			init_once_LOCKED( L, on_state_create, nbKeepers, shutdown_timeout, track_lanes);
 			go_ahead = 1;    // let others pass
 		}
 		else
@@ -2786,7 +2796,7 @@ LUAG_FUNC( configure)
 			//
 			if( s_initCount == 0)
 			{
-				init_once_LOCKED( L, nbKeepers, on_state_create, shutdown_timeout, track_lanes);
+				init_once_LOCKED( L, on_state_create, nbKeepers, shutdown_timeout, track_lanes);
 				s_initCount = 1;
 			}
 		}

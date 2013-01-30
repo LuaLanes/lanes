@@ -1,5 +1,19 @@
 CHANGES:
 
+CHANGE 58: BGe 30-Jan-13
+   * version 3.5.0
+   * new: API lanes.require(), use it instead of regular require() for modules that export C functions you need to send over.
+   * new: lanes no longer require 'lanes.core' by default in every created state. Use {required={"lanes.core"}} if you need to transfer lanes functions.
+   * internal: because of the above, reworked the timer implementation to remove upvalue-dependency on lanes.core
+   * new: API lanes.timer_lane, to be able to operate on timer lane if need be
+   * improved: if a module is a full userdata, scan its metatable for function database population
+   * improved: on_state_create can be a Lua function
+   * changed: on_state_create is called after the base libraries are loaded
+   * package[loaders|searchers] is no longer transfered as function naming depends on slot order
+   * internal: changed separator from '.' to '/' in lookup databases to be able to distinguish search levels and dot coming from module names
+   * added some mode debug spew
+   * updated tests to reflect the above changes
+
 CHANGE 57: BGe 28-Jan-13
    * More detailed DEBUG_SPEW logs
    * A bit of code cosmetics
@@ -210,7 +224,7 @@ CHANGE 19 BGe 2-Dec-2010:
 
 CHANGE 18 BGe 6-Oct-2010:
     Fixed 'memory leak' in some situations where a free running lane is collected before application shutdown
-	A bit of code cleanup
+    A bit of code cleanup
 
 CHANGE 17 BGe 21-Sept-2010:
     Fixed stupid compilation errors.

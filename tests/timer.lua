@@ -8,8 +8,7 @@
 io.stderr:setvbuf "no"
 
 
-local lanes = require "lanes"
-lanes.configure()
+local lanes = require "lanes".configure()
 
 local linda= lanes.linda()
 
@@ -101,3 +100,5 @@ PRINT "...making sure no ticks are coming..."
 local k,v= linda:receive( 10, T1,T2 )    -- should not get any
 assert(v==nil)
 
+lanes.timer_lane:cancel()
+print (lanes.timer_lane[1], lanes.timer_lane[2])

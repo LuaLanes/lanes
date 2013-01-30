@@ -78,11 +78,9 @@ extern int debugspew_indent_depth;
 #define luaG_optunsigned(L,i,d) ((uint_t) luaL_optinteger(L,i,d))
 #define luaG_tounsigned(L,i) ((uint_t) lua_tointeger(L,i))
 
-#define luaG_isany(L,i)  (!lua_isnil(L,i))
-
 void luaG_dump( lua_State* L );
 
-lua_State* luaG_newstate( lua_State* _from, char const* libs, lua_CFunction _on_state_create);
+lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char const* libs);
 
 typedef struct {
     volatile int refcount;
@@ -96,6 +94,7 @@ int luaG_inter_copy( lua_State *L, lua_State *L2, uint_t n);
 int luaG_inter_move( lua_State *L, lua_State *L2, uint_t n);
 
 int luaG_nameof( lua_State* L);
+int luaG_new_require( lua_State* L);
 
 // Lock for reference counter inc/dec locks (to be initialized by outside code)
 //
