@@ -538,7 +538,11 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 			luaG_inter_move( _from, L, 1);
 			STACK_END( _from, 0);
 		}
-		lua_call( L, 0, 0);
+		// capture error and forward it to main state
+		if( lua_pcall( L, 0, 0, 0) != LUA_OK)
+		{
+			luaL_error( _from, "on_state_create failed: \"%s\"", lua_isstring( L, -1) ? lua_tostring( L, -1) : lua_typename( L, lua_type( L, -1)));
+		}
 		STACK_MID( L, 0);
 	}
 
