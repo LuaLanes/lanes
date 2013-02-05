@@ -1438,7 +1438,7 @@ static bool_t inter_copy_one_( lua_State *L2, uint_t L2_cache_i, lua_State *L, u
 static void inter_copy_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i)
 {
 	FuncSubType funcSubType;
-	lua_CFunction cfunc = luaG_tocfunction( L, i, &funcSubType); // NULL for LuaJIT-fast && bytecode functions
+	/*lua_CFunction cfunc =*/ luaG_tocfunction( L, i, &funcSubType); // NULL for LuaJIT-fast && bytecode functions
 
 	ASSERT_L( L2_cache_i != 0);                                                       // ... {cache} ... p
 	STACK_GROW(L,2);
