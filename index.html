@@ -37,7 +37,8 @@
 		<p class="bar">
 			<a href="#description">Description</a> &middot;
 			<a href="#systems">Supported systems</a> &middot;
-			<a href="#installing">Building and Installing</a>
+			<a href="#installing">Building and Installing</a> &middot;
+			<a href="#embedding">Embedding</a>
 		</p>
 
 		<p class="bar">
@@ -69,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 30-Jan-13, and applies to version <tt>3.5.0</tt>.
+				This document was revised on 12-Feb-13, and applies to version <tt>3.5.1</tt>.
 			</p>
 		</font>
 	</center>
@@ -163,6 +164,65 @@
 	... output ...
 </pre>
 
+
+<!-- embedding +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+<hr/>
+<h2 id="embedding">Embedding</h2>
+<p>
+	When Lanes is embedded, it is possible to statically initialize with
+</p>
+<table border=1 bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
+	<tr>
+		<td>
+			<pre>	extern void LANES_API luaopen_lanes_embedded( lua_State* L, lua_CFunction _luaopen_lanes);</pre>
+		</td>
+	</tr>
+</table>
+<p>
+	<tt>luaopen_lanes_embedded</tt> leaves the module table on the stack. <tt>lanes.configure()</tt> must still be called in order to use Lanes.
+	<br/>
+	If <tt>_luaopen_lanes</tt> is <tt>NULL</tt>, a default loader will simply attempt the equivalent of <tt>luaL_dofile( L, "lanes.lua")</tt>.
+</p>
+
+<p>
+	To embed Lanes, compile source files in you application. In any Lua state were you want to use Lanes, initialize it as follows:
+</p>
+
+<p>
+	<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%">
+	<tr>
+			<td>
+				<pre>	#include "lanes.h"</pre>
+				<br/>
+				<pre>	int load_lanes_lua( lua_State* L)</pre>
+				<pre>	{</pre>
+				<pre>		// retrieve lanes.lua from wherever it is stored and return the result of its execution</pre>
+				<pre>		// trivial example 1:</pre>
+				<pre>		luaL_dofile( L, "lanes.lua");</pre>
+				<br/>
+				<pre>		// trivial example 2:</pre>
+				<pre>		luaL_dostring( L, bin2c_lanes_lua);</pre>
+				<pre>	}</pre>
+				<br/>
+				<pre>	void embed_lanes( lua_State* L)</pre>
+				<pre>	{</pre>
+				<pre>		// we need base libraries for Lanes for work</pre>
+				<pre>		luaL_openlibs( L);</pre>
+				<pre>		...</pre>
+				<pre>		// will attempt luaL_dofile( L, "lanes.lua");</pre>
+				<pre>		luaopen_lanes_embedded( L, NULL);</pre>
+				<pre>		lua_pop( L, 1);</pre>
+				<pre>		// another example with a custom loader</pre>
+				<pre>		luaopen_lanes_embedded( L, load_lanes_lua);</pre>
+				<pre>		lua_pop( L, 1);</pre>
+				<br/>
+				<pre>		// a little test to make sure things work as expected</pre>
+				<pre>		luaL_dostring( L, "local lanes = require 'lanes'.configure{with_timers = false}; local l = lanes.linda()");</pre>
+				<pre>	}</pre>
+			</td>
+		</tr>
+	</table>
+</p>
 
 <!-- launching +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
 <hr/>
@@ -438,7 +498,7 @@
 			</td>
 			<td/>
 			<td>
-				All standard libraries (including those specific to LuaJIT and not listed above). This must be used alone.
+				All standard libraries (including those specific to LuaJIT and not listed above), as well as <tt>lanes.core</tt>. This must be used alone.
 			</td>
 		</tr>
 	</table>
@@ -765,7 +825,7 @@
 </p>
 
 <p>
-	If the lane is still running after the timeout expired and <tt>force_kill</tt> is <tt>true</tt>, the OS thread running the lane is forcefully killed. This means no GC, and should generally be the last resort.
+	If the lane is still running after the timeout expired and <tt>force_kill</tt> is <tt>true</tt>, the OS thread running the lane is forcefully killed. This means no GC, probable OS resource leaks (thread stack, locks, DLL notifications), and should generally be the last resort.
 </p>
 
 <p>
