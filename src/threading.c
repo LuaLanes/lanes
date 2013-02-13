@@ -42,7 +42,7 @@ THE SOFTWARE.
 #include "threading.h"
 #include "lua.h"
 
-#if !defined( PLATFORM_WIN32) && !defined( PLATFORM_POCKETPC)
+#if !defined( PLATFORM_XBOX) && !defined( PLATFORM_WIN32) && !defined( PLATFORM_POCKETPC)
 # include <sys/time.h>
 #endif // non-WIN32 timing
 
@@ -83,7 +83,7 @@ THE SOFTWARE.
 * FAIL is for unexpected API return values - essentially programming 
 * error in _this_ code. 
 */
-#if defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
+#if defined( PLATFORM_XBOX) || defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
 static void FAIL( const char *funcname, int rc ) {
     fprintf( stderr, "%s() failed! (%d)\n", funcname, rc );
 #ifdef _MSC_VER
@@ -102,7 +102,7 @@ static void FAIL( const char *funcname, int rc ) {
 */
 time_d now_secs(void) {
 
-#if defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
+#if defined( PLATFORM_XBOX) || defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
     /*
     * Windows FILETIME values are "100-nanosecond intervals since 
     * January 1, 1601 (UTC)" (MSDN). Well, we'd want Unix Epoch as
@@ -226,7 +226,7 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
 //                      valid values N * 4KB
 //
 #ifndef _THREAD_STACK_SIZE
-# if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC) || (defined PLATFORM_CYGWIN)
+# if defined( PLATFORM_XBOX) || defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC) || defined( PLATFORM_CYGWIN)
 #  define _THREAD_STACK_SIZE 0
       // Win32: does it work with less?
 # elif (defined PLATFORM_OSX)
@@ -311,10 +311,15 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
     return TRUE;
   }
   //
-  void THREAD_KILL( THREAD_T *ref ) {
-    if (!TerminateThread( *ref, 0 )) FAIL("TerminateThread", GetLastError());
-    *ref= NULL;
-  }
+	void THREAD_KILL( THREAD_T *ref )
+	{
+		// nonexistent on Xbox360, simply disable until a better solution is found
+		#if !defined( PLATFORM_XBOX)
+		// in theory no-one should call this as it is very dangerous (memory and mutex leaks, no notification of DLLs, etc.)
+		if (!TerminateThread( *ref, 0 )) FAIL("TerminateThread", GetLastError());
+		#endif // PLATFORM_XBOX
+		*ref= NULL;
+	}
 
 #if !defined __GNUC__
 	//see http://msdn.microsoft.com/en-us/library/xcb2z8hs.aspx

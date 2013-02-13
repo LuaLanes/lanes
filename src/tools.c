@@ -33,6 +33,7 @@ THE SOFTWARE.
 
 #include "tools.h"
 #include "keeper.h"
+#include "lanes.h"
 
 #include "lualib.h"
 #include "lauxlib.h"
@@ -41,6 +42,43 @@ THE SOFTWARE.
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+
+/*
+** Copied from Lua 5.2 loadlib.c
+*/
+#if LUA_VERSION_NUM == 501
+static int luaL_getsubtable (lua_State *L, int idx, const char *fname)
+{
+	lua_getfield(L, idx, fname);
+	if (lua_istable(L, -1))
+		return 1;  /* table already there */
+	else
+	{
+		lua_pop(L, 1);  /* remove previous result */
+		idx = lua_absindex(L, idx);
+		lua_newtable(L);
+		lua_pushvalue(L, -1);  /* copy to be left at top */
+		lua_setfield(L, idx, fname);  /* assign new table to field */
+		return 0;  /* false, because did not find table there */
+	}
+}
+
+void luaL_requiref (lua_State *L, const char *modname, lua_CFunction openf, int glb)
+{
+	lua_pushcfunction(L, openf);
+	lua_pushstring(L, modname);  /* argument to open function */
+	lua_call(L, 1, 1);  /* open module */
+	luaL_getsubtable(L, LUA_REGISTRYINDEX, "_LOADED");
+	lua_pushvalue(L, -2);  /* make copy of module (call result) */
+	lua_setfield(L, -2, modname);  /* _LOADED[modname] = module */
+	lua_pop(L, 1);  /* remove _LOADED table */
+	if (glb)
+	{
+		lua_pushvalue(L, -1);  /* copy of 'mod' */
+		lua_setglobal(L, modname);  /* _G[modname] = module */
+	}
+}
+#endif // LUA_VERSION_NUM
 
 DEBUGSPEW_CODE( char const* debugspew_indent = "----+----!----+----!----+----!----+----!----+----!----+----!----+----!----+");
 DEBUGSPEW_CODE( int debugspew_indent_depth = 0);
@@ -98,14 +136,24 @@ void luaG_dump( lua_State* L ) {
 
 /*---=== luaG_newstate ===---*/
 
+static int require_lanes_core( lua_State* L)
+{
+	// leaves a copy of 'lanes.core' module table on the stack
+	luaL_requiref( L, "lanes.core", luaopen_lanes_core, 0);
+	return 1;
+}
+
+
 static const luaL_Reg libs[] =
 {
 	{ LUA_LOADLIBNAME, luaopen_package},
 	{ LUA_TABLIBNAME, luaopen_table},
 	{ LUA_STRLIBNAME, luaopen_string},
 	{ LUA_MATHLIBNAME, luaopen_math},
+#ifndef PLATFORM_XBOX // no os/io libs on xbox
 	{ LUA_OSLIBNAME, luaopen_os},
 	{ LUA_IOLIBNAME, luaopen_io},
+#endif // PLATFORM_XBOX
 #if LUA_VERSION_NUM >= 502
 	{ LUA_BITLIBNAME, luaopen_bit32},
 	{ LUA_COLIBNAME, luaopen_coroutine}, // Lua 5.2: coroutine is no longer a part of base!
@@ -113,6 +161,7 @@ static const luaL_Reg libs[] =
 	{ LUA_COLIBNAME, NULL},              // Lua 5.1: part of base package
 #endif // LUA_VERSION_NUM
 	{ LUA_DBLIBNAME, luaopen_debug},
+	{ "lanes.core", require_lanes_core}, // So that we can open it like any base library (possible since we have access to the init function)
 	//
 	{ "base", NULL},                     // ignore "base" (already acquired it)
 	{ NULL, NULL }
@@ -135,9 +184,11 @@ static void open1lib( lua_State* L, char const* name, size_t len)
 				lua_pop( L, 1);
 #else // LUA_VERSION_NUM
 				STACK_GROW( L, 1);
+				// push function and 1 argument on the stack
 				lua_pushcfunction( L, libs[i].func);
-				// pushes the module table on the stack
-				lua_call( L, 0, 0);
+				lua_pushstring( L, libs[i].name);
+				// call function, pushes the module table on the stack
+				lua_call( L, 1, 0);
 #endif // LUA_VERSION_NUM
 				STACK_END( L, 0);
 			}
@@ -443,6 +494,7 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* _name)
 * Base ("unpack", "print" etc.) is always added, unless 'libs' is NULL.
 *
 */
+extern void register_core_libfuncs_for_keeper( lua_State* L);
 
 lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char const* libs)
 {
@@ -475,10 +527,24 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 	//
 	if( libs)
 	{
-		if( libs[0] == '*' && libs[1] == 0) // special "*" case (mainly to help with LuaJIT compatibility)
+		// special "*" case (mainly to help with LuaJIT compatibility)
+		// "K" is used when opening keeper states: almost the same as "*", but for the fact we don't open lanes.core
+		// as we are called from luaopen_lanes_core() already, and that would deadlock
+		if( (libs[0] == '*' || libs[0] == 'K') && libs[1] == 0)
 		{
 			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening ALL standard libraries\n" INDENT_END));
 			luaL_openlibs( L);
+			if( libs[0] == '*')
+			{
+				// don't forget lanes.core for regular lane states
+				open1lib( L, "lanes.core", 10);
+			}
+			else
+			{
+				// In keeper states however, we only want to register the lanes.core functions to be able to transfer them through lindas
+				// (we don't care about a full lanes.core init in the keeper states as we won't call anything in there)
+				register_core_libfuncs_for_keeper( L);
+			}
 			libs = NULL; // done with libs
 		}
 		else
@@ -504,12 +570,12 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 		unsigned int len = 0;
 		for( p = libs; *p; p += len)
 		{
-			len = 0;
-			// skip delimiters
-			while( *p && !isalnum( *p))
+			// skip delimiters ('.' can be part of name for "lanes.core")
+			while( *p && !isalnum( *p) && *p != '.')
 				++ p;
 			// skip name
-			while( isalnum( p[len]))
+			len = 0;
+			while( isalnum( p[len]) || p[len] == '.')
 				++ len;
 			// open library
 			open1lib( L, p, len);

@@ -1,5 +1,12 @@
 CHANGES:
 
+CHANGE 59: BGe 12-Feb-13
+   * version 3.5.1
+   * new lanes.h header and API call luaopen_lanes_embedded() for embedders
+   * "lanes.core" is an acceptable library in the generator libs argument
+   * library "*" wildcard also opens lanes.core
+   * tweaked code for Xbox 360 build
+
 CHANGE 58: BGe 30-Jan-13
    * version 3.5.0
    * new: API lanes.require(), use it instead of regular require() for modules that export C functions you need to send over.

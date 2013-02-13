@@ -52,7 +52,7 @@ lanes.configure = function( _params)
 	end
 
 	-- 
-	-- Cache globals for code that might run under sandboxing 
+	-- Cache globals for code that might run under sandboxing
 	--
 	local assert = assert
 	local string_gmatch = assert( string.gmatch)
@@ -199,18 +199,20 @@ end
 -- and call the generator later (maybe multiple times, with different parameters) 
 -- or add on actual thread arguments to also ignite the thread on the same call.
 
-local valid_libs= {
-    ["package"]= true,
-    ["table"]= true,
-    ["io"]= true,
-    ["os"]= true,
-    ["string"]= true,
-    ["math"]= true,
-    ["debug"]= true,
-    ["bit32"]= true, -- Lua 5.2 only, ignored silently under 5.1
-    --
-    ["base"]= true,
-    ["coroutine"]= true
+local valid_libs=
+{
+	["package"] = true,
+	["table"] = true,
+	["io"] = true,
+	["os"] = true,
+	["string"] = true,
+	["math"] = true,
+	["debug"] = true,
+	["bit32"] = true, -- Lua 5.2 only, ignored silently under 5.1
+	--
+	["base"] = true,
+	["coroutine"] = true, -- part of "base" in Lua 5.1
+	["lanes.core"] = true
 }
 
 -- PUBLIC LANES API
@@ -253,7 +255,7 @@ local function gen( ... )
     if libs and libs ~= "*" then
         local found = {}
         -- check that the caller only provides reserved library names
-        for s in string_gmatch(libs, "[%a%d]+") do
+        for s in string_gmatch(libs, "[%a%d.]+") do
             if not valid_libs[s] then
                 error( "Bad library name: " .. s)
             else

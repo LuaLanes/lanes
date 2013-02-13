@@ -11,6 +11,8 @@
  */
 #ifdef _WIN32_WCE
   #define PLATFORM_POCKETPC
+#elif defined(_XBOX)
+  #define PLATFORM_XBOX
 #elif (defined _WIN32)
   #define PLATFORM_WIN32
 #elif (defined __linux__)
@@ -47,7 +49,7 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
 #define THREADAPI_WINDOWS 1
 #define THREADAPI_PTHREAD 2
 
-#if( defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)) && !defined( HAVE_WIN32_PTHREAD)
+#if( defined( PLATFORM_XBOX) || defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)) && !defined( HAVE_WIN32_PTHREAD)
 #define THREADAPI THREADAPI_WINDOWS
 #else // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 #define THREADAPI THREADAPI_PTHREAD
@@ -57,10 +59,14 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
 */
 
 #if THREADAPI == THREADAPI_WINDOWS
-  #define WIN32_LEAN_AND_MEAN
-  // 'SignalObjectAndWait' needs this (targets Windows 2000 and above)
-  #define _WIN32_WINNT 0x0400
-  #include <windows.h>
+  #if defined ( PLATFORM_XBOX)
+    #include <xtl.h>
+  #else // !PLATFORM_XBOX
+    #define WIN32_LEAN_AND_MEAN
+    // 'SignalObjectAndWait' needs this (targets Windows 2000 and above)
+    #define _WIN32_WINNT 0x0400
+    #include <windows.h>
+  #endif // !PLATFORM_XBOX
   #include <process.h>
 
   // MSDN: http://msdn2.microsoft.com/en-us/library/ms684254.aspx
@@ -119,7 +125,7 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   //
   #if defined( PLATFORM_OSX)
     #define YIELD() pthread_yield_np()
-  #elif defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
+  #elif defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC) // no PTHREAD for PLATFORM_XBOX
     // for some reason win32-pthread doesn't have pthread_yield(), but sched_yield()
     #define YIELD() sched_yield()
   #else

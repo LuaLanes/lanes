@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.5.0";
+char const* VERSION = "3.5.1";
 
 /*
 ===============================================================================
@@ -92,8 +92,9 @@ THE SOFTWARE.
 #include "threading.h"
 #include "tools.h"
 #include "keeper.h"
+#include "lanes.h"
 
-#if !((defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC))
+#if !(defined( PLATFORM_XBOX) || defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC))
 # include <sys/time.h>
 #endif
 
@@ -2580,6 +2581,26 @@ static const struct luaL_Reg lanes_functions [] = {
     {NULL, NULL}
 };
 
+
+/*
+ * minimal function registration for keepers, just so that we can populate the transfer databases with them
+ * without recursively deadlocking ourselves during one-time inits
+ */
+void register_core_libfuncs_for_keeper( lua_State* L)
+{
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lanes.register_core_libfuncs_for_keeper()\n" INDENT_END));
+	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
+	STACK_GROW( L, 1);
+	STACK_CHECK( L);
+	lua_newtable( L);
+	luaG_registerlibfuncs( L, lanes_functions);
+	STACK_MID( L, 1);
+	populate_func_lookup_table( L, -1, "lanes.core");
+	lua_pop( L, 1);
+	STACK_END( L, 0);
+	DEBUGSPEW_CODE( -- debugspew_indent_depth);
+}
+
 /*
 * One-time initializations
 */
@@ -2645,7 +2666,7 @@ static void init_once_LOCKED( lua_State* L, int const _on_state_create, int cons
     {
             (void) luaL_error( L, "Unable to initialize: %s", err );
     }
-    
+
     // Initialize 'timer_deep'; a common Linda object shared by all states
     //
     ASSERT_L( timer_deep == NULL);
@@ -2842,43 +2863,54 @@ void EnableCrashingOnCrashes()
 #endif // PLATFORM_WIN32
 }
 
-int 
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
-__declspec(dllexport)
-#endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
-luaopen_lanes_core( lua_State* L)
+int LANES_API luaopen_lanes_core( lua_State* L)
 {
 	EnableCrashingOnCrashes();
 
 	STACK_GROW( L, 3);
 	STACK_CHECK( L);
 
-	// sanity check: let's see if _"VERSION" matches what we we built against
-	lua_getglobal( L, "_VERSION");
-	lua_pushstring( L, LUA_VERSION_NUM == 501 ? "Lua 5.1" : "Lua 5.2");
-	if( !lua_rawequal( L, -1, -2))
-	{
-		return luaL_error( L, "Lanes is built against %s, but you are running %s", lua_tostring( L, -1), lua_tostring( L, -2));
-	}
-	lua_pop( L, 2);
-
 	// Create main module interface table
 	// we only have 1 closure, which must be called to configure Lanes
-	lua_newtable(L);
-	lua_pushvalue(L, 1); // module name
-	lua_pushvalue(L, -2); // module table
-	lua_pushcclosure( L, LG_configure, 2);
+	lua_newtable(L);                         // M
+	lua_pushvalue(L, 1);                     // M "lanes.core"
+	lua_pushvalue(L, -2);                    // M "lanes.core" M
+	lua_pushcclosure( L, LG_configure, 2);   // M LG_configure()
 	if( s_initCount == 0)
 	{
-		lua_setfield( L, -2, "configure");
+		lua_setfield( L, -2, "configure");     // M
 	}
 	else // already initialized: call it immediately and be done
 	{
-		lua_pushinteger( L, 666); // any value will do, it will be ignored
-		lua_pushnil( L); // almost idem
-		lua_call( L, 2, 0);
+		// any parameter value will do, they will be ignored
+		lua_pushinteger( L, 666);              // M LG_configure() 666
+		lua_pushnil( L);                       // M LG_configure() 666 nil
+		lua_call( L, 2, 0);                    // M
 	}
 
 	STACK_END( L, 1);
 	return 1;
+}
+
+static int default_luaopen_lanes( lua_State* L)
+{
+	int rc = luaL_loadfile( L, "lanes.lua") || lua_pcall( L, 0, 1, 0);
+	if( rc != LUA_OK)
+	{
+		return luaL_error( L, "failed to initialize embedded Lanes");
+	}
+	return 1;
+}
+
+// call this instead of luaopen_lanes_core() when embedding Lua and Lanes in a custom application
+void LANES_API luaopen_lanes_embedded( lua_State* L, lua_CFunction _luaopen_lanes)
+{
+	STACK_CHECK( L);
+	// pre-require lanes.core so that when lanes.lua calls require "lanes.core" it finds it is already loaded
+	luaL_requiref( L, "lanes.core", luaopen_lanes_core, 0);                                       // ... lanes.core
+	lua_pop( L, 1);                                                                               // ...
+	STACK_MID( L, 0);
+	// call user-provided function that runs the chunk "lanes.lua" from wherever they stored it
+	luaL_requiref( L, "lanes", _luaopen_lanes ? _luaopen_lanes : default_luaopen_lanes, 0);       // ... lanes
+	STACK_END( L, 1);
 }

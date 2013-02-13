@@ -572,7 +572,7 @@ char const* init_keepers( lua_State* L, int _on_state_create, int const _nbKeepe
 		// 
 		// 'io' for debugging messages, 'package' because we need to require modules exporting idfuncs
 		// the others because they export functions that we may store in a keeper for transfer between lanes
-		K = luaG_newstate( L, _on_state_create, "*");
+		K = luaG_newstate( L, _on_state_create, "K");
 
 		STACK_CHECK( K);
 
