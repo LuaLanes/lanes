@@ -199,26 +199,32 @@ int keeper_push_linda_storage( lua_State* L, void* ptr)
 		STACK_MID( KL, 0);
 		return 0;
 	}
+	// move data from keeper to destination state                  KEEPER                       MAIN
 	lua_pushnil( KL);                                           // storage nil
+	STACK_CHECK( L);
 	lua_newtable( L);                                                                        // out
 	while( lua_next( KL, -2))                                   // storage key fifo
 	{
 		keeper_fifo* fifo = prepare_fifo_access( KL, -1);         // storage key fifo
 		lua_pushvalue( KL, -2);                                   // storage key fifo key
 		luaG_inter_move( KL, L, 1);                               // storage key fifo          // out key
-		STACK_CHECK( L);
+		STACK_MID( L, 2);
 		lua_newtable( L);                                                                      // out key keyout
 		luaG_inter_move( KL, L, 1);                               // storage key               // out key keyout fifo
 		lua_pushinteger( L, fifo->first);                                                      // out key keyout fifo first
+		STACK_MID( L, 5);
 		lua_setfield( L, -3, "first");                                                         // out key keyout fifo
 		lua_pushinteger( L, fifo->count);                                                      // out key keyout fifo count
+		STACK_MID( L, 5);
 		lua_setfield( L, -3, "count");                                                         // out key keyout fifo
 		lua_pushinteger( L, fifo->limit);                                                      // out key keyout fifo limit
+		STACK_MID( L, 5);
 		lua_setfield( L, -3, "limit");                                                         // out key keyout fifo
 		lua_setfield( L, -2, "fifo");                                                          // out key keyout
 		lua_rawset( L, -3);                                                                    // out
-		STACK_END( L, 0);
+		STACK_MID( L, 1);
 	}
+	STACK_END( L, 1);
 	lua_pop( KL, 1);                                            //
 	STACK_END( KL, 0);
 	keeper_release( K);
