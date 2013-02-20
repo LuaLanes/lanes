@@ -24,7 +24,7 @@ each newline only.
 
 Linux NTPL 2.5 (Ubuntu 7.04) was used in the testing of Lua Lanes.
 
-This document (http://www.net.in.tum.de/~gregor/docs/pthread-scheduling.html)
+This document (http://www.icir.org/gregor/tools/pthread-scheduling.html)
 describes fairly well, what (all) is wrong with Linux threading, even today.
 
 For other worthy links:
@@ -34,6 +34,10 @@ For other worthy links:
 In short, you cannot use thread prioritation in Linux. Unless you run as
 root, and I _truly_ would not recommend that. Lobby for yet-another thread
 implementation for Linux, and mail -> akauppi@gmail.com about it. :)
+
+CAVEAT: Anyone sufficiently knowledgeable with pthread scheduling is free to
+contact me bnt DOT germain AT gmail DOT com)  with a suitable edit
+if this no longer applies on more recent kernels.
 
 
 ======================
