@@ -71,14 +71,18 @@ lanes.configure = function( _params)
 		end,
 		with_timers = function( _val)
 			-- with_timers may be nil or boolean
-			return _val and type( _val) == "boolean" or true
+			if _val then
+				return type( _val) == "boolean"
+			else
+				return true -- _val is either false or nil
+			end
 		end,
 		on_state_create = function( _val)
 			-- on_state_create may be nil or a function
 			return _val and type( _val) == "function" or true
 		end,
 		shutdown_timeout = function( _val)
-			-- nb_keepers should be a number >= 0
+			-- shutdown_timeout should be a number >= 0
 			return type( _val) == "number" and _val >= 0
 		end,
 		track_lanes = function( _val)
