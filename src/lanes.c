@@ -914,10 +914,11 @@ static void linda_id( lua_State*L, char const * const which)
         struct s_Linda *s;
         size_t name_len = 0;
         char const* linda_name = NULL;
+        int const top = lua_gettop( L);
 
-        if( lua_type( L, lua_gettop( L)) == LUA_TSTRING)
+        if( top > 0 && lua_type( L, top) == LUA_TSTRING)
         {
-            linda_name = lua_tostring( L, lua_gettop( L));
+            linda_name = lua_tostring( L, top);
             name_len = strlen( linda_name);
         }
 
