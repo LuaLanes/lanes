@@ -62,7 +62,7 @@ lanes.configure = function( _params)
 	local tostring = assert( tostring)
 	local error = assert( error)
 
-	local default_params = { nb_keepers = 1, on_state_create = nil, shutdown_timeout = 0.25, with_timers = true, track_lanes = nil}
+	local default_params = { nb_keepers = 1, on_state_create = nil, shutdown_timeout = 0.25, with_timers = true, track_lanes = nil, protect_allocator = false}
 	local param_checkers =
 	{
 		nb_keepers = function( _val)
@@ -71,6 +71,14 @@ lanes.configure = function( _params)
 		end,
 		with_timers = function( _val)
 			-- with_timers may be nil or boolean
+			if _val then
+				return type( _val) == "boolean"
+			else
+				return true -- _val is either false or nil
+			end
+		end,
+		protect_allocator = function( _val)
+			-- protect_allocator may be nil or boolean
 			if _val then
 				return type( _val) == "boolean"
 			else
@@ -121,7 +129,7 @@ lanes.configure = function( _params)
 	assert( type( core)=="table")
 
 	-- configure() is available only the first time lanes.core is required process-wide, and we *must* call it to have the other functions in the interface
-	if core.configure then core.configure( _params.nb_keepers, _params.on_state_create, _params.shutdown_timeout, _params.track_lanes) end
+	if core.configure then core.configure( _params.nb_keepers, _params.on_state_create, _params.shutdown_timeout, _params.track_lanes, _params.protect_allocator) end
 
 	local thread_new = assert( core.thread_new)
 

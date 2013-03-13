@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.5.1";
+char const* VERSION = "3.5.2";
 
 /*
 ===============================================================================
@@ -1275,150 +1275,156 @@ static bool_t selfdestruct_remove( struct s_lane *s )
 volatile DEEP_PRELUDE* timer_deep;  // = NULL
 
 /*
+** mutex-protected allocator for use with Lua states that have non-threadsafe allocators (such as LuaJIT)
+*/
+struct ProtectedAllocator_s
+{
+	lua_Alloc allocf;
+	void* ud;
+	MUTEX_T lock;
+};
+void * protected_lua_Alloc( void *ud, void *ptr, size_t osize, size_t nsize)
+{
+	void* p;
+	struct ProtectedAllocator_s* s = (struct ProtectedAllocator_s*) ud;
+	MUTEX_LOCK( &s->lock);
+	p = s->allocf( s->ud, ptr, osize, nsize);
+	MUTEX_UNLOCK( &s->lock);
+	return p;
+}
+
+/*
 * Process end; cancel any still free-running threads
 */
-static int selfdestruct_gc( lua_State*L)
+static int selfdestruct_gc( lua_State* L)
 {
-    (void)L; // unused
-    if (selfdestruct_first == SELFDESTRUCT_END) return 0;    // no free-running threads
+	while( selfdestruct_first != SELFDESTRUCT_END) // true at most once!
+	{
+		// Signal _all_ still running threads to exit (including the timer thread)
+		//
+		MUTEX_LOCK( &selfdestruct_cs );
+		{
+			struct s_lane* s = selfdestruct_first;
+			while( s != SELFDESTRUCT_END )
+			{
+				// attempt a regular unforced cancel with a small timeout
+				bool_t cancelled = THREAD_ISNULL( s->thread) || thread_cancel( s, 0.0001, FALSE);
+				// if we failed, and we know the thread is waiting on a linda
+				if( cancelled == FALSE && s->status == WAITING && s->waiting_on != NULL)
+				{
+					// signal the linda the wake up the thread so that it can react to the cancel query
+					// let us hope we never land here with a pointer on a linda that has been destroyed...
+					SIGNAL_T *waiting_on = s->waiting_on;
+					//s->waiting_on = NULL; // useful, or not?
+					SIGNAL_ALL( waiting_on);
+				}
+				s = s->selfdestruct_next;
+			}
+		}
+		MUTEX_UNLOCK( &selfdestruct_cs );
 
-    // Signal _all_ still running threads to exit (including the timer thread)
-    //
-    MUTEX_LOCK( &selfdestruct_cs );
-    {
-        struct s_lane *s= selfdestruct_first;
-        while( s != SELFDESTRUCT_END )
-        {
-            // attempt a regular unforced cancel with a small timeout
-            bool_t cancelled = THREAD_ISNULL( s->thread) || thread_cancel( s, 0.0001, FALSE);
-            // if we failed, and we know the thread is waiting on a linda
-            if( cancelled == FALSE && s->status == WAITING && s->waiting_on != NULL)
-            {
-                // signal the linda the wake up the thread so that it can react to the cancel query
-                // let us hope we never land here with a pointer on a linda that has been destroyed...
-                SIGNAL_T *waiting_on = s->waiting_on;
-                //s->waiting_on = NULL; // useful, or not?
-                SIGNAL_ALL( waiting_on);
-            }
-            s = s->selfdestruct_next;
-        }
-    }
-    MUTEX_UNLOCK( &selfdestruct_cs );
+		// When noticing their cancel, the lanes will remove themselves from
+		// the selfdestruct chain.
 
-    // When noticing their cancel, the lanes will remove themselves from
-    // the selfdestruct chain.
+		// TBD: Not sure if Windows (multi core) will require the timed approach,
+		//      or single Yield. I don't have machine to test that (so leaving
+		//      for timed approach).    -- AKa 25-Oct-2008
 
-    // TBD: Not sure if Windows (multi core) will require the timed approach,
-    //      or single Yield. I don't have machine to test that (so leaving
-    //      for timed approach).    -- AKa 25-Oct-2008
- 
-#if 0 // def PLATFORM_LINUX
-    // It seems enough for Linux to have a single yield here, which allows
-    // other threads (timer lane) to proceed. Without the yield, there is
-    // segfault.
-    //
-    YIELD();
-#else
-    // OS X 10.5 (Intel) needs more to avoid segfaults.
-    //
-    // "make test" is okay. 100's of "make require" are okay.
-    //
-    // Tested on MacBook Core Duo 2GHz and 10.5.5:
-    //  -- AKa 25-Oct-2008
-    //
-    {
-        lua_Number const shutdown_timeout = lua_tonumber( L, lua_upvalueindex( 1));
-        double const t_until = now_secs() + shutdown_timeout;
+		// OS X 10.5 (Intel) needs more to avoid segfaults.
+		//
+		// "make test" is okay. 100's of "make require" are okay.
+		//
+		// Tested on MacBook Core Duo 2GHz and 10.5.5:
+		//  -- AKa 25-Oct-2008
+		//
+		{
+			lua_Number const shutdown_timeout = lua_tonumber( L, lua_upvalueindex( 1));
+			double const t_until = now_secs() + shutdown_timeout;
 
-        while( selfdestruct_first != SELFDESTRUCT_END )
-        {
-            YIELD();    // give threads time to act on their cancel
-            {
-                // count the number of cancelled thread that didn't have the time to act yet
-                int n = 0;
-                double t_now = 0.0;
-                MUTEX_LOCK( &selfdestruct_cs );
-                {
-                    struct s_lane *s = selfdestruct_first;
-                    while( s != SELFDESTRUCT_END)
-                    {
-                        if( s->cancel_request)
-                            ++ n;
-                        s = s->selfdestruct_next;
-                    }
-                }
-                MUTEX_UNLOCK( &selfdestruct_cs );
-                // if timeout elapsed, or we know all threads have acted, stop waiting
-                t_now = now_secs();
-                if( n == 0 || ( t_now >= t_until))
-                {
-                    DEBUGSPEW_CODE( fprintf( stderr, "%d uncancelled lane(s) remain after waiting %fs at process end.\n", n, shutdown_timeout - (t_until - t_now)));
-                    break;
-                }
-            }
-        }
-    }
-#endif
+			while( selfdestruct_first != SELFDESTRUCT_END)
+			{
+				YIELD();    // give threads time to act on their cancel
+				{
+					// count the number of cancelled thread that didn't have the time to act yet
+					int n = 0;
+					double t_now = 0.0;
+					MUTEX_LOCK( &selfdestruct_cs);
+					{
+						struct s_lane* s = selfdestruct_first;
+						while( s != SELFDESTRUCT_END)
+						{
+							if( s->cancel_request)
+								++ n;
+							s = s->selfdestruct_next;
+						}
+					}
+					MUTEX_UNLOCK( &selfdestruct_cs);
+					// if timeout elapsed, or we know all threads have acted, stop waiting
+					t_now = now_secs();
+					if( n == 0 || ( t_now >= t_until))
+					{
+						DEBUGSPEW_CODE( fprintf( stderr, "%d uncancelled lane(s) remain after waiting %fs at process end.\n", n, shutdown_timeout - (t_until - t_now)));
+						break;
+					}
+				}
+			}
+		}
 
-    //---
-    // Kill the still free running threads
-    //
-    if ( selfdestruct_first != SELFDESTRUCT_END ) {
-        unsigned n=0;
-#if 0
-        MUTEX_LOCK( &selfdestruct_cs );
-        {
-            struct s_lane *s= selfdestruct_first;
-            while( s != SELFDESTRUCT_END ) {
-                n++;
-                s= s->selfdestruct_next;
-            }
-        }
-        MUTEX_UNLOCK( &selfdestruct_cs );
-
-    // Linux (at least 64-bit): CAUSES A SEGFAULT IF THIS BLOCK IS ENABLED
-    //       and works without the block (so let's leave those lanes running)
-    //
-//we want to free memory and such when we exit.
-        // 2.0.2: at least timer lane is still here
-        //
-        DEBUGSPEW_CODE( fprintf( stderr, "Left %d lane(s) with cancel request at process end.\n", n ));
-        n=0;
-#else
-        // first thing we did was to raise the linda signals the threads were waiting on (if any)
-        // therefore, any well-behaved thread should be in CANCELLED state
-        // these are not running, and the state can be closed
-        MUTEX_LOCK( &selfdestruct_cs );
-        {
-            struct s_lane *s= selfdestruct_first;
-            while( s != SELFDESTRUCT_END)
-            {
-                struct s_lane *next_s= s->selfdestruct_next;
-                s->selfdestruct_next= NULL;     // detach from selfdestruct chain
-                if( !THREAD_ISNULL( s->thread)) // can be NULL if previous 'soft' termination succeeded
-                {
-                    THREAD_KILL( &s->thread);
+		//---
+		// Kill the still free running threads
+		//
+		if( selfdestruct_first != SELFDESTRUCT_END)
+		{
+			unsigned int n = 0;
+			// first thing we did was to raise the linda signals the threads were waiting on (if any)
+			// therefore, any well-behaved thread should be in CANCELLED state
+			// these are not running, and the state can be closed
+			MUTEX_LOCK( &selfdestruct_cs);
+			{
+				struct s_lane* s= selfdestruct_first;
+				while( s != SELFDESTRUCT_END)
+				{
+					struct s_lane* next_s = s->selfdestruct_next;
+					s->selfdestruct_next = NULL;     // detach from selfdestruct chain
+					if( !THREAD_ISNULL( s->thread)) // can be NULL if previous 'soft' termination succeeded
+					{
+						THREAD_KILL( &s->thread);
 #if THREADAPI == THREADAPI_PTHREAD
-                    // pthread: make sure the thread is really stopped!
-                    THREAD_WAIT( &s->thread, -1, &s->done_signal, &s->done_lock, &s->status);
+						// pthread: make sure the thread is really stopped!
+						THREAD_WAIT( &s->thread, -1, &s->done_signal, &s->done_lock, &s->status);
 #endif // THREADAPI == THREADAPI_PTHREAD
-                }
-                // NO lua_close() in this case because we don't know where execution of the state was interrupted
-                lane_cleanup( s);
-                s = next_s;
-                n++;
-            }
-            selfdestruct_first= SELFDESTRUCT_END;
-        }
-        MUTEX_UNLOCK( &selfdestruct_cs );
+					}
+					// NO lua_close() in this case because we don't know where execution of the state was interrupted
+					lane_cleanup( s);
+					s = next_s;
+					++ n;
+				}
+				selfdestruct_first = SELFDESTRUCT_END;
+			}
+			MUTEX_UNLOCK( &selfdestruct_cs);
 
-        DEBUGSPEW_CODE( fprintf( stderr, "Killed %d lane(s) at process end.\n", n));
-#endif
-    }
+			DEBUGSPEW_CODE( fprintf( stderr, "Killed %d lane(s) at process end.\n", n));
+		}
+	}
 #if !HAVE_KEEPER_ATEXIT_DESINIT
-    close_keepers();
+	close_keepers();
 #endif // !HAVE_KEEPER_ATEXIT_DESINIT
-    return 0;
+
+	// remove the protected allocator, if any
+	{
+		void* ud;
+		lua_Alloc allocf = lua_getallocf( L, &ud);
+
+		if( allocf == protected_lua_Alloc)
+		{
+			struct ProtectedAllocator_s* s = (struct ProtectedAllocator_s*) ud;
+			lua_setallocf( L, s->allocf, s->ud);
+			MUTEX_FREE( &s->lock);
+			s->allocf( s->ud, s, sizeof( struct ProtectedAllocator_s), 0);
+		}
+	}
+
+	return 0;
 }
 
 
@@ -2603,110 +2609,121 @@ void register_core_libfuncs_for_keeper( lua_State* L)
 }
 
 /*
-* One-time initializations
+** One-time initializations
 */
-static void init_once_LOCKED( lua_State* L, int const _on_state_create, int const nbKeepers, lua_Number _shutdown_timeout, bool_t _track_lanes)
+static void init_once_LOCKED( lua_State* L, int const _on_state_create, int const nbKeepers, lua_Number _shutdown_timeout, bool_t _track_lanes, bool_t _protect_allocator)
 {
-    char const* err;
-
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
-        now_secs();     // initialize 'now_secs()' internal offset
+	now_secs();     // initialize 'now_secs()' internal offset
 #endif
 
 #if (defined PLATFORM_OSX) && (defined _UTILBINDTHREADTOCPU)
-        chudInitialize();
+	chudInitialize();
 #endif
 
+	if( _protect_allocator)
+	{
+		void* ud;
+		lua_Alloc allocf = lua_getallocf( L, &ud);
+		struct ProtectedAllocator_s* s = (struct ProtectedAllocator_s*) allocf( ud, NULL, 0, sizeof( struct ProtectedAllocator_s));
+		s->allocf = allocf;
+		s->ud = ud;
+		MUTEX_INIT( &s->lock);
+		lua_setallocf( L, protected_lua_Alloc, s);
+	}
+
 #if HAVE_LANE_TRACKING
-    tracking_first = _track_lanes ? TRACKING_END : NULL;
+	tracking_first = _track_lanes ? TRACKING_END : NULL;
 #endif // HAVE_LANE_TRACKING
 
-        // Locks for 'tools.c' inc/dec counters
-        //
-        MUTEX_INIT( &deep_lock );
-        MUTEX_INIT( &mtid_lock );
-    
-        // Serialize calls to 'require' from now on, also in the primary state
-        //
-        MUTEX_RECURSIVE_INIT( &require_cs );
+	// Locks for 'tools.c' inc/dec counters
+	//
+	MUTEX_INIT( &deep_lock );
+	MUTEX_INIT( &mtid_lock );
 
-        serialize_require( L);
+	// Serialize calls to 'require' from now on, also in the primary state
+	//
+	MUTEX_RECURSIVE_INIT( &require_cs );
 
-        // Linked chains handling
-        //
-        MUTEX_INIT( &selfdestruct_cs );
+	serialize_require( L);
+
+	// Linked chains handling
+	//
+	MUTEX_INIT( &selfdestruct_cs );
 #if HAVE_LANE_TRACKING
-        MUTEX_INIT( &tracking_cs);
+	MUTEX_INIT( &tracking_cs);
 #endif // HAVE_LANE_TRACKING
 
-        //---
-        // Linux needs SCHED_RR to change thread priorities, and that is only
-        // allowed for sudo'ers. SCHED_OTHER (default) has no priorities.
-        // SCHED_OTHER threads are always lower priority than SCHED_RR.
-        //
-        // ^-- those apply to 2.6 kernel.  IF **wishful thinking** these 
-        //     constraints will change in the future, non-sudo priorities can 
-        //     be enabled also for Linux.
-        //
+	//---
+	// Linux needs SCHED_RR to change thread priorities, and that is only
+	// allowed for sudo'ers. SCHED_OTHER (default) has no priorities.
+	// SCHED_OTHER threads are always lower priority than SCHED_RR.
+	//
+	// ^-- those apply to 2.6 kernel.  IF **wishful thinking** these 
+	//     constraints will change in the future, non-sudo priorities can 
+	//     be enabled also for Linux.
+	//
 #ifdef PLATFORM_LINUX
-        sudo= geteuid()==0;     // we are root?
+	sudo= geteuid()==0;     // we are root?
 
-        // If lower priorities (-2..-1) are wanted, we need to lift the main
-        // thread to SCHED_RR and 50 (medium) level. Otherwise, we're always below 
-        // the launched threads (even -2).
-	    //
-  #ifdef LINUX_SCHED_RR
-        if (sudo) {
-            struct sched_param sp= {0}; sp.sched_priority= _PRIO_0;
-            PT_CALL( pthread_setschedparam( pthread_self(), SCHED_RR, &sp) );
-        }
-  #endif
-#endif
-    err = init_keepers( L, _on_state_create, nbKeepers);
-    if (err)
-    {
-            (void) luaL_error( L, "Unable to initialize: %s", err );
-    }
+	// If lower priorities (-2..-1) are wanted, we need to lift the main
+	// thread to SCHED_RR and 50 (medium) level. Otherwise, we're always below 
+	// the launched threads (even -2).
+	//
+#ifdef LINUX_SCHED_RR
+	if (sudo) {
+		struct sched_param sp= {0}; sp.sched_priority= _PRIO_0;
+		PT_CALL( pthread_setschedparam( pthread_self(), SCHED_RR, &sp) );
+	}
+#endif // LINUX_SCHED_RR
+#endif // PLATFORM_LINUX
+	{
+		char const* err = init_keepers( L, _on_state_create, nbKeepers);
+		if (err)
+		{
+			(void) luaL_error( L, "Unable to initialize: %s", err );
+		}
+	}
 
-    // Initialize 'timer_deep'; a common Linda object shared by all states
-    //
-    ASSERT_L( timer_deep == NULL);
+	// Initialize 'timer_deep'; a common Linda object shared by all states
+	//
+	ASSERT_L( timer_deep == NULL);
 
-    STACK_CHECK( L);
-    {
-        // proxy_ud= deep_userdata( idfunc )
-        //
-        lua_pushliteral( L, "lanes-timer"); // push a name for debug purposes
-        luaG_deep_userdata( L, linda_id);
-        STACK_MID( L, 2);
-        lua_remove( L, -2); // remove the name as we no longer need it
+	STACK_CHECK( L);
+	{
+		// proxy_ud= deep_userdata( idfunc )
+		//
+		lua_pushliteral( L, "lanes-timer"); // push a name for debug purposes
+		luaG_deep_userdata( L, linda_id);
+		STACK_MID( L, 2);
+		lua_remove( L, -2); // remove the name as we no longer need it
 
-        ASSERT_L( lua_isuserdata(L,-1) );
-        
-        // Proxy userdata contents is only a 'DEEP_PRELUDE*' pointer
-        //
-        timer_deep = * (DEEP_PRELUDE**) lua_touserdata( L, -1);
-        ASSERT_L( timer_deep && (timer_deep->refcount == 1) && timer_deep->deep);
+		ASSERT_L( lua_isuserdata(L,-1) );
 
-        // The host Lua state must always have a reference to this Linda object in order for our 'timer_deep_ref' to be valid.
-        // So store a reference that we will never actually use.
-        // at the same time, use this object as a 'desinit' marker:
-        // when the main lua State is closed, this object will be GC'ed
-        {
-            lua_newuserdata( L, 1);
-            lua_newtable( L);
-            lua_pushnumber( L, _shutdown_timeout);
-            lua_pushcclosure( L, selfdestruct_gc, 1);
-            lua_setfield( L, -2, "__gc");
-            lua_pushliteral( L, "AtExit");
-            lua_setfield( L, -2, "__metatable");
-            lua_setmetatable( L, -2);
-        }
-        lua_insert( L, -2); // Swap key with the Linda object
-        lua_rawset( L, LUA_REGISTRYINDEX);
+		// Proxy userdata contents is only a 'DEEP_PRELUDE*' pointer
+		//
+		timer_deep = * (DEEP_PRELUDE**) lua_touserdata( L, -1);
+		ASSERT_L( timer_deep && (timer_deep->refcount == 1) && timer_deep->deep);
 
-    }
-    STACK_END( L, 0);
+		// The host Lua state must always have a reference to this Linda object in order for the timer_deep pointer to be valid.
+		// So store a reference that we will never actually use.
+		// at the same time, use this object as a 'desinit' marker:
+		// when the main lua State is closed, this object will be GC'ed
+		{
+			lua_newuserdata( L, 1);
+			lua_newtable( L);
+			lua_pushnumber( L, _shutdown_timeout);
+			lua_pushcclosure( L, selfdestruct_gc, 1);
+			lua_setfield( L, -2, "__gc");
+			lua_pushliteral( L, "AtExit");
+			lua_setfield( L, -2, "__metatable");
+			lua_setmetatable( L, -2);
+		}
+		lua_insert( L, -2); // Swap key with the Linda object
+		lua_rawset( L, LUA_REGISTRYINDEX);
+
+	}
+	STACK_END( L, 0);
 }
 
 static volatile long s_initCount = 0;
@@ -2721,6 +2738,7 @@ LUAG_FUNC( configure)
 	int const on_state_create = lua_isfunction( L, 2) ? 2 : 0;
 	lua_Number shutdown_timeout = lua_tonumber( L, 3);
 	bool_t track_lanes = lua_toboolean( L, 4);
+	bool_t protect_allocator = lua_toboolean( L, 5);
 
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END, L));
 	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
@@ -2786,21 +2804,20 @@ LUAG_FUNC( configure)
 
 	STACK_MID( L, 1);
 	/*
-	* Making one-time initializations.
-	*
-	* When the host application is single-threaded (and all threading happens via Lanes)
-	* there is no problem. But if the host is multithreaded, we need to lock around the
-	* initializations.
-	*
-	* we must do this after the populate_func_lookup_table is called, else populating the keepers will fail
-	* because this makes a copy of packages.loaders, which requires the lookup tables to exist!
+	** Making one-time initializations.
+	**
+	** When the host application is single-threaded (and all threading happens via Lanes)
+	** there is no problem. But if the host is multithreaded, we need to lock around the
+	** initializations.
+	** we must do this after the populate_func_lookup_table is called, else populating the keepers will fail
+	** because this makes a copy of packages.loaders, which requires the lookup tables to exist!
 	*/
 #if THREADAPI == THREADAPI_WINDOWS
 	{
 		static volatile int /*bool*/ go_ahead; // = 0
 		if( InterlockedCompareExchange( &s_initCount, 1, 0) == 0)
 		{
-			init_once_LOCKED( L, on_state_create, nbKeepers, shutdown_timeout, track_lanes);
+			init_once_LOCKED( L, on_state_create, nbKeepers, shutdown_timeout, track_lanes, protect_allocator);
 			go_ahead = 1;    // let others pass
 		}
 		else
@@ -2818,16 +2835,16 @@ LUAG_FUNC( configure)
 			//
 			if( s_initCount == 0)
 			{
-				init_once_LOCKED( L, on_state_create, nbKeepers, shutdown_timeout, track_lanes);
+				init_once_LOCKED( L, on_state_create, nbKeepers, shutdown_timeout, track_lanes, protect_allocator);
 				s_initCount = 1;
 			}
 		}
 		pthread_mutex_unlock( &my_lock);
 	}
 #endif // THREADAPI == THREADAPI_PTHREAD
-	assert( timer_deep != NULL);
 	STACK_MID( L, 1);
 
+	assert( timer_deep != NULL);
 	// init_once_LOCKED initializes timer_deep, so we must do this after, of course
 	luaG_push_proxy( L, linda_id, (DEEP_PRELUDE*) timer_deep);             // ... M timer_deep
 	lua_setfield( L, -2, "timer_gateway");                                 // ... M

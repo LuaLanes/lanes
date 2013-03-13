@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 12-Feb-13, and applies to version <tt>3.5.1</tt>.
+				This document was revised on 13-Mar-13, and applies to version <tt>3.5.2</tt>.
 			</p>
 		</font>
 	</center>
@@ -284,11 +284,24 @@
 				<code>.with_timers</code>
 			</td>
 			<td>
-				<tt>nil</tt>/<tt>false</tt>/anything
+				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
 			</td>
 			<td>
-				If equal to <tt>false</tt>, Lanes doesn't start the timer service, and the associated API will be absent from the interface (see below).
-				Any other non-<tt>nil</tt> value starts the timer service. Default is <tt>true</tt>.
+				If equal to <tt>false</tt> or <tt>nil</tt>, Lanes doesn't start the timer service, and the associated API will be absent from the interface (see below).
+				Default is <tt>true</tt>.
+			</td>
+		</tr>
+
+		<tr valign=top>
+			<td>
+				<code>.protect_allocator</code>
+			</td>
+			<td>
+				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
+			</td>
+			<td>
+				(Since v3.5.2) If equal to <tt>true</tt>, Lanes wraps all calls to the state's allocator function inside a mutex. Useful when running Lanes with LuaJIT, whose allocator is not threadsafe.
+				Default is <tt>nil</tt>.
 			</td>
 		</tr>
 

@@ -1,5 +1,11 @@
 CHANGES:
 
+CHANGE 60: BGe 13-Mar-13
+   * version 3.5.2
+   * stricter validation of with_timers config option: validator was accepting any non-boolean value
+   * new configuration option protect_allocator for VMs with thread unsafe allocators (such as LuaJIT)
+   * removed some obsolete bits of dead code
+
 CHANGE 59: BGe 12-Feb-13
    * version 3.5.1
    * new lanes.h header and API call luaopen_lanes_embedded() for embedders
