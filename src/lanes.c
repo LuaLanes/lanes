@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.5.2";
+char const* VERSION = "3.6.0";
 
 /*
 ===============================================================================
@@ -2611,7 +2611,7 @@ void register_core_libfuncs_for_keeper( lua_State* L)
 /*
 ** One-time initializations
 */
-static void init_once_LOCKED( lua_State* L, int const _on_state_create, int const nbKeepers, lua_Number _shutdown_timeout, bool_t _track_lanes, bool_t _protect_allocator)
+static void init_once_LOCKED( lua_State* L, int const _on_state_create, int const nbKeepers, lua_Number _shutdown_timeout, bool_t _track_lanes)
 {
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 	now_secs();     // initialize 'now_secs()' internal offset
@@ -2620,17 +2620,6 @@ static void init_once_LOCKED( lua_State* L, int const _on_state_create, int cons
 #if (defined PLATFORM_OSX) && (defined _UTILBINDTHREADTOCPU)
 	chudInitialize();
 #endif
-
-	if( _protect_allocator)
-	{
-		void* ud;
-		lua_Alloc allocf = lua_getallocf( L, &ud);
-		struct ProtectedAllocator_s* s = (struct ProtectedAllocator_s*) allocf( ud, NULL, 0, sizeof( struct ProtectedAllocator_s));
-		s->allocf = allocf;
-		s->ud = ud;
-		MUTEX_INIT( &s->lock);
-		lua_setallocf( L, protected_lua_Alloc, s);
-	}
 
 #if HAVE_LANE_TRACKING
 	tracking_first = _track_lanes ? TRACKING_END : NULL;
@@ -2743,6 +2732,18 @@ LUAG_FUNC( configure)
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END, L));
 	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
 	STACK_CHECK( L);
+
+	// not in init_once_LOCKED because we can have several hosted "master" Lua states where Lanes is require()d.
+	if( protect_allocator)
+	{
+		void* ud;
+		lua_Alloc allocf = lua_getallocf( L, &ud);
+		struct ProtectedAllocator_s* s = (struct ProtectedAllocator_s*) allocf( ud, NULL, 0, sizeof( struct ProtectedAllocator_s));
+		s->allocf = allocf;
+		s->ud = ud;
+		MUTEX_INIT( &s->lock);
+		lua_setallocf( L, protected_lua_Alloc, s);
+	}
 
 	// Create main module interface table
 	lua_pushvalue( L, lua_upvalueindex( 2));                               // ... M

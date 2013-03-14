@@ -1,5 +1,10 @@
 CHANGES:
 
+CHANGE 61: BGe 14-Mar-13
+   * version 3.6.0
+   * protect_allocator is an API change -> version bump
+   * bugfix: allocator protection should be done once per primary Lua state, not once only the first time ever Lanes is required
+
 CHANGE 60: BGe 13-Mar-13
    * version 3.5.2
    * stricter validation of with_timers config option: validator was accepting any non-boolean value
