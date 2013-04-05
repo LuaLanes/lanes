@@ -2818,7 +2818,7 @@ LUAG_FUNC( configure)
 		static volatile int /*bool*/ go_ahead; // = 0
 		if( InterlockedCompareExchange( &s_initCount, 1, 0) == 0)
 		{
-			init_once_LOCKED( L, on_state_create, nbKeepers, shutdown_timeout, track_lanes, protect_allocator);
+			init_once_LOCKED( L, on_state_create, nbKeepers, shutdown_timeout, track_lanes);
 			go_ahead = 1;    // let others pass
 		}
 		else
@@ -2836,7 +2836,7 @@ LUAG_FUNC( configure)
 			//
 			if( s_initCount == 0)
 			{
-				init_once_LOCKED( L, on_state_create, nbKeepers, shutdown_timeout, track_lanes, protect_allocator);
+				init_once_LOCKED( L, on_state_create, nbKeepers, shutdown_timeout, track_lanes);
 				s_initCount = 1;
 			}
 		}
