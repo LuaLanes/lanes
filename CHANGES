@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 62: BGe 05-Apr-13
+   * version 3.6.1
+   * function lookup database population keeps the 'smaller' name in case of multiple hits, to remove the no-LUA_COMPAT_ALL restriction on Lua5.2 builds
+
 CHANGE 61: BGe 14-Mar-13
    * version 3.6.0
    * protect_allocator is an API change -> version bump
