@@ -265,7 +265,7 @@ static lua_CFunction luaG_tocfunction( lua_State *L, int _i, FuncSubType *_out)
 
 
 // inspired from tconcat() in ltablib.c
-static char const* luaG_pushFQN(lua_State *L, int t, int last)
+static char const* luaG_pushFQN(lua_State *L, int t, int last, int* length)
 {
 	int i = 1;
 	luaL_Buffer b;
@@ -284,7 +284,7 @@ static char const* luaG_pushFQN(lua_State *L, int t, int last)
 	}
 	luaL_pushresult( &b);
 	STACK_END( L, 1);
-	return lua_tostring( L, -1);
+	return lua_tolstring( L, -1, length);
 }
 
 
@@ -355,44 +355,60 @@ static void populate_func_lookup_table_recur( lua_State* L, int _ctx_base, int _
 		}
 		else if( lua_isfunction( L, -1) && (luaG_getfuncsubtype( L, -1) != FST_Bytecode))       // ... {_i} {bfc} k func
 		{
-			char const* prevName, * newName;
+			int prevNameLength, newNameLength;
+			char const* prevName, *newName;
 			// first, raise an error if the function is already known
 			lua_pushvalue( L, -1);                                                                // ... {_i} {bfc} k func func
 			lua_rawget( L, dest);                                                                 // ... {_i} {bfc} k func name?
-			prevName = lua_tostring( L, -1); // NULL if we got nil (first encounter of this function)
+			prevName = lua_tolstring( L, -1, &prevNameLength); // NULL if we got nil (first encounter of this function)
 			// push function name in fqn stack (note that concatenation will crash if name is a not string or a number)
 			lua_pushvalue( L, -3);                                                                // ... {_i} {bfc} k func name? k
 			++ _depth;
 			lua_rawseti( L, fqn, _depth);                                                         // ... {_i} {bfc} k func name?
 			// generate name
-			newName = luaG_pushFQN( L, fqn, _depth);                                              // ... {_i} {bfc} k func name? "f.q.n"
+			newName = luaG_pushFQN( L, fqn, _depth, &newNameLength);                              // ... {_i} {bfc} k func name? "f.q.n"
 			// Lua 5.2 introduced a hash randomizer seed which causes table iteration to yield a different key order
 			// on different VMs even when the tables are populated the exact same way.
 			// When Lua is built with compatibility options (such as LUA_COMPAT_ALL),
 			// this causes several base libraries to register functions under multiple names.
 			// This, with the randomizer, can cause the first name of a function to be different on different VMs,
 			// which breaks function transfer.
-			// This means that Lua 5.2 must be built with compatibility off to be able to use Lanes.
-			// Even under Lua 5.1, this may cause trouble (even if this would be much less frequent)
-			// Unfortunately, this fails with string.gfind/string.gmatch when Lua 5.1 is built with LUA_COMPAT_GFIND (which is the case of LuaBinaries),
-			// so for the time being, fail only for Lua 5.2 as the randomizer is the real show breaker here.
-			if( (LUA_VERSION_NUM > 501) && (prevName != NULL))
+			// Also, nothing prevents any external module from exposing a given function under several names, so...
+			// Therefore, when we encounter a function for which a name was previously registered, we need to select the names
+			// based on some sorting order so that we end up with the same name in all databases whatever order the table walk yielded
+			if( prevName != NULL && (prevNameLength < newNameLength || lua_lessthan( L, -2, -1)))
 			{
-				(void) luaL_error( L, "multiple names detected (%s and %s)", prevName, newName);
-				return;
+				DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "function '%s' remained named '%s'\n" INDENT_END, newName, prevName));
+				// the previous name is 'smaller' than the one we just generated: keep it!
+				lua_pop( L, 3);                                                                     // ... {_i} {bfc} k
 			}
-			// prepare the stack for database feed
-			lua_remove( L, -2);                                                                   // ... {_i} {bfc} k func "f.q.n"
-			lua_pushvalue( L, -1);                                                                // ... {_i} {bfc} k func "f.q.n" "f.q.n"
-			lua_pushvalue( L, -3);                                                                // ... {_i} {bfc} k func "f.q.n" "f.q.n" func
-			// t["f.q.n"] = func 
-			lua_rawset( L, dest);                                                                 // ... {_i} {bfc} k func "f.q.n"
-			// t[func] = "f.q.n"
-			lua_rawset( L, dest);                                                                 // ... {_i} {bfc} k
-			// remove table name from fqn stack
-			lua_pushnil( L);                                                                      // ... {_i} {bfc} k nil
-			lua_rawseti( L, fqn, _depth);                                                         // ... {_i} {bfc} k
-			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "function '%s'\n" INDENT_END, newName));
+			else
+			{
+				// the name we generated is either the first one, or a better fit for our purposes
+				if( prevName)
+				{
+					// clear the previous name for the database to avoid clutter
+					lua_insert( L, -2);                                                               // ... {_i} {bfc} k func "f.q.n" prevName
+					// t[prevName] = nil
+					lua_pushnil( L);                                                                  // ... {_i} {bfc} k func "f.q.n" prevName nil
+					lua_rawset( L, dest);                                                             // ... {_i} {bfc} k func "f.q.n"
+				}
+				else
+				{
+					lua_remove( L, -2);                                                               // ... {_i} {bfc} k func "f.q.n"
+				}
+				// prepare the stack for database feed
+				lua_pushvalue( L, -1);                                                              // ... {_i} {bfc} k func "f.q.n" "f.q.n"
+				lua_pushvalue( L, -3);                                                              // ... {_i} {bfc} k func "f.q.n" "f.q.n" func
+				// t["f.q.n"] = func 
+				lua_rawset( L, dest);                                                               // ... {_i} {bfc} k func "f.q.n"
+				// t[func] = "f.q.n"
+				lua_rawset( L, dest);                                                               // ... {_i} {bfc} k
+				// remove table name from fqn stack
+				lua_pushnil( L);                                                                    // ... {_i} {bfc} k nil
+				lua_rawseti( L, fqn, _depth);                                                       // ... {_i} {bfc} k
+				DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "function '%s'\n" INDENT_END, newName));
+			}
 			-- _depth;
 		}
 		else
@@ -675,7 +691,7 @@ void set_deep_lookup( lua_State *L ) {
         lua_pushlightuserdata( L, DEEP_LOOKUP_KEY );
         lua_pushvalue(L,-2);
             //
-            // [-3]: {}Â (2nd ref)
+            // [-3]: {}Ã‚Â (2nd ref)
             // [-2]: DEEP_LOOKUP_KEY
             // [-1]: {}
 
@@ -1082,7 +1098,7 @@ luaG_IdFunction luaG_copydeep( lua_State *L, lua_State *L2, int index )
 
 /*
  * 'reg[ REG_MT_KNOWN ]'= {
- *      [Â table ]= id_uint,
+ *      [Ã‚Â table ]= id_uint,
  *          ...
  *      [ id_uint ]= table,
  *          ...
@@ -1318,16 +1334,16 @@ static void push_cached_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, ui
 /*
  * Return some name helping to identify an object
  */
-int discover_object_name_recur( lua_State* L, int _shortest, int _length)
+static int discover_object_name_recur( lua_State* L, int shortest_, int depth_)
 {
 	int const what = 1;                                     // o "r" {c} {fqn} ... {?}
 	int const result = 2;
 	int const cache = 3;
 	int const fqn = 4;
 	// no need to scan this table if the name we will discover is longer than one we already know
-	if( _shortest <= _length + 1)
+	if( shortest_ <= depth_ + 1)
 	{
-		return _shortest;
+		return shortest_;
 	}
 	STACK_GROW( L, 3);
 	STACK_CHECK( L);
@@ -1338,7 +1354,7 @@ int discover_object_name_recur( lua_State* L, int _shortest, int _length)
 	if( !lua_isnil( L, -1))
 	{
 		lua_pop( L, 1);                                       // o "r" {c} {fqn} ... {?}
-		return _shortest;
+		return shortest_;
 	}
 	// examined table is not in the cache, add it now
 	lua_pop( L, 1);                                         // o "r" {c} {fqn} ... {?}
@@ -1351,16 +1367,16 @@ int discover_object_name_recur( lua_State* L, int _shortest, int _length)
 	{
 		//char const *const key = lua_tostring( L, -2); // only for debugging (BEWARE, IT MAY CHANGE THE VALUE IF IT IS CONVERTIBLE, AND WRECK THE LOOP ITERATION PROCESS!)
 		// append key name to fqn stack
-		++ _length;
+		++ depth_;
 		lua_pushvalue( L, -2);                                // o "r" {c} {fqn} ... {?} k v k
-		lua_rawseti( L, fqn, _length);                        // o "r" {c} {fqn} ... {?} k v
+		lua_rawseti( L, fqn, depth_);                         // o "r" {c} {fqn} ... {?} k v
 		if( lua_rawequal( L, -1, what)) // is it what we are looking for?
 		{
 			// update shortest name
-			if( _length < _shortest)
+			if( depth_ < shortest_)
 			{
-				_shortest = _length;
-				luaG_pushFQN( L, fqn, _length);                   // o "r" {c} {fqn} ... {?} k v "fqn"
+				shortest_ = depth_;
+				luaG_pushFQN( L, fqn, depth_, NULL);              // o "r" {c} {fqn} ... {?} k v "fqn"
 				lua_replace( L, result);                          // o "r" {c} {fqn} ... {?} k v
 			}
 			// no need to search further at this level
@@ -1369,13 +1385,13 @@ int discover_object_name_recur( lua_State* L, int _shortest, int _length)
 		}
 		else if( lua_istable( L, -1))
 		{
-			_shortest = discover_object_name_recur( L, _shortest, _length);
+			shortest_ = discover_object_name_recur( L, shortest_, depth_);
 			// search in the table's metatable too
 			if( lua_getmetatable( L, -1))
 			{
 				if( lua_istable( L, -1))
 				{
-					_shortest = discover_object_name_recur( L, _shortest, _length);
+					shortest_ = discover_object_name_recur( L, shortest_, depth_);
 				}
 				lua_pop( L, 1);
 			}
@@ -1387,7 +1403,7 @@ int discover_object_name_recur( lua_State* L, int _shortest, int _length)
 			{
 				if( lua_istable( L, -1))
 				{
-					_shortest = discover_object_name_recur( L, _shortest, _length);
+					shortest_ = discover_object_name_recur( L, shortest_, depth_);
 				}
 				lua_pop( L, 1);
 			}
@@ -1396,15 +1412,15 @@ int discover_object_name_recur( lua_State* L, int _shortest, int _length)
 		lua_pop( L, 1);                                       // o "r" {c} {fqn} ... {?} k
 		// remove name from fqn stack
 		lua_pushnil( L);                                      // o "r" {c} {fqn} ... {?} k nil
-		lua_rawseti( L, fqn, _length);                        // o "r" {c} {fqn} ... {?} k
-		-- _length;
+		lua_rawseti( L, fqn, depth_);                         // o "r" {c} {fqn} ... {?} k
+		-- depth_;
 	}                                                       // o "r" {c} {fqn} ... {?}
 	// remove the visited table from the cache, in case a shorter path to the searched object exists
 	lua_pushvalue( L, -1);                                  // o "r" {c} {fqn} ... {?} {?}
 	lua_pushnil( L);                                        // o "r" {c} {fqn} ... {?} {?} nil
 	lua_rawset( L, cache);                                  // o "r" {c} {fqn} ... {?}
 	STACK_END( L, 0);
-	return _shortest;
+	return shortest_;
 }
 
 /*
