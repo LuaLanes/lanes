@@ -33,6 +33,7 @@ void luaL_requiref (lua_State* L, const char* modname, lua_CFunction openf, int 
 // wrap Lua 5.2 calls under Lua 5.1 API when it is simpler that way
 #if LUA_VERSION_NUM == 502
 #define lua_equal( L, a, b) lua_compare( L, a, b, LUA_OPEQ)
+#define lua_lessthan( L, a, b) lua_compare( L, a, b, LUA_OPLT)
 #define luaG_registerlibfuncs( L, _funcs) luaL_setfuncs( L, _funcs, 0)
 #endif // LUA_VERSION_NUM == 502
 
