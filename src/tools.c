@@ -265,7 +265,7 @@ static lua_CFunction luaG_tocfunction( lua_State *L, int _i, FuncSubType *_out)
 
 
 // inspired from tconcat() in ltablib.c
-static char const* luaG_pushFQN(lua_State *L, int t, int last, int* length)
+static char const* luaG_pushFQN(lua_State *L, int t, int last, size_t* length)
 {
 	int i = 1;
 	luaL_Buffer b;
@@ -355,8 +355,9 @@ static void populate_func_lookup_table_recur( lua_State* L, int _ctx_base, int _
 		}
 		else if( lua_isfunction( L, -1) && (luaG_getfuncsubtype( L, -1) != FST_Bytecode))       // ... {_i} {bfc} k func
 		{
-			int prevNameLength, newNameLength;
-			char const* prevName, *newName;
+			size_t prevNameLength, newNameLength;
+			char const* prevName;
+			DEBUGSPEW_CODE( char const *newName);
 			// first, raise an error if the function is already known
 			lua_pushvalue( L, -1);                                                                // ... {_i} {bfc} k func func
 			lua_rawget( L, dest);                                                                 // ... {_i} {bfc} k func name?
@@ -366,7 +367,7 @@ static void populate_func_lookup_table_recur( lua_State* L, int _ctx_base, int _
 			++ _depth;
 			lua_rawseti( L, fqn, _depth);                                                         // ... {_i} {bfc} k func name?
 			// generate name
-			newName = luaG_pushFQN( L, fqn, _depth, &newNameLength);                              // ... {_i} {bfc} k func name? "f.q.n"
+			DEBUGSPEW_CODE( newName =) luaG_pushFQN( L, fqn, _depth, &newNameLength);             // ... {_i} {bfc} k func name? "f.q.n"
 			// Lua 5.2 introduced a hash randomizer seed which causes table iteration to yield a different key order
 			// on different VMs even when the tables are populated the exact same way.
 			// When Lua is built with compatibility options (such as LUA_COMPAT_ALL),
@@ -691,7 +692,7 @@ void set_deep_lookup( lua_State *L ) {
         lua_pushlightuserdata( L, DEEP_LOOKUP_KEY );
         lua_pushvalue(L,-2);
             //
-            // [-3]: {}Ã‚Â (2nd ref)
+            // [-3]: {} (2nd ref)
             // [-2]: DEEP_LOOKUP_KEY
             // [-1]: {}
 
@@ -1098,7 +1099,7 @@ luaG_IdFunction luaG_copydeep( lua_State *L, lua_State *L2, int index )
 
 /*
  * 'reg[ REG_MT_KNOWN ]'= {
- *      [Ã‚Â table ]= id_uint,
+ *      [ table ]= id_uint,
  *          ...
  *      [ id_uint ]= table,
  *          ...
