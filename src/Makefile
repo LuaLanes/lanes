@@ -1,8 +1,8 @@
 #
 # Lanes/src/Makefile
 #
-#   make [LUA=...]                                   Manual build
-#   make LUAROCKS=1 CFLAGS=... LIBFLAG=... LUA=...   LuaRocks automated build
+#   make                                    Manual build
+#   make LUAROCKS=1 CFLAGS=... LIBFLAG=...  LuaRocks automated build
 #
 
 MODULE=lanes
@@ -17,8 +17,6 @@ LIBFLAG=-shared
 
 OPT_FLAGS=-O2
     # -O0 -g
-
-LUA=lua
 
 _SO=so
 ifeq "$(findstring MINGW32,$(shell uname -s))" "MINGW32"
@@ -148,8 +146,7 @@ win32: $(WIN32_LUA51)/include/lua.h
             LUA_FLAGS=-I$(WIN32_LUA51)/include \
             LUA_LIBS="-L$(WIN32_LUA51) -llua51" \
             _SO=dll \
-            SO_FLAGS=-shared \
-            LUA=lua51
+            SO_FLAGS=-shared
 
 $(WIN32_LUA51)/include/lua.h:
 	@echo "Usage: make win32 WIN32_LUA51=<path of extracted LuaBinaries dll8 and dev packages>"
@@ -157,4 +154,3 @@ $(WIN32_LUA51)/include/lua.h:
 	@false
 
 .PROXY:	all clean nslu2 win32
-
