@@ -105,5 +105,16 @@ just a reminder for myself...):
     export LIBRARY_PATH=.../local/lib
     export LD_LIBRARY_PATH=.../local/lib
 
+========================
+  Manual installation
+=======================
+
+After running GNU make, in directory `src` you will find files
+`lanes.lua` and `lanes/core.so`.  The first goes into a directory on
+your LUA_PATH, and the `lanes` directory goes into a directory on your
+LUA_CPATH.  If you are not sure how this works, try creating
+
+   /usr/local/share/lua/5.1/lanes.lua
+   /usr/local/lib/lua/5.1/lanes/core.so
 
 (end)
