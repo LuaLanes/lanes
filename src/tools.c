@@ -692,7 +692,7 @@ void set_deep_lookup( lua_State *L ) {
         lua_pushlightuserdata( L, DEEP_LOOKUP_KEY );
         lua_pushvalue(L,-2);
             //
-            // [-3]: {} (2nd ref)
+            // [-3]: {} (2nd ref)
             // [-2]: DEEP_LOOKUP_KEY
             // [-1]: {}
 
@@ -1099,7 +1099,7 @@ luaG_IdFunction luaG_copydeep( lua_State *L, lua_State *L2, int index )
 
 /*
  * 'reg[ REG_MT_KNOWN ]'= {
- *      [ table ]= id_uint,
+ *      [ table ]= id_uint,
  *          ...
  *      [ id_uint ]= table,
  *          ...
