@@ -880,6 +880,23 @@
 	An error in a finalizer itself overrides the state of the regular chunk (in practise, it would be highly preferable <i>not</i> to have errors in finalizers). If one finalizer errors, the others may not get called.
 </p>
 
+<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
+	local lane_body = function()
+		set_finalizer( function( err, stk)
+			if err and type( err) ~= "userdata" then
+				-- no special error: true error
+				print( " error: "..tostring(err))
+			elseif type( err) == "userdata" then
+				-- lane cancellation is performed by throwing a special userdata as error
+				print( "after cancel")
+			else
+				-- no error: we just got finalized
+				print( "finalized")
+			end
+		end)
+	end
+</pre></td></tr></table>
+
 
 <!-- lindas +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
 <hr/>
