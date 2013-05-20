@@ -1,5 +1,10 @@
 CHANGES:
 
+CHANGE 63: BGe 20-May-13
+   * version 3.6.2
+   * WIN32 builds use condition variables instead of PulseEvent() when available.
+   * first steps toward fixing make-vc.cmd
+
 CHANGE 62: BGe 05-Apr-13
    * version 3.6.1
    * function lookup database population keeps the 'smaller' name in case of multiple hits, to remove the no-LUA_COMPAT_ALL restriction on Lua5.2 builds

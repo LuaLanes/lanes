@@ -84,7 +84,7 @@ goto ERR_NOLUA
 
 :BUILD
 @REM LuaBinaries: 
-@REM 	The current build system does not show 'lua51-lanes.dll' to
+@REM 	The current build system does not show 'lanes/core.dll' to
 @REM 	be dependent on more than 'KERNEL32.DLL'. Good.
 @REM
 @REM Lua for Windows:
@@ -113,13 +113,6 @@ goto ERR_NOLUA
 @goto EXIT
 :LUA_LIB_OK
 
-@REM
-@REM Embed src/keeper.lua -> .lch
-@REM 
-@REM Note: we cannot use piping in Windows since we need binary output.
-@REM 
-"%LUA_EXE%" tools/bin2c.lua -o src/keeper.lch src/keeper.lua
-
 @if "%VCINSTALLDIR%"=="" goto ERR_NOVC
 
 @REM
@@ -138,14 +131,14 @@ goto ERR_NOLUA
 @set FLAGS=/O2 /LD
 
 cl %WARN% %FLAGS% /I "%LUA51%\include" /Felua51-lanes.dll src\*.c "%LUA_LIB%\lua5.1.lib"
-@REM cl %WARN% %FLAGS% /I "%LUA51%\include" /Felua51-lanes.dll src\*.c "%LUA_LIB%\lua5.1.lib" /link /NODEFAULTLIB:libcmt
+@REM cl %WARN% %FLAGS% /I "%LUA51%\include" /Felanes\core.dll src\*.c "%LUA_LIB%\lua5.1.lib" /link /NODEFAULTLIB:libcmt
 
-@del lua51-lanes.lib
-@del lua51-lanes.exp
+@del lanes\core.lib
+@del lanes\core.exp
 @goto EXIT
 
 :CLEAN
-if exist *.dll del *.dll
+if exist lanes\*.dll del lanes\*.dll
 if exist delme del delme
 @goto EXIT
 

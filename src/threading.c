@@ -243,6 +243,8 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
 #endif
 
 #if THREADAPI == THREADAPI_WINDOWS
+
+#if WINVER <= 0x0400 // Windows NT4: Use Mutexes with Events
   //
   void MUTEX_INIT( MUTEX_T *ref ) {
      *ref= CreateMutex( NULL /*security attr*/, FALSE /*not locked*/, NULL );
@@ -260,6 +262,8 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
     if (!ReleaseMutex(*ref))
         FAIL( "ReleaseMutex", GetLastError() );
   }
+#endif // Windows NT4
+
     /* MSDN: "If you would like to use the CRT in ThreadProc, use the
               _beginthreadex function instead (of CreateThread)."
        MSDN: "you can create at most 2028 threads"
@@ -354,6 +358,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 #endif // !__GNUC__
 	}
 
+#if WINVER <= 0x0400 // Windows NT4: Use PulseEvent, although it is unreliable, but then...
 
   //
   void SIGNAL_INIT( SIGNAL_T *ref ) {
@@ -426,6 +431,66 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
     if (!PulseEvent( *ref ))
         FAIL( "PulseEvent", GetLastError() );
   }
+
+#else // Windows Vista and above: condition variables exist, use them
+
+	//
+	void SIGNAL_INIT( SIGNAL_T *ref )
+	{
+		InitializeConditionVariable( ref);
+	}
+
+	void SIGNAL_FREE( SIGNAL_T *ref )
+	{
+		// nothing to do
+		ref;
+	}
+
+	bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu_ref, time_d abs_secs)
+	{
+		long ms;
+
+		if( abs_secs < 0.0)
+			ms = INFINITE;
+		else if( abs_secs == 0.0)
+			ms = 0;
+		else
+		{
+			ms = (long) ((abs_secs - now_secs())*1000.0 + 0.5);
+
+			// If the time already passed, still try once (ms==0). A short timeout
+			// may have turned negative or 0 because of the two time samples done.
+			//
+			if( ms < 0)
+				ms = 0;
+		}
+
+		if( !SleepConditionVariableCS( ref, mu_ref, ms))
+		{
+			if( GetLastError() == ERROR_TIMEOUT)
+			{
+				return FALSE;
+			}
+			else
+			{
+				FAIL( "SleepConditionVariableCS", GetLastError());
+			}
+		}
+		return TRUE;
+	}
+
+	void SIGNAL_ONE( SIGNAL_T *ref )
+	{
+		WakeConditionVariable( ref);
+	}
+
+	void SIGNAL_ALL( SIGNAL_T *ref )
+	{
+		WakeAllConditionVariable( ref);
+	}
+
+#endif // Windows Vista and above
+
 #else // THREADAPI == THREADAPI_PTHREAD
   // PThread (Linux, OS X, ...)
   //
