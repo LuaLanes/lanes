@@ -105,7 +105,7 @@ just a reminder for myself...):
     export LIBRARY_PATH=.../local/lib
     export LD_LIBRARY_PATH=.../local/lib
 
-========================
+=======================
   Manual installation
 =======================
 
@@ -116,5 +116,13 @@ LUA_CPATH.  If you are not sure how this works, try creating
 
    /usr/local/share/lua/5.1/lanes.lua
    /usr/local/lib/lua/5.1/lanes/core.so
+
+=======================
+  Note about LuaJIT
+=======================
+By default LuaJIT2 provides an non-thread-safe memory allocator to improve performance.
+Of course this will break when running several Lua states concurrently.
+Don't forget to initialize Lanes with the 'protect_allocator' option (see documentation)
+if you experience random crash issues.
 
 (end)
