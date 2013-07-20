@@ -64,7 +64,7 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   #else // !PLATFORM_XBOX
     #define WIN32_LEAN_AND_MEAN
     // 'SignalObjectAndWait' needs this (targets Windows 2000 and above)
-    //#define _WIN32_WINNT 0x0500 Let the compiler decide depending on the host OS
+    #define _WIN32_WINNT 0x0400
     #include <windows.h>
   #endif // !PLATFORM_XBOX
   #include <process.h>
@@ -76,8 +76,16 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   //
 
 	#if WINVER <= 0x0400 // Windows NT4: use a signal
+	typedef struct
+	{
+		CRITICAL_SECTION    signalCS;
+		CRITICAL_SECTION    countCS;
+		HANDLE      waitEvent;
+		HANDLE      waitDoneEvent;
+		LONG        waitersCount;
+	} SIGNAL_T;
 
-	#define SIGNAL_T HANDLE
+
 	#define MUTEX_T HANDLE
 	void MUTEX_INIT( MUTEX_T* ref);
 	void MUTEX_FREE( MUTEX_T* ref);

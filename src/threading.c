@@ -358,79 +358,98 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 #endif // !__GNUC__
 	}
 
-#if WINVER <= 0x0400 // Windows NT4: Use PulseEvent, although it is unreliable, but then...
+#if WINVER <= 0x0400 // Windows NT4
 
-  //
-  void SIGNAL_INIT( SIGNAL_T *ref ) {
-    // 'manual reset' event type selected, to be able to wake up all the
-    // waiting threads.
-    //
-    HANDLE h= CreateEvent( NULL,    // security attributes
-                           TRUE,    // TRUE: manual event
-                           FALSE,   // Initial state
-                           NULL );  // name
+	void SIGNAL_INIT( SIGNAL_T* ref)
+	{
+		InitializeCriticalSection( &ref->signalCS);
+		InitializeCriticalSection( &ref->countCS);
+		if( 0 == (ref->waitEvent = CreateEvent( 0, TRUE, FALSE, 0)))     // manual-reset
+			FAIL( "CreateEvent", GetLastError());
+		if( 0 == (ref->waitDoneEvent = CreateEvent( 0, FALSE, FALSE, 0)))    // auto-reset
+			FAIL( "CreateEvent", GetLastError());
+		ref->waitersCount = 0;
+	}
 
-    if (h == NULL) FAIL( "CreateEvent", GetLastError() );
-    *ref= h;
-  }
-  void SIGNAL_FREE( SIGNAL_T *ref ) {
-    if (!CloseHandle(*ref)) FAIL( "CloseHandle (event)", GetLastError() );
-    *ref= NULL;
-  }
-  //
-  bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu_ref, time_d abs_secs ) {
-    DWORD rc;
-    long ms;
-    
-    if (abs_secs<0.0)
-        ms= INFINITE;
-    else if (abs_secs==0.0)
-        ms= 0;
-    else {
-        ms= (long) ((abs_secs - now_secs())*1000.0 + 0.5);
-        
-        // If the time already passed, still try once (ms==0). A short timeout
-        // may have turned negative or 0 because of the two time samples done.
-        //
-        if (ms<0) ms= 0;
-    }
+	void SIGNAL_FREE( SIGNAL_T* ref)
+	{
+		CloseHandle( ref->waitDoneEvent);
+		CloseHandle( ref->waitEvent);
+		DeleteCriticalSection( &ref->countCS);
+		DeleteCriticalSection( &ref->signalCS);
+	}
 
-    // Unlock and start a wait, atomically (like condition variables do)
-    //
-    rc= SignalObjectAndWait( *mu_ref,   // "object to signal" (unlock)
-                             *ref,      // "object to wait on"
-                             ms,
-                             FALSE );   // not alertable
+	bool_t SIGNAL_WAIT( SIGNAL_T* ref, MUTEX_T* mu_ref, time_d abs_secs)
+	{
+		DWORD errc;
+		DWORD ms;
 
-    // All waiting locks are woken here; each competes for the lock in turn.
-    //
-    // Note: We must get the lock even if we've timed out; it makes upper
-    //       level code equivalent to how PThread does it.
-    //
-    MUTEX_LOCK(mu_ref);
+		if( abs_secs < 0.0)
+			ms = INFINITE;
+		else if( abs_secs == 0.0)
+			ms = 0;
+		else 
+		{
+			time_d msd = (abs_secs - now_secs()) * 1000.0 + 0.5;
+			// If the time already passed, still try once (ms==0). A short timeout
+			// may have turned negative or 0 because of the two time samples done.
+			ms = msd <= 0.0 ? 0 : (DWORD)msd;
+		}
 
-    if (rc==WAIT_TIMEOUT) return FALSE;
-    if (rc!=0) FAIL( "SignalObjectAndWait", rc );
-    return TRUE;
-  }
-  void SIGNAL_ALL( SIGNAL_T *ref ) {
-/* 
- * MSDN tries to scare that 'PulseEvent' is bad, unreliable and should not be
- * used. Use condition variables instead (wow, they have that!?!); which will
- * ONLY WORK on Vista and 2008 Server, it seems... so MS, isn't it.
- * 
- * I refuse to believe that; using 'PulseEvent' is probably just as good as
- * using Windows (XP) in the first place. Just don't use APC's (asynchronous
- * process calls) in your C side coding.
- */
-    // PulseEvent on manual event:
-    //
-    // Release ALL threads waiting for it (and go instantly back to unsignalled
-    // status = future threads to start a wait will wait)
-    //
-    if (!PulseEvent( *ref ))
-        FAIL( "PulseEvent", GetLastError() );
-  }
+		EnterCriticalSection( &ref->signalCS);
+		EnterCriticalSection( &ref->countCS);
+		++ ref->waitersCount;
+		LeaveCriticalSection( &ref->countCS);
+		LeaveCriticalSection( &ref->signalCS);
+
+		errc = SignalObjectAndWait( *mu_ref, ref->waitEvent, ms, FALSE);
+
+		EnterCriticalSection( &ref->countCS);
+		if( 0 == -- ref->waitersCount)
+		{
+			// we're the last one leaving...
+			ResetEvent( ref->waitEvent);
+			SetEvent( ref->waitDoneEvent);
+		}
+		LeaveCriticalSection( &ref->countCS);
+		MUTEX_LOCK( mu_ref);
+
+		switch( errc)
+		{
+			case WAIT_TIMEOUT:
+			return FALSE;
+			case WAIT_OBJECT_0:
+			return TRUE;
+		}
+
+		FAIL( "SignalObjectAndWait", GetLastError());
+		return FALSE;
+	}
+
+	void SIGNAL_ALL( SIGNAL_T* ref)
+	{
+		DWORD errc = WAIT_OBJECT_0;
+
+		EnterCriticalSection( &ref->signalCS);
+		EnterCriticalSection( &ref->countCS);
+
+		if( ref->waitersCount > 0)
+		{
+			ResetEvent( ref->waitDoneEvent);
+			SetEvent( ref->waitEvent);
+			LeaveCriticalSection( &ref->countCS);
+			errc = WaitForSingleObject( ref->waitDoneEvent, INFINITE);
+		}
+		else
+		{
+			LeaveCriticalSection( &ref->countCS);
+		}
+
+		LeaveCriticalSection( &ref->signalCS);
+
+		if( WAIT_OBJECT_0 != errc)
+			FAIL( "WaitForSingleObject", GetLastError());
+	}
 
 #else // Windows Vista and above: condition variables exist, use them
 

@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 64: BGe 20-Jul-13
+   * WIN32 builds against pre-Vista versions no longer use PulseEvent to fix occasional hangs when a wake event is missed
+
 CHANGE 63: BGe 20-May-13
    * version 3.6.2
    * WIN32 builds use condition variables instead of PulseEvent() when available.
