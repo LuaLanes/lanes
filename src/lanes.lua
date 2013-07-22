@@ -62,7 +62,16 @@ lanes.configure = function( _params)
 	local tostring = assert( tostring)
 	local error = assert( error)
 
-	local default_params = { nb_keepers = 1, on_state_create = nil, shutdown_timeout = 0.25, with_timers = true, track_lanes = nil, protect_allocator = false}
+	local default_params =
+	{
+		nb_keepers = 1,
+		on_state_create = nil,
+		shutdown_timeout = 0.25,
+		with_timers = true,
+		track_lanes = nil,
+		-- LuaJIT provides a thread-unsafe allocator by default, so we need to protect it when used in parallel lanes
+		protect_allocator = (jit and jit.version) and true or false
+	}
 	local param_checkers =
 	{
 		nb_keepers = function( _val)
