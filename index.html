@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 20-May-13, and applies to version <tt>3.6.2</tt>.
+				This document was revised on 02-Aug-13, and applies to version <tt>3.6.3</tt>.
 			</p>
 		</font>
 	</center>
@@ -289,6 +289,19 @@
 			<td>
 				If equal to <tt>false</tt> or <tt>nil</tt>, Lanes doesn't start the timer service, and the associated API will be absent from the interface (see below).
 				Default is <tt>true</tt>.
+			</td>
+		</tr>
+
+		<tr valign=top>
+			<td>
+				<code>.verbose_errors</code>
+			</td>
+			<td>
+				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
+			</td>
+			<td>
+				(Since v3.6.3) If equal to <tt>true</tt>, Lanes will collect more information when transfering stuff across Lua states to help identify errors (with a cost).
+				Default is <tt>false</tt>.
 			</td>
 		</tr>
 
@@ -539,7 +552,7 @@
 			</td>
 			<td>integer >= 1/<tt>true</tt></td>
 			<td>
-				By default, lanes are only cancellable when they <u>enter</u> a pending <tt>:receive()</tt> or <tt>:send()</tt> call. With this option, one can set cancellation check to occur every <tt>N</tt> Lua statements. The value <tt>true</tt> uses a default value (100).
+				By default, lanes are only cancellable when they <u>enter</u> a pending <tt>:receive()</tt> or <tt>:send()</tt> call. With this option, one can set <a href="#cancelling">cancellation</a> check to occur every <tt>N</tt> Lua statements. The value <tt>true</tt> uses a default value (100).
 				It is also possible to manually test for cancel requests with <tt>cancel_test()</tt>.
 			</td>
 		</tr>
@@ -705,7 +718,7 @@
 			</td>
 			<td/>
 			<td>
-				received cancellation and finished itself.
+				received <a href="#cancelling">cancellation</a> and finished itself.
 			</td>
 		</tr>
 		<tr>
@@ -833,8 +846,10 @@
 </pre></td></tr></table>
 
 <p>
-	<tt>cancel()</tt>sends a cancellation request to the lane. If <tt>timeout_secs</tt> is non-zero, waits for the request to be processed, or a timeout to occur.
-	Returns <tt>true</tt> if the lane was already done (in <tt>"done"</tt>, <tt>"error"</tt> or <tt>"cancelled"</tt> status) or if the cancellation was fruitful within timeout period.
+	<tt>cancel()</tt>sends a cancellation request to the lane.<br/>
+	If <tt>timeout_secs</tt> is positive (aka "hard cancel"), waits for the request to be processed, or a timeout to occur.<br/>
+	If <tt>timeout_secs</tt> is negative (aka "soft cancel"), starting with version 3.6.3, will only cause <tt>cancel_test()</tt> to return true, so that the lane can cleanup manually. You can't provide a second argument in that case.<br/>
+	Returns <tt>true</tt> if soft cancelling, or the lane was already done (in <tt>"done"</tt>, <tt>"error"</tt> or <tt>"cancelled"</tt> status), or the cancellation was fruitful within timeout period.
 </p>
 
 <p>
@@ -887,7 +902,7 @@
 				-- no special error: true error
 				print( " error: "..tostring(err))
 			elseif type( err) == "userdata" then
-				-- lane cancellation is performed by throwing a special userdata as error
+				-- lane <a href="#cancelling">cancellation</a> is performed by throwing a special userdata as error
 				print( "after cancel")
 			else
 				-- no error: we just got finalized
@@ -977,11 +992,15 @@
 </p>
 
 <p>
-	<tt>send</tt> returns <tt>true</tt> if the sending succeeded, and <tt>false</tt> if the queue limit was met, and the queue did not empty enough during the given timeout, or the operation was <a href="#cancelling">cancelled</a>.
+	<a href="#cancelling">Hard cancellation</a> will cause pending linda operations to abort execution of the lane through a cancellation error. This means that you have to install a <a href="#finalizers">finalizer</a> in your lane if you want to run some code in that situation.
 </p>
 
 <p>
-	Equally, <tt>receive</tt> returns a key and the value extracted from it, or nothing for timeout or <a href="#cancelling">cancellation</a>. Note that <tt>nil</tt>s can be sent and received; the <tt>key</tt> value will tell it apart from a timeout.
+	<tt>send</tt> returns <tt>true</tt> if the sending succeeded, and <tt>false</tt> if the queue limit was met, and the queue did not empty enough during the given timeout.
+</p>
+
+<p>
+	Equally, <tt>receive</tt> returns a key and the value extracted from it, or nothing for timeout. Note that <tt>nil</tt>s can be sent and received; the <tt>key</tt> value will tell it apart from a timeout.
 	<br>
 	Version 3.4.0 introduces an API change in the returned values: <tt>receive</tt> returns the key followed by the value(s), in that order, and not the other way around.
 </p>
