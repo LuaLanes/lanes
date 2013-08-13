@@ -1,5 +1,15 @@
 CHANGES:
 
+CHANGE 67: BGe 2-Aug-13
+   * version 3.6.3
+   * lane:cancel(<negative-timeout>) only causes cancel_test() to return true but won't interrupt execution of the lane during linda operations
+
+CHANGE 66: BGe 31-Jul-13
+   * more explicit errors when trying to transfer unknown source functions (with new configure option verbose_errors)
+
+CHANGE 65: BGe 23-Jul-13
+   * default options wrap allocator around a mutex when run by LuaJIT
+
 CHANGE 64: BGe 20-Jul-13
    * WIN32 builds against pre-Vista versions no longer use PulseEvent to fix occasional hangs when a wake event is missed
 

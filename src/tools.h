@@ -107,5 +107,8 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* _name);
 void serialize_require( lua_State *L);
 extern MUTEX_T require_cs;
 
+// for verbose errors
+extern bool_t GVerboseErrors;
+
 #endif
     // TOOLS_H

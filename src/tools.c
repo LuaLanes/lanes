@@ -42,6 +42,10 @@ THE SOFTWARE.
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <malloc.h>
+
+// for verbose errors
+bool_t GVerboseErrors = FALSE;
 
 /*
 ** Copied from Lua 5.2 loadlib.c
@@ -1285,9 +1289,9 @@ static bool_t push_cached_table( lua_State *L2, uint_t L2_cache_i, lua_State *L,
  *
  * Always pushes a function to 'L2'.
  */
-static void inter_copy_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i);
+static void inter_copy_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, char const* upName_);
 
-static void push_cached_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i)
+static void push_cached_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, char const* upName_)
 {
 	void* const aspointer = (void*)lua_topointer( L, i);
 	// TBD: Merge this and same code for tables
@@ -1319,7 +1323,7 @@ static void push_cached_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, ui
 		// via upvalues
 		//
 		// pushes a copy of the func, stores a reference in the cache
-		inter_copy_func( L2, L2_cache_i, L, i);                     // ... {cache} ... function
+		inter_copy_func( L2, L2_cache_i, L, i, upName_);            // ... {cache} ... function
 	}
 	else // found function in the cache
 	{
@@ -1363,16 +1367,19 @@ static int discover_object_name_recur( lua_State* L, int shortest_, int depth_)
 	lua_pushinteger( L, 1);                                 // o "r" {c} {fqn} ... {?} {?} 1
 	lua_rawset( L, cache);                                  // o "r" {c} {fqn} ... {?}
 	// scan table contents
+	STACK_CHECK( L);
 	lua_pushnil( L);                                        // o "r" {c} {fqn} ... {?} nil
 	while( lua_next( L, -2))                                // o "r" {c} {fqn} ... {?} k v
 	{
-		//char const *const key = lua_tostring( L, -2); // only for debugging (BEWARE, IT MAY CHANGE THE VALUE IF IT IS CONVERTIBLE, AND WRECK THE LOOP ITERATION PROCESS!)
+		//char const *const strKey = (lua_type( L, -2) == LUA_TSTRING) ? lua_tostring( L, -2) : NULL; // only for debugging
+		//lua_Number const numKey = (lua_type( L, -2) == LUA_TNUMBER) ? lua_tonumber( L, -2) : -6666; // only for debugging
 		// append key name to fqn stack
 		++ depth_;
 		lua_pushvalue( L, -2);                                // o "r" {c} {fqn} ... {?} k v k
 		lua_rawseti( L, fqn, depth_);                         // o "r" {c} {fqn} ... {?} k v
 		if( lua_rawequal( L, -1, what)) // is it what we are looking for?
 		{
+			STACK_MID( L, 2);
 			// update shortest name
 			if( depth_ < shortest_)
 			{
@@ -1382,32 +1389,74 @@ static int discover_object_name_recur( lua_State* L, int shortest_, int depth_)
 			}
 			// no need to search further at this level
 			lua_pop( L, 2);                                     // o "r" {c} {fqn} ... {?}
+			STACK_MID( L, 0);
 			break;
 		}
-		else if( lua_istable( L, -1))
+		else if( lua_istable( L, -1))                         // o "r" {c} {fqn} ... {?} k {}
 		{
+			STACK_MID( L, 2);
 			shortest_ = discover_object_name_recur( L, shortest_, depth_);
 			// search in the table's metatable too
-			if( lua_getmetatable( L, -1))
+			if( lua_getmetatable( L, -1))                       // o "r" {c} {fqn} ... {?} k {} {mt}
 			{
 				if( lua_istable( L, -1))
 				{
+					++ depth_;
+					lua_pushliteral( L, "__metatable");             // o "r" {c} {fqn} ... {?} k {} {mt} "__metatable"
+					lua_rawseti( L, fqn, depth_);                   // o "r" {c} {fqn} ... {?} k {} {mt}
 					shortest_ = discover_object_name_recur( L, shortest_, depth_);
+					lua_pushnil( L);                                // o "r" {c} {fqn} ... {?} k {} {mt} nil
+					lua_rawseti( L, fqn, depth_);                   // o "r" {c} {fqn} ... {?} k {} {mt}
+					-- depth_;
 				}
-				lua_pop( L, 1);
+				lua_pop( L, 1);                                   // o "r" {c} {fqn} ... {?} k {}
+				STACK_MID( L, 2);
 			}
 		}
-		else if( lua_isuserdata( L, -1))
+		else if( lua_isthread( L, -1))                        // o "r" {c} {fqn} ... {?} k T
 		{
+			// search in the object's uservalue if it is a table
+			lua_getuservalue( L, -1);                           // o "r" {c} {fqn} ... {?} k T {u}
+			if( lua_istable( L, -1))
+			{
+				shortest_ = discover_object_name_recur( L, shortest_, depth_);
+			}
+			lua_pop( L, 1);                                     // o "r" {c} {fqn} ... {?} k T
+			STACK_MID( L, 2);
+		}
+		else if( lua_isuserdata( L, -1))                      // o "r" {c} {fqn} ... {?} k U
+		{
+			STACK_MID( L, 2);
 			// search in the object's metatable (some modules are built that way)
-			if( lua_getmetatable( L, -1))
+			if( lua_getmetatable( L, -1))                       // o "r" {c} {fqn} ... {?} k U {mt}
 			{
 				if( lua_istable( L, -1))
 				{
+					++ depth_;
+					lua_pushliteral( L, "__metatable");             // o "r" {c} {fqn} ... {?} k U {mt} "__metatable"
+					lua_rawseti( L, fqn, depth_);                   // o "r" {c} {fqn} ... {?} k U {mt}
 					shortest_ = discover_object_name_recur( L, shortest_, depth_);
+					lua_pushnil( L);                                // o "r" {c} {fqn} ... {?} k U {mt} nil
+					lua_rawseti( L, fqn, depth_);                   // o "r" {c} {fqn} ... {?} k U {mt}
+					-- depth_;
 				}
-				lua_pop( L, 1);
+				lua_pop( L, 1);                                   // o "r" {c} {fqn} ... {?} k U
+				STACK_MID( L, 2);
 			}
+			// search in the object's uservalue if it is a table
+			lua_getuservalue( L, -1);                           // o "r" {c} {fqn} ... {?} k U {u}
+			if( lua_istable( L, -1))
+			{
+				++ depth_;
+				lua_pushliteral( L, "uservalue");                 // o "r" {c} {fqn} ... {?} k v {u} "uservalue"
+				lua_rawseti( L, fqn, depth_);                     // o "r" {c} {fqn} ... {?} k v {u}
+				shortest_ = discover_object_name_recur( L, shortest_, depth_);
+				lua_pushnil( L);                                  // o "r" {c} {fqn} ... {?} k v {u} nil
+				lua_rawseti( L, fqn, depth_);                     // o "r" {c} {fqn} ... {?} k v {u}
+				-- depth_;
+			}
+			lua_pop( L, 1);                                     // o "r" {c} {fqn} ... {?} k U
+			STACK_MID( L, 2);
 		}
 		// make ready for next iteration
 		lua_pop( L, 1);                                       // o "r" {c} {fqn} ... {?} k
@@ -1416,6 +1465,7 @@ static int discover_object_name_recur( lua_State* L, int shortest_, int depth_)
 		lua_rawseti( L, fqn, depth_);                         // o "r" {c} {fqn} ... {?} k
 		-- depth_;
 	}                                                       // o "r" {c} {fqn} ... {?}
+	STACK_END( L, 0);
 	// remove the visited table from the cache, in case a shorter path to the searched object exists
 	lua_pushvalue( L, -1);                                  // o "r" {c} {fqn} ... {?} {?}
 	lua_pushnil( L);                                        // o "r" {c} {fqn} ... {?} {?} nil
@@ -1442,6 +1492,7 @@ int luaG_nameof( lua_State* L)
 		lua_insert( L, -2);                                   // "type" o
 		return 2;
 	}
+
 	STACK_GROW( L, 4);
 	// this slot will contain the shortest name we found when we are done
 	lua_pushnil( L);                                        // o nil
@@ -1461,7 +1512,7 @@ int luaG_nameof( lua_State* L)
 /*
 * Push a looked-up native/LuaJIT function.
 */
-static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i)
+static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, char const* upName_)
 {
 	char const* fqn;                                         // L                        // L2
 	size_t len;
@@ -1478,14 +1529,28 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i)
 	lua_pop( L, 2);                                          // ... f ...
 	if( !fqn)
 	{
-		char const* from;
+		char const *from, *typewhat, *what, *gotchaA, *gotchaB;
 		// try to discover the name of the function we want to send
-		lua_pushcfunction( L, luaG_nameof);                    // ... f ...luaG_nameof
-		lua_pushvalue( L, i);                                  // ... f ... luaG_nameof f
-		lua_call( L, 1, 2);                                    // ... f ... "type" "name"
-		lua_getglobal( L, "decoda_name");                      // ... f ... "type" "name" decoda_name
+		lua_getglobal( L, "decoda_name");                      // ... f ... decoda_name
 		from = lua_tostring( L, -1);
-		(void) luaL_error( L, "%s '%s' not found in %s origin transfer database.", lua_tostring( L, -3), lua_tostring( L, -2), from ? from : "main");
+		lua_pushcfunction( L, luaG_nameof);                    // ... f ... decoda_name luaG_nameof
+		lua_pushvalue( L, i);                                  // ... f ... decoda_name luaG_nameof f
+		lua_call( L, 1, 2);                                    // ... f ... decoda_name "type" "name"|nil
+		typewhat = (lua_type( L, -2) == LUA_TSTRING) ? lua_tostring( L, -2) : luaL_typename( L, -2);
+		// second return value can be nil if the function was not found
+		// probable reason: the function was removed from the source Lua state before Lanes was required.
+		if( lua_isnil( L, -1))
+		{
+			gotchaA = " referenced by";
+			gotchaB = "\n(did you remove it from the source Lua state before requiring Lanes?)";
+			what = upName_;
+		}
+		else
+		{
+			gotchaB = "";
+			what = (lua_type( L, -1) == LUA_TSTRING) ? lua_tostring( L, -1) : luaL_typename( L, -1);
+		}
+		(void) luaL_error( L, "%s%s '%s' not found in %s origin transfer database.%s", typewhat, gotchaA, what, from ? from : "main", gotchaB);
 		return;
 	}
 	STACK_END( L, 0);
@@ -1516,9 +1581,9 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i)
 enum e_vt {
     VT_NORMAL, VT_KEY, VT_METATABLE
 };
-static bool_t inter_copy_one_( lua_State *L2, uint_t L2_cache_i, lua_State *L, uint_t i, enum e_vt value_type );
+static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt value_type, char const* upName_);
 
-static void inter_copy_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i)
+static void inter_copy_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, char const* upName_)
 {
 	FuncSubType funcSubType;
 	/*lua_CFunction cfunc =*/ luaG_tocfunction( L, i, &funcSubType); // NULL for LuaJIT-fast && bytecode functions
@@ -1612,14 +1677,14 @@ static void inter_copy_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uin
 			* instead, the function shall have LUA_RIDX_GLOBALS taken in the destination state!
 			*/
 			{
-				DEBUGSPEW_CODE( char const* upname);
+				char const* upname;
 #if LUA_VERSION_NUM == 502
 				// With Lua 5.2, each Lua function gets its environment as one of its upvalues (named LUA_ENV, aka "_ENV" by default)
 				// Generally this is LUA_RIDX_GLOBALS, which we don't want to copy from the source to the destination state...
 				// -> if we encounter an upvalue equal to the global table in the source, bind it to the destination's global table
 				lua_pushglobaltable( L);                           // ... _G
 #endif // LUA_VERSION_NUM
-				for( n = 0; (DEBUGSPEW_CODE( upname =) lua_getupvalue( L, i, 1 + n)) != NULL; ++ n)
+				for( n = 0; (upname = lua_getupvalue( L, i, 1 + n)) != NULL; ++ n)
 				{                                                  // ... _G up[n]
 					DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "UPNAME[%d]: %s\n" INDENT_END, n, upname));
 #if LUA_VERSION_NUM == 502
@@ -1630,8 +1695,10 @@ static void inter_copy_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uin
 					else
 #endif // LUA_VERSION_NUM
 					{
-						if( !inter_copy_one_( L2, L2_cache_i, L, lua_gettop( L), VT_NORMAL))    // ... {cache} ... function <upvalues>
+						if( !inter_copy_one_( L2, L2_cache_i, L, lua_gettop( L), VT_NORMAL, upname))    // ... {cache} ... function <upvalues>
+						{
 							luaL_error( L, "Cannot copy upvalue type '%s'", luaL_typename( L, -1));
+						}
 					}
 					lua_pop( L, 1);                                  // ... _G
 				}
@@ -1664,7 +1731,7 @@ static void inter_copy_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uin
 	{
 		lua_pop( L2, 1);                                                                // ... {cache} ...
 		// No need to transfer upvalues for C/JIT functions since they weren't actually copied, only looked up
-		lookup_native_func( L2, L, i);                                                  // ... {cache} ... function
+		lookup_native_func( L2, L, i, upName_);                                         // ... {cache} ... function
 	}
 	STACK_END( L, 0);
 }
@@ -1679,7 +1746,7 @@ static void inter_copy_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uin
 *
 * Returns TRUE if value was pushed, FALSE if its type is non-supported.
 */
-static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt)
+static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, char const* upName_)
 {
 	bool_t ret = TRUE;
 
@@ -1762,25 +1829,9 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 			break;
 		}
 		{
-			/* 
-			* Passing C functions is risky; if they refer to LUA_ENVIRONINDEX
-			* and/or LUA_REGISTRYINDEX they might work unintended (not work)
-			* at the target.
-			*
-			* On the other hand, NOT copying them causes many self tests not
-			* to work (timer, hangtest, ...)
-			*
-			* The trouble is, we cannot KNOW if the function at hand is safe
-			* or not. We cannot study it's behaviour. We could trust the user,
-			* but they might not even know they're sending lua_CFunction over
-			* (as upvalues etc.).
-			*/
-#if 0
-			if( lua_iscfunction( L, i))
-				luaL_error( L, "Copying lua_CFunction between Lua states is risky, and currently disabled." ); 
-#endif
+			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "FUNCTION\n" INDENT_END));
 			STACK_CHECK( L2);
-			push_cached_func( L2, L2_cache_i, L, i);
+			push_cached_func( L2, L2_cache_i, L, i, upName_);
 			STACK_END( L2, 1);
 		}
 		break;
@@ -1822,13 +1873,28 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 
 				/* Only basic key types are copied over; others ignored
 				*/
-				if( inter_copy_one_( L2, 0 /*key*/, L, key_i, VT_KEY))
+				if( inter_copy_one_( L2, 0 /*key*/, L, key_i, VT_KEY, upName_))
 				{
+					char* valPath = (char*) upName_;
+					if( GVerboseErrors)
+					{
+						// for debug purposes, let's try to build a useful name
+						if( lua_type( L, key_i) == LUA_TSTRING)
+						{
+							valPath = (char*) alloca( strlen( upName_) + strlen( lua_tostring( L, key_i)) + 2);
+							sprintf( valPath, "%s.%s", upName_, lua_tostring( L, key_i));
+						}
+						else if( lua_type( L, key_i) == LUA_TNUMBER)
+						{
+							valPath = (char*) alloca( strlen( upName_) + 32 + 3);
+							sprintf( valPath, "%s[" LUA_NUMBER_FMT "]", upName_, lua_tonumber( L, key_i));
+						}
+					}
 					/*
 					* Contents of metatables are copied with cache checking;
 					* important to detect loops.
 					*/
-					if( inter_copy_one_( L2, L2_cache_i, L, val_i, VT_NORMAL))
+					if( inter_copy_one_( L2, L2_cache_i, L, val_i, VT_NORMAL, valPath))
 					{
 						ASSERT_L( lua_istable(L2,-3));
 						lua_rawset( L2, -3);    // add to table (pops key & val)
@@ -1870,7 +1936,7 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 					lua_pop( L2, 1);
 					STACK_MID( L2, 2);
 					ASSERT_L( lua_istable(L,-1));
-					if( inter_copy_one_( L2, L2_cache_i /*for function cacheing*/, L, lua_gettop(L) /*[-1]*/, VT_METATABLE))
+					if( inter_copy_one_( L2, L2_cache_i /*for function cacheing*/, L, lua_gettop(L) /*[-1]*/, VT_METATABLE, upName_))
 					{
 						//
 						// L2 ([-3]: copied table)
@@ -1942,7 +2008,9 @@ int luaG_inter_copy( lua_State* L, lua_State* L2, uint_t n)
 {
 	uint_t top_L = lua_gettop( L);
 	uint_t top_L2 = lua_gettop( L2);
-	uint_t i;
+	uint_t i, j;
+	char tmpBuf[16];
+	char* pBuf = GVerboseErrors ? tmpBuf : "?";
 	bool_t copyok = TRUE;
 
 	if( n > top_L)
@@ -1960,9 +2028,13 @@ int luaG_inter_copy( lua_State* L, lua_State* L2, uint_t n)
 	*/
 	lua_newtable( L2);
 
-	for( i = top_L - n + 1; i <= top_L; ++ i)
+	for( i = top_L - n + 1, j = 1; i <= top_L; ++ i, ++ j)
 	{
-		copyok = inter_copy_one_( L2, top_L2 + 1, L, i, VT_NORMAL);
+		if( GVerboseErrors)
+		{
+			sprintf( tmpBuf, "arg_%d", j);
+		}
+		copyok = inter_copy_one_( L2, top_L2 + 1, L, i, VT_NORMAL, pBuf);
 		if( !copyok)
 		{
 			break;

@@ -84,8 +84,10 @@ local tests =
 	{ 4000000, 0, 21},
 	{ 4000000, 0, 44},]]
 }
+print "tests #1"
 for k, v in pairs( tests) do
 	local pre, loop, batch = v[1], v[2], v[3]
+	print( "testing", pre, loop, batch)
 	print( pre, loop, batch, "duration = " .. ziva( pre, loop, batch))
 end
 
@@ -188,8 +190,11 @@ local tests2 =
 	{ 4000000, 0, 21},
 	{ 4000000, 0, 44},
 }
+
+print "tests #2"
 for k, v in pairs( tests2) do
 	local pre, loop, batch = v[1], v[2], v[3]
+	print( "testing", pre, loop, batch)
 	print( pre, loop, batch, "duration = " .. ziva2( pre, loop, batch))
 end
 

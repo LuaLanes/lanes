@@ -4,10 +4,9 @@
 -- Sample program for Lua Lanes
 --
 
-local lanes = require "lanes"
-lanes.configure()
+local lanes = require "lanes".configure{shutdown_timeout=3,with_timers=true}
 
-local linda= lanes.linda()
+local linda= lanes.linda( "atom")
 local atomic_inc= lanes.genatomic( linda, "FIFO_n" )
 
 assert( atomic_inc()==1 )
@@ -46,3 +45,5 @@ print( B:receive( 2.0 ) )
 -- Note: A and B can be passed between threads, or used as upvalues
 --       by multiple threads (other parts will be copied but the 'linda'
 --       handle is shared userdata and will thus point to the single place)
+lanes.timer_lane:cancel()
+lanes.timer_lane:join()
