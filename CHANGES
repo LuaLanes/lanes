@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 68: BGe 24-Sept-13
+   * version 3.6.4
+   * Fix possible application hang at shutdown if a keeper state referenced a linda.
+
 CHANGE 67: BGe 2-Aug-13
    * version 3.6.3
    * lane:cancel(<negative-timeout>) only causes cancel_test() to return true but won't interrupt execution of the lane during linda operations
