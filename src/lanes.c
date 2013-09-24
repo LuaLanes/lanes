@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.6.3";
+char const* VERSION = "3.6.4";
 
 /*
 ===============================================================================
@@ -961,8 +961,8 @@ static void linda_id( lua_State*L, char const * const which)
         if( K && K->L) // can be NULL if this happens during main state shutdown (lanes is GC'ed -> no keepers -> no need to cleanup)
         {
             keeper_call( K->L, KEEPER_API( clear), L, l, 0);
-            keeper_release( K);
         }
+        keeper_release( K);
 
         /* There aren't any lanes waiting on these lindas, since all proxies
         * have been gc'ed. Right?
