@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.6.4";
+char const* VERSION = "3.6.5";
 
 /*
 ===============================================================================
@@ -1862,23 +1862,23 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
 }
 
 // --- If a client wants to transfer stuff of a given module from the current state to another Lane, the module must be required
-// with lanes.require, that will call the regular 'require', then populate lookup databases in source and keeper states
+// with lanes.require, that will call the regular 'require', then populate the lookup database in the source lane
 // module = lanes.require( "modname")
 // upvalue[1]: _G.require
 LUAG_FUNC( require)
 {
 	char const* name = lua_tostring( L, 1);
+	STACK_CHECK( L);
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lanes.require %s BEGIN\n" INDENT_END, name));
 	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
 	lua_pushvalue( L, lua_upvalueindex(1));   // "name" require
 	lua_pushvalue( L, 1);                     // "name" require "name"
 	lua_call( L, 1, 1);                       // "name" module
 	populate_func_lookup_table( L, -1, name);
-	lua_insert( L, -2);                       // module "name"
-	populate_keepers( L);
-	lua_pop( L, 1);                           // module
+	lua_remove( L, -2);                       // module
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lanes.require %s END\n" INDENT_END, name));
 	DEBUGSPEW_CODE( -- debugspew_indent_depth);
+	STACK_END( L, 1);
 	return 1;
 }
 
@@ -1937,7 +1937,7 @@ LUAG_FUNC( thread_new)
 	// package
 	if( package)
 	{
-		luaG_inter_copy_package( L, L2, package);
+		luaG_inter_copy_package( L, L2, package, eLM_LaneBody);
 	}
 
 	// modules to require in the target lane *before* the function is transfered!
@@ -1986,8 +1986,6 @@ LUAG_FUNC( thread_new)
 					populate_func_lookup_table( L2, -1, name);
 					STACK_MID( L2, 1);
 					lua_pop( L2, 1);
-					// don't require this module in the keeper states as well, use lanes.require() for that!
-					//populate_keepers( L);
 				}
 				STACK_END( L2, 0);
 			}
@@ -2017,7 +2015,7 @@ LUAG_FUNC( thread_new)
 		lua_pushglobaltable( L2); // Lua 5.2 wants us to push the globals table on the stack
 		while( lua_next( L, glob))
 		{
-			luaG_inter_copy( L, L2, 2);     // moves the key/value pair to the L2 stack
+			luaG_inter_copy( L, L2, 2, eLM_LaneBody);     // moves the key/value pair to the L2 stack
 			// assign it in L2's globals table
 			lua_rawset( L2, -3);
 			lua_pop( L, 1);
@@ -2040,7 +2038,7 @@ LUAG_FUNC( thread_new)
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "thread_new: transfer lane body\n" INDENT_END));
 		DEBUGSPEW_CODE( ++ debugspew_indent_depth);
 		lua_pushvalue( L, 1);
-		res = luaG_inter_move( L, L2, 1);    // L->L2
+		res = luaG_inter_move( L, L2, 1, eLM_LaneBody);    // L->L2
 		DEBUGSPEW_CODE( -- debugspew_indent_depth);
 		if( res != 0)
 		{
@@ -2067,7 +2065,7 @@ LUAG_FUNC( thread_new)
 		int res;
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "thread_new: transfer lane arguments\n" INDENT_END));
 		DEBUGSPEW_CODE( ++ debugspew_indent_depth);
-		res = luaG_inter_copy( L, L2, args);    // L->L2
+		res = luaG_inter_copy( L, L2, args, eLM_LaneBody);    // L->L2
 		DEBUGSPEW_CODE( -- debugspew_indent_depth);
 		if( res != 0)
 			return luaL_error( L, "tried to copy unsupported types");
@@ -2317,7 +2315,7 @@ LUAG_FUNC( thread_join)
 			case DONE:
 			{
 				uint_t n = lua_gettop( L2);       // whole L2 stack
-				if( (n > 0) && (luaG_inter_move( L2, L, n) != 0))
+				if( (n > 0) && (luaG_inter_move( L2, L, n, eLM_LaneBody) != 0))
 				{
 					return luaL_error( L, "tried to copy unsupported types");
 				}
@@ -2327,7 +2325,7 @@ LUAG_FUNC( thread_join)
 
 			case ERROR_ST:
 			lua_pushnil( L);
-			if( luaG_inter_move( L2, L, 2) != 0)    // error message at [-2], stack trace at [-1]
+			if( luaG_inter_move( L2, L, 2, eLM_LaneBody) != 0)    // error message at [-2], stack trace at [-1]
 			{
 				return luaL_error( L, "tried to copy unsupported types");
 			}
@@ -2618,25 +2616,6 @@ static const struct luaL_Reg lanes_functions [] = {
     {NULL, NULL}
 };
 
-
-/*
- * minimal function registration for keepers, just so that we can populate the transfer databases with them
- * without recursively deadlocking ourselves during one-time inits
- */
-void register_core_libfuncs_for_keeper( lua_State* L)
-{
-	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lanes.register_core_libfuncs_for_keeper()\n" INDENT_END));
-	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
-	STACK_GROW( L, 1);
-	STACK_CHECK( L);
-	lua_newtable( L);
-	luaG_registerlibfuncs( L, lanes_functions);
-	STACK_MID( L, 1);
-	populate_func_lookup_table( L, -1, "lanes.core");
-	lua_pop( L, 1);
-	STACK_END( L, 0);
-	DEBUGSPEW_CODE( -- debugspew_indent_depth);
-}
 
 /*
 ** One-time initializations

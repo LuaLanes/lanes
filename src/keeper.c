@@ -51,7 +51,6 @@
 #include "tools.h"
 #include "keeper.h"
 
-#if KEEPER_MODEL == KEEPER_MODEL_C
 //###################################################################################
 // Keeper implementation
 //###################################################################################
@@ -207,10 +206,10 @@ int keeper_push_linda_storage( lua_State* L, void* ptr)
 	{
 		keeper_fifo* fifo = prepare_fifo_access( KL, -1);         // storage key fifo
 		lua_pushvalue( KL, -2);                                   // storage key fifo key
-		luaG_inter_move( KL, L, 1);                               // storage key fifo          // out key
+		luaG_inter_move( KL, L, 1, eLM_FromKeeper);               // storage key fifo          // out key
 		STACK_MID( L, 2);
 		lua_newtable( L);                                                                      // out key keyout
-		luaG_inter_move( KL, L, 1);                               // storage key               // out key keyout fifo
+		luaG_inter_move( KL, L, 1, eLM_FromKeeper);               // storage key               // out key keyout fifo
 		lua_pushinteger( L, fifo->first);                                                      // out key keyout fifo first
 		STACK_MID( L, 5);
 		lua_setfield( L, -3, "first");                                                         // out key keyout fifo
@@ -512,7 +511,6 @@ int keepercall_count( lua_State* L)
 	}
 	return 1;
 }
-#endif // KEEPER_MODEL == KEEPER_MODEL_C
 
 //###################################################################################
 // Keeper API, accessed from linda methods
@@ -576,16 +574,10 @@ char const* init_keepers( lua_State* L, int _on_state_create, int const _nbKeepe
 		DEBUGSPEW_CODE( ++ debugspew_indent_depth);
 		// We need to load all base libraries in the keeper states so that the transfer databases are populated properly
 		// 
-		// 'io' for debugging messages, 'package' because we need to require modules exporting idfuncs
-		// the others because they export functions that we may store in a keeper for transfer between lanes
-		K = luaG_newstate( L, _on_state_create, "K");
+		// we don't need any libs in the keeper states
+		K = luaG_newstate( L, _on_state_create, NULL);
 
 		STACK_CHECK( K);
-
-		// replace default 'package' contents with stuff gotten from the master state
-		lua_getglobal( L, "package");
-		luaG_inter_copy_package( L, K, -1);
-		lua_pop( L, 1);
 
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "### init_keepers %d END\n" INDENT_END, i));
 		DEBUGSPEW_CODE( -- debugspew_indent_depth);
@@ -596,32 +588,11 @@ char const* init_keepers( lua_State* L, int _on_state_create, int const _nbKeepe
 		lua_concat( K, 2);
 		lua_setglobal( K, "decoda_name");
 
-#if KEEPER_MODEL == KEEPER_MODEL_C
 		// create the fifos table in the keeper state
 		lua_pushlightuserdata( K, fifos_key);
 		lua_newtable( K);
 		lua_rawset( K, LUA_REGISTRYINDEX);
-#endif // KEEPER_MODEL == KEEPER_MODEL_C
 
-#if KEEPER_MODEL == KEEPER_MODEL_LUA
-		// use package.loaders[2] to find keeper microcode (NOTE: this works only if nobody tampered with the loaders table...)
-		lua_getglobal( K, "package");                  // package
-		lua_getfield( K, -1, "loaders");               // package package.loaders
-		lua_rawgeti( K, -1, 2);                        // package package.loaders package.loaders[2]
-		lua_pushliteral( K, "lanes-keeper");           // package package.loaders package.loaders[2] "lanes-keeper"
-		STACK_MID( K, 4);
-		// first pcall loads lanes-keeper.lua, second one runs the chunk
-		if( lua_pcall( K, 1 /*args*/, 1 /*results*/, 0 /*errfunc*/) || lua_pcall( K, 0 /*args*/, 0 /*results*/, 0 /*errfunc*/))
-		{
-			// LUA_ERRRUN / LUA_ERRMEM / LUA_ERRERR
-			//
-			char const* err = lua_tostring( K, -1);
-			assert( err);
-			return err;
-		}                                              // package package.loaders
-		STACK_MID( K, 2);
-		lua_pop( K, 2);
-#endif // KEEPER_MODEL == KEEPER_MODEL_LUA
 		STACK_END( K, 0);
 		MUTEX_INIT( &GKeepers[i].lock_);
 		GKeepers[i].L = K;
@@ -631,41 +602,6 @@ char const* init_keepers( lua_State* L, int _on_state_create, int const _nbKeepe
 	atexit( atexit_close_keepers);
 #endif // HAVE_KEEPER_ATEXIT_DESINIT
 	return NULL;    // ok
-}
-
-// cause each keeper state to populate its database of transferable functions with those from the specified module
-// do do this we simply require the module inside the keeper state, then populate the lookup database
-void populate_keepers( lua_State* L)
-{
-	size_t name_len;
-	char const* name = luaL_checklstring( L, -1, &name_len);
-	int i;
-
-	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "populate_keepers %s BEGIN\n" INDENT_END, name));
-	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
-
-	for( i = 0; i < GNbKeepers; ++ i)
-	{
-		lua_State* K = GKeepers[i].L;
-		int res;
-		MUTEX_LOCK( &GKeepers[i].lock_);
-		STACK_CHECK( K);
-		STACK_GROW( K, 2);
-		lua_getglobal( K, "require");
-		lua_pushlstring( K, name, name_len);
-		res = lua_pcall( K, 1, 1, 0);
-		if( res != LUA_OK)
-		{
-			char const* err = luaL_checkstring( K, -1);
-			luaL_error( L, "error requiring '%s' in keeper state: %s", name, err);
-		}
-		// after requiring the module, register the functions it exported in our name<->function database
-		populate_func_lookup_table( K, -1, name);
-		lua_pop( K, 1);
-		STACK_END( K, 0);
-		MUTEX_UNLOCK( &GKeepers[i].lock_);
-	}
-	DEBUGSPEW_CODE( -- debugspew_indent_depth);
 }
 
 struct s_Keeper* keeper_acquire( void const* ptr)
@@ -747,12 +683,12 @@ int keeper_call( lua_State *K, keeper_api_t _func, lua_State *L, void *linda, ui
 
 	lua_pushlightuserdata( K, linda);
 
-	if( (args == 0) || luaG_inter_copy( L, K, args) == 0) // L->K
+	if( (args == 0) || luaG_inter_copy( L, K, args, eLM_ToKeeper) == 0) // L->K
 	{
 		lua_call( K, 1 + args, LUA_MULTRET);
 
 		retvals = lua_gettop( K) - Ktos;
-		if( (retvals > 0) && luaG_inter_move( K, L, retvals) != 0) // K->L
+		if( (retvals > 0) && luaG_inter_move( K, L, retvals, eLM_FromKeeper) != 0) // K->L
 		{
 			retvals = -1;
 		}

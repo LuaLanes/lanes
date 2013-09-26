@@ -90,10 +90,17 @@ typedef struct {
 } DEEP_PRELUDE;
 
 void luaG_push_proxy( lua_State *L, luaG_IdFunction idfunc, DEEP_PRELUDE *deep_userdata);
-void luaG_inter_copy_package( lua_State* L, lua_State* L2, int _idx);
+void luaG_inter_copy_package( lua_State* L, lua_State* L2, int _idx, enum eLookupMode mode_);
 
-int luaG_inter_copy( lua_State *L, lua_State *L2, uint_t n);
-int luaG_inter_move( lua_State *L, lua_State *L2, uint_t n);
+enum eLookupMode
+{
+	eLM_LaneBody, // send the lane body directly from the source to the destination lane
+	eLM_ToKeeper, // send a function from a lane to a keeper state
+	eLM_FromKeeper, // send a function from a keeper state to a lane
+};
+
+int luaG_inter_copy( lua_State *L, lua_State *L2, uint_t n, enum eLookupMode mode_);
+int luaG_inter_move( lua_State *L, lua_State *L2, uint_t n, enum eLookupMode mode_);
 
 int luaG_nameof( lua_State* L);
 int luaG_new_require( lua_State* L);

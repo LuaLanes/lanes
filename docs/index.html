@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 24-Sept-13, and applies to version <tt>3.6.4</tt>.
+				This document was revised on 26-Sept-13, and applies to version <tt>3.6.5</tt>. 
 			</p>
 		</font>
 	</center>
@@ -314,7 +314,7 @@
 			</td>
 			<td>
 				(Since v3.5.2) If equal to <tt>true</tt>, Lanes wraps all calls to the state's allocator function inside a mutex. Useful when running Lanes with LuaJIT, whose allocator is not threadsafe.
-				Default is <tt>nil</tt>.
+				Default is <tt>true</tt> when Lanes detects it is run by LuaJIT, else <tt>nil</tt>.
 			</td>
 		</tr>
 
@@ -603,8 +603,6 @@
 				Specifying it when <code>libs_str</code> doesn't cause the <code>package</code> library to be loaded will generate an error.
 				<br>
 				If not specified, the created lane will receive the current values of <tt>package</tt>. Only <tt>path</tt>, <tt>cpath</tt>, <tt>preload</tt> and <tt>loaders</tt> (Lua 5.1)/<tt>searchers</tt> (Lua 5.2) are transfered.
-				<br>
-				IMPORTANT: The contents of whatever package table is actually provided to the lane won't be known to the keeper states: they will stick to whatever was found in the main state's package table when Lane was required.
 			</td>
 		</tr>
 	</table>
@@ -1251,10 +1249,7 @@ events to a common Linda, but... :).</font>
 			</ul>
 		</li>
 		<li>
-			C functions (<tt>lua_CFunction</tt>) referring to <tt>LUA_ENVIRONINDEX</tt> or <tt>LUA_REGISTRYINDEX</tt> might not work right in the target
-			<ul>
-				<li>Rather completely re-initialize a module with <tt>require</tt> in the target lane.</li>
-			</ul>
+			C functions (<tt>lua_CFunction</tt>) referring to <tt>LUA_ENVIRONINDEX</tt> or <tt>LUA_REGISTRYINDEX</tt> might not do what you expect in the target, since they will actually use a different environment.
 		</li>
 		<li>
 			Lua 5.2 functions may have a special <tt>_ENV</tt> upvalue if they perform 'global namespace' lookups. Unless special care is taken, this upvalue defaults to the table found at <tt>LUA_RIDX_GLOBALS</tt>.
@@ -1319,7 +1314,7 @@ events to a common Linda, but... :).</font>
 	<br>
 	When a lane generator creates a lane and performs initializations described by the list of base libraries and the list of required modules, it recursively scans the table created by the initialisation of the module, looking for all values that are C functions.
 	<br>
-	Each time a function is encountered, the sequence of keys that reached that function is contatenated in a (hopefully) unique name. The [name, function] and [function, name] pairs are both stored in a lookup table in all involved Lua states (main Lua state, keeper states, lanes states).
+	Each time a function is encountered, the sequence of keys that reached that function is contatenated in a (hopefully) unique name. The [name, function] and [function, name] pairs are both stored in a lookup table in all involved Lua states (main Lua state and lanes states).
 	<br>
 	Then when a function is transfered from one state to another, all we have to do is retrieve the name associated to a function in the source Lua state, then with that name retrieve the equivalent function that already exists in the destination state.
 	<br>
@@ -1336,7 +1331,7 @@ events to a common Linda, but... :).</font>
 				string2 = string
 			</pre></td></tr></table>
 			When iterating over all keys of the global table, Lanes has no guarantee that it will hit <tt>"string"</tt> before or after <tt>"string2"</tt>. However, the values associated to <tt>string.match</tt> and <tt>string2.match</tt> are the same C function.
-			Lanes doesn't expect a C function value to be encountered more than once. In the event it occurs, when the lookup table is populated with a [function, name] pair, an existing pair won't be updated if it is already found. In other words, the first name that was computed is retained.
+			Lanes doesn't normally expect a C function value to be encountered more than once. In the event it occurs, the shortest name that was computed is retained.
 			If Lanes processed <tt>"string2"</tt> first, it means that if the Lua state that contains the <tt>"string2"</tt> global name sends function <tt>string.match</tt>, <tt>lookup_func_name</tt> would return name <tt>"string2.match"</tt>, with the obvious effect that <tt>push_resolved_func</tt>
 			won't find <tt>"string2.match"</tt> in the destination lookup database, thus failing the transfer (even though this function exists, but is referenced under name <tt>"string.match"</tt>).
 		</li>
@@ -1345,7 +1340,7 @@ events to a common Linda, but... :).</font>
 			When Lua is built with compatibility options (such as LUA_COMPAT_ALL), this causes several base libraries to register functions under multiple names.
 			This, with the randomizer, can cause the first encountered name of a function to be different on different VMs, which breaks function transfer.
 			Even under Lua 5.1, this may cause trouble if some module registers a function under several keys.
-			To circumvent this, Lanes has to select one name among all candidates, and the rule for this is to keep the 'smaller' one: first in bytes, then in lexical order.
+			To circumvent this, Lanes has to select one name among all candidates, and the rule for this is to keep the 'smaller' one: first in byte count, then in lexical order.
 		</li>
 	</ul>
 	Another more immediate reason of failed transfer is when the destination state doesn't know about the C function that has to be transferred. This occurs if a function is transferred in a lane before it had a chance to scan the module.

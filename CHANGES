@@ -1,5 +1,13 @@
 CHANGES:
 
+CHANGE 69: BGe 26-Sept-13
+   * version 3.6.5
+   * Reduce memory footprint, simplify module order setup in conjuction with Lanes, and send over native functions a bit faster as well
+   * Lanes no longer has to internally require modules inside the keeper states because they no longer need a lookup database
+     the lookup name is stored as-is and actually converted in the destination state
+   * optimisation: bypass cache when sending native functions over
+   * removed all the KEEPER_MODEL_LUA code, as it can no longer work anyway
+
 CHANGE 68: BGe 24-Sept-13
    * version 3.6.4
    * Fix possible application hang at shutdown if a keeper state referenced a linda.

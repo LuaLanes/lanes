@@ -18,21 +18,11 @@ char const* init_keepers( lua_State* L, int _on_state_create, int const _nbKeepe
 void close_keepers( void);
 #endif // HAVE_KEEPER_ATEXIT_DESINIT
 
-void populate_keepers( lua_State *L);
 struct s_Keeper *keeper_acquire( const void *ptr);
 void keeper_release( struct s_Keeper *K);
 void keeper_toggle_nil_sentinels( lua_State *L, int _val_i, int _nil_to_sentinel);
 int keeper_push_linda_storage( lua_State* L, void* ptr);
 
-#define KEEPER_MODEL_LUA 1
-#define KEEPER_MODEL_C 2
-#define KEEPER_MODEL KEEPER_MODEL_C
-
-#if KEEPER_MODEL == KEEPER_MODEL_LUA
-typedef char const* keeper_api_t;
-#define KEEPER_API( _op) #_op
-#define PUSH_KEEPER_FUNC( K, _api) lua_getglobal( K, _api)
-#elif KEEPER_MODEL == KEEPER_MODEL_C
 typedef lua_CFunction keeper_api_t;
 #define KEEPER_API( _op) keepercall_ ## _op
 #define PUSH_KEEPER_FUNC lua_pushcfunction
@@ -45,7 +35,6 @@ int keepercall_limit( lua_State* L);
 int keepercall_get( lua_State* L);
 int keepercall_set( lua_State* L);
 int keepercall_count( lua_State* L);
-#endif // KEEPER_MODEL
 
 int keeper_call( lua_State *K, keeper_api_t _func, lua_State *L, void *linda, uint_t starting_index);
 

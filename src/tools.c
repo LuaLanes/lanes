@@ -515,8 +515,6 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* _name)
 * Base ("unpack", "print" etc.) is always added, unless 'libs' is NULL.
 *
 */
-extern void register_core_libfuncs_for_keeper( lua_State* L);
-
 lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char const* libs)
 {
 	// reuse alloc function from the originating state
@@ -534,6 +532,7 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 	{
 		return L;
 	}
+	// if we are here, no keeper state is involved (because libs == NULL when we init keepers)
 
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_newstate()\n" INDENT_END));
 	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
@@ -549,9 +548,8 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 	if( libs)
 	{
 		// special "*" case (mainly to help with LuaJIT compatibility)
-		// "K" is used when opening keeper states: almost the same as "*", but for the fact we don't open lanes.core
 		// as we are called from luaopen_lanes_core() already, and that would deadlock
-		if( (libs[0] == '*' || libs[0] == 'K') && libs[1] == 0)
+		if( libs[0] == '*' && libs[1] == 0)
 		{
 			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening ALL standard libraries\n" INDENT_END));
 			luaL_openlibs( L);
@@ -559,12 +557,6 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 			{
 				// don't forget lanes.core for regular lane states
 				open1lib( L, "lanes.core", 10);
-			}
-			else
-			{
-				// In keeper states however, we only want to register the lanes.core functions to be able to transfer them through lindas
-				// (we don't care about a full lanes.core init in the keeper states as we won't call anything in there)
-				register_core_libfuncs_for_keeper( L);
 			}
 			libs = NULL; // done with libs
 		}
@@ -622,7 +614,7 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 			STACK_CHECK( _from);
 			// Lua function: transfer as usual (should work as long as it only uses base libraries)
 			lua_pushvalue( _from, _on_state_create);
-			luaG_inter_move( _from, L, 1);
+			luaG_inter_move( _from, L, 1, eLM_LaneBody);
 			STACK_END( _from, 0);
 		}
 		// capture error and forward it to main state
@@ -1283,59 +1275,6 @@ static bool_t push_cached_table( lua_State *L2, uint_t L2_cache_i, lua_State *L,
 }
 
 
-/* 
- * Check if we've already copied the same function from 'L', and reuse the old
- * copy.
- *
- * Always pushes a function to 'L2'.
- */
-static void inter_copy_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, char const* upName_);
-
-static void push_cached_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, char const* upName_)
-{
-	void* const aspointer = (void*)lua_topointer( L, i);
-	// TBD: Merge this and same code for tables
-	ASSERT_L( L2_cache_i != 0);
-
-	STACK_GROW( L2, 2);
-
-	// L2_cache[id_str]= function
-	//
-	STACK_CHECK( L2);
-
-	// We don't need to use the from state ('L') in ID since the life span
-	// is only for the duration of a copy (both states are locked).
-	//
-
-	// push a light userdata uniquely representing the function
-	lua_pushlightuserdata( L2, aspointer);                        // ... {cache} ... p
-
-	//fprintf( stderr, "<< ID: %s >>\n", lua_tostring(L2,-1) );
-
-	lua_pushvalue( L2, -1);                                       // ... {cache} ... p p
-	lua_rawget( L2, L2_cache_i);                                  // ... {cache} ... p function|nil|true
-
-	if( lua_isnil(L2,-1)) // function is unknown
-	{
-		lua_pop( L2, 1);                                            // ... {cache} ... p
-
-		// Set to 'true' for the duration of creation; need to find self-references
-		// via upvalues
-		//
-		// pushes a copy of the func, stores a reference in the cache
-		inter_copy_func( L2, L2_cache_i, L, i, upName_);            // ... {cache} ... function
-	}
-	else // found function in the cache
-	{
-		lua_remove( L2, -2);                                        // ... {cache} ... function
-	}
-	STACK_END( L2, 1);
-	//
-	// L2 [-1]: function
-
-	ASSERT_L( lua_isfunction( L2, -1));
-}
-
 /*
  * Return some name helping to identify an object
  */
@@ -1509,24 +1448,41 @@ int luaG_nameof( lua_State* L)
 	return 2;
 }
 
+// function sentinel used to transfer native functions from/to keeper states
+static int sentinelfunc( lua_State* L)
+{
+	return luaL_error( L, "transfer sentinel function for %s, should never be called", lua_tostring( L, lua_upvalueindex( 1)));
+}
+
 /*
 * Push a looked-up native/LuaJIT function.
 */
-static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, char const* upName_)
+static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, enum eLookupMode mode_, char const* upName_)
 {
-	char const* fqn;                                         // L                        // L2
+	char const* fqn;                                         // L                          // L2
 	size_t len;
 	_ASSERT_L( L, lua_isfunction( L, i));                    // ... f ...
 	STACK_CHECK( L);
-	// fetch the name from the source state's lookup table
-	lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY);         // ... f ... {}
-	_ASSERT_L( L, lua_istable( L, -1));
-	lua_pushvalue( L, i);                                    // ... f ... {} f
-	lua_rawget( L, -2);                                      // ... f ... {} "f.q.n"
-	fqn = lua_tolstring( L, -1, &len);
+	if( mode_ == eLM_FromKeeper)
+	{
+		lua_CFunction f = lua_tocfunction( L, i); // should *always* be sentinelfunc!
+		_ASSERT_L( L, f == sentinelfunc);
+		lua_getupvalue( L, i, 1);                              // ... f ... "f.q.n"
+		fqn = lua_tolstring( L, -1, &len);
+	}
+	else
+	{
+		// fetch the name from the source state's lookup table
+		lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY);       // ... f ... {}
+		_ASSERT_L( L, lua_istable( L, -1));
+		lua_pushvalue( L, i);                                  // ... f ... {} f
+		lua_rawget( L, -2);                                    // ... f ... {} "f.q.n"
+		fqn = lua_tolstring( L, -1, &len);
+	}
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "function [C] %s \n" INDENT_END, fqn));
 	// popping doesn't invalidate the pointer since this is an interned string gotten from the lookup database
-	lua_pop( L, 2);                                          // ... f ...
+	lua_pop( L, (mode_ == eLM_FromKeeper) ? 1 : 2);          // ... f ...
+	STACK_MID( L, 0);
 	if( !fqn)
 	{
 		char const *from, *typewhat, *what, *gotchaA, *gotchaB;
@@ -1556,21 +1512,30 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, char cons
 	STACK_END( L, 0);
 	// push the equivalent function in the destination's stack, retrieved from the lookup table
 	STACK_CHECK( L2);
-	lua_getfield( L2, LUA_REGISTRYINDEX, LOOKUP_KEY);                                    // {}
-	_ASSERT_L( L2, lua_istable( L2, -1));
-	lua_pushlstring( L2, fqn, len);                                                      // {} "f.q.n"
-	lua_rawget( L2, -2);                                                                 // {} f
-	if( !lua_isfunction( L2, -1))
+	if( mode_ == eLM_ToKeeper)
 	{
-		char const* from, * to;
-		lua_getglobal( L, "decoda_name");                      // // ... f ... decoda_name
-		from = lua_tostring( L, -1);
-		lua_getglobal( L2, "decoda_name");                                                 // {} f decoda_name
-		to = lua_tostring( L2, -1);
-		(void) luaL_error( L, "%s: function '%s' not found in %s destination transfer database.", from ? from : "main", fqn, to ? to : "main");
-		return;
+		// push a sentinel closure that holds the lookup name as upvalue
+		lua_pushlstring( L2, fqn, len);                                                      // "f.q.n"
+		lua_pushcclosure( L2, sentinelfunc, 1);                                              // f
 	}
-	lua_remove( L2, -2);                                                                 // f
+	else
+	{
+		lua_getfield( L2, LUA_REGISTRYINDEX, LOOKUP_KEY);                                    // {}
+		_ASSERT_L( L2, lua_istable( L2, -1));
+		lua_pushlstring( L2, fqn, len);                                                      // {} "f.q.n"
+		lua_rawget( L2, -2);                                                                 // {} f
+		if( !lua_isfunction( L2, -1))
+		{
+			char const* from, * to;
+			lua_getglobal( L, "decoda_name");                    // ... f ... decoda_name
+			from = lua_tostring( L, -1);
+			lua_getglobal( L2, "decoda_name");                                                 // {} f decoda_name
+			to = lua_tostring( L2, -1);
+			(void) luaL_error( L, "%s: function '%s' not found in %s destination transfer database.", from ? from : "main", fqn, to ? to : "main");
+			return;
+		}
+		lua_remove( L2, -2);                                                                 // f
+	}
 	STACK_END( L2, 1);
 }
 
@@ -1581,159 +1546,207 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, char cons
 enum e_vt {
     VT_NORMAL, VT_KEY, VT_METATABLE
 };
-static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt value_type, char const* upName_);
+static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt value_type, enum eLookupMode mode_, char const* upName_);
 
-static void inter_copy_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, char const* upName_)
+static void inter_copy_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum eLookupMode mode_, char const* upName_)
 {
-	FuncSubType funcSubType;
-	/*lua_CFunction cfunc =*/ luaG_tocfunction( L, i, &funcSubType); // NULL for LuaJIT-fast && bytecode functions
-
+	int n, needToPush;
+	luaL_Buffer b;
 	ASSERT_L( L2_cache_i != 0);                                                       // ... {cache} ... p
 	STACK_GROW(L,2);
 	STACK_CHECK( L);
 
-	if( funcSubType == FST_Bytecode)
+	// 'lua_dump()' needs the function at top of stack
+	// if already on top of the stack, no need to push again
+	needToPush = (i != (uint_t)lua_gettop( L));
+	if( needToPush)
 	{
-		int n;
-		luaL_Buffer b;
-		// 'lua_dump()' needs the function at top of stack
-		// if already on top of the stack, no need to push again
-		int needToPush = (i != (uint_t)lua_gettop( L));
-		if( needToPush)
-		{
-			lua_pushvalue( L, i);                                // ... f
-		}
-
-		luaL_buffinit( L, &b);
-		//
-		// "value returned is the error code returned by the last call 
-		// to the writer" (and we only return 0)
-		// not sure this could ever fail but for memory shortage reasons
-		if( lua_dump( L, buf_writer, &b) != 0)
-		{
-			luaL_error( L, "internal error: function dump failed.");
-		}
-
-		// pushes dumped string on 'L'
-		luaL_pushresult( &b);                                  // ... f b
-
-		// if not pushed, no need to pop
-		if( needToPush)
-		{
-			lua_remove( L, -2);                                  // ... b
-		}
-
-		// transfer the bytecode, then the upvalues, to create a similar closure
-		{
-			char const* name = NULL;
-
-			#if LOG_FUNC_INFO
-			// "To get information about a function you push it onto the 
-			// stack and start the what string with the character '>'."
-			//
-			{
-				lua_Debug ar;
-				lua_pushvalue( L, i);                              // ... b f
-				// fills 'name' 'namewhat' and 'linedefined', pops function
-				lua_getinfo(L, ">nS", &ar);                        // ... b
-				name = ar.namewhat;
-				fprintf( stderr, INDENT_BEGIN "FNAME: %s @ %d\n", i, s_indent, ar.short_src, ar.linedefined);  // just gives NULL
-			}
-			#endif // LOG_FUNC_INFO
-			{
-				size_t sz;
-				char const* s = lua_tolstring( L, -1, &sz);        // ... b
-				ASSERT_L( s && sz);
-				STACK_GROW( L2, 2);
-				// Note: Line numbers seem to be taken precisely from the 
-				//       original function. 'name' is not used since the chunk
-				//       is precompiled (it seems...). 
-				//
-				// TBD: Can we get the function's original name through, as well?
-				//
-				if( luaL_loadbuffer( L2, s, sz, name) != 0)                                 // ... {cache} ... p function
-				{
-					// chunk is precompiled so only LUA_ERRMEM can happen
-					// "Otherwise, it pushes an error message"
-					//
-					STACK_GROW( L, 1);
-					luaL_error( L, "%s", lua_tostring( L2, -1));
-				}
-				// remove the dumped string
-				lua_pop( L, 1);                                    // ...
-				// now set the cache as soon as we can.
-				// this is necessary if one of the function's upvalues references it indirectly
-				// we need to find it in the cache even if it isn't fully transfered yet
-				lua_insert( L2, -2);                                                        // ... {cache} ... function p
-				lua_pushvalue( L2, -2);                                                     // ... {cache} ... function p function
-				// cache[p] = function
-				lua_rawset( L2, L2_cache_i);                                                // ... {cache} ... function
-			}
-			STACK_MID( L, 0);
-
-			/* push over any upvalues; references to this function will come from
-			* cache so we don't end up in eternal loop.
-			* Lua5.2: one of the upvalues is _ENV, which we don't want to copy!
-			* instead, the function shall have LUA_RIDX_GLOBALS taken in the destination state!
-			*/
-			{
-				char const* upname;
-#if LUA_VERSION_NUM == 502
-				// With Lua 5.2, each Lua function gets its environment as one of its upvalues (named LUA_ENV, aka "_ENV" by default)
-				// Generally this is LUA_RIDX_GLOBALS, which we don't want to copy from the source to the destination state...
-				// -> if we encounter an upvalue equal to the global table in the source, bind it to the destination's global table
-				lua_pushglobaltable( L);                           // ... _G
-#endif // LUA_VERSION_NUM
-				for( n = 0; (upname = lua_getupvalue( L, i, 1 + n)) != NULL; ++ n)
-				{                                                  // ... _G up[n]
-					DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "UPNAME[%d]: %s\n" INDENT_END, n, upname));
-#if LUA_VERSION_NUM == 502
-					if( lua_rawequal( L, -1, -2)) // is the upvalue equal to the global table?
-					{
-						lua_pushglobaltable( L2);                                               // ... {cache} ... function <upvalues>
-					}
-					else
-#endif // LUA_VERSION_NUM
-					{
-						if( !inter_copy_one_( L2, L2_cache_i, L, lua_gettop( L), VT_NORMAL, upname))    // ... {cache} ... function <upvalues>
-						{
-							luaL_error( L, "Cannot copy upvalue type '%s'", luaL_typename( L, -1));
-						}
-					}
-					lua_pop( L, 1);                                  // ... _G
-				}
-#if LUA_VERSION_NUM == 502
-				lua_pop( L, 1);                                    // ...
-#endif // LUA_VERSION_NUM
-			}
-			// L2: function + 'n' upvalues (>=0)
-
-			STACK_MID( L, 0);
-
-			// Set upvalues (originally set to 'nil' by 'lua_load')
-			{
-				int func_index = lua_gettop( L2) - n;
-				for( ; n > 0; -- n)
-				{
-					char const* rc = lua_setupvalue( L2, func_index, n);                      // ... {cache} ... function
-					//
-					// "assigns the value at the top of the stack to the upvalue and returns its name.
-					// It also pops the value from the stack."
-
-					ASSERT_L( rc);      // not having enough slots?
-				}
-				// once all upvalues have been set we are left
-				// with the function at the top of the stack                                // ... {cache} ... function
-			}
-		}
+		lua_pushvalue( L, i);                                // ... f
 	}
-	else // C function OR LuaJIT fast function!!!
+
+	luaL_buffinit( L, &b);
+	//
+	// "value returned is the error code returned by the last call 
+	// to the writer" (and we only return 0)
+	// not sure this could ever fail but for memory shortage reasons
+	if( lua_dump( L, buf_writer, &b) != 0)
 	{
-		lua_pop( L2, 1);                                                                // ... {cache} ...
-		// No need to transfer upvalues for C/JIT functions since they weren't actually copied, only looked up
-		lookup_native_func( L2, L, i, upName_);                                         // ... {cache} ... function
+		luaL_error( L, "internal error: function dump failed.");
+	}
+
+	// pushes dumped string on 'L'
+	luaL_pushresult( &b);                                  // ... f b
+
+	// if not pushed, no need to pop
+	if( needToPush)
+	{
+		lua_remove( L, -2);                                  // ... b
+	}
+
+	// transfer the bytecode, then the upvalues, to create a similar closure
+	{
+		char const* name = NULL;
+
+		#if LOG_FUNC_INFO
+		// "To get information about a function you push it onto the 
+		// stack and start the what string with the character '>'."
+		//
+		{
+			lua_Debug ar;
+			lua_pushvalue( L, i);                              // ... b f
+			// fills 'name' 'namewhat' and 'linedefined', pops function
+			lua_getinfo(L, ">nS", &ar);                        // ... b
+			name = ar.namewhat;
+			fprintf( stderr, INDENT_BEGIN "FNAME: %s @ %d\n", i, s_indent, ar.short_src, ar.linedefined);  // just gives NULL
+		}
+		#endif // LOG_FUNC_INFO
+		{
+			size_t sz;
+			char const* s = lua_tolstring( L, -1, &sz);        // ... b
+			ASSERT_L( s && sz);
+			STACK_GROW( L2, 2);
+			// Note: Line numbers seem to be taken precisely from the 
+			//       original function. 'name' is not used since the chunk
+			//       is precompiled (it seems...). 
+			//
+			// TBD: Can we get the function's original name through, as well?
+			//
+			if( luaL_loadbuffer( L2, s, sz, name) != 0)                                                // ... {cache} ... p function
+			{
+				// chunk is precompiled so only LUA_ERRMEM can happen
+				// "Otherwise, it pushes an error message"
+				//
+				STACK_GROW( L, 1);
+				luaL_error( L, "%s", lua_tostring( L2, -1));
+			}
+			// remove the dumped string
+			lua_pop( L, 1);                                    // ...
+			// now set the cache as soon as we can.
+			// this is necessary if one of the function's upvalues references it indirectly
+			// we need to find it in the cache even if it isn't fully transfered yet
+			lua_insert( L2, -2);                                                                       // ... {cache} ... function p
+			lua_pushvalue( L2, -2);                                                                    // ... {cache} ... function p function
+			// cache[p] = function
+			lua_rawset( L2, L2_cache_i);                                                               // ... {cache} ... function
+		}
+		STACK_MID( L, 0);
+
+		/* push over any upvalues; references to this function will come from
+		* cache so we don't end up in eternal loop.
+		* Lua5.2: one of the upvalues is _ENV, which we don't want to copy!
+		* instead, the function shall have LUA_RIDX_GLOBALS taken in the destination state!
+		*/
+		{
+			char const* upname;
+#if LUA_VERSION_NUM == 502
+			// With Lua 5.2, each Lua function gets its environment as one of its upvalues (named LUA_ENV, aka "_ENV" by default)
+			// Generally this is LUA_RIDX_GLOBALS, which we don't want to copy from the source to the destination state...
+			// -> if we encounter an upvalue equal to the global table in the source, bind it to the destination's global table
+			lua_pushglobaltable( L);                           // ... _G
+#endif // LUA_VERSION_NUM
+			for( n = 0; (upname = lua_getupvalue( L, i, 1 + n)) != NULL; ++ n)
+			{                                                  // ... _G up[n]
+				DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "UPNAME[%d]: %s\n" INDENT_END, n, upname));
+#if LUA_VERSION_NUM == 502
+				if( lua_rawequal( L, -1, -2)) // is the upvalue equal to the global table?
+				{
+					lua_pushglobaltable( L2);                                                              // ... {cache} ... function <upvalues>
+				}
+				else
+#endif // LUA_VERSION_NUM
+				{
+					if( !inter_copy_one_( L2, L2_cache_i, L, lua_gettop( L), VT_NORMAL, mode_, upname))    // ... {cache} ... function <upvalues>
+					{
+						luaL_error( L, "Cannot copy upvalue type '%s'", luaL_typename( L, -1));
+					}
+				}
+				lua_pop( L, 1);                                  // ... _G
+			}
+#if LUA_VERSION_NUM == 502
+			lua_pop( L, 1);                                    // ...
+#endif // LUA_VERSION_NUM
+		}
+		// L2: function + 'n' upvalues (>=0)
+
+		STACK_MID( L, 0);
+
+		// Set upvalues (originally set to 'nil' by 'lua_load')
+		{
+			int func_index = lua_gettop( L2) - n;
+			for( ; n > 0; -- n)
+			{
+				char const* rc = lua_setupvalue( L2, func_index, n);                      // ... {cache} ... function
+				//
+				// "assigns the value at the top of the stack to the upvalue and returns its name.
+				// It also pops the value from the stack."
+
+				ASSERT_L( rc);      // not having enough slots?
+			}
+			// once all upvalues have been set we are left
+			// with the function at the top of the stack                                // ... {cache} ... function
+		}
 	}
 	STACK_END( L, 0);
+}
+
+/* 
+ * Check if we've already copied the same function from 'L', and reuse the old
+ * copy.
+ *
+ * Always pushes a function to 'L2'.
+ */
+static void push_cached_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum eLookupMode mode_, char const* upName_)
+{
+	FuncSubType funcSubType;
+	/*lua_CFunction cfunc =*/ luaG_tocfunction( L, i, &funcSubType); // NULL for LuaJIT-fast && bytecode functions
+	if( funcSubType == FST_Bytecode)
+	{
+		void* const aspointer = (void*)lua_topointer( L, i);
+		// TBD: Merge this and same code for tables
+		ASSERT_L( L2_cache_i != 0);
+
+		STACK_GROW( L2, 2);
+
+		// L2_cache[id_str]= function
+		//
+		STACK_CHECK( L2);
+
+		// We don't need to use the from state ('L') in ID since the life span
+		// is only for the duration of a copy (both states are locked).
+		//
+
+		// push a light userdata uniquely representing the function
+		lua_pushlightuserdata( L2, aspointer);                        // ... {cache} ... p
+
+		//fprintf( stderr, "<< ID: %s >>\n", lua_tostring(L2,-1) );
+
+		lua_pushvalue( L2, -1);                                       // ... {cache} ... p p
+		lua_rawget( L2, L2_cache_i);                                  // ... {cache} ... p function|nil|true
+
+		if( lua_isnil(L2,-1)) // function is unknown
+		{
+			lua_pop( L2, 1);                                            // ... {cache} ... p
+
+			// Set to 'true' for the duration of creation; need to find self-references
+			// via upvalues
+			//
+			// pushes a copy of the func, stores a reference in the cache
+			inter_copy_func( L2, L2_cache_i, L, i, mode_, upName_);     // ... {cache} ... function
+		}
+		else // found function in the cache
+		{
+			lua_remove( L2, -2);                                        // ... {cache} ... function
+		}
+		STACK_END( L2, 1);
+	}
+	else // function is native/LuaJIT: no need to cache
+	{
+		lookup_native_func( L2, L, i, mode_, upName_);                // ... {cache} ... function
+	}
+
+	//
+	// L2 [-1]: function
+	ASSERT_L( lua_isfunction( L2, -1));
 }
 
 /*
@@ -1746,7 +1759,7 @@ static void inter_copy_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uin
 *
 * Returns TRUE if value was pushed, FALSE if its type is non-supported.
 */
-static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, char const* upName_)
+static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, enum eLookupMode mode_, char const* upName_)
 {
 	bool_t ret = TRUE;
 
@@ -1764,6 +1777,7 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 
 		case LUA_TNUMBER:
 		/* LNUM patch support (keeping integer accuracy) */
+		// TODO: support for integer in Lua 5.3
 #ifdef LUA_LNUM
 		if( lua_isinteger(L,i))
 		{
@@ -1831,7 +1845,7 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 		{
 			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "FUNCTION\n" INDENT_END));
 			STACK_CHECK( L2);
-			push_cached_func( L2, L2_cache_i, L, i, upName_);
+			push_cached_func( L2, L2_cache_i, L, i, mode_, upName_);
 			STACK_END( L2, 1);
 		}
 		break;
@@ -1873,7 +1887,7 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 
 				/* Only basic key types are copied over; others ignored
 				*/
-				if( inter_copy_one_( L2, 0 /*key*/, L, key_i, VT_KEY, upName_))
+				if( inter_copy_one_( L2, 0 /*key*/, L, key_i, VT_KEY, mode_, upName_))
 				{
 					char* valPath = (char*) upName_;
 					if( GVerboseErrors)
@@ -1894,7 +1908,7 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 					* Contents of metatables are copied with cache checking;
 					* important to detect loops.
 					*/
-					if( inter_copy_one_( L2, L2_cache_i, L, val_i, VT_NORMAL, valPath))
+					if( inter_copy_one_( L2, L2_cache_i, L, val_i, VT_NORMAL, mode_, valPath))
 					{
 						ASSERT_L( lua_istable(L2,-3));
 						lua_rawset( L2, -3);    // add to table (pops key & val)
@@ -1936,7 +1950,7 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 					lua_pop( L2, 1);
 					STACK_MID( L2, 2);
 					ASSERT_L( lua_istable(L,-1));
-					if( inter_copy_one_( L2, L2_cache_i /*for function cacheing*/, L, lua_gettop(L) /*[-1]*/, VT_METATABLE, upName_))
+					if( inter_copy_one_( L2, L2_cache_i /*for function cacheing*/, L, lua_gettop(L) /*[-1]*/, VT_METATABLE, mode_, upName_))
 					{
 						//
 						// L2 ([-3]: copied table)
@@ -1981,8 +1995,8 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 			}
 			STACK_END( L2, 1);
 			STACK_END( L, 0);
-	}
-	break;
+		}
+		break;
 
 		/* The following types cannot be copied */
 
@@ -2004,7 +2018,7 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 *
 * Note: Parameters are in this order ('L' = from first) to be same as 'lua_xmove'.
 */
-int luaG_inter_copy( lua_State* L, lua_State* L2, uint_t n)
+int luaG_inter_copy( lua_State* L, lua_State* L2, uint_t n, enum eLookupMode mode_)
 {
 	uint_t top_L = lua_gettop( L);
 	uint_t top_L2 = lua_gettop( L2);
@@ -2034,7 +2048,7 @@ int luaG_inter_copy( lua_State* L, lua_State* L2, uint_t n)
 		{
 			sprintf( tmpBuf, "arg_%d", j);
 		}
-		copyok = inter_copy_one_( L2, top_L2 + 1, L, i, VT_NORMAL, pBuf);
+		copyok = inter_copy_one_( L2, top_L2 + 1, L, i, VT_NORMAL, mode_, pBuf);
 		if( !copyok)
 		{
 			break;
@@ -2062,14 +2076,14 @@ int luaG_inter_copy( lua_State* L, lua_State* L2, uint_t n)
 }
 
 
-int luaG_inter_move( lua_State* L, lua_State* L2, uint_t n)
+int luaG_inter_move( lua_State* L, lua_State* L2, uint_t n, enum eLookupMode mode_)
 {
-	int ret = luaG_inter_copy( L, L2, n);
+	int ret = luaG_inter_copy( L, L2, n, mode_);
 	lua_pop( L, (int) n);
 	return ret;
 }
 
-void luaG_inter_copy_package( lua_State* L, lua_State* L2, int _idx)
+void luaG_inter_copy_package( lua_State* L, lua_State* L2, int _idx, enum eLookupMode mode_)
 {
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_inter_copy_package()\n" INDENT_END));
 	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
@@ -2100,7 +2114,7 @@ void luaG_inter_copy_package( lua_State* L, lua_State* L2, int _idx)
 			else
 			{
 				DEBUGSPEW_CODE( ++ debugspew_indent_depth);
-				luaG_inter_move( L, L2, 1); // moves the entry to L2
+				luaG_inter_move( L, L2, 1, mode_); // moves the entry to L2
 				DEBUGSPEW_CODE( -- debugspew_indent_depth);
 				lua_setfield( L2, -2, entries[i]); // set package[entries[i]]
 			}
