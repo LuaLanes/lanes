@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.6.5";
+char const* VERSION = "3.6.6";
 
 /*
 ===============================================================================
@@ -414,8 +414,8 @@ LUAG_FUNC( linda_send)
 
 	STACK_GROW(L, 1);
 	{
-		struct s_Keeper *K = keeper_acquire( linda);
-		lua_State *KL = K->L;    // need to do this for 'STACK_CHECK'
+		struct s_Keeper* K = keeper_acquire( linda);
+		lua_State* KL = K->L;    // need to do this for 'STACK_CHECK'
 		STACK_CHECK( KL);
 		for( ;;)
 		{
@@ -2734,7 +2734,6 @@ LUAG_FUNC( configure)
 	char const* name = luaL_checkstring( L, lua_upvalueindex( 1));
 	// all parameter checks are done lua-side
 	int const nbKeepers = (int)lua_tointeger( L, 1);
-	// all these can be nil when lanes.core is required internally! (but are only processed at first init anyway)
 	int const on_state_create = lua_isfunction( L, 2) ? 2 : 0;
 	lua_Number shutdown_timeout = lua_tonumber( L, 3);
 	bool_t track_lanes = lua_toboolean( L, 4);
@@ -2759,6 +2758,45 @@ LUAG_FUNC( configure)
 			lua_setallocf( L, protected_lua_Alloc, s);
 		}
 	}
+	STACK_MID( L, 0);
+
+	/*
+	** Making one-time initializations.
+	**
+	** When the host application is single-threaded (and all threading happens via Lanes)
+	** there is no problem. But if the host is multithreaded, we need to lock around the
+	** initializations.
+	*/
+#if THREADAPI == THREADAPI_WINDOWS
+	{
+		static volatile int /*bool*/ go_ahead; // = 0
+		if( InterlockedCompareExchange( &s_initCount, 1, 0) == 0)
+		{
+			init_once_LOCKED( L, on_state_create, nbKeepers, shutdown_timeout, track_lanes, verbose_errors);
+			go_ahead = 1; // let others pass
+		}
+		else
+		{
+			while( !go_ahead) { Sleep(1); } // changes threads
+		}
+	}
+#else // THREADAPI == THREADAPI_PTHREAD
+	if( s_initCount == 0)
+	{
+		static pthread_mutex_t my_lock = PTHREAD_MUTEX_INITIALIZER;
+		pthread_mutex_lock( &my_lock);
+		{
+			// Recheck now that we're within the lock
+			//
+			if( s_initCount == 0)
+			{
+				init_once_LOCKED( L, on_state_create, nbKeepers, shutdown_timeout, track_lanes, verbose_errors);
+				s_initCount = 1;
+			}
+		}
+		pthread_mutex_unlock( &my_lock);
+	}
+#endif // THREADAPI == THREADAPI_PTHREAD
 
 	// Create main module interface table
 	lua_pushvalue( L, lua_upvalueindex( 2));                               // ... M
@@ -2818,49 +2856,7 @@ LUAG_FUNC( configure)
 	populate_func_lookup_table( L, -1, NULL);
 	lua_pop( L, 1);                                                        // ... M
 
-	STACK_MID( L, 1);
-	/*
-	** Making one-time initializations.
-	**
-	** When the host application is single-threaded (and all threading happens via Lanes)
-	** there is no problem. But if the host is multithreaded, we need to lock around the
-	** initializations.
-	** we must do this after the populate_func_lookup_table is called, else populating the keepers will fail
-	** because this makes a copy of packages.loaders, which requires the lookup tables to exist!
-	*/
-#if THREADAPI == THREADAPI_WINDOWS
-	{
-		static volatile int /*bool*/ go_ahead; // = 0
-		if( InterlockedCompareExchange( &s_initCount, 1, 0) == 0)
-		{
-			init_once_LOCKED( L, on_state_create, nbKeepers, shutdown_timeout, track_lanes, verbose_errors);
-			go_ahead = 1;    // let others pass
-		}
-		else
-		{
-			while( !go_ahead ) { Sleep(1); }    // changes threads
-		}
-	}
-#else // THREADAPI == THREADAPI_PTHREAD
-	if( s_initCount == 0)
-	{
-		static pthread_mutex_t my_lock = PTHREAD_MUTEX_INITIALIZER;
-		pthread_mutex_lock( &my_lock);
-		{
-			// Recheck now that we're within the lock
-			//
-			if( s_initCount == 0)
-			{
-				init_once_LOCKED( L, on_state_create, nbKeepers, shutdown_timeout, track_lanes, verbose_errors);
-				s_initCount = 1;
-			}
-		}
-		pthread_mutex_unlock( &my_lock);
-	}
-#endif // THREADAPI == THREADAPI_PTHREAD
-	STACK_MID( L, 1);
-
-	assert( timer_deep != NULL);
+	ASSERT_L( timer_deep != NULL);
 	// init_once_LOCKED initializes timer_deep, so we must do this after, of course
 	luaG_push_proxy( L, linda_id, (DEEP_PRELUDE*) timer_deep);             // ... M timer_deep
 	lua_setfield( L, -2, "timer_gateway");                                 // ... M
@@ -2875,9 +2871,9 @@ LUAG_FUNC( configure)
 
 // helper to have correct callstacks when crashing a Win32 running on 64 bits Windows
 // don't forget to toggle Debug/Exceptions/Win32 in visual Studio too!
-void EnableCrashingOnCrashes()
+static void EnableCrashingOnCrashes( void)
 { 
-#if 0 && defined PLATFORM_WIN32
+#if defined PLATFORM_WIN32 && !defined NDEBUG
 	typedef BOOL (WINAPI *tGetPolicy)(LPDWORD lpFlags);
 	typedef BOOL (WINAPI *tSetPolicy)(DWORD dwFlags);
 	const DWORD EXCEPTION_SWALLOWING = 0x1;
@@ -2885,13 +2881,13 @@ void EnableCrashingOnCrashes()
 	HMODULE kernel32 = LoadLibraryA("kernel32.dll");
 	tGetPolicy pGetPolicy = (tGetPolicy)GetProcAddress(kernel32, "GetProcessUserModeExceptionPolicy");
 	tSetPolicy pSetPolicy = (tSetPolicy)GetProcAddress(kernel32, 	"SetProcessUserModeExceptionPolicy");
-	if (pGetPolicy && pSetPolicy)
+	if( pGetPolicy && pSetPolicy)
 	{
 		DWORD dwFlags;
-		if (pGetPolicy(&dwFlags))
+		if( pGetPolicy( &dwFlags))
 		{
 			// Turn off the filter
-			pSetPolicy(dwFlags & ~EXCEPTION_SWALLOWING);
+			pSetPolicy( dwFlags & ~EXCEPTION_SWALLOWING);
 		}
 	}
 #endif // PLATFORM_WIN32
@@ -2906,21 +2902,11 @@ int LANES_API luaopen_lanes_core( lua_State* L)
 
 	// Create main module interface table
 	// we only have 1 closure, which must be called to configure Lanes
-	lua_newtable(L);                         // M
-	lua_pushvalue(L, 1);                     // M "lanes.core"
-	lua_pushvalue(L, -2);                    // M "lanes.core" M
-	lua_pushcclosure( L, LG_configure, 2);   // M LG_configure()
-	if( s_initCount == 0)
-	{
-		lua_setfield( L, -2, "configure");     // M
-	}
-	else // already initialized: call it immediately and be done
-	{
-		// any parameter value will do, they will be ignored
-		lua_pushinteger( L, 666);              // M LG_configure() 666
-		lua_pushnil( L);                       // M LG_configure() 666 nil
-		lua_call( L, 2, 0);                    // M
-	}
+	lua_newtable( L);                         // M
+	lua_pushvalue( L, 1);                     // M "lanes.core"
+	lua_pushvalue( L, -2);                    // M "lanes.core" M
+	lua_pushcclosure( L, LG_configure, 2);    // M LG_configure()
+	lua_setfield( L, -2, "configure");        // M
 
 	STACK_END( L, 1);
 	return 1;

@@ -1461,12 +1461,12 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, enum eLoo
 {
 	char const* fqn;                                         // L                          // L2
 	size_t len;
-	_ASSERT_L( L, lua_isfunction( L, i));                    // ... f ...
+	ASSERT_L( lua_isfunction( L, i));                        // ... f ...
 	STACK_CHECK( L);
 	if( mode_ == eLM_FromKeeper)
 	{
 		lua_CFunction f = lua_tocfunction( L, i); // should *always* be sentinelfunc!
-		_ASSERT_L( L, f == sentinelfunc);
+		ASSERT_L( f == sentinelfunc);
 		lua_getupvalue( L, i, 1);                              // ... f ... "f.q.n"
 		fqn = lua_tolstring( L, -1, &len);
 	}
@@ -1474,7 +1474,7 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, enum eLoo
 	{
 		// fetch the name from the source state's lookup table
 		lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY);       // ... f ... {}
-		_ASSERT_L( L, lua_istable( L, -1));
+		ASSERT_L( lua_istable( L, -1));
 		lua_pushvalue( L, i);                                  // ... f ... {} f
 		lua_rawget( L, -2);                                    // ... f ... {} "f.q.n"
 		fqn = lua_tolstring( L, -1, &len);
@@ -1521,7 +1521,7 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, enum eLoo
 	else
 	{
 		lua_getfield( L2, LUA_REGISTRYINDEX, LOOKUP_KEY);                                    // {}
-		_ASSERT_L( L2, lua_istable( L2, -1));
+		ASSERT_L( lua_istable( L2, -1));
 		lua_pushlstring( L2, fqn, len);                                                      // {} "f.q.n"
 		lua_rawget( L2, -2);                                                                 // {} f
 		if( !lua_isfunction( L2, -1))

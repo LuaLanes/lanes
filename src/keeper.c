@@ -572,8 +572,6 @@ char const* init_keepers( lua_State* L, int _on_state_create, int const _nbKeepe
 		lua_State* K;
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "### init_keepers %d BEGIN\n" INDENT_END, i));
 		DEBUGSPEW_CODE( ++ debugspew_indent_depth);
-		// We need to load all base libraries in the keeper states so that the transfer databases are populated properly
-		// 
 		// we don't need any libs in the keeper states
 		K = luaG_newstate( L, _on_state_create, NULL);
 

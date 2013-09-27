@@ -145,23 +145,18 @@ lanes.configure = function( _params)
 
 	local core = require "lanes.core"
 	assert( type( core)=="table")
-
-	-- configure() is available only the first time lanes.core is required process-wide, and we *must* call it to have the other functions in the interface
-	if core.configure then core.configure( _params.nb_keepers, _params.on_state_create, _params.shutdown_timeout, _params.track_lanes, _params.protect_allocator, _params.verbose_errors) end
-
+	core.configure( _params.nb_keepers, _params.on_state_create, _params.shutdown_timeout, _params.track_lanes, _params.protect_allocator, _params.verbose_errors)
 	local thread_new = assert( core.thread_new)
-
 	local set_singlethreaded = assert( core.set_singlethreaded)
-
 	local max_prio = assert( core.max_prio)
 
-lanes.ABOUT= 
+lanes.ABOUT =
 {
-    author= "Asko Kauppi <akauppi@gmail.com>, Benoit Germain <bnt.germain@gmail.com>",
-    description= "Running multiple Lua states in parallel",
-    license= "MIT/X11",
-    copyright= "Copyright (c) 2007-10, Asko Kauppi; (c) 2011-12, Benoit Germain",
-    version = assert( core.version)
+	author= "Asko Kauppi <akauppi@gmail.com>, Benoit Germain <bnt.germain@gmail.com>",
+	description= "Running multiple Lua states in parallel",
+	license= "MIT/X11",
+	copyright= "Copyright (c) 2007-10, Asko Kauppi; (c) 2011-13, Benoit Germain",
+	version = assert( core.version)
 }
 
 

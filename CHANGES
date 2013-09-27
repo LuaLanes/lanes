@@ -1,5 +1,11 @@
 CHANGES:
 
+CHANGE 70: BGe 27-Step-13
+   * version 3.6.6
+   * no longer call core.configure with dummy params when requiring lanes more than once (fixes potential multithreading issues with LuaJIT allocator)
+   * activated EnableCrashingOnCrashes() is active on Win32 debug builds
+   * fixed some comments in code
+
 CHANGE 69: BGe 26-Sept-13
    * version 3.6.5
    * Reduce memory footprint, simplify module order setup in conjuction with Lanes, and send over native functions a bit faster as well
