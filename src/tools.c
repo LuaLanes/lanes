@@ -467,12 +467,12 @@ static void populate_func_lookup_table_recur( lua_State* L, int _ctx_base, int _
 /*
  * create a "fully.qualified.name" <-> function equivalence database
  */
-void populate_func_lookup_table( lua_State* L, int _i, char const* _name)
+void populate_func_lookup_table( lua_State* L, int _i, char const* name_)
 {
 	int const ctx_base = lua_gettop( L) + 1;
 	int const in_base = lua_absindex( L, _i);
-	int const start_depth = _name ? 1 : 0;
-	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: populate_func_lookup_table('%s')\n" INDENT_END, L, _name ? _name : "NULL"));
+	int const start_depth = name_ ? 1 : 0;
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: populate_func_lookup_table('%s')\n" INDENT_END, L, name_ ? name_ : "NULL"));
 	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
 	STACK_GROW( L, 3);
 	STACK_CHECK( L);
@@ -484,22 +484,41 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* _name)
 		lua_pushvalue( L, -1);                                                  // {} {}
 		lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY);                        // {}
 	}
-	lua_newtable( L);                                                         // {} {fqn}
-	if( _name)
+	if( lua_type( L, in_base) == LUA_TFUNCTION) // for example when a module is a simple function
 	{
-		lua_pushstring( L, _name);                                              // {} {fqn} "name"
-		lua_rawseti( L, -2, start_depth);                                       // {} {fqn}
+		name_ = name_ ? name_ : "NULL";
+		lua_pushvalue( L, in_base);                                             // {} f
+		lua_pushstring( L, name_);                                              // {} f _name
+		lua_rawset( L, -3);                                                     // {}
+		lua_pushstring( L, name_);                                              // {} _name
+		lua_pushvalue( L, in_base);                                             // {} _name f
+		lua_rawset( L, -3);                                                     // {}
+		lua_pop( L, 1);                                                         //
 	}
-	lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY_CACHE);                    // {} {fqn} {cache}?
-	if( lua_isnil( L, -1))
+	else if( lua_type( L, in_base) == LUA_TTABLE)
 	{
-		lua_pop( L, 1);                                                         // {} {fqn}
-		lua_newtable( L);                                                       // {} {fqn} {cache}
-		lua_pushvalue( L, -1);                                                  // {} {fqn} {cache} {cache}
-		lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY_CACHE);                  // {} {fqn} {cache}
+		lua_newtable( L);                                                       // {} {fqn}
+		if( name_)
+		{
+			lua_pushstring( L, name_);                                            // {} {fqn} "name"
+			lua_rawseti( L, -2, start_depth);                                     // {} {fqn}
+		}
+		lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY_CACHE);                  // {} {fqn} {cache}?
+		if( lua_isnil( L, -1))
+		{
+			lua_pop( L, 1);                                                       // {} {fqn}
+			lua_newtable( L);                                                     // {} {fqn} {cache}
+			lua_pushvalue( L, -1);                                                // {} {fqn} {cache} {cache}
+			lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY_CACHE);                // {} {fqn} {cache}
+		}
+		populate_func_lookup_table_recur( L, ctx_base, in_base, start_depth);   // {...} {fqn} {cache}
+		lua_pop( L, 3);
 	}
-	populate_func_lookup_table_recur( L, ctx_base, in_base, start_depth);     // {...} {fqn} {cache}
-	lua_pop( L, 3);
+	else
+	{
+		lua_pop( L, 1);                                                         //
+		(void) luaL_error( L, "unsupported module type %s", lua_typename( L, lua_type( L, in_base)));
+	}
 	STACK_END( L, 0);
 	DEBUGSPEW_CODE( -- debugspew_indent_depth);
 }
