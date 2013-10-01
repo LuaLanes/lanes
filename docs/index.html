@@ -242,7 +242,7 @@
 </table>
 
 <p>
-	Starting with version 3.0-beta, requiring the module follows Lua 5.2 rules: the module is not available under the global name "lanes", but has to be accessed through require's return value.
+	Starting with version 3.0-beta, requiring the module follows Lua 5.2 rules: the module is not available under the global name "lanes", but has to be accessed through <tt>require</tt>'s return value.
 </p>
 <p>
 	After lanes is required, it is necessary to call <tt>lanes.configure()</tt>, which is the only function exposed by the module at this point. Calling <tt>configure()</tt> will perform one-time initializations and make the rest of the API available.
