@@ -24,11 +24,16 @@ end
 --
 local KNOWN= { [0]=0, 1,1,2,3,5,8,13,21,34,55,89,144 }
 
---
+-- dummy function so that we don't error when fib() is launched from the master state
+set_debug_threadname = function ( ...)
+end
+
+	--
 -- uint= fib( n_uint )
 --
 local function fib( n )
-	--local lanes = require"lanes".configure()
+    set_debug_threadname( "fib(" .. n .. ")")
+    local lanes = require"lanes".configure()
     --
     local sum
     local floor= assert(math.floor)
@@ -40,11 +45,7 @@ local function fib( n )
     else
         -- Splits into two; this task remains waiting for the results
         --
-        -- note that lanes is pulled in by upvalue, so we need lanes.core to be available
-				-- the other solution is to require "lanes" from inside the lane body, as in:
-				-- local lanes = require"lanes".configure()
-        -- local gen_f= lanes.gen( "*", fib)
-        local gen_f= lanes.gen( "*", {required={"lanes.core"}}, fib)
+        local gen_f= lanes.gen( "*", fib)
 
         local n1=floor(n/2) +1
         local n2=floor(n/2) -1 + n%2
@@ -93,4 +94,3 @@ local N= 80
 local res= fib(N)
 print( right[N], res )
 -- assert( res==right[N] ) -- can't guarantee such a large number will match exactly
-
