@@ -1,10 +1,13 @@
 CHANGES:
 
+CHANGE 72: BGe 3-Ost-13
+   * bugfix: no longer create a global named "lanes.core" inside lanes having "*" as library list
+
 CHANGE 71: BGe 30-Sept-13
+   * version 3.6.6
    * properly handle cases when a Lua C module is a C function
 
 CHANGE 70: BGe 27-Step-13
-   * version 3.6.6
    * no longer call core.configure with dummy params when requiring lanes more than once (fixes potential multithreading issues with LuaJIT allocator)
    * activated EnableCrashingOnCrashes() is active on Win32 debug builds
    * fixed some comments in code
