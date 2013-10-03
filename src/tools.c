@@ -178,22 +178,19 @@ static void open1lib( lua_State* L, char const* name, size_t len)
 	{
 		if( strncmp( name, libs[i].name, len) == 0)
 		{
-			if( libs[i].func)
+			lua_CFunction libfunc = libs[i].func;
+			if( libfunc)
 			{
+				bool_t createGlobal = (libfunc != require_lanes_core) ? TRUE : FALSE; // don't want to create a global for "lanes.core"
 				DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening %.*s library\n" INDENT_END, len, name));
 				STACK_CHECK( L);
-#if LUA_VERSION_NUM >= 502
-				// open the library as if through require(), and create a global as well (the library table is left on the stack)
-				luaL_requiref( L, libs[i].name, libs[i].func, 1);
+				// open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
+				luaL_requiref( L, libs[i].name, libfunc, createGlobal);
+				if( createGlobal == FALSE)
+				{
+					populate_func_lookup_table( L, -1, name);
+				}
 				lua_pop( L, 1);
-#else // LUA_VERSION_NUM
-				STACK_GROW( L, 1);
-				// push function and 1 argument on the stack
-				lua_pushcfunction( L, libs[i].func);
-				lua_pushstring( L, libs[i].name);
-				// call function, pushes the module table on the stack
-				lua_call( L, 1, 0);
-#endif // LUA_VERSION_NUM
 				STACK_END( L, 0);
 			}
 			break;
@@ -572,11 +569,8 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 		{
 			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening ALL standard libraries\n" INDENT_END));
 			luaL_openlibs( L);
-			if( libs[0] == '*')
-			{
-				// don't forget lanes.core for regular lane states
-				open1lib( L, "lanes.core", 10);
-			}
+			// don't forget lanes.core for regular lane states
+			open1lib( L, "lanes.core", 10);
 			libs = NULL; // done with libs
 		}
 		else
