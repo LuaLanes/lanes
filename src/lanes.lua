@@ -375,6 +375,7 @@ if first_time then
 	local timer_body = function()
 		-- require lanes.core inside the timer body to prevent pulling now_secs() through an uvpvalue
 		local core = require "lanes.core"
+		core.configure( _params.nb_keepers, _params.on_state_create, _params.shutdown_timeout, _params.track_lanes, _params.protect_allocator, _params.verbose_errors)
 
 		--
 		-- { [deep_linda_lightuserdata]= { [deep_linda_lightuserdata]=linda_h, 
