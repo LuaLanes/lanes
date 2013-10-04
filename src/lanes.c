@@ -2798,7 +2798,7 @@ LUAG_FUNC( configure)
 	}
 #endif // THREADAPI == THREADAPI_PTHREAD
 
-	// Create main module interface table
+	// Retrieve main module interface table
 	lua_pushvalue( L, lua_upvalueindex( 2));                               // ... M
 	// remove configure() (this function) from the module interface
 	lua_pushnil( L);                                                       // ... M nil
@@ -2807,7 +2807,12 @@ LUAG_FUNC( configure)
 	luaG_registerlibfuncs( L, lanes_functions);
 	STACK_MID( L, 1);
 
-	// metatable for threads
+	ASSERT_L( timer_deep != NULL); // initialized by init_once_LOCKED
+	luaG_push_proxy( L, linda_id, (DEEP_PRELUDE*) timer_deep);             // ... M timer_deep
+	lua_setfield( L, -2, "timer_gateway");                                 // ... M
+	STACK_MID( L, 1);
+
+	// prepare the metatable for threads
 	// contains keys: { __gc, __index, cached_error, cached_tostring, cancel, join }
 	//
 	lua_newtable( L);                                                      // ... M mt
@@ -2854,14 +2859,7 @@ LUAG_FUNC( configure)
 	// Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
 	lua_pushglobaltable( L);                                               // ... M _G
 	populate_func_lookup_table( L, -1, NULL);
-	lua_pop( L, 1);                                                        // ... M
-
-	ASSERT_L( timer_deep != NULL);
-	// init_once_LOCKED initializes timer_deep, so we must do this after, of course
-	luaG_push_proxy( L, linda_id, (DEEP_PRELUDE*) timer_deep);             // ... M timer_deep
-	lua_setfield( L, -2, "timer_gateway");                                 // ... M
-
-	lua_pop( L, 1);                                                        // ...
+	lua_pop( L, 2);                                                        // ...
 	STACK_END( L, 0);
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() END\n" INDENT_END, L));
 	DEBUGSPEW_CODE( -- debugspew_indent_depth);
