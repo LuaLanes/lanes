@@ -326,7 +326,7 @@ static void lane_cleanup( struct s_lane* s)
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 
 #if HAVE_LANE_TRACKING
-	if( tracking_first)
+	if( tracking_first != NULL)
 	{
 		// Lane was cleaned up, no need to handle at process termination
 		tracking_remove( s);
@@ -452,17 +452,17 @@ LUAG_FUNC( linda_send)
 
 			// change status of lane to "waiting"
 			{
-				struct s_lane *s;
+				struct s_lane* s;
 				enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
-				STACK_GROW(L, 1);
+				STACK_GROW( L, 1);
 
 				STACK_CHECK( L);
 				lua_pushlightuserdata( L, CANCEL_TEST_KEY);
 				lua_rawget( L, LUA_REGISTRYINDEX);
 				s = lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) or nil if in the main Lua state
-				lua_pop(L, 1);
+				lua_pop( L, 1);
 				STACK_END( L, 0);
-				if( s)
+				if( s != NULL)
 				{
 					prev_status = s->status; // RUNNING, most likely
 					ASSERT_L( prev_status == RUNNING); // but check, just in case
@@ -473,14 +473,14 @@ LUAG_FUNC( linda_send)
 				// could not send because no room: wait until some data was read before trying again, or until timeout is reached
 				if( !SIGNAL_WAIT( &linda->read_happened, &K->lock_, timeout))
 				{
-					if( s)
+					if( s != NULL)
 					{
 						s->waiting_on = NULL;
 						s->status = prev_status;
 					}
 					break;
 				}
-				if( s)
+				if( s != NULL)
 				{
 					s->waiting_on = NULL;
 					s->status = prev_status;
@@ -621,7 +621,7 @@ LUAG_FUNC( linda_receive)
 				s = lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) or nil if in the main Lua state
 				lua_pop( L, 1);
 				STACK_END( L, 0);
-				if( s)
+				if( s != NULL)
 				{
 					prev_status = s->status; // RUNNING, most likely
 					ASSERT_L( prev_status == RUNNING); // but check, just in case
@@ -632,14 +632,14 @@ LUAG_FUNC( linda_receive)
 				// not enough data to read: wakeup when data was sent, or when timeout is reached
 				if( !SIGNAL_WAIT( &linda->write_happened, &K->lock_, timeout))
 				{
-					if( s)
+					if( s != NULL)
 					{
 						s->waiting_on = NULL;
 						s->status = prev_status;
 					}
 					break;
 				}
-				if( s)
+				if( s != NULL)
 				{
 					s->waiting_on = NULL;
 					s->status = prev_status;
@@ -837,7 +837,7 @@ static int linda_tostring( lua_State* L, int _idx, bool_t _opt)
 	{
 		luaL_argcheck( L, linda, _idx, "expected a linda object!");
 	}
-	if( linda)
+	if( linda != NULL)
 	{
 		char text[32];
 		int len;
@@ -1245,6 +1245,10 @@ static MUTEX_T selfdestruct_cs;
 
 struct s_lane* volatile selfdestruct_first = SELFDESTRUCT_END;
 
+// After a lane has removed itself from the chain, it still performs some processing.
+// The terminal desinit sequence should wait for all such processing to terminate before force-killing threads
+int volatile selfdestructing_count = 0;
+
 /*
  * Add the lane to selfdestruct chain; the ones still running at the end of the
  * whole process will be cancelled.
@@ -1280,6 +1284,8 @@ static bool_t selfdestruct_remove( struct s_lane *s )
                 if (*ref == s) {
                     *ref= s->selfdestruct_next;
                     s->selfdestruct_next= NULL;
+                    // the terminal shutdown should wait until the lane is done with its lua_close()
+                    ++ selfdestructing_count;
                     found= TRUE;
                     break;
                 }
@@ -1325,10 +1331,10 @@ static int selfdestruct_gc( lua_State* L)
 	{
 		// Signal _all_ still running threads to exit (including the timer thread)
 		//
-		MUTEX_LOCK( &selfdestruct_cs );
+		MUTEX_LOCK( &selfdestruct_cs);
 		{
 			struct s_lane* s = selfdestruct_first;
-			while( s != SELFDESTRUCT_END )
+			while( s != SELFDESTRUCT_END)
 			{
 				// attempt a regular unforced hard cancel with a small timeout
 				bool_t cancelled = THREAD_ISNULL( s->thread) || thread_cancel( s, 0.0001, FALSE);
@@ -1344,7 +1350,7 @@ static int selfdestruct_gc( lua_State* L)
 				s = s->selfdestruct_next;
 			}
 		}
-		MUTEX_UNLOCK( &selfdestruct_cs );
+		MUTEX_UNLOCK( &selfdestruct_cs);
 
 		// When noticing their cancel, the lanes will remove themselves from
 		// the selfdestruct chain.
@@ -1384,13 +1390,26 @@ static int selfdestruct_gc( lua_State* L)
 					MUTEX_UNLOCK( &selfdestruct_cs);
 					// if timeout elapsed, or we know all threads have acted, stop waiting
 					t_now = now_secs();
-					if( n == 0 || ( t_now >= t_until))
+					if( n == 0 || (t_now >= t_until))
 					{
 						DEBUGSPEW_CODE( fprintf( stderr, "%d uncancelled lane(s) remain after waiting %fs at process end.\n", n, shutdown_timeout - (t_until - t_now)));
 						break;
 					}
 				}
 			}
+		}
+
+		// If some lanes are currently cleaning after themselves, wait until they are done.
+		// They are no longer listed in the selfdestruct chain, but they still have to lua_close().
+		{
+			bool_t again = TRUE;
+			do
+			{
+				MUTEX_LOCK( &selfdestruct_cs);
+				again = (selfdestructing_count > 0) ? TRUE : FALSE;
+				MUTEX_UNLOCK( &selfdestruct_cs);
+				YIELD();
+			} while( again);
 		}
 
 		//---
@@ -1404,7 +1423,7 @@ static int selfdestruct_gc( lua_State* L)
 			// these are not running, and the state can be closed
 			MUTEX_LOCK( &selfdestruct_cs);
 			{
-				struct s_lane* s= selfdestruct_first;
+				struct s_lane* s = selfdestruct_first;
 				while( s != SELFDESTRUCT_END)
 				{
 					struct s_lane* next_s = s->selfdestruct_next;
@@ -1830,10 +1849,14 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
     {
         // We're a free-running thread and no-one's there to clean us up.
         //
-        lua_close( s->L );
+        lua_close( s->L);
         s->L = L = 0;
 
         lane_cleanup( s);
+        MUTEX_LOCK( &selfdestruct_cs);
+        // done with lua_close(), terminal shutdown sequence may proceed
+        -- selfdestructing_count;
+        MUTEX_UNLOCK( &selfdestruct_cs);
     }
     else
     {
@@ -1920,7 +1943,7 @@ LUAG_FUNC( thread_new)
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "thread_new: setup\n" INDENT_END));
 	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
 
-	// populate with selected libraries at  the same time
+	// populate with selected libraries at the same time
 	//
 	L2 = luaG_newstate( L, on_state_create, libs);
 
@@ -1935,7 +1958,7 @@ LUAG_FUNC( thread_new)
 
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "thread_new: update 'package'\n" INDENT_END));
 	// package
-	if( package)
+	if( package != 0)
 	{
 		luaG_inter_copy_package( L, L2, package, eLM_LaneBody);
 	}
@@ -1944,7 +1967,7 @@ LUAG_FUNC( thread_new)
 
 	STACK_CHECK( L);
 	STACK_CHECK( L2);
-	if( required)
+	if( required != 0)
 	{
 		int nbRequired = 1;
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "thread_new: require 'required' list\n" INDENT_END));
@@ -2068,7 +2091,9 @@ LUAG_FUNC( thread_new)
 		res = luaG_inter_copy( L, L2, args, eLM_LaneBody);    // L->L2
 		DEBUGSPEW_CODE( -- debugspew_indent_depth);
 		if( res != 0)
+		{
 			return luaL_error( L, "tried to copy unsupported types");
+		}
 	}
 	STACK_MID( L, 0);
 
