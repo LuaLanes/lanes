@@ -44,8 +44,30 @@ THE SOFTWARE.
 #include <stdlib.h>
 #include <malloc.h>
 
+/*
+ * ###############################################################################################
+ * ########################################### ASSERT ############################################
+ * ###############################################################################################
+ */
+void ASSERT_IMPL( lua_State* L, bool_t cond_, char const* file_, int const line_, char const* text_)
+{
+	if ( !cond_)
+	{
+		(void) luaL_error( L, "ASSERT failed: %s:%d '%s'", file_, line_, text_);
+	}
+}
+
 // for verbose errors
 bool_t GVerboseErrors = FALSE;
+
+char const* const CONFIG_REGKEY = "ee932492-a654-4506-9da8-f16540bdb5d4";
+char const* const LOOKUP_REGKEY = "ddea37aa-50c7-4d3f-8e0b-fb7a9d62bac5";
+
+/*
+ * ###############################################################################################
+ * ######################################### Lua 5.1/5.2 #########################################
+ * ###############################################################################################
+ */
 
 /*
 ** Copied from Lua 5.2 loadlib.c
@@ -137,6 +159,19 @@ void luaG_dump( lua_State* L ) {
 	fprintf( stderr, "\n" );
 }
 
+// just like lua_xmove, args are (from, to)
+void luaG_copy_one_time_settings( lua_State* L, lua_State* L2, char const* name_)
+{
+	STACK_GROW( L, 1);
+	// copy settings from from source to destination registry
+	lua_getfield( L, LUA_REGISTRYINDEX, CONFIG_REGKEY);
+	if( luaG_inter_move( L, L2, 1, eLM_LaneBody) < 0) // error?
+	{
+		(void) luaL_error( L, "failed to copy settings when loading %s", name_);
+	}
+	lua_setfield( L2, LUA_REGISTRYINDEX, CONFIG_REGKEY);
+}
+
 
 /*---=== luaG_newstate ===---*/
 
@@ -171,24 +206,31 @@ static const luaL_Reg libs[] =
 	{ NULL, NULL }
 };
 
-static void open1lib( lua_State* L, char const* name, size_t len)
+static void open1lib( lua_State* L, char const* name_, size_t len_, lua_State* from_)
 {
 	int i;
 	for( i = 0; libs[i].name; ++ i)
 	{
-		if( strncmp( name, libs[i].name, len) == 0)
+		if( strncmp( name_, libs[i].name, len_) == 0)
 		{
 			lua_CFunction libfunc = libs[i].func;
-			if( libfunc)
+			name_ = libs[i].name; // note that the provided name_ doesn't necessarily ends with '\0', hence len_
+			if( libfunc != NULL)
 			{
-				bool_t createGlobal = (libfunc != require_lanes_core) ? TRUE : FALSE; // don't want to create a global for "lanes.core"
-				DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening %.*s library\n" INDENT_END, len, name));
+				bool_t const isLanesCore = (libfunc == require_lanes_core) ? TRUE : FALSE; // don't want to create a global for "lanes.core"
+				DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening %.*s library\n" INDENT_END, len_, name_));
 				STACK_CHECK( L);
-				// open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
-				luaL_requiref( L, libs[i].name, libfunc, createGlobal);
-				if( createGlobal == FALSE)
+				if( isLanesCore == TRUE)
 				{
-					populate_func_lookup_table( L, -1, name);
+					// copy settings from from source to destination registry
+					luaG_copy_one_time_settings( from_, L, name_);
+				}
+				// open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
+				luaL_requiref( L, name_, libfunc, !isLanesCore);
+				// lanes.core doesn't declare a global, so scan it here and now
+				if( isLanesCore == TRUE)
+				{
+					populate_func_lookup_table( L, -1, name_);
 				}
 				lua_pop( L, 1);
 				STACK_END( L, 0);
@@ -473,14 +515,8 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* name_)
 	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
 	STACK_GROW( L, 3);
 	STACK_CHECK( L);
-	lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY);                          // {}?
-	if( lua_isnil( L, -1))                                                    // nil
-	{
-		lua_pop( L, 1);                                                         //
-		lua_newtable( L);                                                       // {}
-		lua_pushvalue( L, -1);                                                  // {} {}
-		lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY);                        // {}
-	}
+	lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);                       // {}
+	ASSERT_L( lua_istable( L, -1));
 	if( lua_type( L, in_base) == LUA_TFUNCTION) // for example when a module is a simple function
 	{
 		name_ = name_ ? name_ : "NULL";
@@ -538,17 +574,18 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 	lua_Alloc allocF = lua_getallocf( _from, &allocUD);
 	lua_State* L = lua_newstate( allocF, allocUD);
 
-	if( !L)
+	if( L == NULL)
 	{
-		luaL_error( _from, "'lua_newstate()' failed; out of memory");
+		(void) luaL_error( _from, "'lua_newstate()' failed; out of memory");
 	}
 
 	// neither libs (not even 'base') nor special init func: we are done
 	if( libs == NULL && _on_state_create <= 0)
 	{
+		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_newstate(NULL)\n" INDENT_END));
 		return L;
 	}
-	// if we are here, no keeper state is involved (because libs == NULL when we init keepers)
+	// from this point, we are not creating a keeper state (because libs == NULL when we init keepers)
 
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_newstate()\n" INDENT_END));
 	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
@@ -556,12 +593,15 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 	STACK_GROW( L, 2);
 	STACK_CHECK( L);
 	// 'lua.c' stops GC during initialization so perhaps its a good idea. :)
-	// but do it after _on_state_create in case it does a lot of stuff...
 	lua_gc( L, LUA_GCSTOP, 0);
+
+	// we'll need this everytime we transfer some C function from/to this state
+	lua_newtable( L);
+	lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);
 
 	// Anything causes 'base' to be taken in
 	//
-	if( libs)
+	if( libs != NULL)
 	{
 		// special "*" case (mainly to help with LuaJIT compatibility)
 		// as we are called from luaopen_lanes_core() already, and that would deadlock
@@ -570,7 +610,7 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening ALL standard libraries\n" INDENT_END));
 			luaL_openlibs( L);
 			// don't forget lanes.core for regular lane states
-			open1lib( L, "lanes.core", 10);
+			open1lib( L, "lanes.core", 10, _from);
 			libs = NULL; // done with libs
 		}
 		else
@@ -604,7 +644,7 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 			while( isalnum( p[len]) || p[len] == '.')
 				++ len;
 			// open library
-			open1lib( L, p, len);
+			open1lib( L, p, len, _from);
 		}
 		serialize_require( L);
 	}
@@ -612,7 +652,7 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 	lua_gc( L, LUA_GCRESTART, 0);
 
 	STACK_CHECK( L);
-	// call this after the base libraries are loaded!
+	// call this after the base libraries are loaded and GC is restarted
 	if( _on_state_create > 0)
 	{
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "calling on_state_create()\n" INDENT_END));
@@ -633,7 +673,7 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 		// capture error and forward it to main state
 		if( lua_pcall( L, 0, 0, 0) != LUA_OK)
 		{
-			luaL_error( _from, "on_state_create failed: \"%s\"", lua_isstring( L, -1) ? lua_tostring( L, -1) : lua_typename( L, lua_type( L, -1)));
+			(void) luaL_error( _from, "on_state_create failed: \"%s\"", lua_isstring( L, -1) ? lua_tostring( L, -1) : lua_typename( L, lua_type( L, -1)));
 		}
 		STACK_MID( L, 0);
 	}
@@ -1486,7 +1526,7 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, enum eLoo
 	else
 	{
 		// fetch the name from the source state's lookup table
-		lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY);       // ... f ... {}
+		lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);    // ... f ... {}
 		ASSERT_L( lua_istable( L, -1));
 		lua_pushvalue( L, i);                                  // ... f ... {} f
 		lua_rawget( L, -2);                                    // ... f ... {} "f.q.n"
@@ -1533,7 +1573,7 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, enum eLoo
 	}
 	else
 	{
-		lua_getfield( L2, LUA_REGISTRYINDEX, LOOKUP_KEY);                                    // {}
+		lua_getfield( L2, LUA_REGISTRYINDEX, LOOKUP_REGKEY);                                 // {}
 		ASSERT_L( lua_istable( L2, -1));
 		lua_pushlstring( L2, fqn, len);                                                      // {} "f.q.n"
 		lua_rawget( L2, -2);                                                                 // {} f
@@ -1923,7 +1963,7 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 					*/
 					if( inter_copy_one_( L2, L2_cache_i, L, val_i, VT_NORMAL, mode_, valPath))
 					{
-						ASSERT_L( lua_istable(L2,-3));
+						ASSERT_L( lua_istable( L2, -3));
 						lua_rawset( L2, -3);    // add to table (pops key & val)
 					}
 					else

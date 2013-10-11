@@ -70,7 +70,7 @@ typedef struct
 static keeper_fifo* prepare_fifo_access( lua_State* L, int idx)
 {
 	keeper_fifo* fifo = (keeper_fifo*) lua_touserdata( L, idx);
-	if( fifo)
+	if( fifo != NULL)
 	{
 		idx = lua_absindex( L, idx);
 		STACK_GROW( L, 1);
@@ -286,15 +286,15 @@ int keepercall_receive( lua_State* L)
 {
 	int top = lua_gettop( L);
 	int i;
-	keeper_fifo* fifo;
 	push_table( L, 1);                           // ud keys fifos
 	lua_replace( L, 1);                          // fifos keys
 	for( i = 2; i <= top; ++ i)
 	{
+		keeper_fifo* fifo;
 		lua_pushvalue( L, i);                      // fifos keys key[i]
 		lua_rawget( L, 1);                         // fifos keys fifo
 		fifo = prepare_fifo_access( L, -1);        // fifos keys fifo
-		if( fifo && fifo->count > 0)
+		if( fifo != NULL && fifo->count > 0)
 		{
 			fifo_pop( L, fifo, 1);                   // fifos keys val
 			if( !lua_isnil( L, -1))
@@ -332,7 +332,7 @@ int keepercall_receive_batched( lua_State* L)
 		lua_rawget( L, 2);                                    // key fifos fifo
 		lua_remove( L, 2);                                    // key fifo
 		fifo = prepare_fifo_access( L, 2);                    // key fifo
-		if( fifo && fifo->count >= min_count)
+		if( fifo != NULL && fifo->count >= min_count)
 		{
 			fifo_pop( L, fifo, __min( max_count, fifo->count)); // key ...
 		}
@@ -360,7 +360,7 @@ int keepercall_limit( lua_State* L)
 	lua_pushvalue( L, -1);                             // fifos key key
 	lua_rawget( L, -3);                                // fifos key fifo
 	fifo = (keeper_fifo*) lua_touserdata( L, -1);
-	if( !fifo)
+	if( fifo ==  NULL)
 	{
 		lua_pop( L, 1);                                  // fifos key
 		fifo_new( L);                                    // fifos key fifo
@@ -437,7 +437,7 @@ int keepercall_get( lua_State* L)
 	lua_replace( L, 1);                               // fifos key
 	lua_rawget( L, 1);                                // fifos fifo
 	fifo = prepare_fifo_access( L, -1);               // fifos fifo
-	if( fifo && fifo->count > 0)
+	if( fifo != NULL && fifo->count > 0)
 	{
 		lua_remove( L, 1);                              // fifo
 		// read one value off the fifo
@@ -497,7 +497,7 @@ int keepercall_count( lua_State* L)
 			lua_rawget( L, 2);                               // out fifos keys fifo
 			fifo = prepare_fifo_access( L, -1);              // out fifos keys fifo
 			lua_pop( L, 1);                                  // out fifos keys
-			if( fifo)
+			if( fifo != NULL)
 			{
 				lua_pushinteger( L, fifo->count);              // out fifos keys count
 				lua_rawset( L, 1);                             // out fifos keys
@@ -540,14 +540,17 @@ void close_keepers( void)
 	for( i = 0; i < GNbKeepers; ++ i)
 	{
 		lua_State* L = GKeepers[i].L;
-		GKeepers[i].L = 0;
+		GKeepers[i].L = NULL;
 		lua_close( L);
 	}
 	for( i = 0; i < GNbKeepers; ++ i)
 	{
 		MUTEX_FREE( &GKeepers[i].lock_);
 	}
-	if( GKeepers) free( GKeepers);
+	if( GKeepers != NULL)
+	{
+		free( GKeepers);
+	}
 	GKeepers = NULL;
 	GNbKeepers = 0;
 }
@@ -560,20 +563,29 @@ void close_keepers( void)
 * Note: Any problems would be design flaws; the created Lua state is left
 *       unclosed, because it does not really matter. In production code, this
 *       function never fails.
+* settings table is at position 1 on the stack
 */
-char const* init_keepers( lua_State* L, int _on_state_create, int const _nbKeepers)
+char const* init_keepers( lua_State* L)
 {
-	int i;
-	assert( _nbKeepers >= 1);
-	GNbKeepers = _nbKeepers;
-	GKeepers = malloc( _nbKeepers * sizeof( struct s_Keeper));
-	for( i = 0; i < _nbKeepers; ++ i)
+	int i, on_state_create;
+	STACK_CHECK( L);
+	lua_getfield( L, 1, "nb_keepers");
+	GNbKeepers = lua_tointeger( L, -1);
+	lua_pop( L, 1);
+	STACK_MID( L, 0);
+	assert( GNbKeepers >= 1);
+
+	lua_getfield( L, 1, "on_state_create");
+	on_state_create = lua_isnil( L, -1) ? -1 : lua_absindex( L, -1);
+
+	GKeepers = malloc( GNbKeepers * sizeof( struct s_Keeper));
+	for( i = 0; i < GNbKeepers; ++ i)
 	{
 		lua_State* K;
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "### init_keepers %d BEGIN\n" INDENT_END, i));
 		DEBUGSPEW_CODE( ++ debugspew_indent_depth);
 		// we don't need any libs in the keeper states
-		K = luaG_newstate( L, _on_state_create, NULL);
+		K = luaG_newstate( L, on_state_create, NULL);
 
 		STACK_CHECK( K);
 
@@ -596,6 +608,8 @@ char const* init_keepers( lua_State* L, int _on_state_create, int const _nbKeepe
 		GKeepers[i].L = K;
 		//GKeepers[i].count = 0;
 	}
+	lua_pop( L, 1);
+	STACK_END( L, 0);
 #if HAVE_KEEPER_ATEXIT_DESINIT
 	atexit( atexit_close_keepers);
 #endif // HAVE_KEEPER_ATEXIT_DESINIT

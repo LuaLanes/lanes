@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 27-Sept-13, and applies to version <tt>3.6.6</tt>. 
+				This document was revised on 11-Oct-13, and applies to version <tt>3.7.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -248,7 +248,10 @@
 	After lanes is required, it is necessary to call <tt>lanes.configure()</tt>, which is the only function exposed by the module at this point. Calling <tt>configure()</tt> will perform one-time initializations and make the rest of the API available.
 </p>
 <p>
-	At the same time, <tt>configure()</tt> itself will be replaced by another function that raises an error if called again with differing arguments.
+	At the same time, <tt>configure()</tt> itself will be replaced by another function that raises an error if called again with differing arguments, if any.
+</p>
+<p>
+	<b>IMPORTANT NOTE:</b> Starting with version 3.7.0, only the first occurence of <tt>require "lanes"</tt> must be followed by a call to <tt>.configure()</tt>. From this point, a simple <tt>require "lanes"</tt> will do wherever you need to require lanes again.
 </p>
 
 <p>
@@ -326,7 +329,8 @@
 				<tt>nil</tt>/<tt>false</tt>/anything
 			</td>
 			<td>
-				Any non-<tt>nil|false</tt> value instructs Lanes keeps track of all lanes, so that <a href="#tracking"><tt>lanes.threads()</tt></a> can list them.
+				Any non-<tt>nil|false</tt> value instructs Lanes keeps track of all lanes, so that <a href="#tracking"><tt>lanes.threads()</tt></a> can list them. If <tt>false</tt>, <tt>lanes.threads()</tt> will raise an error when called.
+				Default is <tt>false</tt>.
 			</td>
 		</tr>
 
@@ -364,9 +368,7 @@
 </p>
 
 <p>
-	NEW (version 3.5.0)
-	<br>
-	Once Lanes is configured, one should register with Lanes the modules exporting functions that will be transferred either during lane generation or through <a href="#lindas">lindas</a>.
+	(Since v3.5.0) Once Lanes is configured, one should register with Lanes the modules exporting functions that will be transferred either during lane generation or through <a href="#lindas">lindas</a>.
 	<br>
 	Use <tt>lanes.require()</tt> for this purpose. This will call the original <tt>require()</tt>, then add the result to the lookup databases.
 </p>

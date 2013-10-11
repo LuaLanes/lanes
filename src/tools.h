@@ -56,7 +56,8 @@ extern int debugspew_indent_depth;
   #define STACK_END(L,c)    /*nothing*/
   #define STACK_DUMP(L)    /*nothing*/
 #else
-  #define _ASSERT_L(lua,c)  do { if (!(c)) luaL_error( lua, "ASSERT failed: %s:%d '%s'", __FILE__, __LINE__, #c ); } while( 0)
+  void ASSERT_IMPL( lua_State* L, bool_t cond_, char const* file_, int const line_, char const* text_);
+  #define _ASSERT_L(lua,c) ASSERT_IMPL( lua, (c) != 0, __FILE__, __LINE__, #c)
   //
   #define STACK_CHECK(L)     { int const _oldtop_##L = lua_gettop( L)
   #define STACK_MID(L,change) \
@@ -75,7 +76,7 @@ extern int debugspew_indent_depth;
 
 #define STACK_GROW(L,n) do { if (!lua_checkstack(L,n)) luaL_error( L, "Cannot grow stack!" ); } while( 0)
 
-#define LUAG_FUNC( func_name ) static int LG_##func_name( lua_State *L )
+#define LUAG_FUNC( func_name ) static int LG_##func_name( lua_State* L)
 
 #define luaG_optunsigned(L,i,d) ((uint_t) luaL_optinteger(L,i,d))
 #define luaG_tounsigned(L,i) ((uint_t) lua_tointeger(L,i))
@@ -83,6 +84,7 @@ extern int debugspew_indent_depth;
 void luaG_dump( lua_State* L );
 
 lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char const* libs);
+void luaG_copy_one_time_settings( lua_State* L, lua_State* L2, char const* name_);
 
 typedef struct {
     volatile int refcount;
@@ -117,5 +119,7 @@ extern MUTEX_T require_cs;
 // for verbose errors
 extern bool_t GVerboseErrors;
 
-#endif
-    // TOOLS_H
+char const* const CONFIG_REGKEY;
+char const* const LOOKUP_REGKEY;
+
+#endif // TOOLS_H

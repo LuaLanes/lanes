@@ -12,8 +12,7 @@
 
 -- Need to say it's 'local' so it can be an upvalue
 --
-local lanes = require "lanes"
-lanes.configure{ nb_keepers =1, with_timers = false}
+local lanes = require "lanes".configure{ nb_keepers =1, with_timers = false}
 
 local function WR(str)
     io.stderr:write( str.."\n" )
@@ -33,7 +32,7 @@ end
 --
 local function fib( n )
     set_debug_threadname( "fib(" .. n .. ")")
-    local lanes = require"lanes".configure()
+    local lanes = require"lanes"
     --
     local sum
     local floor= assert(math.floor)

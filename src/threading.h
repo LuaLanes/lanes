@@ -97,7 +97,7 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
 	#define SIGNAL_T CONDITION_VARIABLE
 	#define MUTEX_T CRITICAL_SECTION
 	#define MUTEX_INIT( ref) InitializeCriticalSection( ref)
-	#define MUTEX_FREE( ref) DeleteCriticalSection( ref)
+	#define MUTEX_FREE( ref) do{ DeleteCriticalSection( ref); *ref = INVALID_HANDLE_VALUE;} while(0)
 	#define MUTEX_LOCK( ref) EnterCriticalSection( ref)
 	#define MUTEX_UNLOCK( ref) LeaveCriticalSection( ref)
 

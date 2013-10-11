@@ -84,8 +84,9 @@ THE SOFTWARE.
 * error in _this_ code. 
 */
 #if defined( PLATFORM_XBOX) || defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
-static void FAIL( const char *funcname, int rc ) {
-    fprintf( stderr, "%s() failed! (%d)\n", funcname, rc );
+static void FAIL( char const* funcname, int rc)
+{
+	fprintf( stderr, "%s() failed! (%d)\n", funcname, rc );
 #ifdef _MSC_VER
     __debugbreak(); // give a chance to the debugger!
 #endif // _MSC_VER

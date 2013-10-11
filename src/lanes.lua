@@ -35,13 +35,15 @@ THE SOFTWARE.
 ===============================================================================
 ]]--
 
+local core = require "lanes.core"
 -- Lua 5.1: module() creates a global variable
 -- Lua 5.2: module() is gone
 -- almost everything module() does is done by require() anyway
 -- -> simply create a table, populate it, return it, and be done
 local lanes = {}
 
-lanes.configure = function( _params)
+-- this function is available in the public interface until it is called, after which it disappears
+lanes.configure = function( settings_)
 
 	-- This check is for sublanes requiring Lanes
 	--
@@ -68,7 +70,7 @@ lanes.configure = function( _params)
 		on_state_create = nil,
 		shutdown_timeout = 0.25,
 		with_timers = true,
-		track_lanes = nil,
+		track_lanes = false,
 		verbose_errors = false,
 		-- LuaJIT provides a thread-unsafe allocator by default, so we need to protect it when used in parallel lanes
 		protect_allocator = (jit and jit.version) and true or false
@@ -117,35 +119,32 @@ lanes.configure = function( _params)
 		end
 	}
 
-	local params_checker = function( _params)
-		if not _params then
+	local params_checker = function( settings_)
+		if not settings_ then
 			return default_params
 		end
-		if type( _params) ~= "table" then
-			error( "Bad parameter #1 to lanes.configure(), should be a table")
+		-- make a copy of the table to leave the provided one unchanged, *and* to help ensure it won't change behind our back
+		local settings = {}
+		if type( settings_) ~= "table" then
+			error "Bad parameter #1 to lanes.configure(), should be a table"
 		end
 		-- any setting not present in the provided parameters takes the default value
-		for key, value in pairs( default_params) do
-			local my_param = _params[key]
+		for key, checker in pairs( param_checkers) do
+			local my_param = settings_[key]
 			local param
 			if my_param ~= nil then
 				param = my_param
 			else
 				param = default_params[key]
 			end
-			if not param_checkers[key]( param) then
+			if not checker( param) then
 				error( "Bad " .. key .. ": " .. tostring( param), 2)
 			end
-			_params[key] = param
+			settings[key] = param
 		end
-		return _params
+		return settings
 	end
-
-	_params = params_checker( _params)
-
-	local core = require "lanes.core"
-	assert( type( core)=="table")
-	core.configure( _params.nb_keepers, _params.on_state_create, _params.shutdown_timeout, _params.track_lanes, _params.protect_allocator, _params.verbose_errors)
+	local settings = core.configure and core.configure( params_checker( settings_)) or core.settings
 	local thread_new = assert( core.thread_new)
 	local set_singlethreaded = assert( core.set_singlethreaded)
 	local max_prio = assert( core.max_prio)
@@ -316,8 +315,8 @@ local function gen( ... )
     -- Lane generator
     --
     return function(...)
-              return thread_new( func, libs, _params.on_state_create, cs, prio, g_tbl, package_tbl, required, ...)     -- args
-           end
+        return thread_new( func, libs, settings.on_state_create, cs, prio, g_tbl, package_tbl, required, ...)     -- args
+    end
 end
 
 ---=== Lindas ===---
@@ -338,7 +337,7 @@ local timer = function() error "timers are not active" end
 local timer_lane = nil
 local timers = timer
 
-if _params.with_timers ~= false then
+if settings.with_timers ~= false then
 
 local timer_gateway = assert( core.timer_gateway)
 --
@@ -364,6 +363,8 @@ timer_gateway:set(first_time_key,true)
 --
 if first_time then
 
+	local now_secs = core.now_secs
+	assert( type( now_secs) == "function")
 	-----
 	-- Snore loop (run as a lane on the background)
 	--
@@ -373,10 +374,7 @@ if first_time then
 	-- remains.
 	--
 	local timer_body = function()
-		-- require lanes.core inside the timer body to prevent pulling now_secs() through an uvpvalue
-		local core = require "lanes.core"
-		core.configure( _params.nb_keepers, _params.on_state_create, _params.shutdown_timeout, _params.track_lanes, _params.protect_allocator, _params.verbose_errors)
-
+		set_debug_threadname( "LanesTimer")
 		--
 		-- { [deep_linda_lightuserdata]= { [deep_linda_lightuserdata]=linda_h, 
 		--                                 [key]= { wakeup_secs [,period_secs] } [, ...] },
@@ -463,8 +461,6 @@ if first_time then
 			end
 		end -- set_timer()
 
-		local now_secs = core.now_secs
-		assert( type( now_secs) == "function")
 		-----
 		-- [next_wakeup_at]= check_timers()
 		-- Check timers, and wake up the ones expired (if any)
@@ -520,7 +516,6 @@ if first_time then
 		end -- check_timers()
 
 		local timer_gateway_batched = timer_gateway.batched
-		set_debug_threadname( "LanesTimer")
 		set_finalizer( function( err, stk)
 			if err and type( err) ~= "userdata" then
 				WR( "LanesTimer error: "..tostring(err))
@@ -601,7 +596,7 @@ timers = function()
 	return r
 end
 
-end -- _params.with_timers
+end -- settings.with_timers
 
 ---=== Lock & atomic generators ===---
 
@@ -673,26 +668,23 @@ end
 	lanes.linda = core.linda
 	lanes.cancel_error = core.cancel_error
 	lanes.nameof = core.nameof
-	lanes.threads = (_params.track_lanes and core.threads) and core.threads or function() error "lane tracking is not available" end
+	lanes.threads = core.threads or function() error "lane tracking is not available" end -- core.threads isn't registered if settings.track_lanes is false
 	lanes.timer = timer
 	lanes.timer_lane = timer_lane
 	lanes.timers = timers
 	lanes.genlock = genlock
 	lanes.now_secs = core.now_secs
 	lanes.genatomic = genatomic
-	-- from now on, calling configure does nothing but checking that we don't call it with parameters that changed compared to the first invocation
-	lanes.configure = function( _params2)
-		_params2 = params_checker( _params2 or _params)
-		for key, value2 in pairs( _params2) do
-			local value = _params[key]
-			if value2 ~= value then
-				error( "mismatched configuration: " .. key .. " is " .. tostring( value2) .. " instead of " .. tostring( value))
-			end
-		end
-		return lanes
-	end
+	lanes.configure = nil -- no need to call configure() ever again
 	return lanes
 end -- lanes.configure
+
+-- no need to force calling configure() excepted the first time
+if core.settings then
+	return lanes.configure()
+else
+	return lanes
+end
 
 --the end
 return lanes
