@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 11-Oct-13, and applies to version <tt>3.7.0</tt>.
+				This document was revised on 22-Oct-13, and applies to version <tt>3.7.1</tt>.
 			</p>
 		</font>
 	</center>
@@ -893,6 +893,7 @@
 
 <p>
 	An error in a finalizer itself overrides the state of the regular chunk (in practise, it would be highly preferable <i>not</i> to have errors in finalizers). If one finalizer errors, the others may not get called.
+	If a finalizer error occurs after an error in the lane body, then this new error replaces the previous one (including the full stack trace).
 </p>
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
