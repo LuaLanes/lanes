@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 77: BGe 22-Oct-13
+   * version 3.7.1
+   * errors inside finalizers generate a full stack just like any other error
+
 CHANGE 76: BGe 10-Oct-13
    * version 3.7.0
    * fix lanes.threads() not being available in a lane where lanes.configure() settings didn't contain track_lanes although the initial configure() call did.

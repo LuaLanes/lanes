@@ -4,8 +4,7 @@
 -- Note: this code is supposed to end in errors; not included in 'make test'
 --
 
-local lanes = require "lanes"
-lanes.configure()
+local lanes = require "lanes".configure()
 
 local function lane()
 
@@ -32,7 +31,7 @@ local h= lgen()
 local _,err,stack= h:join()   -- wait for the lane (no automatic error propagation)
 
 if err then
-    assert( type(stack)=="table" )
+    assert( type(stack)=="table" ) -- only true if lanes was compiled with ERROR_FULL_STACK == 1
     io.stderr:write( "Lane error: "..tostring(err).."\n" )
 
     io.stderr:write( "\t", table.concat(stack,"\n\t"), "\n" );
