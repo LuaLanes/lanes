@@ -1,10 +1,5 @@
-
 TODO:
 
-- Use of 'atexit()' is not good. It's possible to be called at "program (process)
-  exit", when the so might already be out. Tying to OS specific so cleanup
-  is way better.
-  
 - Testing Lane killing (not cancellation, but actual killing)
 
 - Like luaproc: Lanes to have M:N relationship to kernel threads
