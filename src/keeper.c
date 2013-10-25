@@ -567,30 +567,26 @@ void close_keepers( void)
 */
 char const* init_keepers( lua_State* L)
 {
-	int i, on_state_create;
+	int i;
+	void* allocUD;
+	lua_Alloc allocF = lua_getallocf( L, &allocUD);
+
 	STACK_CHECK( L);
 	lua_getfield( L, 1, "nb_keepers");
 	GNbKeepers = lua_tointeger( L, -1);
 	lua_pop( L, 1);
-	STACK_MID( L, 0);
+	STACK_END( L, 0);
 	assert( GNbKeepers >= 1);
-
-	lua_getfield( L, 1, "on_state_create");
-	on_state_create = lua_isnil( L, -1) ? -1 : lua_absindex( L, -1);
 
 	GKeepers = malloc( GNbKeepers * sizeof( struct s_Keeper));
 	for( i = 0; i < GNbKeepers; ++ i)
 	{
-		lua_State* K;
-		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "### init_keepers %d BEGIN\n" INDENT_END, i));
-		DEBUGSPEW_CODE( ++ debugspew_indent_depth);
-		// we don't need any libs in the keeper states
-		K = luaG_newstate( L, on_state_create, NULL);
-
+		lua_State* K = lua_newstate( allocF, allocUD);
+		if( K == NULL)
+		{
+			(void) luaL_error( L, "'lua_newstate()' failed while creating keeper state; out of memory");
+		}
 		STACK_CHECK( K);
-
-		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "### init_keepers %d END\n" INDENT_END, i));
-		DEBUGSPEW_CODE( -- debugspew_indent_depth);
 
 		// to see VM name in Decoda debugger
 		lua_pushliteral( K, "Keeper #");
@@ -606,14 +602,11 @@ char const* init_keepers( lua_State* L)
 		STACK_END( K, 0);
 		MUTEX_INIT( &GKeepers[i].lock_);
 		GKeepers[i].L = K;
-		//GKeepers[i].count = 0;
 	}
-	lua_pop( L, 1);
-	STACK_END( L, 0);
 #if HAVE_KEEPER_ATEXIT_DESINIT
 	atexit( atexit_close_keepers);
 #endif // HAVE_KEEPER_ATEXIT_DESINIT
-	return NULL;    // ok
+	return NULL; // ok
 }
 
 struct s_Keeper* keeper_acquire( void const* ptr)
