@@ -1359,12 +1359,12 @@ static int discover_object_name_recur( lua_State* L, int shortest_, int depth_)
 	lua_pushinteger( L, 1);                                 // o "r" {c} {fqn} ... {?} {?} 1
 	lua_rawset( L, cache);                                  // o "r" {c} {fqn} ... {?}
 	// scan table contents
-	STACK_CHECK( L);
 	lua_pushnil( L);                                        // o "r" {c} {fqn} ... {?} nil
 	while( lua_next( L, -2))                                // o "r" {c} {fqn} ... {?} k v
 	{
 		//char const *const strKey = (lua_type( L, -2) == LUA_TSTRING) ? lua_tostring( L, -2) : NULL; // only for debugging
 		//lua_Number const numKey = (lua_type( L, -2) == LUA_TNUMBER) ? lua_tonumber( L, -2) : -6666; // only for debugging
+		STACK_MID( L, 2);
 		// append key name to fqn stack
 		++ depth_;
 		lua_pushvalue( L, -2);                                // o "r" {c} {fqn} ... {?} k v k
@@ -1384,8 +1384,12 @@ static int discover_object_name_recur( lua_State* L, int shortest_, int depth_)
 			STACK_MID( L, 0);
 			break;
 		}
-		else if( lua_istable( L, -1))                         // o "r" {c} {fqn} ... {?} k {}
+		switch( lua_type( L, -1))                             // o "r" {c} {fqn} ... {?} k v
 		{
+			default: // nil, boolean, light userdata, number and string aren't identifiable
+			break;
+
+			case LUA_TTABLE:                                    // o "r" {c} {fqn} ... {?} k {}
 			STACK_MID( L, 2);
 			shortest_ = discover_object_name_recur( L, shortest_, depth_);
 			// search in the table's metatable too
@@ -1402,11 +1406,11 @@ static int discover_object_name_recur( lua_State* L, int shortest_, int depth_)
 					-- depth_;
 				}
 				lua_pop( L, 1);                                   // o "r" {c} {fqn} ... {?} k {}
-				STACK_MID( L, 2);
 			}
-		}
-		else if( lua_isthread( L, -1))                        // o "r" {c} {fqn} ... {?} k T
-		{
+			STACK_MID( L, 2);
+			break;
+
+			case LUA_TTHREAD:                                   // o "r" {c} {fqn} ... {?} k T
 			// search in the object's uservalue if it is a table
 			lua_getuservalue( L, -1);                           // o "r" {c} {fqn} ... {?} k T {u}
 			if( lua_istable( L, -1))
@@ -1415,9 +1419,9 @@ static int discover_object_name_recur( lua_State* L, int shortest_, int depth_)
 			}
 			lua_pop( L, 1);                                     // o "r" {c} {fqn} ... {?} k T
 			STACK_MID( L, 2);
-		}
-		else if( lua_isuserdata( L, -1))                      // o "r" {c} {fqn} ... {?} k U
-		{
+			break;
+
+			case LUA_TUSERDATA:                                 // o "r" {c} {fqn} ... {?} k U
 			STACK_MID( L, 2);
 			// search in the object's metatable (some modules are built that way)
 			if( lua_getmetatable( L, -1))                       // o "r" {c} {fqn} ... {?} k U {mt}
@@ -1433,8 +1437,8 @@ static int discover_object_name_recur( lua_State* L, int shortest_, int depth_)
 					-- depth_;
 				}
 				lua_pop( L, 1);                                   // o "r" {c} {fqn} ... {?} k U
-				STACK_MID( L, 2);
 			}
+			STACK_MID( L, 2);
 			// search in the object's uservalue if it is a table
 			lua_getuservalue( L, -1);                           // o "r" {c} {fqn} ... {?} k U {u}
 			if( lua_istable( L, -1))
@@ -1449,15 +1453,17 @@ static int discover_object_name_recur( lua_State* L, int shortest_, int depth_)
 			}
 			lua_pop( L, 1);                                     // o "r" {c} {fqn} ... {?} k U
 			STACK_MID( L, 2);
+			break;
 		}
 		// make ready for next iteration
 		lua_pop( L, 1);                                       // o "r" {c} {fqn} ... {?} k
 		// remove name from fqn stack
 		lua_pushnil( L);                                      // o "r" {c} {fqn} ... {?} k nil
 		lua_rawseti( L, fqn, depth_);                         // o "r" {c} {fqn} ... {?} k
+		STACK_MID( L, 1);
 		-- depth_;
 	}                                                       // o "r" {c} {fqn} ... {?}
-	STACK_END( L, 0);
+	STACK_MID( L, 0);
 	// remove the visited table from the cache, in case a shorter path to the searched object exists
 	lua_pushvalue( L, -1);                                  // o "r" {c} {fqn} ... {?} {?}
 	lua_pushnil( L);                                        // o "r" {c} {fqn} ... {?} {?} nil
@@ -1477,7 +1483,7 @@ int luaG_nameof( lua_State* L)
 		luaL_argerror( L, what, "too many arguments.");
 	}
 
-	// numbers, strings, booleans and nil can't be identified
+	// nil, boolean, light userdata, number and string aren't identifiable
 	if( lua_type( L, 1) < LUA_TTABLE)
 	{
 		lua_pushstring( L, luaL_typename( L, 1));             // o "type"
@@ -1486,6 +1492,7 @@ int luaG_nameof( lua_State* L)
 	}
 
 	STACK_GROW( L, 4);
+	STACK_CHECK( L);
 	// this slot will contain the shortest name we found when we are done
 	lua_pushnil( L);                                        // o nil
 	// push a cache that will contain all already visited tables
@@ -1496,6 +1503,7 @@ int luaG_nameof( lua_State* L)
 	lua_pushglobaltable( L);                                // o nil {c} {fqn} _G
 	(void) discover_object_name_recur( L, 6666, 0);
 	lua_pop( L, 3);                                         // o "result"
+	STACK_END( L, 1);
 	lua_pushstring( L, luaL_typename( L, 1));               // o "result" "type"
 	lua_replace( L, -3);                                    // "type" "result"
 	return 2;
