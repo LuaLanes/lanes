@@ -1,5 +1,14 @@
 CHANGES:
 
+CHANGE 79: BGe 04-Nov-13
+   * Fix lanes.nameof() crashing when encountering a light userdata
+
+CHANGE 78: BGe 25-Oct-13
+   * Fix windows build not exporting public 'deep' API
+   * Don't call on_state_create in keeper states, as it is no longer necessary
+   * Remove inclusion of stdint.h
+   * Fix windows build for WINVER > 0x400
+
 CHANGE 77: BGe 22-Oct-13
    * version 3.7.1
    * errors inside finalizers generate a full stack just like any other error
