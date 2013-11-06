@@ -119,7 +119,7 @@ extern MUTEX_T require_cs;
 // for verbose errors
 extern bool_t GVerboseErrors;
 
-char const* const CONFIG_REGKEY;
-char const* const LOOKUP_REGKEY;
+extern char const* const CONFIG_REGKEY;
+extern char const* const LOOKUP_REGKEY;
 
 #endif // TOOLS_H
