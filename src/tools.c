@@ -1564,6 +1564,7 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, enum eLoo
 		}
 		else
 		{
+			gotchaA = "";
 			gotchaB = "";
 			what = (lua_type( L, -1) == LUA_TSTRING) ? lua_tostring( L, -1) : luaL_typename( L, -1);
 		}
