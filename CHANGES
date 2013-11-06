@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 80: BGe 06-Nov-13
+   * Fix a few compilation warnings about uninitialized variables
+   * Fixed a bad extern variable declaration resulting in multiple instances (crashes the Pelles-C build)
+
 CHANGE 79: BGe 04-Nov-13
    * Fix lanes.nameof() crashing when encountering a light userdata
 
