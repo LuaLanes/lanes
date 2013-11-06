@@ -428,6 +428,7 @@ LUAG_FUNC( linda_send)
 			pushed = keeper_call( KL, KEEPER_API( send), L, linda, key_i);
 			if( pushed < 0)
 			{
+				ret = FALSE;
 				break;
 			}
 			ASSERT_L( pushed == 1);
