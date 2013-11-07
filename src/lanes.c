@@ -1764,7 +1764,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
     struct s_lane *s= (struct s_lane *)vs;
     int rc, rc2;
     lua_State*L= s->L;
-
+    STACK_CHECK( L);
 #if HAVE_LANE_TRACKING
     if( tracking_first)
     {
@@ -1772,28 +1772,32 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
     }
 #endif // HAVE_LANE_TRACKING
 
-   s->status= RUNNING;  // PENDING -> RUNNING
+    s->status= RUNNING;  // PENDING -> RUNNING
 
     // Tie "set_finalizer()" to the state
     //
     lua_pushcfunction( L, LG_set_finalizer );
-    lua_setglobal( L, "set_finalizer" );
+    populate_func_lookup_table( L, -1, "set_finalizer");
+    lua_setglobal( L, "set_finalizer");
 
     // Tie "set_debug_threadname()" to the state
     //
     lua_pushlightuserdata( L, s);
     lua_pushcclosure( L, LG_set_debug_threadname, 1);
+    populate_func_lookup_table( L, -1, "set_debug_threadname");
     lua_setglobal( L, "set_debug_threadname" );
 
     // Tie "cancel_test()" to the state
     //
     lua_pushcfunction( L, LG_cancel_test);
+    populate_func_lookup_table( L, -1, "cancel_test");
     lua_setglobal( L, "cancel_test");
 
 #if ERROR_FULL_STACK
     // Tie "set_error_reporting()" to the state
     //
     lua_pushcfunction( L, LG_set_error_reporting);
+    populate_func_lookup_table( L, -1, "set_error_reporting");
     lua_setglobal( L, "set_error_reporting");
 
     STACK_GROW( L, 1 );
@@ -1841,6 +1845,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
         // LUA_ERRMEM(4): memory allocation error
 #endif // ERROR_FULL_STACK
 
+    STACK_END( L, 0);
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "Lane %p body: %s (%s)\n" INDENT_END, L, get_errcode_name( rc), (lua_touserdata(L,1)==CANCEL_ERROR) ? "cancelled" : lua_typename( L, lua_type( L, 1))));
     //STACK_DUMP(L);
     // Call finalizers, if the script has set them up.
