@@ -1764,7 +1764,6 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
     struct s_lane *s= (struct s_lane *)vs;
     int rc, rc2;
     lua_State*L= s->L;
-    STACK_CHECK( L);
 #if HAVE_LANE_TRACKING
     if( tracking_first)
     {
@@ -1845,7 +1844,6 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
         // LUA_ERRMEM(4): memory allocation error
 #endif // ERROR_FULL_STACK
 
-    STACK_END( L, 0);
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "Lane %p body: %s (%s)\n" INDENT_END, L, get_errcode_name( rc), (lua_touserdata(L,1)==CANCEL_ERROR) ? "cancelled" : lua_typename( L, lua_type( L, 1))));
     //STACK_DUMP(L);
     // Call finalizers, if the script has set them up.
