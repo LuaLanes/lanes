@@ -1708,15 +1708,17 @@ static void inter_copy_func( lua_State* L2, uint_t L2_cache_i, lua_State* L, uin
 #endif // LUA_VERSION_NUM
 			for( n = 0; (upname = lua_getupvalue( L, i, 1 + n)) != NULL; ++ n)
 			{                                                  // ... _G up[n]
-				DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "UPNAME[%d]: %s\n" INDENT_END, n, upname));
+				DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "UPNAME[%d]: %s -> " INDENT_END, n, upname));
 #if LUA_VERSION_NUM == 502
 				if( lua_rawequal( L, -1, -2)) // is the upvalue equal to the global table?
 				{
+					DEBUGSPEW_CODE( fprintf( stderr, "pushing destination global scope\n"));
 					lua_pushglobaltable( L2);                                                              // ... {cache} ... function <upvalues>
 				}
 				else
 #endif // LUA_VERSION_NUM
 				{
+					DEBUGSPEW_CODE( fprintf( stderr, "copying value\n"));
 					if( !inter_copy_one_( L2, L2_cache_i, L, lua_gettop( L), VT_NORMAL, mode_, upname))    // ... {cache} ... function <upvalues>
 					{
 						luaL_error( L, "Cannot copy upvalue type '%s'", luaL_typename( L, -1));
@@ -1861,7 +1863,7 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 		{
 			size_t len;
 			char const* s = lua_tolstring( L, i, &len);
-			DEBUGSPEW_CODE( if( vt == VT_KEY) fprintf( stderr, INDENT_BEGIN "KEY: %s\n" INDENT_END, s));
+			DEBUGSPEW_CODE( if( vt == VT_KEY) fprintf( stderr, INDENT_BEGIN "KEY: '%s'\n" INDENT_END, s));
 			lua_pushlstring( L2, s, len);
 		}
 		break;
@@ -1906,9 +1908,11 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 		}
 		{
 			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "FUNCTION\n" INDENT_END));
+			DEBUGSPEW_CODE( ++ debugspew_indent_depth);
 			STACK_CHECK( L2);
 			push_cached_func( L2, L2_cache_i, L, i, mode_, upName_);
 			STACK_END( L2, 1);
+			DEBUGSPEW_CODE( -- debugspew_indent_depth);
 		}
 		break;
 
