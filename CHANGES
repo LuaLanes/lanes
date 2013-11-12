@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 81: BGe 07-Nov-13
+   * Make set_finalizer(), set_debug_threadname(), cancel_test() and set_error_reporting() transferable from lane to lane
+   * Improved some DEBUGSPEW output
+
 CHANGE 80: BGe 06-Nov-13
    * Fix a few compilation warnings about uninitialized variables
    * Fixed a bad extern variable declaration resulting in multiple instances (crashes the Pelles-C build)
