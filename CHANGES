@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 82: BGe 13-Nov-13
+   * Fix a case where an error could be raised inside a keeper state
+
 CHANGE 81: BGe 07-Nov-13
    * Make set_finalizer(), set_debug_threadname(), cancel_test() and set_error_reporting() transferable from lane to lane
    * Improved some DEBUGSPEW output
