@@ -1593,7 +1593,8 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, enum eLoo
 			from = lua_tostring( L, -1);
 			lua_getglobal( L2, "decoda_name");                                                 // {} f decoda_name
 			to = lua_tostring( L2, -1);
-			(void) luaL_error( L, "%s: function '%s' not found in %s destination transfer database.", from ? from : "main", fqn, to ? to : "main");
+			// when mode_ == eLM_FromKeeper, L is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
+			(void) luaL_error( (mode_ == eLM_FromKeeper) ? L2 : L, "%s: function '%s' not found in %s destination transfer database.", from ? from : "main", fqn, to ? to : "main");
 			return;
 		}
 		lua_remove( L2, -2);                                                                 // f
