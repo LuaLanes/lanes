@@ -70,7 +70,7 @@ extern int debugspew_indent_depth;
 	} while( 0)
   #define STACK_END(L,change)  STACK_MID(L,change); }
 
-  #define STACK_DUMP(L)    luaG_dump(L);
+  #define STACK_DUMP( L)    luaG_dump( L)
 #endif
 #define ASSERT_L(c) _ASSERT_L(L,c)
 
