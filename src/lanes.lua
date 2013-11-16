@@ -614,28 +614,42 @@ end -- settings.with_timers
 -- acquire (+M) and release (-M). For binary locks, use M==1.
 --
 -- PUBLIC LANES API
-local function genlock( linda, key, N )
-    linda:limit(key,N)
-    linda:set(key,nil)  -- clears existing data
+local genlock = function( linda, key, N)
+	linda:limit( key, N)
+	linda:set( key, nil)  -- clears existing data
 
-    --
-    -- [true [, ...]= trues(uint)
-    --
-    local function trues(n)
-        if n>0 then return true,trues(n-1) end
-    end
+	--
+	-- [true [, ...]= trues(uint)
+	--
+	local function trues( n)
+		if n > 0 then
+			return true, trues( n - 1)
+		end
+	end
 
-    return
-    function(M)
-        if M>0 then
-            -- 'nil' timeout allows 'key' to be numeric
-            linda:send( nil, key, trues(M) )    -- suspends until been able to push them
-        else
-            for i=1,-M do
-                linda:receive( key )
-            end
-        end
-    end
+	-- use an optimized version for case N == 1
+	return (N == 1) and
+	function( M, mode_)
+		local timeout = (mode_ == "try") and 0 or nil
+		if M > 0 then
+			-- 'nil' timeout allows 'key' to be numeric
+			return linda:send( timeout, key, true)    -- suspends until been able to push them
+		else
+			local k = linda:receive( nil, key)
+			return k and true or false
+		end
+	end
+	or
+	function( M, mode_)
+		local timeout = (mode_ == "try") and 0 or nil
+		if M > 0 then
+			-- 'nil' timeout allows 'key' to be numeric
+			return linda:send( timeout, key, trues(M))    -- suspends until been able to push them
+		else
+			local k = linda:receive( nil, linda.batched, key, -M)
+			return k and true or false
+		end
+	end
 end
 
 
