@@ -1,5 +1,11 @@
 CHANGES:
 
+CHANGE 83: BGe 16-Nov-13
+   * version 3.7.2
+   * Fixed function returned by lanes.genlock() not handling numeric keys properly when release lock
+   * Enable lanes.genlock() to attempt lock with an optional "try" mode
+   * make EnableCrashingOnCrashes a one-time operation
+
 CHANGE 82: BGe 13-Nov-13
    * Fix a case where an error could be raised inside a keeper state
 
