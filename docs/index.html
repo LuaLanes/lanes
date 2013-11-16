@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 22-Oct-13, and applies to version <tt>3.7.1</tt>.
+				This document was revised on 16-Nov-13, and applies to version <tt>3.7.2</tt>.
 			</p>
 		</font>
 	</center>
@@ -1189,17 +1189,21 @@ events to a common Linda, but... :).</font>
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
 	lock_func = lanes.genlock( linda_h, key [,N_uint=1])
 
-	lock_func( M_uint )     -- acquire
+	bool = lock_func( M_uint [, "try"] )     -- acquire
 	..
-	lock_func( -M_uint )    -- release
+	bool = lock_func( -M_uint)    -- release
 </pre></td></tr></table>
 
 <p>
-	The generated function acquires M entries from the N available, or releases them if the value is negative. The acquiring call will suspend the lane, if necessary. Use <tt>M=N=1</tt> for a critical section lock (only one lane allowed to enter).
+	The generated function acquires M tokens from the N available, or releases them if the value is negative. The acquiring call will suspend the lane, if necessary. Use <tt>M=N=1</tt> for a critical section lock (only one lane allowed to enter).
+	<br>
+	When passsing <tt>"try"</tt> as second argument when acquiring, then <tt>lock_func</tt> operates on the linda with a timeout of 0 to emulate a TryLock() operation. If locking fails, <tt>lock_func</tt> returns <tt>false</tt>. <tt>"try"</tt> is ignored when releasing (as it it not expected to ever have to wait unless the acquisition/release pairs are not properly matched).
+	<br>
+	Upon successful lock/unlock, <tt>lock_func</tt> returns <tt>true</tt> (always the case when block-waiting for completion).
 </p>
 
 <p>
-	Note: The locks generated are <u>not recursive</u>. That would need another kind of generator, which is currently not implemented.
+	Note: The generated locks are <u>not recursive</u> (A single lane locking several times will consume tokens at each call, and can therefore deadlock itself). That would need another kind of generator, which is currently not implemented.
 </p>
 
 <p>
