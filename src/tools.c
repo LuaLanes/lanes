@@ -1908,7 +1908,7 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 			break;
 		}
 		{
-			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "FUNCTION\n" INDENT_END));
+			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "FUNCTION %s\n" INDENT_END, upName_));
 			DEBUGSPEW_CODE( ++ debugspew_indent_depth);
 			STACK_CHECK( L2);
 			push_cached_func( L2, L2_cache_i, L, i, mode_, upName_);
