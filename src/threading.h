@@ -64,7 +64,9 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   #else // !PLATFORM_XBOX
     #define WIN32_LEAN_AND_MEAN
     // 'SignalObjectAndWait' needs this (targets Windows 2000 and above)
+    #ifndef _WIN32_WINNT // already defined by TDSM-Mingw64, so avoid a warning in that case
     #define _WIN32_WINNT 0x0400
+    #endif // _WIN32_WINNT
     #include <windows.h>
   #endif // !PLATFORM_XBOX
   #include <process.h>
@@ -111,7 +113,11 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
 	#define THREAD_CALLCONV __stdcall
 #else // THREADAPI == THREADAPI_PTHREAD
   // PThread (Linux, OS X, ...)
-  //
+
+  // looks like some MinGW installations don't support PTW32_INCLUDE_WINDOWS_H, so let's include it ourselves, just in case
+  #if defined(PLATFORM_WIN32)
+  #include <windows.h>
+  #endif // PLATFORM_WIN32
   #include <pthread.h>
 
   #ifdef PLATFORM_LINUX
