@@ -692,6 +692,10 @@ int keeper_call( lua_State *K, keeper_api_t _func, lua_State *L, void *linda, ui
 		lua_call( K, 1 + args, LUA_MULTRET);
 
 		retvals = lua_gettop( K) - Ktos;
+		// note that this can raise a luaL_error while the keeper state (and its mutex) is acquired
+		// this may interrupt a lane, causing the destruction of the underlying OS thread
+		// after this, another lane making use of this keeper can get an error code from the mutex-locking function
+		// when attempting to grab the mutex again (WINVER <= 0x400 does this, but locks just fine, I don't know about pthread)
 		if( (retvals > 0) && luaG_inter_move( K, L, retvals, eLM_FromKeeper) != 0) // K->L
 		{
 			retvals = -1;
