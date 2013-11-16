@@ -255,10 +255,14 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
      if (!CloseHandle(*ref)) FAIL( "CloseHandle (mutex)", GetLastError() );
      *ref= NULL;
   }
-  void MUTEX_LOCK( MUTEX_T *ref ) {
-    DWORD rc= WaitForSingleObject(*ref,INFINITE);
-    if (rc!=0) FAIL( "WaitForSingleObject", rc==WAIT_FAILED ? GetLastError() : rc );
-  }
+	void MUTEX_LOCK( MUTEX_T *ref )
+	{
+		DWORD rc = WaitForSingleObject( *ref, INFINITE);
+		// ERROR_WAIT_NO_CHILDREN means a thread was killed (lane terminated because of error raised during a linda transfer for example) while having grabbed this mutex
+		// this is not a big problem as we will grab it just the same, so ignore this particular error
+		if( rc != 0 && rc != ERROR_WAIT_NO_CHILDREN)
+			FAIL( "WaitForSingleObject", (rc == WAIT_FAILED) ? GetLastError() : rc);
+	}
   void MUTEX_UNLOCK( MUTEX_T *ref ) {
     if (!ReleaseMutex(*ref))
         FAIL( "ReleaseMutex", GetLastError() );
