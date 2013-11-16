@@ -2939,33 +2939,60 @@ LUAG_FUNC( configure)
 	return 1;
 }
 
+#if defined PLATFORM_WIN32 && !defined NDEBUG
+#include <signal.h>
+#include <conio.h>
+
+void signal_handler( int signal)
+{
+	if( signal == SIGABRT)
+	{
+		_cprintf( "caught abnormal termination!");
+		abort();
+	}
+}
+
 // helper to have correct callstacks when crashing a Win32 running on 64 bits Windows
 // don't forget to toggle Debug/Exceptions/Win32 in visual Studio too!
+static volatile long s_ecoc_initCount = 0;
+static volatile int s_ecoc_go_ahead = 0;
 static void EnableCrashingOnCrashes( void)
-{ 
-#if defined PLATFORM_WIN32 && !defined NDEBUG
-	typedef BOOL (WINAPI *tGetPolicy)(LPDWORD lpFlags);
-	typedef BOOL (WINAPI *tSetPolicy)(DWORD dwFlags);
-	const DWORD EXCEPTION_SWALLOWING = 0x1;
-
-	HMODULE kernel32 = LoadLibraryA("kernel32.dll");
-	tGetPolicy pGetPolicy = (tGetPolicy)GetProcAddress(kernel32, "GetProcessUserModeExceptionPolicy");
-	tSetPolicy pSetPolicy = (tSetPolicy)GetProcAddress(kernel32, 	"SetProcessUserModeExceptionPolicy");
-	if( pGetPolicy && pSetPolicy)
+{
+	if( InterlockedCompareExchange( &s_ecoc_initCount, 1, 0) == 0)
 	{
-		DWORD dwFlags;
-		if( pGetPolicy( &dwFlags))
+		typedef BOOL (WINAPI* tGetPolicy)( LPDWORD lpFlags);
+		typedef BOOL (WINAPI* tSetPolicy)( DWORD dwFlags);
+		typedef void (* SignalHandlerPointer)( int);
+		SignalHandlerPointer previousHandler = signal( SIGABRT, signal_handler);
+		const DWORD EXCEPTION_SWALLOWING = 0x1;
+
+		HMODULE kernel32 = LoadLibraryA("kernel32.dll");
+		tGetPolicy pGetPolicy = (tGetPolicy)GetProcAddress(kernel32, "GetProcessUserModeExceptionPolicy");
+		tSetPolicy pSetPolicy = (tSetPolicy)GetProcAddress(kernel32, "SetProcessUserModeExceptionPolicy");
+		if( pGetPolicy && pSetPolicy)
 		{
-			// Turn off the filter
-			pSetPolicy( dwFlags & ~EXCEPTION_SWALLOWING);
+			DWORD dwFlags;
+			if( pGetPolicy( &dwFlags))
+			{
+				// Turn off the filter
+				pSetPolicy( dwFlags & ~EXCEPTION_SWALLOWING);
+			}
 		}
+
+		s_ecoc_go_ahead = 1; // let others pass
 	}
-#endif // PLATFORM_WIN32
+	else
+	{
+		while( !s_ecoc_go_ahead) { Sleep(1); } // changes threads
+	}
 }
+#endif // PLATFORM_WIN32
 
 int LANES_API luaopen_lanes_core( lua_State* L)
 {
+#if defined PLATFORM_WIN32 && !defined NDEBUG
 	EnableCrashingOnCrashes();
+#endif // defined PLATFORM_WIN32 && !defined NDEBUG
 
 	STACK_GROW( L, 4);
 	STACK_CHECK( L);
