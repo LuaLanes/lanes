@@ -1,5 +1,11 @@
 CHANGES:
 
+CHANGE 84: BGe 18-Nov-13
+   * Fix a deadlock when GCing during a linda operation.
+   * Fix a compilation warning about an unused variable
+   * Get rid of uintptr_t to remove dependency on stdint.h
+   * Fix internal error at lane creation when the generator doesn't open any base library
+
 CHANGE 83: BGe 16-Nov-13
    * version 3.7.2
    * Fixed function returned by lanes.genlock() not handling numeric keys properly when release lock
