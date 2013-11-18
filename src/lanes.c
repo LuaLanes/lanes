@@ -1130,7 +1130,7 @@ static int run_finalizers( lua_State* L, int lua_rc)
 		ASSERT_L( lua_isfunction( L, -1));
 		if( error_index)
 		{
-			char const* err_msg = lua_tostring( L, error_index);
+			//char const* err_msg = lua_tostring( L, error_index);
 			lua_pushvalue( L, error_index);                                             // [err_msg {stack_trace}]? {func [, ...]}? lane_error finalizer err_msg
 #if ERROR_FULL_STACK
 			lua_pushvalue( L, error_index + 1);                                         // [err_msg {stack_trace}]? {func [, ...]}? lane_error finalizer err_msg {stack_trace}
