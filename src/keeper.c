@@ -599,7 +599,9 @@ char const* init_keepers( lua_State* L)
 		lua_rawset( K, LUA_REGISTRYINDEX);
 
 		STACK_END( K, 0);
-		MUTEX_INIT( &GKeepers[i].lock_);
+		// we can trigger a GC from inside keeper_call(), where a keeper is acquired
+		// from there, GC can collect a linda, which would acquire the keeper again, and deadlock the thread.
+		MUTEX_RECURSIVE_INIT( &GKeepers[i].lock_);
 		GKeepers[i].L = K;
 	}
 #if HAVE_KEEPER_ATEXIT_DESINIT
