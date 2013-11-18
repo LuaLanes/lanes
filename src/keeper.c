@@ -624,9 +624,10 @@ struct s_Keeper* keeper_acquire( void const* ptr)
 		* consistently.
 		*
 		* Pointers are often aligned by 8 or so - ignore the low order bits
+		* have to cast to unsigned long to avoid compilation warnings about loss of data when converting pointer-to-integer
 		*/
-		unsigned int i = ((unsigned int)(ptr) >> 3) % GNbKeepers;
-		struct s_Keeper *K= &GKeepers[i];
+		unsigned int i = (unsigned int)(((unsigned long)(ptr) >> 3) % GNbKeepers);
+		struct s_Keeper* K = &GKeepers[i];
 
 		MUTEX_LOCK( &K->lock_);
 		//++ K->count;
