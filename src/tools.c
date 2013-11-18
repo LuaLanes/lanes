@@ -579,13 +579,16 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 		(void) luaL_error( _from, "'lua_newstate()' failed; out of memory");
 	}
 
+	// we'll need this everytime we transfer some C function from/to this state
+	lua_newtable( L);
+	lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);
+
 	// neither libs (not even 'base') nor special init func: we are done
 	if( libs == NULL && _on_state_create <= 0)
 	{
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_newstate(NULL)\n" INDENT_END));
 		return L;
 	}
-	// from this point, we are not creating a keeper state (because libs == NULL when we init keepers)
 
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_newstate()\n" INDENT_END));
 	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
@@ -594,10 +597,6 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 	STACK_CHECK( L);
 	// 'lua.c' stops GC during initialization so perhaps its a good idea. :)
 	lua_gc( L, LUA_GCSTOP, 0);
-
-	// we'll need this everytime we transfer some C function from/to this state
-	lua_newtable( L);
-	lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);
 
 	// Anything causes 'base' to be taken in
 	//
