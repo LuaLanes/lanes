@@ -625,7 +625,7 @@ struct s_Keeper* keeper_acquire( void const* ptr)
 		*
 		* Pointers are often aligned by 8 or so - ignore the low order bits
 		*/
-		unsigned int i= ((uintptr_t)(ptr) >> 3) % GNbKeepers;
+		unsigned int i = ((unsigned int)(ptr) >> 3) % GNbKeepers;
 		struct s_Keeper *K= &GKeepers[i];
 
 		MUTEX_LOCK( &K->lock_);
