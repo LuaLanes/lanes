@@ -522,6 +522,23 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
   // On Linux, SCHED_RR and su privileges are required..  !-(
   //
   #include <errno.h>
+
+#	if defined(__MINGW32__) || defined(__MINGW64__)
+	// from the mingw-w64 team:
+	// Well, we support pthread_setschedparam by which you can specify
+	// threading-policy. Nevertheless, yes we lack this function. In
+	// general its implementation is pretty much trivial, as on Win32 target
+	// just SCHED_OTHER can be supported.
+	static int pthread_attr_setschedpolicy( pthread_attr_t* attr, int policy)
+	{
+		if( policy != SCHED_OTHER)
+		{
+			return ENOTSUP;
+		}
+		return 0;
+	}
+#	endif // defined(__MINGW32__) || defined(__MINGW64__)
+
   //
   static void _PT_FAIL( int rc, const char *name, const char *file, uint_t line ) {
     const char *why= (rc==EINVAL) ? "EINVAL" : 
