@@ -740,10 +740,17 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
         // PTHREAD_SCOPE_PROCESS not supported by win32-pthread as of version 2.9.1
         //#define _PRIO_SCOPE PTHREAD_SCOPE_SYSTEM // but do we need this at all to start with?
 
+#if defined __WINPTHREADS_VERSION
+        // see http://sourceforge.net/p/mingw-w64/code/6370/tree/trunk/mingw-w64-libraries/winpthreads/src/sched.c#l128
+        #define _PRIO_HI (+15)
+        #define _PRIO_0  (0)
+        #define _PRIO_LO (-15)
+#else
         // win32-pthread seems happy with direct -2..+2 instead of some other remapping
         #define _PRIO_HI (+2)
         #define _PRIO_0  (0)
         #define _PRIO_LO (-2)
+#endif
 #else
         #error "Unknown OS: not implemented!"
 #endif
