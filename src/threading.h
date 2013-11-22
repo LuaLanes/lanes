@@ -221,7 +221,10 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 #  else
 #   define THREAD_PRIO_MIN (0)
 #  endif
-# define THREAD_PRIO_MAX (sudo ? +2 : 0)
+#  define THREAD_PRIO_MAX (sudo ? +2 : 0)
+# elif defined __WINPTHREADS_VERSION
+#  define THREAD_PRIO_MIN (-3)
+#  define THREAD_PRIO_MAX (+3)
 # else
 #  define THREAD_PRIO_MIN (-2)
 #  define THREAD_PRIO_MAX (+2)
