@@ -1946,7 +1946,7 @@ LUAG_FUNC( thread_new)
 	char const* libs = lua_tostring( L, 2);
 	int const on_state_create = lua_isfunction( L, 3) ? 3 : 0;
 	uint_t cs = luaG_optunsigned( L, 4, 0);
-	int prio = (int) luaL_optinteger( L, 5, 0);
+	int const prio = (int) luaL_optinteger( L, 5, 0);
 	uint_t glob = lua_isnoneornil( L, 6) ? 0 : 6;
 	uint_t package = lua_isnoneornil( L,7) ? 0 : 7;
 	uint_t required = lua_isnoneornil( L, 8) ? 0 : 8;
@@ -1954,6 +1954,8 @@ LUAG_FUNC( thread_new)
 #define FIXED_ARGS 8
 	uint_t args = lua_gettop(L) - FIXED_ARGS;
 
+	// public Lanes API accepts a generic range (-3/+3 for windows and MinGW-pthread, -2/+2 for the rest of the world)
+	// that will be remapped into the platform-specific scheduler priority scheme
 	if( prio < THREAD_PRIO_MIN || prio > THREAD_PRIO_MAX)
 	{
 		return luaL_error( L, "Priority out of range: %d..+%d (%d)", THREAD_PRIO_MIN, THREAD_PRIO_MAX, prio);
