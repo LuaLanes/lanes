@@ -35,7 +35,9 @@ void luaL_requiref (lua_State* L, const char* modname, lua_CFunction openf, int 
 #ifndef lua_equal // already defined when compatibility is active in luaconf.h
 #define lua_equal( L, a, b) lua_compare( L, a, b, LUA_OPEQ)
 #endif // lua_equal
+#ifndef lua_lessthan // already defined when compatibility is active in luaconf.h
 #define lua_lessthan( L, a, b) lua_compare( L, a, b, LUA_OPLT)
+#endif // lua_lessthan
 #define luaG_registerlibfuncs( L, _funcs) luaL_setfuncs( L, _funcs, 0)
 #endif // LUA_VERSION_NUM == 502
 
