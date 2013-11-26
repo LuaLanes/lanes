@@ -1122,7 +1122,7 @@ static int run_finalizers( lua_State* L, int lua_rc)
 #endif // ERROR_FULL_STACK
 	error_index = (lua_rc != LUA_OK) ? finalizers_index - (1 + ERROR_FULL_STACK) : 0;
 
-	for( n = lua_rawlen( L, finalizers_index); n > 0; -- n)
+	for( n = (int) lua_rawlen( L, finalizers_index); n > 0; -- n)
 	{
 		int args = 0;
 		lua_pushinteger( L, n);                                                       // [err_msg {stack_trace}]? {func [, ...]}? lane_error n
