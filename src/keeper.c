@@ -572,7 +572,7 @@ char const* init_keepers( lua_State* L)
 
 	STACK_CHECK( L);
 	lua_getfield( L, 1, "nb_keepers");
-	GNbKeepers = lua_tointeger( L, -1);
+	GNbKeepers = (int) lua_tointeger( L, -1);
 	lua_pop( L, 1);
 	STACK_END( L, 0);
 	assert( GNbKeepers >= 1);
