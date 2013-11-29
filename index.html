@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 16-Nov-13, and applies to version <tt>3.7.2</tt>.
+				This document was revised on 28-Nov-13, and applies to version <tt>3.7.3</tt>.
 			</p>
 		</font>
 	</center>
@@ -102,7 +102,7 @@
 		<li>Data passing uses fast inter-state copies (no serialization required).</li>
 		<li>"Deep userdata" concept, for sharing userdata over multiple lanes.</li>
 		<li>Millisecond level timers, integrated with the Linda system.</li>
-		<li>Threads can be given priorities -2..+2 (default is 0).</li>
+		<li>Threads can be given priorities.</li>
 		<li>Lanes are cancellable, with proper cleanup.</li>
 		<li>No Lua-side application level locking - ever!</li>
 	</ul>
@@ -587,9 +587,10 @@
 			<td>
 				<code>.priority</code>
 			</td>
-			<td> integer -2..+2</td>
+			<td>integer</td>
 			<td>
-				The priority of lanes generated. -2 is lowest, +2 is highest.
+				The priority of lanes generated in the range -3..+3 (MinGW pthread and Windows thread API), or -2..+2 otherwise (default is 0).
+				These values are a mapping over the actual priority range of the underlying implementation.
 				<br>
 				Implementation and dependability of priorities varies by platform. Especially Linux kernel 2.6 is not supporting priorities in user mode.
 			</td>
@@ -842,14 +843,15 @@
 <h2 id="cancelling">Cancelling</h2>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	bool[,reason] = lane_h:cancel( [timeout_secs=0.0,] [force_kill_bool = false] )
+	bool[,reason] = lane_h:cancel( [timeout_secs=0.0,] [force_kill_bool = false] [, forcekill_timeout=0.0])
 </pre></td></tr></table>
 
 <p>
-	<tt>cancel()</tt>sends a cancellation request to the lane.<br/>
+	<tt>cancel()</tt> sends a cancellation request to the lane.<br/>
+	If <tt>timeout_secs</tt> is negative (aka "soft cancel"), starting with version 3.6.3, will only cause <tt>cancel_test()</tt> to return <tt>true</tt>, so that the lane can cleanup manually (the actual value is irrelevant). You can't provide the additional arguments in that case.<br/>
 	If <tt>timeout_secs</tt> is positive (aka "hard cancel"), waits for the request to be processed, or a timeout to occur.<br/>
-	If <tt>timeout_secs</tt> is negative (aka "soft cancel"), starting with version 3.6.3, will only cause <tt>cancel_test()</tt> to return true, so that the lane can cleanup manually. You can't provide a second argument in that case.<br/>
-	Returns <tt>true</tt> if soft cancelling, or the lane was already done (in <tt>"done"</tt>, <tt>"error"</tt> or <tt>"cancelled"</tt> status), or the cancellation was fruitful within timeout period.
+	If <tt>force_kill_bool</tt> is <tt>true</tt>, <tt>forcekill_timeout</tt> can be set to tell how long lanes will wait for the OS thread to terminate before raising an error. Windows threads always terminate immediately, but it might not always be the case with some pthread implementations.
+	Returns <tt>true</tt> if soft cancelling, or the lane was already done (in <tt>"done"</tt>, <tt>"error"</tt> or <tt>"cancelled"</tt> status), or the cancellation was fruitful within <tt>timeout_secs</tt> timeout period.
 </p>
 
 <p>
