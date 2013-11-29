@@ -567,8 +567,7 @@ void close_keepers( void)
 char const* init_keepers( lua_State* L)
 {
 	int i;
-	void* allocUD;
-	lua_Alloc allocF = lua_getallocf( L, &allocUD);
+	PROPAGATE_ALLOCF_PREP( L);
 
 	STACK_CHECK( L);
 	lua_getfield( L, 1, "nb_keepers");
@@ -580,10 +579,10 @@ char const* init_keepers( lua_State* L)
 	GKeepers = malloc( GNbKeepers * sizeof( struct s_Keeper));
 	for( i = 0; i < GNbKeepers; ++ i)
 	{
-		lua_State* K = lua_newstate( allocF, allocUD);
+		lua_State* K = PROPAGATE_ALLOCF_ALLOC();
 		if( K == NULL)
 		{
-			(void) luaL_error( L, "'lua_newstate()' failed while creating keeper state; out of memory");
+			(void) luaL_error( L, "init_keepers() failed while creating keeper state; out of memory");
 		}
 		STACK_CHECK( K);
 
@@ -627,7 +626,7 @@ struct s_Keeper* keeper_acquire( void const* ptr)
 		* have to cast to unsigned long to avoid compilation warnings about loss of data when converting pointer-to-integer
 		*/
 		unsigned int i = (unsigned int)(((unsigned long)(ptr) >> 3) % GNbKeepers);
-		struct s_Keeper* K = &GKeepers[i];
+		struct s_Keeper *K= &GKeepers[i];
 
 		MUTEX_LOCK( &K->lock_);
 		//++ K->count;

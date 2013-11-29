@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.7.2";
+char const* VERSION = "3.7.3";
 
 /*
 ===============================================================================
@@ -1197,7 +1197,7 @@ typedef enum
 	CR_Killed
 } cancel_result;
 
-static cancel_result thread_cancel( struct s_lane *s, double secs, bool_t force)
+static cancel_result thread_cancel( lua_State* L, struct s_lane* s, double secs, bool_t force, double waitkill_timeout_)
 {
 	cancel_result result;
 
@@ -1239,6 +1239,15 @@ static cancel_result thread_cancel( struct s_lane *s, double secs, bool_t force)
 				// PThread seems to have).
 				//
 				THREAD_KILL( &s->thread);
+#if THREADAPI == THREADAPI_PTHREAD
+				// pthread: make sure the thread is really stopped!
+				// note that this may block forever if the lane doesn't call a cancellation point and pthread doesn't honor PTHREAD_CANCEL_ASYNCHRONOUS
+				result = THREAD_WAIT( &s->thread, waitkill_timeout_, &s->done_signal, &s->done_lock, &s->status);
+				if( result == CR_Timeout)
+				{
+					return luaL_error( L, "force-killed lane failed to terminate within %f second%s", waitkill_timeout_, waitkill_timeout_ > 1 ? "s" : "");
+				}
+#endif // THREADAPI == THREADAPI_PTHREAD
 				s->mstatus = KILLED;     // mark 'gc' to wait for it
 				// note that s->status value must remain to whatever it was at the time of the kill
 				// because we need to know if we can lua_close() the Lua State or not.
@@ -1357,7 +1366,7 @@ static int selfdestruct_gc( lua_State* L)
 			while( s != SELFDESTRUCT_END)
 			{
 				// attempt a regular unforced hard cancel with a small timeout
-				bool_t cancelled = THREAD_ISNULL( s->thread) || thread_cancel( s, 0.0001, FALSE);
+				bool_t cancelled = THREAD_ISNULL( s->thread) || thread_cancel( L, s, 0.0001, FALSE, 0.0);
 				// if we failed, and we know the thread is waiting on a linda
 				if( cancelled == FALSE && s->status == WAITING && s->waiting_on != NULL)
 				{
@@ -1758,6 +1767,17 @@ static char const* get_errcode_name( int _code)
 }
 #endif // USE_DEBUG_SPEW
 
+#if THREADWAIT_METHOD == THREADWAIT_CONDVAR // implies THREADAPI == THREADAPI_PTHREAD
+static void thread_cleanup_handler( void* opaque)
+{
+	struct s_lane* s= (struct s_lane*) opaque;
+	MUTEX_LOCK( &s->done_lock);
+	s->status = CANCELLED;
+	SIGNAL_ONE( &s->done_signal);   // wake up master (while 's->done_lock' is on)
+	MUTEX_UNLOCK( &s->done_lock);
+}
+#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
+
 //---
 static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
 {
@@ -1770,7 +1790,8 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
         tracking_add( s);
     }
 #endif // HAVE_LANE_TRACKING
-
+    THREAD_MAKE_ASYNCH_CANCELLABLE();
+    THREAD_CLEANUP_PUSH( thread_cleanup_handler, s);
     s->status= RUNNING;  // PENDING -> RUNNING
 
     // Tie "set_finalizer()" to the state
@@ -1888,7 +1909,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
                     : ERROR_ST;
 
         // Posix no PTHREAD_TIMEDJOIN:
-        // 		'done_lock' protects the -> DONE|ERROR_ST|CANCELLED state change
+        // 'done_lock' protects the -> DONE|ERROR_ST|CANCELLED state change
         //
 #if THREADWAIT_METHOD == THREADWAIT_CONDVAR
         MUTEX_LOCK( &s->done_lock);
@@ -1901,6 +1922,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
         MUTEX_UNLOCK( &s->done_lock);
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
     }
+    THREAD_CLEANUP_POP( FALSE);
     return 0;   // ignored
 }
 
@@ -2248,6 +2270,7 @@ LUAG_FUNC( thread_gc)
 	return 0;
 }
 
+// lane_h:cancel( [timeout,] force[, forcekill_timeout])
 LUAG_FUNC( thread_cancel)
 {
 	if( lua_gettop( L) < 1 || lua_type( L, 1) != LUA_TUSERDATA)
@@ -2258,9 +2281,8 @@ LUAG_FUNC( thread_cancel)
 	{
 		struct s_lane* s = lua_toLane( L, 1);
 		double secs = 0.0;
-		uint_t force_i = 2;
-		cancel_result result;
-		bool_t force;
+		int force_i = 2;
+		int forcekill_timeout_i = 3;
 
 		if( lua_isnumber( L, 2))
 		{
@@ -2270,30 +2292,34 @@ LUAG_FUNC( thread_cancel)
 				return luaL_error( L, "can't force a soft cancel");
 			}
 			++ force_i;
+			++ forcekill_timeout_i;
 		}
 		else if( lua_isnil( L, 2))
 		{
 			++ force_i;
+			++ forcekill_timeout_i;
 		}
 
-		force = lua_toboolean( L, force_i);     // FALSE if nothing there
-
-		result = thread_cancel( s, secs, force);
-		switch( result)
 		{
+			bool_t force = lua_toboolean( L, force_i);     // FALSE if nothing there
+			double forcekill_timeout = luaL_optnumber( L, forcekill_timeout_i, 0.0);
+
+			switch( thread_cancel( L, s, secs, force, forcekill_timeout))
+			{
 			case CR_Timeout:
-			lua_pushboolean( L, 0);
-			lua_pushstring( L, "timeout");
-			return 2;
+				lua_pushboolean( L, 0);
+				lua_pushstring( L, "timeout");
+				return 2;
 
 			case CR_Cancelled:
-			lua_pushboolean( L, 1);
-			return 1;
-			
+				lua_pushboolean( L, 1);
+				return 1;
+
 			case CR_Killed:
-			lua_pushboolean( L, 0);
-			lua_pushstring( L, "killed");
-			return 2;
+				lua_pushboolean( L, 0);
+				lua_pushstring( L, "killed");
+				return 2;
+			}
 		}
 	}
 	// should never happen, only here to prevent the compiler from complaining of "not all control paths returning a value"

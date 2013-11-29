@@ -1,5 +1,11 @@
 CHANGES:
 
+CHANGE 85: BGe 28-Nov-13
+   * version 3.7.3
+   * set pthread thread cancel type to PTHREAD_CANCEL_ASYNCHRONOUS
+   * lane_h:cancel() accepts a 3rd timeout argument used when waiting for actual thread termination (hitting the timeout raises an error)
+   * added PROPAGATE_ALLOCF macro to select state creation mode (lua_newstate or luaL_newstate)
+
 CHANGE 84: BGe 18-Nov-13
    * Fix a deadlock when GCing during a linda operation.
    * Fix a compilation warning about an unused variable

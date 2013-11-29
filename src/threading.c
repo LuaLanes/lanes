@@ -330,6 +330,8 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 		*ref= NULL;
 	}
 
+	void THREAD_MAKE_ASYNCH_CANCELLABLE() {} // nothing to do for windows threads, we can cancel them anytime we want
+
 #if !defined __GNUC__
 	//see http://msdn.microsoft.com/en-us/library/xcb2z8hs.aspx
 	#define MS_VC_EXCEPTION 0x406D1388
@@ -896,10 +898,18 @@ bool_t THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
     return done;
   }
-  //
+	//
   void THREAD_KILL( THREAD_T *ref ) {
     pthread_cancel( *ref );
   }
+
+	void THREAD_MAKE_ASYNCH_CANCELLABLE()
+	{
+		// that's the default, but just in case...
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		// we want cancellation to take effect immediately if possible, instead of waiting for a cancellation point (which is the default)
+		pthread_setcanceltype( PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+	}
 
 	void THREAD_SETNAME( char const* _name)
 	{

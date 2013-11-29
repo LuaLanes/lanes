@@ -194,10 +194,16 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 # define THREAD_PRIO_MIN (-3)
 # define THREAD_PRIO_MAX (+3)
 
+#define THREAD_CLEANUP_PUSH( cb_, val_)
+#define THREAD_CLEANUP_POP( execute_)
+
 #else // THREADAPI == THREADAPI_PTHREAD
     /* Platforms that have a timed 'pthread_join()' can get away with a simpler
     * implementation. Others will use a condition variable.
     */
+#if defined __WINPTHREADS_VERSION
+#define USE_PTHREAD_TIMEDJOIN
+#endif // __WINPTHREADS_VERSION
 # ifdef USE_PTHREAD_TIMEDJOIN
 #  ifdef PLATFORM_OSX
 #   error "No 'pthread_timedjoin()' on this system"
@@ -229,6 +235,9 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 #  define THREAD_PRIO_MIN (-2)
 #  define THREAD_PRIO_MAX (+2)
 # endif
+
+#define THREAD_CLEANUP_PUSH( cb_, val_) pthread_cleanup_push( cb_, val_)
+#define THREAD_CLEANUP_POP( execute_) pthread_cleanup_pop( execute_)
 #endif // THREADAPI == THREADAPI_WINDOWS
 
 /*
@@ -253,7 +262,8 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs, SIGNAL_T *signal_ref, MUTEX
 #define THREAD_WAIT THREAD_WAIT_IMPL
 #endif // // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 
-void THREAD_KILL( THREAD_T *ref );
+void THREAD_KILL( THREAD_T* ref);
 void THREAD_SETNAME( char const* _name);
+void THREAD_MAKE_ASYNCH_CANCELLABLE();
 
 #endif // __threading_h__
