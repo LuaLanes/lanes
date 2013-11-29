@@ -525,7 +525,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
   //
   #include <errno.h>
 
-#	if ((defined(__MINGW32__) || defined(__MINGW64__)) && pthread_attr_setschedpolicy == ENOTSUP)
+#	if ((defined(__MINGW32__) || defined(__MINGW64__)) && pthread_attr_setschedpolicy( A, S) == ENOTSUP)
 	// from the mingw-w64 team:
 	// Well, we support pthread_setschedparam by which you can specify
 	// threading-policy. Nevertheless, yes we lack this function. In
