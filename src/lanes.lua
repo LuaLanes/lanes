@@ -204,7 +204,7 @@ end
 --         "math,os": math + os + base libraries (named ones + base)
 --         "*":     all standard libraries available
 --
--- 'opt': .priority:  int (-2..+2) smaller is lower priority (0 = default)
+-- 'opt': .priority:  int (-3..+3) smaller is lower priority (0 = default)
 --
 --	      .cancelstep: bool | uint
 --            false: cancellation check only at pending Linda operations
