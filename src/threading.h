@@ -221,7 +221,7 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
                       void *data, int prio /* -2..+2 */ );
 
 # if defined(PLATFORM_LINUX)
-  volatile bool_t sudo;
+  extern volatile bool_t sudo;
 #  ifdef LINUX_SCHED_RR
 #   define THREAD_PRIO_MIN (sudo ? -3 : 0)
 #  else
