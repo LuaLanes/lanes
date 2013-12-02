@@ -202,7 +202,7 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
     * implementation. Others will use a condition variable.
     */
 #if defined __WINPTHREADS_VERSION
-#define USE_PTHREAD_TIMEDJOIN
+//#define USE_PTHREAD_TIMEDJOIN
 #endif // __WINPTHREADS_VERSION
 # ifdef USE_PTHREAD_TIMEDJOIN
 #  ifdef PLATFORM_OSX
