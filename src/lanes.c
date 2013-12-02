@@ -1976,8 +1976,9 @@ LUAG_FUNC( thread_new)
 #define FIXED_ARGS 8
 	uint_t args = lua_gettop(L) - FIXED_ARGS;
 
-	// public Lanes API accepts a generic range (-3/+3 for windows and MinGW-pthread, -2/+2 for the rest of the world)
+	// public Lanes API accepts a generic range -3/+3
 	// that will be remapped into the platform-specific scheduler priority scheme
+	// On some platforms, -3 is equivalent to -2 and +3 to +2
 	if( prio < THREAD_PRIO_MIN || prio > THREAD_PRIO_MAX)
 	{
 		return luaL_error( L, "Priority out of range: %d..+%d (%d)", THREAD_PRIO_MIN, THREAD_PRIO_MAX, prio);
