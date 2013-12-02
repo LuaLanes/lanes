@@ -525,7 +525,8 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
   //
   #include <errno.h>
 
-#	if ((defined(__MINGW32__) || defined(__MINGW64__)) && pthread_attr_setschedpolicy( A, S) == ENOTSUP)
+#	if (defined(__MINGW32__) || defined(__MINGW64__)) && defined pthread_attr_setschedpolicy
+#	if pthread_attr_setschedpolicy( A, S) == ENOTSUP
 	// from the mingw-w64 team:
 	// Well, we support pthread_setschedparam by which you can specify
 	// threading-policy. Nevertheless, yes we lack this function. In
@@ -540,6 +541,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 		}
 		return 0;
 	}
+#	endif // pthread_attr_setschedpolicy()
 #	endif // defined(__MINGW32__) || defined(__MINGW64__)
 
   static void _PT_FAIL( int rc, const char *name, const char *file, uint_t line ) {
@@ -593,245 +595,239 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
   void SIGNAL_ALL( SIGNAL_T *ref ) {
     PT_CALL( pthread_cond_broadcast(ref) );     // wake up ALL waiting threads
   }
-  //
-  void THREAD_CREATE( THREAD_T* ref, 
-                      THREAD_RETURN_T (*func)( void * ),
-                      void *data, int prio /* -2..+2 */ ) {
-    pthread_attr_t _a;
-    pthread_attr_t *a= &_a;
-    struct sched_param sp;
-    bool_t normal;
 
-    PT_CALL( pthread_attr_init(a) );
+// array of 7 thread priority values, hand-tuned by platform so that we offer a uniform [-3,+3] public priority range
+static int const gs_prio_remap[] =
+{
+	// NB: PThreads priority handling is about as twisty as one can get it
+	//     (and then some). DON*T TRUST ANYTHING YOU READ ON THE NET!!!
+
+	//---
+	// "Select the scheduling policy for the thread: one of SCHED_OTHER 
+	// (regular, non-real-time scheduling), SCHED_RR (real-time, 
+	// round-robin) or SCHED_FIFO (real-time, first-in first-out)."
+	//
+	// "Using the RR policy ensures that all threads having the same
+	// priority level will be scheduled equally, regardless of their activity."
+	//
+	// "For SCHED_FIFO and SCHED_RR, the only required member of the
+	// sched_param structure is the priority sched_priority. For SCHED_OTHER,
+	// the affected scheduling parameters are implementation-defined."
+	//
+	// "The priority of a thread is specified as a delta which is added to 
+	// the priority of the process."
+	//
+	// ".. priority is an integer value, in the range from 1 to 127. 
+	//  1 is the least-favored priority, 127 is the most-favored."
+	//
+	// "Priority level 0 cannot be used: it is reserved for the system."
+	//
+	// "When you use specify a priority of -99 in a call to 
+	// pthread_setschedparam(), the priority of the target thread is 
+	// lowered to the lowest possible value."
+	//
+	// ...
+
+	// ** CONCLUSION **
+	//
+	// PThread priorities are _hugely_ system specific, and we need at
+	// least OS specific settings. Hopefully, Linuxes and OS X versions
+	// are uniform enough, among each other...
+	//
+#	if defined PLATFORM_OSX
+		// AK 10-Apr-07 (OS X PowerPC 10.4.9):
+		//
+		// With SCHED_RR, 26 seems to be the "normal" priority, where setting
+		// it does not seem to affect the order of threads processed.
+		//
+		// With SCHED_OTHER, the range 25..32 is normal (maybe the same 26,
+		// but the difference is not so clear with OTHER).
+		//
+		// 'sched_get_priority_min()' and '..max()' give 15, 47 as the 
+		// priority limits. This could imply, user mode applications won't
+		// be able to use values outside of that range.
+		//
+#			define _PRIO_MODE SCHED_OTHER
+
+	// OS X 10.4.9 (PowerPC) gives ENOTSUP for process scope
+			//#define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
+
+#			define _PRIO_HI  32    // seems to work (_carefully_ picked!)
+#			define _PRIO_0   26    // detected
+#			define _PRIO_LO   1    // seems to work (tested)
+
+#		elif defined PLATFORM_LINUX
+			// (based on Ubuntu Linux 2.6.15 kernel)
+			//
+			// SCHED_OTHER is the default policy, but does not allow for priorities.
+			// SCHED_RR allows priorities, all of which (1..99) are higher than
+			// a thread with SCHED_OTHER policy.
+			//
+			// <http://kerneltrap.org/node/6080>
+			// <http://en.wikipedia.org/wiki/Native_POSIX_Thread_Library>
+			// <http://www.net.in.tum.de/~gregor/docs/pthread-scheduling.html>
+			//
+			// Manuals suggest checking #ifdef _POSIX_THREAD_PRIORITY_SCHEDULING,
+			// but even Ubuntu does not seem to define it.
+			//
+#			define _PRIO_MODE SCHED_RR
+
+			// NTLP 2.5: only system scope allowed (being the basic reason why
+			//           root privileges are required..)
+			//#define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
+
+#			define _PRIO_HI 99
+#			define _PRIO_0  50
+#			define _PRIO_LO 1
+
+#		elif defined(PLATFORM_BSD)
+			//
+			// <http://www.net.in.tum.de/~gregor/docs/pthread-scheduling.html>
+			//
+			// "When control over the thread scheduling is desired, then FreeBSD
+			//  with the libpthread implementation is by far the best choice .."
+			//
+#			define _PRIO_MODE SCHED_OTHER
+#			define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
+#			define _PRIO_HI 31
+#			define _PRIO_0  15
+#			define _PRIO_LO 1
+
+#		elif defined(PLATFORM_CYGWIN)
+			//
+			// TBD: Find right values for Cygwin
+			//
+#		elif defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
+			// any other value not supported by win32-pthread as of version 2.9.1
+#			define _PRIO_MODE SCHED_OTHER
+
+			// PTHREAD_SCOPE_PROCESS not supported by win32-pthread as of version 2.9.1
+			//#define _PRIO_SCOPE PTHREAD_SCOPE_SYSTEM // but do we need this at all to start with?
+			THREAD_PRIORITY_IDLE, THREAD_PRIORITY_LOWEST, THREAD_PRIORITY_BELOW_NORMAL, THREAD_PRIORITY_NORMAL, THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_HIGHEST, THREAD_PRIORITY_TIME_CRITICAL
+
+#		else
+#			error "Unknown OS: not implemented!"
+#		endif
+
+#if defined _PRIO_0
+#	define _PRIO_AN (_PRIO_0 + ((_PRIO_HI-_PRIO_0)/2) )
+#	define _PRIO_BN (_PRIO_LO + ((_PRIO_0-_PRIO_LO)/2) )
+
+	_PRIO_LO, _PRIO_LO, _PRIO_BN, _PRIO_0, _PRIO_AN, _PRIO_HI, _PRIO_HI
+#endif // _PRIO_0
+};
+
+//
+void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void * ), void *data, int prio /* -2..+2 */)
+{
+	pthread_attr_t a;
+	bool_t const normal =
+#if defined(PLATFORM_LINUX) && defined(LINUX_SCHED_RR)
+	!sudo;          // with sudo, even normal thread must use SCHED_RR
+#else
+	(prio == 0);
+#endif
+
+	PT_CALL( pthread_attr_init( &a));
 
 #ifndef PTHREAD_TIMEDJOIN
-    // We create a NON-JOINABLE thread. This is mainly due to the lack of
-    // 'pthread_timedjoin()', but does offer other benefits (s.a. earlier 
-    // freeing of the thread's resources).
-    //
-    PT_CALL( pthread_attr_setdetachstate(a,PTHREAD_CREATE_DETACHED) );
-#endif
+	// We create a NON-JOINABLE thread. This is mainly due to the lack of
+	// 'pthread_timedjoin()', but does offer other benefits (s.a. earlier 
+	// freeing of the thread's resources).
+	//
+	PT_CALL( pthread_attr_setdetachstate( &a, PTHREAD_CREATE_DETACHED));
+#endif // PTHREAD_TIMEDJOIN
 
-    // Use this to find a system's default stack size (DEBUG)
+	// Use this to find a system's default stack size (DEBUG)
 #if 0
-  { size_t n; pthread_attr_getstacksize( a, &n );
-    fprintf( stderr, "Getstack: %u\n", (unsigned int)n ); }
-    	//  524288 on OS X
-    	// 2097152 on Linux x86 (Ubuntu 7.04)
-    	// 1048576 on FreeBSD 6.2 SMP i386
+	{
+		size_t n;
+		pthread_attr_getstacksize( &a, &n);
+		fprintf( stderr, "Getstack: %u\n", (unsigned int)n);
+	}
+	//  524288 on OS X
+	// 2097152 on Linux x86 (Ubuntu 7.04)
+	// 1048576 on FreeBSD 6.2 SMP i386
+#endif // 0
+
+#if defined _THREAD_STACK_SIZE && _THREAD_STACK_SIZE > 0
+	PT_CALL( pthread_attr_setstacksize( &a, _THREAD_STACK_SIZE));
 #endif
 
-#if (defined _THREAD_STACK_SIZE) && (_THREAD_STACK_SIZE > 0)
-    PT_CALL( pthread_attr_setstacksize( a, _THREAD_STACK_SIZE ) );
-#endif
-    
-    normal= 
-#if defined(PLATFORM_LINUX) && defined(LINUX_SCHED_RR)
-        !sudo;          // with sudo, even normal thread must use SCHED_RR
-#else
-        prio == 0;      // create a default thread if
-#endif
-    if (!normal) {
-        // NB: PThreads priority handling is about as twisty as one can get it
-        //     (and then some). DON*T TRUST ANYTHING YOU READ ON THE NET!!!
+	if( !normal)
+	{
+		struct sched_param sp;
+		// "The specified scheduling parameters are only used if the scheduling
+		//  parameter inheritance attribute is PTHREAD_EXPLICIT_SCHED."
+		//
+		PT_CALL( pthread_attr_setinheritsched( &a, PTHREAD_EXPLICIT_SCHED));
 
-        // "The specified scheduling parameters are only used if the scheduling
-        //  parameter inheritance attribute is PTHREAD_EXPLICIT_SCHED."
-        //
-        PT_CALL( pthread_attr_setinheritsched( a, PTHREAD_EXPLICIT_SCHED ) );
-
-        //---
-        // "Select the scheduling policy for the thread: one of SCHED_OTHER 
-        // (regular, non-real-time scheduling), SCHED_RR (real-time, 
-        // round-robin) or SCHED_FIFO (real-time, first-in first-out)."
-        //
-        // "Using the RR policy ensures that all threads having the same
-        // priority level will be scheduled equally, regardless of their activity."
-        //
-        // "For SCHED_FIFO and SCHED_RR, the only required member of the
-        // sched_param structure is the priority sched_priority. For SCHED_OTHER,
-        // the affected scheduling parameters are implementation-defined."
-        //
-        // "The priority of a thread is specified as a delta which is added to 
-        // the priority of the process."
-        //
-        // ".. priority is an integer value, in the range from 1 to 127. 
-        //  1 is the least-favored priority, 127 is the most-favored."
-        //
-        // "Priority level 0 cannot be used: it is reserved for the system."
-        //
-        // "When you use specify a priority of -99 in a call to 
-        // pthread_setschedparam(), the priority of the target thread is 
-        // lowered to the lowest possible value."
-        //
-        // ...
-
-        // ** CONCLUSION **
-        //
-        // PThread priorities are _hugely_ system specific, and we need at
-        // least OS specific settings. Hopefully, Linuxes and OS X versions
-        // are uniform enough, among each other...
-        //
-#ifdef PLATFORM_OSX
-        // AK 10-Apr-07 (OS X PowerPC 10.4.9):
-        //
-        // With SCHED_RR, 26 seems to be the "normal" priority, where setting
-        // it does not seem to affect the order of threads processed.
-        //
-        // With SCHED_OTHER, the range 25..32 is normal (maybe the same 26,
-        // but the difference is not so clear with OTHER).
-        //
-        // 'sched_get_priority_min()' and '..max()' give 15, 47 as the 
-        // priority limits. This could imply, user mode applications won't
-        // be able to use values outside of that range.
-        //
-        #define _PRIO_MODE SCHED_OTHER
-        
-        // OS X 10.4.9 (PowerPC) gives ENOTSUP for process scope
-        //#define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
-
-        #define _PRIO_HI  32    // seems to work (_carefully_ picked!)
-        #define _PRIO_0   26    // detected
-        #define _PRIO_LO   1    // seems to work (tested)
-
-#elif defined(PLATFORM_LINUX)
-        // (based on Ubuntu Linux 2.6.15 kernel)
-        //
-        // SCHED_OTHER is the default policy, but does not allow for priorities.
-        // SCHED_RR allows priorities, all of which (1..99) are higher than
-        // a thread with SCHED_OTHER policy.
-        //
-        // <http://kerneltrap.org/node/6080>
-        // <http://en.wikipedia.org/wiki/Native_POSIX_Thread_Library>
-        // <http://www.net.in.tum.de/~gregor/docs/pthread-scheduling.html>
-        //
-        // Manuals suggest checking #ifdef _POSIX_THREAD_PRIORITY_SCHEDULING,
-        // but even Ubuntu does not seem to define it.
-        //
-        #define _PRIO_MODE SCHED_RR
-        
-        // NTLP 2.5: only system scope allowed (being the basic reason why
-        //           root privileges are required..)
-        //#define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
-
-        #define _PRIO_HI 99
-        #define _PRIO_0  50
-        #define _PRIO_LO 1
-
-#elif defined(PLATFORM_BSD)
-        //
-        // <http://www.net.in.tum.de/~gregor/docs/pthread-scheduling.html>
-        //
-        // "When control over the thread scheduling is desired, then FreeBSD
-        //  with the libpthread implementation is by far the best choice .."
-        //
-        #define _PRIO_MODE SCHED_OTHER
-        #define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
-        #define _PRIO_HI 31
-        #define _PRIO_0  15
-        #define _PRIO_LO 1
-
-#elif defined(PLATFORM_CYGWIN)
-	//
-	// TBD: Find right values for Cygwin
-	//
-#elif defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
-        // any other value not supported by win32-pthread as of version 2.9.1
-        #define _PRIO_MODE SCHED_OTHER
-
-        // PTHREAD_SCOPE_PROCESS not supported by win32-pthread as of version 2.9.1
-        //#define _PRIO_SCOPE PTHREAD_SCOPE_SYSTEM // but do we need this at all to start with?
-
-#if defined __WINPTHREADS_VERSION
-        // see http://sourceforge.net/p/mingw-w64/code/6370/tree/trunk/mingw-w64-libraries/winpthreads/src/sched.c#l128
-        #define _PRIO_HI (+15)
-        #define _PRIO_0  (0)
-        #define _PRIO_LO (-15)
-#else
-        // win32-pthread seems happy with direct -2..+2 instead of some other remapping
-        #define _PRIO_HI (+2)
-        #define _PRIO_0  (0)
-        #define _PRIO_LO (-2)
-#endif
-#else
-        #error "Unknown OS: not implemented!"
-#endif
 
 #ifdef _PRIO_SCOPE
-        PT_CALL( pthread_attr_setscope( a, _PRIO_SCOPE ) );
-#endif
-        PT_CALL( pthread_attr_setschedpolicy( a, _PRIO_MODE ) );
+		PT_CALL( pthread_attr_setscope( &a, _PRIO_SCOPE));
+#endif // _PRIO_SCOPE
 
-#define _PRIO_AN (_PRIO_0 + ((_PRIO_HI-_PRIO_0)/2) )
-#define _PRIO_BN (_PRIO_LO + ((_PRIO_0-_PRIO_LO)/2) )
+		PT_CALL( pthread_attr_setschedpolicy( &a, _PRIO_MODE));
 
-        sp.sched_priority= 
-            (prio == +2) ? _PRIO_HI :
-            (prio == +1) ? _PRIO_AN :
-#if defined(PLATFORM_LINUX) && defined(LINUX_SCHED_RR)
-            (prio == 0) ? _PRIO_0 :
-#endif
-            (prio == -1) ? _PRIO_BN : _PRIO_LO;
+		// prio range [-3,+3] was checked by the caller
+		sp.sched_priority = gs_prio_remap[ prio + 3];
+		PT_CALL( pthread_attr_setschedparam( &a, &sp));
+	}
 
-        PT_CALL( pthread_attr_setschedparam( a, &sp ) );
-    }
-
-    //---
-    // Seems on OS X, _POSIX_THREAD_THREADS_MAX is some kind of system
-    // thread limit (not userland thread). Actual limit for us is way higher.
-    // PTHREAD_THREADS_MAX is not defined (even though man page refers to it!)
-    //
+	//---
+	// Seems on OS X, _POSIX_THREAD_THREADS_MAX is some kind of system
+	// thread limit (not userland thread). Actual limit for us is way higher.
+	// PTHREAD_THREADS_MAX is not defined (even though man page refers to it!)
+	//
 # ifndef THREAD_CREATE_RETRIES_MAX
-    // Don't bother with retries; a failure is a failure
-    //
-    { 
-      int rc= pthread_create( ref, a, func, data );
-      if (rc) _PT_FAIL( rc, "pthread_create()", __FILE__, __LINE__-1 );
-    }
+	// Don't bother with retries; a failure is a failure
+	//
+	{ 
+		int rc = pthread_create( ref, &a, func, data);
+		if( rc) _PT_FAIL( rc, "pthread_create()", __FILE__, __LINE__ - 1);
+	}
 # else
-# error "This code deprecated"
-/*
-    // Wait slightly if thread creation has exchausted the system
-    //
-    { uint_t retries;
-    for( retries=0; retries<THREAD_CREATE_RETRIES_MAX; retries++ ) {
+#		error "This code deprecated"
+		/*
+		// Wait slightly if thread creation has exchausted the system
+		//
+		{ uint_t retries;
+		for( retries=0; retries<THREAD_CREATE_RETRIES_MAX; retries++ ) {
 
-        int rc= pthread_create( ref, a, func, data );
-            //
-            // OS X / Linux:
-            //    EAGAIN: ".. lacked the necessary resources to create
-            //             another thread, or the system-imposed limit on the
-            //             total number of threads in a process 
-            //             [PTHREAD_THREADS_MAX] would be exceeded."
-            //    EINVAL: attr is invalid
-            // Linux:
-            //    EPERM: no rights for given parameters or scheduling (no sudo)
-            //    ENOMEM: (known to fail with this code, too - not listed in man)
-            
-        if (rc==0) break;   // ok!
+		int rc= pthread_create( ref, &a, func, data );
+		//
+		// OS X / Linux:
+		//    EAGAIN: ".. lacked the necessary resources to create
+		//             another thread, or the system-imposed limit on the
+		//             total number of threads in a process 
+		//             [PTHREAD_THREADS_MAX] would be exceeded."
+		//    EINVAL: attr is invalid
+		// Linux:
+		//    EPERM: no rights for given parameters or scheduling (no sudo)
+		//    ENOMEM: (known to fail with this code, too - not listed in man)
 
-        // In practise, exhaustion seems to be coming from memory, not a
-        // maximum number of threads. Keep tuning... ;)
-        //
-        if (rc==EAGAIN) {
-//fprintf( stderr, "Looping (retries=%d) ", retries );    // DEBUG
+		if (rc==0) break;   // ok!
 
-            // Try again, later.
+		// In practise, exhaustion seems to be coming from memory, not a
+		// maximum number of threads. Keep tuning... ;)
+		//
+		if (rc==EAGAIN) {
+		//fprintf( stderr, "Looping (retries=%d) ", retries );    // DEBUG
 
-            Yield();
-        } else {
-            _PT_FAIL( rc, "pthread_create()", __FILE__, __LINE__ );
-        }
-    }
-    }
-*/
+		// Try again, later.
+
+		Yield();
+		} else {
+		_PT_FAIL( rc, "pthread_create()", __FILE__, __LINE__ );
+		}
+		}
+		}
+		*/
 # endif
 
-    if (a) {
-        PT_CALL( pthread_attr_destroy(a) );
-    }
-  }
-  //
+	PT_CALL( pthread_attr_destroy( &a));
+}
+
  /*
   * Wait for a thread to finish.
   *
