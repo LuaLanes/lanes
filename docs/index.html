@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 28-Nov-13, and applies to version <tt>3.7.3</tt>.
+				This document was revised on 3-Dec-13, and applies to version <tt>3.7.4</tt>.
 			</p>
 		</font>
 	</center>
@@ -537,7 +537,7 @@
 </p>
 
 <p>
-	<code>opt_tbl</code> is a collection of named options to control the way lanes are run:
+	<code id="generator_settings">opt_tbl</code> is a collection of named options to control the way lanes are run:
 </p>
 
 <p>
@@ -554,7 +554,7 @@
 			</td>
 			<td>integer >= 1/<tt>true</tt></td>
 			<td>
-				By default, lanes are only cancellable when they <u>enter</u> a pending <tt>:receive()</tt> or <tt>:send()</tt> call. With this option, one can set <a href="#cancelling">cancellation</a> check to occur every <tt>N</tt> Lua statements. The value <tt>true</tt> uses a default value (100).
+				By default, lanes are only cancellable when they <u>enter</u> a pending <tt>:receive()</tt> or <tt>:send()</tt> call. With this option, one can set <a href="#cancelling">cancellation</a> check to occur every <tt>N</tt> Lua statements through the line hook facility. The value <tt>true</tt> uses a default value (100).
 				It is also possible to manually test for cancel requests with <tt>cancel_test()</tt>.
 			</td>
 		</tr>
@@ -593,6 +593,8 @@
 				These values are a mapping over the actual priority range of the underlying implementation.
 				<br>
 				Implementation and dependability of priorities varies by platform. Especially Linux kernel 2.6 is not supporting priorities in user mode.
+				<br>
+				A lane can also change its own thread priority dynamically with <a href="#priority"><tt>lanes.set_thread_priority()</tt></a>.
 			</td>
 		</tr>
 		<tr valign=top>
@@ -641,6 +643,24 @@
 	</table>
 
 	Normally, this kind of lanes will be in an eternal loop handling messages. Since the lane handle is gone, there is no way to control such a lane from the outside, nor read its potential return values. Then again, such a lane does not even normally return.
+</p>
+
+
+<!-- priority +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+<hr/>
+<h2 id="priority">Priority</h2>
+
+	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
+		<tr>
+			<td>
+				<pre>	lanes.set_thread_priority( prio)</pre>
+			</td>
+		</tr>
+	</table>
+<p>
+	Besides setting a default priority in the generator <a href="#generator_settings">settings</a>, each thread can change its own priority at will. This is also true for the main Lua state.
+	<br>
+	The priority must be in the range <tt>[-3,+3]</tt>.
 </p>
 
 

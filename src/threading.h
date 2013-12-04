@@ -184,26 +184,25 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 
 #if THREADAPI == THREADAPI_WINDOWS
 
-  typedef HANDLE THREAD_T;
-# define THREAD_ISNULL( _h) (_h == 0)
-  //
-  void THREAD_CREATE( THREAD_T *ref,
-                      THREAD_RETURN_T (__stdcall *func)( void * ),
-                      void *data, int prio /* -3..+3 */ );
+	typedef HANDLE THREAD_T;
+#	define THREAD_ISNULL( _h) (_h == 0)
+	void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (__stdcall *func)( void*), void* data, int prio /* -3..+3 */);
 
-# define THREAD_PRIO_MIN (-3)
-# define THREAD_PRIO_MAX (+3)
+#	define THREAD_PRIO_MIN (-3)
+#	define THREAD_PRIO_MAX (+3)
 
-#define THREAD_CLEANUP_PUSH( cb_, val_)
-#define THREAD_CLEANUP_POP( execute_)
+#	define THREAD_CLEANUP_PUSH( cb_, val_)
+#	define THREAD_CLEANUP_POP( execute_)
 
 #else // THREADAPI == THREADAPI_PTHREAD
-    /* Platforms that have a timed 'pthread_join()' can get away with a simpler
-    * implementation. Others will use a condition variable.
-    */
-#if defined __WINPTHREADS_VERSION
-//#define USE_PTHREAD_TIMEDJOIN
-#endif // __WINPTHREADS_VERSION
+
+	/* Platforms that have a timed 'pthread_join()' can get away with a simpler
+	 * implementation. Others will use a condition variable.
+	 */
+#	if defined __WINPTHREADS_VERSION
+//#		define USE_PTHREAD_TIMEDJOIN
+#	endif // __WINPTHREADS_VERSION
+
 # ifdef USE_PTHREAD_TIMEDJOIN
 #  ifdef PLATFORM_OSX
 #   error "No 'pthread_timedjoin()' on this system"
@@ -213,33 +212,31 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 #  endif
 # endif
 
-  typedef pthread_t THREAD_T;
-# define THREAD_ISNULL( _h) 0 // pthread_t may be a structure: never 'null' by itself
+	typedef pthread_t THREAD_T;
+#	define THREAD_ISNULL( _h) 0 // pthread_t may be a structure: never 'null' by itself
 
-  void THREAD_CREATE( THREAD_T *ref,
-                      THREAD_RETURN_T (*func)( void * ),
-                      void *data, int prio /* -2..+2 */ );
+	void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, int prio /* -3..+3 */);
 
-# if defined(PLATFORM_LINUX)
-  extern volatile bool_t sudo;
-#  ifdef LINUX_SCHED_RR
-#   define THREAD_PRIO_MIN (sudo ? -3 : 0)
-#  else
-#   define THREAD_PRIO_MIN (0)
-#  endif
-#  define THREAD_PRIO_MAX (sudo ? +3 : 0)
-# else
-#  define THREAD_PRIO_MIN (-3)
-#  define THREAD_PRIO_MAX (+3)
-# endif
+#	if defined(PLATFORM_LINUX)
+		extern volatile bool_t sudo;
+#		ifdef LINUX_SCHED_RR
+#			define THREAD_PRIO_MIN (sudo ? -3 : 0)
+#		else
+#			define THREAD_PRIO_MIN (0)
+#		endif
+#		define THREAD_PRIO_MAX (sudo ? +3 : 0)
+#	else
+#		define THREAD_PRIO_MIN (-3)
+#		define THREAD_PRIO_MAX (+3)
+#	endif
 
-#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-#define THREAD_CLEANUP_PUSH( cb_, val_) pthread_cleanup_push( cb_, val_)
-#define THREAD_CLEANUP_POP( execute_) pthread_cleanup_pop( execute_)
-#else
-#define THREAD_CLEANUP_PUSH( cb_, val_) {
-#define THREAD_CLEANUP_POP( execute_) }
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
+#	if THREADWAIT_METHOD == THREADWAIT_CONDVAR
+#		define THREAD_CLEANUP_PUSH( cb_, val_) pthread_cleanup_push( cb_, val_)
+#		define THREAD_CLEANUP_POP( execute_) pthread_cleanup_pop( execute_)
+#	else
+#		define THREAD_CLEANUP_PUSH( cb_, val_) {
+#		define THREAD_CLEANUP_POP( execute_) }
+#	endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 #endif // THREADAPI == THREADAPI_WINDOWS
 
 /*
@@ -267,5 +264,6 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs, SIGNAL_T *signal_ref, MUTEX
 void THREAD_KILL( THREAD_T* ref);
 void THREAD_SETNAME( char const* _name);
 void THREAD_MAKE_ASYNCH_CANCELLABLE();
+void THREAD_SET_PRIORITY( int prio);
 
 #endif // __threading_h__

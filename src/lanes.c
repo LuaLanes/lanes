@@ -35,10 +35,10 @@
  *
  * Defines:
  *      -DLINUX_SCHED_RR: all threads are lifted to SCHED_RR category, to
- *          allow negative priorities (-2,-1) be used. Even without this,
+ *          allow negative priorities [-3,-1] be used. Even without this,
  *          using priorities will require 'sudo' privileges on Linux.
  *
- *		-DUSE_PTHREAD_TIMEDJOIN: use 'pthread_timedjoin_np()' for waiting
+ *      -DUSE_PTHREAD_TIMEDJOIN: use 'pthread_timedjoin_np()' for waiting
  *          for threads with a timeout. This changes the thread cleanup
  *          mechanism slightly (cleans up at the join, not once the thread
  *          has finished). May or may not be a good idea to use it.
@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.7.3";
+char const* VERSION = "3.7.4";
 
 /*
 ===============================================================================
@@ -1734,6 +1734,20 @@ LUAG_FUNC( set_debug_threadname)
 	return 0;
 }
 
+LUAG_FUNC( set_thread_priority)
+{
+	int const prio = luaL_checkint( L, 1);
+	// public Lanes API accepts a generic range -3/+3
+	// that will be remapped into the platform-specific scheduler priority scheme
+	// On some platforms, -3 is equivalent to -2 and +3 to +2
+	if( prio < THREAD_PRIO_MIN || prio > THREAD_PRIO_MAX)
+	{
+		return luaL_error( L, "priority out of range: %d..+%d (%d)", THREAD_PRIO_MIN, THREAD_PRIO_MAX, prio);
+	}
+	THREAD_SET_PRIORITY( prio);
+	return 0;
+}
+
 #if USE_DEBUG_SPEW
 // can't use direct LUA_x errcode indexing because the sequence is not the same between Lua 5.1 and 5.2 :-(
 // LUA_ERRERR doesn't have the same value
@@ -2693,6 +2707,7 @@ static const struct luaL_Reg lanes_functions [] = {
     {"linda", LG_linda},
     {"now_secs", LG_now_secs},
     {"wakeup_conv", LG_wakeup_conv},
+    {"set_thread_priority", LG_set_thread_priority},
     {"nameof", luaG_nameof},
     {"set_singlethreaded", LG_set_singlethreaded},
     {NULL, NULL}
@@ -2754,16 +2769,18 @@ static void init_once_LOCKED( lua_State* L)
 	//     be enabled also for Linux.
 	//
 #ifdef PLATFORM_LINUX
-	sudo= geteuid()==0;     // we are root?
+	sudo = (geteuid() == 0); // we are root?
 
 	// If lower priorities (-2..-1) are wanted, we need to lift the main
 	// thread to SCHED_RR and 50 (medium) level. Otherwise, we're always below 
 	// the launched threads (even -2).
 	//
 #ifdef LINUX_SCHED_RR
-	if (sudo) {
-		struct sched_param sp= {0}; sp.sched_priority= _PRIO_0;
-		PT_CALL( pthread_setschedparam( pthread_self(), SCHED_RR, &sp) );
+	if( sudo)
+	{
+		struct sched_param sp;
+		sp.sched_priority = _PRIO_0;
+		PT_CALL( pthread_setschedparam( pthread_self(), SCHED_RR, &sp));
 	}
 #endif // LINUX_SCHED_RR
 #endif // PLATFORM_LINUX

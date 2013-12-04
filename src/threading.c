@@ -12,6 +12,7 @@
 ===============================================================================
 
 Copyright (C) 2007-10 Asko Kauppi <akauppi@gmail.com>
+Copyright (C) 2009-13, Benoit Germain <bnt.germain@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -269,40 +270,52 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
   }
 #endif // Windows NT4
 
-    /* MSDN: "If you would like to use the CRT in ThreadProc, use the
-              _beginthreadex function instead (of CreateThread)."
-       MSDN: "you can create at most 2028 threads"
-    */
-  void
-  THREAD_CREATE( THREAD_T *ref,
-                 THREAD_RETURN_T (__stdcall *func)( void * ),
-                     // Note: Visual C++ requires '__stdcall' where it is
-                 void *data, int prio /* -3..+3 */ ) {
+static int const gs_prio_remap[] =
+{
+	THREAD_PRIORITY_IDLE,
+	THREAD_PRIORITY_LOWEST,
+	THREAD_PRIORITY_BELOW_NORMAL,
+	THREAD_PRIORITY_NORMAL,
+	THREAD_PRIORITY_ABOVE_NORMAL,
+	THREAD_PRIORITY_HIGHEST,
+	THREAD_PRIORITY_TIME_CRITICAL
+};
 
-    HANDLE h= (HANDLE)_beginthreadex( NULL, // security
-                              _THREAD_STACK_SIZE,
-                              func,
-                              data,
-                              0,    // flags (0/CREATE_SUSPENDED)
-                              NULL  // thread id (not used)
-                            );    
+/* MSDN: "If you would like to use the CRT in ThreadProc, use the
+_beginthreadex function instead (of CreateThread)."
+MSDN: "you can create at most 2028 threads"
+*/
+// Note: Visual C++ requires '__stdcall' where it is
+void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (__stdcall *func)( void*), void* data, int prio /* -3..+3 */)
+{
+	HANDLE h = (HANDLE) _beginthreadex( NULL, // security
+		_THREAD_STACK_SIZE,
+		func,
+		data,
+		0,    // flags (0/CREATE_SUSPENDED)
+		NULL  // thread id (not used)
+	);
 
-    if (h == INVALID_HANDLE_VALUE) FAIL( "CreateThread", GetLastError() );
+	if( h == INVALID_HANDLE_VALUE)
+		FAIL( "CreateThread", GetLastError());
 
-    if (prio!= 0) {
-        int win_prio= (prio == +3) ? THREAD_PRIORITY_TIME_CRITICAL :
-                      (prio == +2) ? THREAD_PRIORITY_HIGHEST :
-                      (prio == +1) ? THREAD_PRIORITY_ABOVE_NORMAL :
-                      (prio == -1) ? THREAD_PRIORITY_BELOW_NORMAL :
-                      (prio == -2) ? THREAD_PRIORITY_LOWEST :
-                                     THREAD_PRIORITY_IDLE;  // -3
+	if (!SetThreadPriority( h, gs_prio_remap[prio + 3]))
+		FAIL( "SetThreadPriority", GetLastError());
 
-        if (!SetThreadPriority( h, win_prio )) 
-            FAIL( "SetThreadPriority", GetLastError() );
-    }
-    *ref= h;
-  }
-  //
+	*ref = h;
+}
+
+
+void THREAD_SET_PRIORITY( int prio)
+{
+	// prio range [-3,+3] was checked by the caller
+	if (!SetThreadPriority( GetCurrentThread(), gs_prio_remap[prio + 3]))
+	{
+		FAIL( "THREAD_SET_PRIORITY", GetLastError());
+	}
+}
+
+
 bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 {
     DWORD ms = (secs<0.0) ? INFINITE : (DWORD)((secs*1000.0)+0.5);
@@ -710,20 +723,19 @@ static int const gs_prio_remap[] =
 #		endif
 
 #if defined _PRIO_0
-#	define _PRIO_AN (_PRIO_0 + ((_PRIO_HI-_PRIO_0)/2) )
-#	define _PRIO_BN (_PRIO_LO + ((_PRIO_0-_PRIO_LO)/2) )
+#	define _PRIO_AN (_PRIO_0 + ((_PRIO_HI-_PRIO_0)/2))
+#	define _PRIO_BN (_PRIO_LO + ((_PRIO_0-_PRIO_LO)/2))
 
 	_PRIO_LO, _PRIO_LO, _PRIO_BN, _PRIO_0, _PRIO_AN, _PRIO_HI, _PRIO_HI
 #endif // _PRIO_0
 };
 
-//
-void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void * ), void *data, int prio /* -2..+2 */)
+void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, int prio /* -3..+3 */)
 {
 	pthread_attr_t a;
 	bool_t const normal =
 #if defined(PLATFORM_LINUX) && defined(LINUX_SCHED_RR)
-	!sudo;          // with sudo, even normal thread must use SCHED_RR
+	!sudo; // with sudo, even normal thread must use SCHED_RR
 #else
 	(prio == 0);
 #endif
@@ -761,7 +773,6 @@ void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void * ), void *data
 		//  parameter inheritance attribute is PTHREAD_EXPLICIT_SCHED."
 		//
 		PT_CALL( pthread_attr_setinheritsched( &a, PTHREAD_EXPLICIT_SCHED));
-
 
 #ifdef _PRIO_SCOPE
 		PT_CALL( pthread_attr_setscope( &a, _PRIO_SCOPE));
@@ -828,13 +839,28 @@ void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void * ), void *data
 	PT_CALL( pthread_attr_destroy( &a));
 }
 
+
+void THREAD_SET_PRIORITY( int prio)
+{
+#if defined PLATFORM_LINUX && defined LINUX_SCHED_RR
+	if( sudo) // only root-privileged process can change priorities
+#endif // defined PLATFORM_LINUX && defined LINUX_SCHED_RR
+	{
+		struct sched_param sp;
+		// prio range [-3,+3] was checked by the caller
+		sp.sched_priority = gs_prio_remap[ prio + 3];
+		PT_CALL( pthread_setschedparam( pthread_self(), _PRIO_MODE, &sp));
+	}
+}
+
+
  /*
   * Wait for a thread to finish.
   *
   * 'mu_ref' is a lock we should use for the waiting; initially unlocked.
   * Same lock as passed to THREAD_EXIT.
   *
-  * Returns TRUE for succesful wait, FALSE for timed out
+  * Returns TRUE for successful wait, FALSE for timed out
   */
 bool_t THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *mu_ref, volatile enum e_status *st_ref)
 {

@@ -1,5 +1,10 @@
 CHANGES:
 
+CHANGE 86: BGe 3-Dec-13
+   * version 3.7.4
+   * internal refactoring of pthread priority management code
+   * new API lanes.set_thread_priority()
+
 CHANGE 85: BGe 28-Nov-13
    * version 3.7.3
    * set pthread thread cancel type to PTHREAD_CANCEL_ASYNCHRONOUS

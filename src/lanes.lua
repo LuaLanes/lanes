@@ -683,6 +683,7 @@ end
 	lanes.cancel_error = core.cancel_error
 	lanes.nameof = core.nameof
 	lanes.threads = core.threads or function() error "lane tracking is not available" end -- core.threads isn't registered if settings.track_lanes is false
+	lanes.set_thread_priority = core.set_thread_priority
 	lanes.timer = timer
 	lanes.timer_lane = timer_lane
 	lanes.timers = timers
