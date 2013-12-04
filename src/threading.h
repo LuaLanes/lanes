@@ -233,8 +233,13 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 #  define THREAD_PRIO_MAX (+3)
 # endif
 
+#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
 #define THREAD_CLEANUP_PUSH( cb_, val_) pthread_cleanup_push( cb_, val_)
 #define THREAD_CLEANUP_POP( execute_) pthread_cleanup_pop( execute_)
+#else
+#define THREAD_CLEANUP_PUSH( cb_, val_) {
+#define THREAD_CLEANUP_POP( execute_) }
+#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 #endif // THREADAPI == THREADAPI_WINDOWS
 
 /*
