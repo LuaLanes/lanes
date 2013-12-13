@@ -1947,17 +1947,17 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void *vs)
 LUAG_FUNC( require)
 {
 	char const* name = lua_tostring( L, 1);
+	int const nargs = lua_gettop( L);
 	STACK_CHECK( L);
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lanes.require %s BEGIN\n" INDENT_END, name));
 	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
 	lua_pushvalue( L, lua_upvalueindex(1));   // "name" require
-	lua_pushvalue( L, 1);                     // "name" require "name"
-	lua_call( L, 1, 1);                       // "name" module
+	lua_insert( L, 1);                        // require "name"
+	lua_call( L, nargs, 1);                   // module
 	populate_func_lookup_table( L, -1, name);
-	lua_remove( L, -2);                       // module
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lanes.require %s END\n" INDENT_END, name));
 	DEBUGSPEW_CODE( -- debugspew_indent_depth);
-	STACK_END( L, 1);
+	STACK_END( L, 0);
 	return 1;
 }
 
