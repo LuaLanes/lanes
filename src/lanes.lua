@@ -71,52 +71,34 @@ lanes.configure = function( settings_)
 		shutdown_timeout = 0.25,
 		with_timers = true,
 		track_lanes = false,
+		demote_full_userdata = nil,
 		verbose_errors = false,
 		-- LuaJIT provides a thread-unsafe allocator by default, so we need to protect it when used in parallel lanes
 		protect_allocator = (jit and jit.version) and true or false
 	}
+	local boolean_param_checker = function( val_)
+		-- non-'boolean-false' should be 'boolean-true' or nil
+		return val_ and (val_ == true) or true
+	end
 	local param_checkers =
 	{
-		nb_keepers = function( _val)
+		nb_keepers = function( val_)
 			-- nb_keepers should be a number > 0
-			return type( _val) == "number" and _val > 0
+			return type( val_) == "number" and val_ > 0
 		end,
-		with_timers = function( _val)
-			-- with_timers may be nil or boolean
-			if _val then
-				return type( _val) == "boolean"
-			else
-				return true -- _val is either false or nil
-			end
-		end,
-		protect_allocator = function( _val)
-			-- protect_allocator may be nil or boolean
-			if _val then
-				return type( _val) == "boolean"
-			else
-				return true -- _val is either false or nil
-			end
-		end,
-		on_state_create = function( _val)
+		with_timers = boolean_param_checker,
+		protect_allocator = boolean_param_checker,
+		on_state_create = function( val_)
 			-- on_state_create may be nil or a function
-			return _val and type( _val) == "function" or true
+			return val_ and type( val_) == "function" or true
 		end,
-		shutdown_timeout = function( _val)
+		shutdown_timeout = function( val_)
 			-- shutdown_timeout should be a number >= 0
-			return type( _val) == "number" and _val >= 0
+			return type( val_) == "number" and val_ >= 0
 		end,
-		track_lanes = function( _val)
-			-- track_lanes may be nil or boolean
-			return _val and type( _val) == "boolean" or true
-		end,
-		verbose_errors = function( _val)
-			-- verbose_errors may be nil or boolean
-			if _val then
-				return type( _val) == "boolean"
-			else
-				return true -- _val is either false or nil
-			end
-		end
+		track_lanes = boolean_param_checker,
+		demote_full_userdata = boolean_param_checker,
+		verbose_errors = boolean_param_checker
 	}
 
 	local params_checker = function( settings_)

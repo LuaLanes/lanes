@@ -1886,9 +1886,28 @@ static bool_t inter_copy_one_( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "USERDATA\n" INDENT_END));
 		if( !luaG_copydeep( L, L2, i))
 		{
-			// Cannot copy it full; copy as light userdata
-			//
-			lua_pushlightuserdata( L2, lua_touserdata( L, i));
+			// Not a deep full userdata
+			bool_t demote = FALSE;
+			lua_getfield( L, LUA_REGISTRYINDEX, CONFIG_REGKEY);
+			if( lua_istable( L, -1)) // should not happen, but who knows...
+			{
+				lua_getfield( L, -1, "demote_full_userdata");
+				demote = lua_toboolean( L, -1);
+				lua_pop( L, 2);
+			}
+			else
+			{
+				lua_pop( L, 1);
+			}
+			if( demote) // attempt demotion to light userdata
+			{
+				void* lud = lua_touserdata( L, i);
+				lua_pushlightuserdata( L2, lud);
+			}
+			else // raise an error
+			{
+				(void) luaL_error( L, "can't copy non-deep full userdata across lanes");
+			}
 		}
 		break;
 
