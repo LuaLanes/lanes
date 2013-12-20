@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.7.4";
+char const* VERSION = "3.7.5";
 
 /*
 ===============================================================================
@@ -420,7 +420,8 @@ LUAG_FUNC( linda_send)
 	STACK_GROW(L, 1);
 	{
 		struct s_Keeper* K = keeper_acquire( linda);
-		lua_State* KL = K->L;    // need to do this for 'STACK_CHECK'
+		lua_State* KL = K ? K->L : NULL; // need to do this for 'STACK_CHECK'
+		if( KL == NULL) return 0;
 		STACK_CHECK( KL);
 		for( ;;)
 		{
@@ -584,6 +585,7 @@ LUAG_FUNC( linda_receive)
 
 	{
 		struct s_Keeper *K = keeper_acquire( linda);
+		if( K == NULL) return 0;
 		for( ;;)
 		{
 			// all arguments of receive() but the first are passed to the keeper's receive function
@@ -690,6 +692,7 @@ LUAG_FUNC( linda_set)
 	{
 		int pushed;
 		struct s_Keeper *K = keeper_acquire( linda);
+		if( K == NULL) return 0;
 		// no nil->sentinel toggling, we really clear the linda contents for the given key with a set()
 		pushed = keeper_call( K->L, KEEPER_API( set), L, linda, 2);
 		if( pushed >= 0) // no error?
@@ -722,7 +725,7 @@ LUAG_FUNC( linda_set)
  */
 LUAG_FUNC( linda_count)
 {
-	struct s_Linda *linda= lua_toLinda( L, 1);
+	struct s_Linda* linda = lua_toLinda( L, 1);
 	int pushed;
 
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
@@ -730,7 +733,8 @@ LUAG_FUNC( linda_count)
 	check_key_types( L, 2, lua_gettop( L));
 
 	{
-		struct s_Keeper *K = keeper_acquire( linda);
+		struct s_Keeper* K = keeper_acquire( linda);
+		if( K == NULL) return 0;
 		pushed = keeper_call( K->L, KEEPER_API( count), L, linda, 2);
 		keeper_release( K);
 		if( pushed < 0)
@@ -758,14 +762,15 @@ LUAG_FUNC( linda_get)
 	check_key_types( L, 2, 2);
 
 	{
-		struct s_Keeper *K = keeper_acquire( linda);
+		struct s_Keeper* K = keeper_acquire( linda);
+		if( K == NULL) return 0;
 		pushed = keeper_call( K->L, KEEPER_API( get), L, linda, 2);
-		ASSERT_L( pushed==0 || pushed==1 );
+		ASSERT_L( pushed == 0 || pushed == 1);
 		if( pushed > 0)
 		{
 			keeper_toggle_nil_sentinels( L, lua_gettop( L) - pushed, 0);
 		}
-		keeper_release(K);
+		keeper_release( K);
 		// must trigger error after keeper state has been released
 		if( pushed < 0)
 		{
@@ -784,7 +789,8 @@ LUAG_FUNC( linda_get)
 */
 LUAG_FUNC( linda_limit)
 {
-	struct s_Linda* linda= lua_toLinda( L, 1 );
+	struct s_Linda* linda= lua_toLinda( L, 1);
+	int pushed;
 
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
 	// make sure we got a key and a limit
@@ -796,7 +802,8 @@ LUAG_FUNC( linda_limit)
 
 	{
 		struct s_Keeper* K = keeper_acquire( linda);
-		int pushed = keeper_call( K->L, KEEPER_API( limit), L, linda, 2);
+		if( K == NULL) return 0;
+		pushed = keeper_call( K->L, KEEPER_API( limit), L, linda, 2);
 		ASSERT_L( pushed <= 0); // either error or no return values
 		keeper_release( K);
 		// must trigger error after keeper state has been released

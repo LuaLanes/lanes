@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 3-Dec-13, and applies to version <tt>3.7.4</tt>.
+				This document was revised on 20-Dec-13, and applies to version <tt>3.7.5</tt>.
 			</p>
 		</font>
 	</center>
@@ -273,7 +273,7 @@
 			<th style="width:70%">definition</th>
 		</tr>
 		<tr valign=top>
-			<td>
+			<td id="nb_keepers">
 				<code>.nb_keepers</code>
 			</td>
 			<td>integer >= 1</td>
@@ -283,7 +283,7 @@
 		</tr>
 
 		<tr valign=top>
-			<td>
+			<td id="with_timers">
 				<code>.with_timers</code>
 			</td>
 			<td>
@@ -296,7 +296,7 @@
 		</tr>
 
 		<tr valign=top>
-			<td>
+			<td id="verbose_errors">
 				<code>.verbose_errors</code>
 			</td>
 			<td>
@@ -309,7 +309,7 @@
 		</tr>
 
 		<tr valign=top>
-			<td>
+			<td id="protect_allocator">
 				<code>.protect_allocator</code>
 			</td>
 			<td>
@@ -318,6 +318,19 @@
 			<td>
 				(Since v3.5.2) If equal to <tt>true</tt>, Lanes wraps all calls to the state's allocator function inside a mutex. Useful when running Lanes with LuaJIT, whose allocator is not threadsafe.
 				Default is <tt>true</tt> when Lanes detects it is run by LuaJIT, else <tt>nil</tt>.
+			</td>
+		</tr>
+
+		<tr valign=top>
+			<td id="demote_full_userdata">
+				<code>.demote_full_userdata</code>
+			</td>
+			<td>
+				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
+			</td>
+			<td>
+				(Since v3.7.5) If equal to <tt>false</tt> or <tt>nil</tt>, Lanes raises an error when attempting to transfer a non-deep full userdata, else it will be demoted to a light userdata in the destination.
+				Default is <tt>false</tt> (set to <tt>true</tt> to get the legacy behaviour).
 			</td>
 		</tr>
 
@@ -335,7 +348,7 @@
 		</tr>
 
 		<tr valign=top>
-			<td>
+			<td id="on_state_create">
 				<code>.on_state_create</code>
 			</td>
 			<td>
@@ -354,8 +367,8 @@
 		</tr>
 
 		<tr valign=top>
-			<td>
-				<code>.shutdown_timeout</code> <br/>
+			<td id="shutdown_timeout">
+				<code>.shutdown_timeout</code>
 			</td>
 			<td>
 				number >= 0
@@ -1133,7 +1146,7 @@ events to a common Linda, but... :).</font>
 </pre></td></tr></table>
 
 <p>
-	Timers are implemented as a lane. They can be disabled by setting <tt>"with_timers"</tt> to <tt>nil</tt> or <tt>false</tt> to <tt>lanes.configure()</tt>.
+	Timers are implemented as a lane. They can be disabled by setting "<tt><a href="#with_timers">with_timers</a></tt>" to <tt>nil</tt> or <tt>false</tt> to <tt>lanes.configure()</tt>.
 </p>
 
 <p>
@@ -1289,6 +1302,7 @@ events to a common Linda, but... :).</font>
 			Full userdata can be passed only if it's prepared using the <a href="#deep_userdata">deep userdata</a> system, which handles its lifespan management
 			<ul>
 				<li>In particular, lane handles cannot be passed between lanes.</li>
+				<li>Lanes can either throw an error or attempt a <a href="#demote_full_userdata">light userdata demotion</a>.</li>
 			</ul>
 		</li>
 		<li>Coroutines cannot be passed. A coroutine's Lua state is tied to the Lua state that created it, and there is no way the mixed C/Lua stack of a coroutine can be transfered from one Lua state to another.</li>

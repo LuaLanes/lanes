@@ -184,7 +184,8 @@ static void push_table( lua_State* L, int idx)
 int keeper_push_linda_storage( lua_State* L, void* ptr)
 {
 	struct s_Keeper* K = keeper_acquire( ptr);
-	lua_State* KL = K->L;
+	lua_State* KL = K ? K->L : NULL;
+	if( KL == NULL) return 0;
 	STACK_CHECK( KL);
 	lua_pushlightuserdata( KL, fifos_key);                      // fifos_key
 	lua_rawget( KL, LUA_REGISTRYINDEX);                         // fifos
@@ -535,14 +536,18 @@ void close_keepers( void)
 #endif // HAVE_KEEPER_ATEXIT_DESINIT
 {
 	int i;
-	// 2-pass close, in case a keeper holds a reference to a linda bound to another keeoer
-	for( i = 0; i < GNbKeepers; ++ i)
+	int const nbKeepers = GNbKeepers;
+	// NOTE: imagine some keeper state N+1 currently holds a linda that uses another keeper N, and a _gc that will make use of it
+	// when keeper N+1 is closed, object is GCed, linda operation is called, which attempts to acquire keeper N, whose Lua state no longer exists
+	// in that case, the linda operation should do nothing. which means that these operations must check for keeper acquisition success
+	GNbKeepers = 0;
+	for( i = 0; i < nbKeepers; ++ i)
 	{
 		lua_State* L = GKeepers[i].L;
 		GKeepers[i].L = NULL;
 		lua_close( L);
 	}
-	for( i = 0; i < GNbKeepers; ++ i)
+	for( i = 0; i < nbKeepers; ++ i)
 	{
 		MUTEX_FREE( &GKeepers[i].lock_);
 	}
@@ -551,7 +556,6 @@ void close_keepers( void)
 		free( GKeepers);
 	}
 	GKeepers = NULL;
-	GNbKeepers = 0;
 }
 
 /*
@@ -626,7 +630,7 @@ struct s_Keeper* keeper_acquire( void const* ptr)
 		* have to cast to unsigned long to avoid compilation warnings about loss of data when converting pointer-to-integer
 		*/
 		unsigned int i = (unsigned int)(((unsigned long)(ptr) >> 3) % GNbKeepers);
-		struct s_Keeper *K= &GKeepers[i];
+		struct s_Keeper* K= &GKeepers[i];
 
 		MUTEX_LOCK( &K->lock_);
 		//++ K->count;

@@ -1,5 +1,10 @@
 CHANGES:
 
+CHANGE 87: BGe 20-Dec-13
+   * version 3.7.5
+   * fixed a crash that can occur at shutdown when an object stored inside a keeper state performs a linda operation on a linda making use of another keeper
+   * new setting demote_full_userdata to select between light userdata demotion or raising an error when attempting to transfer a non-deep full userdata
+
 CHANGE 86: BGe 3-Dec-13
    * version 3.7.4
    * internal refactoring of pthread priority management code
