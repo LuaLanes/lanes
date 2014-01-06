@@ -64,13 +64,13 @@
 		<font size="-1">
 			<p>
 				<br>
-				<i>Copyright &copy; 2007-13 Asko Kauppi, Benoit Germain. All rights reserved.</i>
+				<i>Copyright &copy; 2007-14 Asko Kauppi, Benoit Germain. All rights reserved.</i>
 				<br>
 				Lua Lanes is published under the same <a href="http://en.wikipedia.org/wiki/MIT_License">MIT license</a> as Lua 5.1 and 5.2.
 			</p>
 
 			<p>
-				This document was revised on 20-Dec-13, and applies to version <tt>3.7.5</tt>.
+				This document was revised on 06-Jan-14, and applies to version <tt>3.7.6</tt>.
 			</p>
 		</font>
 	</center>
@@ -356,13 +356,17 @@
 			</td>
 			<td>
 				If provided, will be called in every created Lua state (keepers and lanes) right after initializing the base libraries.
-				<br>
+				<br/>
 				Typical usage is twofold:
 				<ul>
 					<li>Tweak <tt>package.loaders</tt></li>
 					<li>Load some additional C functions in the global space (of course only a C function will be able to do this).</li>
 				</ul>
 				That way, all changes in the state can be properly taken into account when building the function lookup database. Default is <tt>nil</tt>.
+				<br/>
+				(Since version 3.7.6) If <tt>on_state_create()</tt> is a Lua function, it will be transfered normally before the call.
+				<br/>
+				If it is a C function, a C closure will be reconstructed in the created state from the C pointer. Lanes will raise an error if the function has upvalues.
 			</td>
 		</tr>
 

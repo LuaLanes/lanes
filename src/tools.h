@@ -98,7 +98,7 @@ extern int debugspew_indent_depth;
 
 void luaG_dump( lua_State* L );
 
-lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char const* libs);
+lua_State* luaG_newstate( lua_State* _from, char const* libs);
 void luaG_copy_one_time_settings( lua_State* L, lua_State* L2, char const* name_);
 
 typedef struct {
@@ -129,6 +129,7 @@ extern MUTEX_T mtid_lock;
 
 void populate_func_lookup_table( lua_State* L, int _i, char const* _name);
 void serialize_require( lua_State *L);
+int initialize_on_state_create( lua_State *L);
 extern MUTEX_T require_cs;
 
 // for verbose errors

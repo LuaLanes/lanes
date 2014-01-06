@@ -8,7 +8,7 @@
 ===============================================================================
 
 Copyright (C) 2002-10 Asko Kauppi <akauppi@gmail.com>
-              2011-13 benoit Germain <bnt.germain@gmail.com>
+              2011-14 benoit Germain <bnt.germain@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -159,6 +159,39 @@ void luaG_dump( lua_State* L ) {
 		fprintf( stderr, "\n" );
 		}
 	fprintf( stderr, "\n" );
+}
+
+static lua_CFunction s_on_state_create_func = NULL;
+int initialize_on_state_create( lua_State* L)
+{
+	STACK_CHECK( L);
+	lua_getfield( L, -1, "on_state_create");              // settings on_state_create|nil
+	if( !lua_isnil( L, -1))
+	{
+		// store C function pointer in an internal variable
+		s_on_state_create_func = lua_tocfunction( L, -1);   // settings on_state_create
+		if( s_on_state_create_func != NULL)
+		{
+			// make sure the function doesn't have upvalues
+			char const* upname = lua_getupvalue( L, -1, 1);   // settings on_state_create upval?
+			if( upname != NULL) // should be "" for C functions with upvalues if any
+			{
+				luaL_error( L, "on_state_create shouldn't have upvalues");
+			}
+			// remove this C function from the config table so that it doesn't cause problems
+			// when we transfer the config table in newly created Lua states
+			lua_pushnil( L);                                    // settings on_state_create nil
+			lua_setfield( L, -3, "on_state_create");            // settings on_state_create
+		}
+		else
+		{
+			// optim: store marker saying we have such a function in the config table
+			s_on_state_create_func = initialize_on_state_create;
+		}
+	}
+	lua_pop( L, 1);                                       // settings
+	STACK_END( L, 0);
+	return 0;
 }
 
 // just like lua_xmove, args are (from, to)
@@ -569,7 +602,7 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* name_)
 * Base ("unpack", "print" etc.) is always added, unless 'libs' is NULL.
 *
 */
-lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char const* libs)
+lua_State* luaG_newstate( lua_State* _from, char const* libs)
 {
 	// reuse alloc function from the originating state
 #if PROPAGATE_ALLOCF
@@ -587,7 +620,7 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 	lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);
 
 	// neither libs (not even 'base') nor special init func: we are done
-	if( libs == NULL && _on_state_create <= 0)
+	if( libs == NULL && s_on_state_create_func == NULL)
 	{
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_newstate(NULL)\n" INDENT_END));
 		return L;
@@ -655,22 +688,19 @@ lua_State* luaG_newstate( lua_State* _from, int const _on_state_create, char con
 
 	STACK_CHECK( L);
 	// call this after the base libraries are loaded and GC is restarted
-	if( _on_state_create > 0)
+	if( s_on_state_create_func != NULL)
 	{
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "calling on_state_create()\n" INDENT_END));
-		if( lua_iscfunction( _from, _on_state_create))
+		if( s_on_state_create_func != initialize_on_state_create)
 		{
 			// C function: recreate a closure in the new state, bypassing the lookup scheme
-			lua_CFunction osc = lua_tocfunction( _from, _on_state_create);
-			lua_pushcfunction( L, osc);
+			lua_pushcfunction( L, s_on_state_create_func);
 		}
-		else
+		else // Lua function located in the config table
 		{
-			STACK_CHECK( _from);
-			// Lua function: transfer as usual (should work as long as it only uses base libraries)
-			lua_pushvalue( _from, _on_state_create);
-			luaG_inter_move( _from, L, 1, eLM_LaneBody);
-			STACK_END( _from, 0);
+			lua_getfield( L, LUA_REGISTRYINDEX, CONFIG_REGKEY);
+			lua_getfield( L, -1, "on_state_create");
+			lua_remove( L, -2);
 		}
 		// capture error and forward it to main state
 		if( lua_pcall( L, 0, 0, 0) != LUA_OK)

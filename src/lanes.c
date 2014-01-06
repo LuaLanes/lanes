@@ -1,6 +1,6 @@
 /*
  * LANES.C                              Copyright (c) 2007-08, Asko Kauppi
- *                                      Copyright (C) 2009-13, Benoit Germain
+ *                                      Copyright (C) 2009-14, Benoit Germain
  *
  * Multithreading in Lua.
  * 
@@ -52,13 +52,13 @@
  *      ...
  */
 
-char const* VERSION = "3.7.5";
+char const* VERSION = "3.7.6";
 
 /*
 ===============================================================================
 
 Copyright (C) 2007-10 Asko Kauppi <akauppi@gmail.com>
-              2011-13 Benoit Germain <bnt.germain@gmail.com>
+              2011-14 Benoit Germain <bnt.germain@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1987,14 +1987,13 @@ LUAG_FUNC( thread_new)
 	struct s_lane** ud;
 
 	char const* libs = lua_tostring( L, 2);
-	int const on_state_create = lua_isfunction( L, 3) ? 3 : 0;
-	uint_t cs = luaG_optunsigned( L, 4, 0);
-	int const prio = (int) luaL_optinteger( L, 5, 0);
-	uint_t glob = lua_isnoneornil( L, 6) ? 0 : 6;
-	uint_t package = lua_isnoneornil( L,7) ? 0 : 7;
-	uint_t required = lua_isnoneornil( L, 8) ? 0 : 8;
+	uint_t cs = luaG_optunsigned( L, 3, 0);
+	int const prio = (int) luaL_optinteger( L, 4, 0);
+	uint_t glob = lua_isnoneornil( L, 5) ? 0 : 5;
+	uint_t package = lua_isnoneornil( L, 6) ? 0 : 6;
+	uint_t required = lua_isnoneornil( L, 7) ? 0 : 7;
 
-#define FIXED_ARGS 8
+#define FIXED_ARGS 7
 	uint_t args = lua_gettop(L) - FIXED_ARGS;
 
 	// public Lanes API accepts a generic range -3/+3
@@ -2011,7 +2010,7 @@ LUAG_FUNC( thread_new)
 
 	// populate with selected libraries at the same time
 	//
-	L2 = luaG_newstate( L, on_state_create, libs);
+	L2 = luaG_newstate( L, libs);
 
 	STACK_GROW( L, 2);
 	STACK_GROW( L2, 3);
@@ -2727,6 +2726,8 @@ static const struct luaL_Reg lanes_functions [] = {
 */
 static void init_once_LOCKED( lua_State* L)
 {
+	initialize_on_state_create( L);
+
 	STACK_CHECK( L);
 
 	lua_getfield( L, 1, "verbose_errors");
