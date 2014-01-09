@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 06-Jan-14, and applies to version <tt>3.7.6</tt>.
+				This document was revised on 09-Jan-14, and applies to version <tt>3.7.7</tt>.
 			</p>
 		</font>
 	</center>
@@ -1010,13 +1010,13 @@
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
 	h = lanes.linda( [opt_name])
 
-	bool = h:send( [timeout_secs,] key, ... )
+	bool = h:send( [timeout_secs,] key, ...)
 
 	[key, val] = h:receive( [timeout_secs,] key [, ...])
 
 	[key, val [, ...]] = h:receive( timeout, h.batched, key, n_uint_min[, n_uint_max])
 
-	void = h:limit( key, n_uint)
+	[true] = h:limit( key, n_uint)
 </pre></td></tr></table>
 
 <p>
@@ -1024,7 +1024,11 @@
 </p>
 
 <p>
-	By default, stack sizes are unlimited but limits can be enforced using the <tt>limit</tt> method. This can be useful to balance execution speeds in a producer/consumer scenario.
+	By default, stack sizes are unlimited but limits can be enforced using the <tt>limit</tt> method. This can be useful to balance execution speeds in a producer/consumer scenario. Any negative value removes the limit.
+	<br/>
+	A limit of 0 is allowed to block everything.
+	<br/>
+	(Since version 3.7.7) if the key was full but the limit change added some room, <tt>limit()</tt> returns <tt>true</tt> and the linda is signalled so that <tt>send()</tt>-blocked threads are awakened.
 </p>
 
 <p>
@@ -1036,13 +1040,13 @@
 </p>
 
 <p>
-	<tt>send</tt> returns <tt>true</tt> if the sending succeeded, and <tt>false</tt> if the queue limit was met, and the queue did not empty enough during the given timeout.
+	<tt>send()</tt> returns <tt>true</tt> if the sending succeeded, and <tt>false</tt> if the queue limit was met, and the queue did not empty enough during the given timeout.
 </p>
 
 <p>
-	Equally, <tt>receive</tt> returns a key and the value extracted from it, or nothing for timeout. Note that <tt>nil</tt>s can be sent and received; the <tt>key</tt> value will tell it apart from a timeout.
+	Equally, <tt>receive()</tt> returns a key and the value extracted from it, or nothing for timeout. Note that <tt>nil</tt>s can be sent and received; the <tt>key</tt> value will tell it apart from a timeout.
 	<br>
-	Version 3.4.0 introduces an API change in the returned values: <tt>receive</tt> returns the key followed by the value(s), in that order, and not the other way around.
+	Version 3.4.0 introduces an API change in the returned values: <tt>receive()</tt> returns the key followed by the value(s), in that order, and not the other way around.
 </p>
 
 <p>
@@ -1055,9 +1059,9 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	linda_h:set( key, [val])
+	[true] = linda_h:set( key, [val])
 
-	[val] = linda_h:get( key )
+	[val] = linda_h:get( key)
 </pre></td></tr></table>
 
 <p>
@@ -1065,7 +1069,13 @@
 </p>
 
 <p>
-	Writing to a slot overwrites existing value, and clears any possible queued entries. Table access and <tt>send</tt>/<tt>receive</tt> can be used together; reading a slot essentially peeks the next outcoming value of a queue.
+	Writing to a slot never blocks because it ignores the limit. It overwrites existing value and clears any possible queued entries.
+	<br/>
+	<tt>set()</tt> signals the linda from write if a value is stored.
+	<br/>
+	(Since version 3.7.7) if the key was full but the new data count of the key after <tt>set()</tt> is below its limit,  <tt>set()</tt> returns <tt>true</tt> and the linda is also signaled for read so that send()-blocked threads are awakened.
+	<br/>
+	Table access and <tt>send()</tt>/<tt>receive()</tt> can be used together; reading a slot essentially peeks the next outcoming value of a queue.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
