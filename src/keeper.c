@@ -95,7 +95,7 @@ static void fifo_new( lua_State* L)
 }
 
 // in: expect fifo ... on top of the stack
-// out: nothing, removes all pushed values on the stack
+// out: nothing, removes all pushed values from the stack
 static void fifo_push( lua_State* L, keeper_fifo* fifo, int _count)
 {
 	int idx = lua_gettop( L) - _count;
@@ -349,7 +349,7 @@ int keepercall_receive_batched( lua_State* L)
 }
 
 // in: linda_ud key n
-// out: nothing
+// out: true or nil
 int keepercall_limit( lua_State* L)
 {
 	keeper_fifo* fifo;
@@ -358,22 +358,37 @@ int keepercall_limit( lua_State* L)
 	lua_replace( L, 1);                                // fifos key n
 	lua_pop( L, 1);                                    // fifos key
 	lua_pushvalue( L, -1);                             // fifos key key
-	lua_rawget( L, -3);                                // fifos key fifo
+	lua_rawget( L, -3);                                // fifos key fifo|nil
 	fifo = (keeper_fifo*) lua_touserdata( L, -1);
 	if( fifo ==  NULL)
-	{
+	{                                                  // fifos key nil
 		lua_pop( L, 1);                                  // fifos key
 		fifo_new( L);                                    // fifos key fifo
 		fifo = (keeper_fifo*) lua_touserdata( L, -1);
 		lua_rawset( L, -3);                              // fifos
 	}
+	// remove any clutter on the stack
+	lua_settop( L, 0);
+	// return true if we decide that blocked threads waiting to write on that key should be awakened
+	// this is the case if we detect the key was full but it is no longer the case
+	if(
+			 ((fifo->limit >= 0) && (fifo->count >= fifo->limit)) // the key was full if limited and count exceeded the previous limit
+		&& ((limit < 0) || (fifo->count < limit)) // the key is not full if unlimited or count is lower than the new limit
+	)
+	{
+		lua_pushboolean( L, 1);
+	}
+	// set the new limit
 	fifo->limit = limit;
-	return 0;
+	// return 0 or 1 value
+	return lua_gettop( L);
 }
 
 //in: linda_ud key [val]
+//out: true or nil
 int keepercall_set( lua_State* L)
 {
+	bool_t should_wake_writers = FALSE;
 	STACK_GROW( L, 6);
 	// make sure we have a value on the stack
 	if( lua_gettop( L) == 2)                          // ud key val?
@@ -391,16 +406,18 @@ int keepercall_set( lua_State* L)
 		lua_pushvalue( L, -2);                          // fifos key val key
 		lua_rawget( L, 1);                              // fifos key val fifo|nil
 		fifo = (keeper_fifo*) lua_touserdata( L, -1);
-		if( fifo == NULL) // might be NULL if we set a nonexistent key to nil
-		{
+		if( fifo == NULL) // can be NULL if we store a value at a new key
+		{                                               // fifos key val nil
 			lua_pop( L, 1);                               // fifos key val
 			fifo_new( L);                                 // fifos key val fifo
 			lua_pushvalue( L, 2);                         // fifos key val fifo key
 			lua_pushvalue( L, -2);                        // fifos key val fifo key fifo
 			lua_rawset( L, 1);                            // fifos key val fifo
 		}
-		else // the fifo exists, we just want to clear its contents
-		{
+		else // the fifo exists, we just want to update its contents
+		{                                               // fifos key val fifo
+			// we create room if the fifo was full but it is no longer the case
+			should_wake_writers = (fifo->limit > 0) && (fifo->count >= fifo->limit);
 			// empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
 			lua_newtable( L);                             // fifos key val fifo {}
 			lua_setuservalue( L, -2);                     // fifos key val fifo
@@ -411,22 +428,35 @@ int keepercall_set( lua_State* L)
 		lua_insert( L, -2);                             // fifos key fifo val
 		fifo_push( L, fifo, 1);                         // fifos key fifo
 	}
-	else // val == nil                                // fifos key nil
-	{
+	else // val == nil: we clear the key contents
+	{                                                 // fifos key nil
 		keeper_fifo* fifo;
 		lua_pop( L, 1);                                 // fifos key
-		lua_rawget( L, 1);                              // fifos fifo|nil
+		lua_pushvalue( L, -1);                          // fifos key key
+		lua_rawget( L, 1);                              // fifos key fifo|nil
 		// empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
 		fifo = (keeper_fifo*) lua_touserdata( L, -1);
 		if( fifo != NULL) // might be NULL if we set a nonexistent key to nil
-		{
-			lua_newtable( L);                             // fifos fifo {}
-			lua_setuservalue( L, -2);                     // fifos fifo
-			fifo->first = 1;
-			fifo->count = 0;
+		{                                               // fifos key fifo
+			if( fifo->limit < 0) // fifo limit value is the default (unlimited): we can totally remove it
+			{
+				lua_pop( L, 1);                             // fifos key
+				lua_pushnil( L);                            // fifos key nil
+				lua_rawset( L, -3);                         // fifos
+			}
+			else
+			{
+				// we create room if the fifo was full but it is no longer the case
+				should_wake_writers = (fifo->limit > 0) && (fifo->count >= fifo->limit);
+				lua_remove( L, -2);                         // fifos fifo
+				lua_newtable( L);                           // fifos fifo {}
+				lua_setuservalue( L, -2);                   // fifos fifo
+				fifo->first = 1;
+				fifo->count = 0;
+			}
 		}
 	}
-	return 0;
+	return should_wake_writers ? (lua_pushboolean( L, 1), 1) : 0;
 }
 
 // in: linda_ud key
@@ -476,11 +506,18 @@ int keepercall_count( lua_State* L)
 		{
 			keeper_fifo* fifo;
 			lua_replace( L, 1);                              // fifos key
-			lua_rawget( L, -2);                              // fifos fifo
-			fifo = prepare_fifo_access( L, -1);              // fifos fifo
-			lua_pushinteger( L, fifo->count);                // fifos fifo count
-			lua_replace( L, -3);                             // count fifo
-			lua_pop( L, 1);                                  // count
+			lua_rawget( L, -2);                              // fifos fifo|nil
+			if( lua_isnil( L, -1)) // the key is unknown
+			{                                                // fifos nil
+				lua_remove( L, -2);                            // nil
+			}
+			else // the key is known
+			{                                                // fifos fifo
+				fifo = prepare_fifo_access( L, -1);            // fifos fifo
+				lua_pushinteger( L, fifo->count);              // fifos fifo count
+				lua_replace( L, -3);                           // count fifo
+				lua_pop( L, 1);                                // count
+			}
 		}
 		break;
 
@@ -494,21 +531,22 @@ int keepercall_count( lua_State* L)
 		{
 			keeper_fifo* fifo;
 			lua_pushvalue( L, -1);                           // out fifos keys key
-			lua_rawget( L, 2);                               // out fifos keys fifo
-			fifo = prepare_fifo_access( L, -1);              // out fifos keys fifo
+			lua_rawget( L, 2);                               // out fifos keys fifo|nil
+			fifo = prepare_fifo_access( L, -1);              // out fifos keys fifo|nil
 			lua_pop( L, 1);                                  // out fifos keys
-			if( fifo != NULL)
+			if( fifo != NULL) // the key is known
 			{
 				lua_pushinteger( L, fifo->count);              // out fifos keys count
 				lua_rawset( L, 1);                             // out fifos keys
 			}
-			else
+			else // the key is unknown
 			{
 				lua_pop( L, 1);                                // out fifos keys
 			}
 		}
 		lua_pop( L, 1);                                    // out
 	}
+	ASSERT_L( lua_gettop( L) == 1);
 	return 1;
 }
 
@@ -681,7 +719,7 @@ void keeper_toggle_nil_sentinels( lua_State* L, int _val_i, int _nil_to_sentinel
 *
 * Returns: number of return values (pushed to 'L') or -1 in case of error
 */
-int keeper_call( lua_State *K, keeper_api_t _func, lua_State *L, void *linda, uint_t starting_index)
+int keeper_call( lua_State* K, keeper_api_t func_, lua_State* L, void* linda, uint_t starting_index)
 {
 	int const args = starting_index ? (lua_gettop( L) - starting_index + 1) : 0;
 	int const Ktos = lua_gettop( K);
@@ -689,7 +727,7 @@ int keeper_call( lua_State *K, keeper_api_t _func, lua_State *L, void *linda, ui
 
 	STACK_GROW( K, 2);
 
-	PUSH_KEEPER_FUNC( K, _func);
+	PUSH_KEEPER_FUNC( K, func_);
 
 	lua_pushlightuserdata( K, linda);
 

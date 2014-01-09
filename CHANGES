@@ -1,5 +1,12 @@
 CHANGES:
 
+CHANGE 89: BGe 09-Jan-14
+   * version 3.7.7
+   * fix crash when calling linda:count() on unknown keys
+   * purge key storage with linda:set( key, nil) on an unlimited key to reduce memory usage with lots of keys
+   * linda:limit() wakes write-blocked threads if necessary when the new limit enables writes to occur again
+   * linda:set() wakes write-blocked threads if necessary if the operation created some room to write into
+
 CHANGE 88: BGe 06-Jan-14
    * version 3.7.6
    * if config.on_state_create() is a C function, call it by direct C closure reconstruction in newly created states

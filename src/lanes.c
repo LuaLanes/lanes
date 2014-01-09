@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.7.6";
+char const* VERSION = "3.7.7";
 
 /*
 ===============================================================================
@@ -672,7 +672,7 @@ LUAG_FUNC( linda_receive)
 
 
 /*
-* = linda_set( linda_ud, key_num|str|bool|lightuserdata [,value] )
+* [true] = linda_set( linda_ud, key_num|str|bool|lightuserdata [,value] )
 *
 * Set a value to Linda.
 * TODO: what do we do if we set to non-nil and limit is 0?
@@ -682,6 +682,7 @@ LUAG_FUNC( linda_receive)
 LUAG_FUNC( linda_set)
 {
 	struct s_Linda *linda = lua_toLinda( L, 1);
+	int pushed;
 	bool_t has_value = !lua_isnil( L, 3);
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
 	luaL_argcheck( L, lua_gettop( L) <= 3, 4, "too many arguments");
@@ -690,31 +691,31 @@ LUAG_FUNC( linda_set)
 	check_key_types( L, 2, 2);
 
 	{
-		int pushed;
-		struct s_Keeper *K = keeper_acquire( linda);
+		struct s_Keeper* K = keeper_acquire( linda);
 		if( K == NULL) return 0;
 		// no nil->sentinel toggling, we really clear the linda contents for the given key with a set()
 		pushed = keeper_call( K->L, KEEPER_API( set), L, linda, 2);
 		if( pushed >= 0) // no error?
 		{
-			ASSERT_L( pushed == 0);
+			ASSERT_L( pushed == 0 || pushed == 1);
 
-			/* Set the signal from within 'K' locking.
-			*/
 			if( has_value)
 			{
-				SIGNAL_ALL( &linda->write_happened);
+				// we put some data in the slot, tell readers that they should wake
+				SIGNAL_ALL( &linda->write_happened); // To be done from within the 'K' locking area
+			}
+			if( pushed == 1)
+			{
+				// the key was full, but it is no longer the case, tell writers they should wake
+				ASSERT_L( lua_type( L, -1) == LUA_TBOOLEAN && lua_toboolean( L, -1) == 1);
+				SIGNAL_ALL( &linda->read_happened); // To be done from within the 'K' locking area
 			}
 		}
 		keeper_release( K);
-		// must trigger error after keeper state has been released
-		if( pushed < 0)
-		{
-			return luaL_error( L, "tried to copy unsupported types");
-		}
 	}
 
-	return 0;
+	// must trigger any error after keeper state has been released
+	return (pushed < 0) ? luaL_error( L, "tried to copy unsupported types") : pushed;
 }
 
 
@@ -783,18 +784,20 @@ LUAG_FUNC( linda_get)
 
 
 /*
-* = linda_limit( linda_ud, key_num|str|bool|lightuserdata, uint [, ...] )
+* [true] = linda_limit( linda_ud, key_num|str|bool|lightuserdata, int [, bool] )
 *
-* Set limits to 1 or more Linda keys.
+* Set limit to 1 Linda keys.
+* Optionally wake threads waiting to write on the linda, in case the limit enables them to do so
 */
 LUAG_FUNC( linda_limit)
 {
-	struct s_Linda* linda= lua_toLinda( L, 1);
+	struct s_Linda* linda = lua_toLinda( L, 1);
 	int pushed;
+	bool_t wake_writers = FALSE;
 
+	// make sure we got at most 4 arguments: the linda, a key, a limit, and an optional wake-up flag.
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
-	// make sure we got a key and a limit
-	luaL_argcheck( L, lua_gettop( L) == 3, 2, "wrong number of arguments");
+	luaL_argcheck( L, lua_gettop( L) <= 4, 2, "wrong number of arguments");
 	// make sure we got a numeric limit
 	luaL_checknumber( L, 3);
 	// make sure the key is of a valid type
@@ -804,16 +807,16 @@ LUAG_FUNC( linda_limit)
 		struct s_Keeper* K = keeper_acquire( linda);
 		if( K == NULL) return 0;
 		pushed = keeper_call( K->L, KEEPER_API( limit), L, linda, 2);
-		ASSERT_L( pushed <= 0); // either error or no return values
-		keeper_release( K);
-		// must trigger error after keeper state has been released
-		if( pushed < 0)
+		ASSERT_L( pushed == 0 || pushed == 1); // no error, optional boolean value saying if we should wake blocked writer threads
+		if( pushed == 1)
 		{
-			return luaL_error( L, "tried to copy unsupported types");
+			ASSERT_L( lua_type( L, -1) == LUA_TBOOLEAN && lua_toboolean( L, -1) == 1);
+			SIGNAL_ALL( &linda->read_happened); // To be done from within the 'K' locking area
 		}
+		keeper_release( K);
 	}
-
-	return 0;
+	// propagate pushed boolean if any
+	return pushed;
 }
 
 
