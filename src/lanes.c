@@ -784,7 +784,7 @@ LUAG_FUNC( linda_get)
 
 
 /*
-* [true] = linda_limit( linda_ud, key_num|str|bool|lightuserdata, int [, bool] )
+* [true] = linda_limit( linda_ud, key_num|str|bool|lightuserdata, int)
 *
 * Set limit to 1 Linda keys.
 * Optionally wake threads waiting to write on the linda, in case the limit enables them to do so
@@ -795,9 +795,9 @@ LUAG_FUNC( linda_limit)
 	int pushed;
 	bool_t wake_writers = FALSE;
 
-	// make sure we got at most 4 arguments: the linda, a key, a limit, and an optional wake-up flag.
+	// make sure we got 3 arguments: the linda, a key and a limit
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
-	luaL_argcheck( L, lua_gettop( L) <= 4, 2, "wrong number of arguments");
+	luaL_argcheck( L, lua_gettop( L) == 3, 2, "wrong number of arguments");
 	// make sure we got a numeric limit
 	luaL_checknumber( L, 3);
 	// make sure the key is of a valid type
