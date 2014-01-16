@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 09-Jan-14, and applies to version <tt>3.7.7</tt>.
+				This document was revised on 16-Jan-14, and applies to version <tt>3.7.8</tt>.
 			</p>
 		</font>
 	</center>
@@ -880,13 +880,18 @@
 <h2 id="cancelling">Cancelling</h2>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	bool[,reason] = lane_h:cancel( [timeout_secs=0.0,] [force_kill_bool = false] [, forcekill_timeout=0.0])
+	bool[,reason] = lane_h:cancel( [positive_timeout_secs=0.0] [, force_kill_bool = false] [, forcekill_timeout=0.0])
+	bool[,reason] = lane_h:cancel( negative_timeout_secs [, wake_bool = false])
 </pre></td></tr></table>
 
 <p>
 	<tt>cancel()</tt> sends a cancellation request to the lane.<br/>
-	If <tt>timeout_secs</tt> is negative (aka "soft cancel"), starting with version 3.6.3, will only cause <tt>cancel_test()</tt> to return <tt>true</tt>, so that the lane can cleanup manually (the actual value is irrelevant). You can't provide the additional arguments in that case.<br/>
-	If <tt>timeout_secs</tt> is positive (aka "hard cancel"), waits for the request to be processed, or a timeout to occur.<br/>
+	First argument is a timeout, that defaults to 0 if not specified. (Starting with version 3.6.3) signification of the following arguments differ depending on whether the timeout is negative or not.
+	<br/>
+	If <tt>timeout_secs</tt> is negative (aka "soft cancel"), cancellation will only cause <tt>cancel_test()</tt> to return <tt>true</tt>, so that the lane can cleanup manually (the actual value is irrelevant).
+	If <tt>wake_bool</tt> is <tt>true</tt>, the lane is also signalled so that execution returns from any pending linda operation.
+	<br/>
+	If <tt>timeout_secs</tt> is positive (aka "hard cancel"), waits for the request to be processed, or a timeout to occur. Linda operations detecting the cancellation request will raise a special cancellation error (meaning they won't return in that case).
 	If <tt>force_kill_bool</tt> is <tt>true</tt>, <tt>forcekill_timeout</tt> can be set to tell how long lanes will wait for the OS thread to terminate before raising an error. Windows threads always terminate immediately, but it might not always be the case with some pthread implementations.
 	Returns <tt>true</tt> if soft cancelling, or the lane was already done (in <tt>"done"</tt>, <tt>"error"</tt> or <tt>"cancelled"</tt> status), or the cancellation was fruitful within <tt>timeout_secs</tt> timeout period.
 </p>
@@ -1010,11 +1015,11 @@
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
 	h = lanes.linda( [opt_name])
 
-	bool = h:send( [timeout_secs,] key, ...)
+	bool|cancel_error = h:send( [timeout_secs,] key, ...)
 
-	[key, val] = h:receive( [timeout_secs,] key [, ...])
+	[key, val]|[cancel_error] = h:receive( [timeout_secs,] key [, ...])
 
-	[key, val [, ...]] = h:receive( timeout, h.batched, key, n_uint_min[, n_uint_max])
+	[key, val [, ...]]|[cancel_error] = h:receive( timeout, h.batched, key, n_uint_min[, n_uint_max])
 
 	[true] = h:limit( key, n_uint)
 </pre></td></tr></table>
@@ -1041,12 +1046,16 @@
 
 <p>
 	<tt>send()</tt> returns <tt>true</tt> if the sending succeeded, and <tt>false</tt> if the queue limit was met, and the queue did not empty enough during the given timeout.
+	<br/>
+	(Since version 3.7.8) <tt>send()</tt> returns <tt>lanes.cancel_error</tt> if interrupted by a soft cancel request.
 </p>
 
 <p>
 	Equally, <tt>receive()</tt> returns a key and the value extracted from it, or nothing for timeout. Note that <tt>nil</tt>s can be sent and received; the <tt>key</tt> value will tell it apart from a timeout.
-	<br>
+	<br/>
 	Version 3.4.0 introduces an API change in the returned values: <tt>receive()</tt> returns the key followed by the value(s), in that order, and not the other way around.
+	<br/>
+	(Since version 3.7.8) <tt>receive()</tt> returns <tt>lanes.cancel_error</tt> if interrupted by a soft cancel request.
 </p>
 
 <p>

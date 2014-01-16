@@ -27,8 +27,7 @@
 local MSYS= os.getenv("OSTYPE")=="msys"
 
 
-local lanes = require "lanes"
-lanes.configure()
+local lanes = require "lanes".configure{ with_timers = false}
 
 local m= require "argtable"
 local argtable= assert( m.argtable )
@@ -36,7 +35,7 @@ local argtable= assert( m.argtable )
 local N= 1000   -- threads/loops to use
 local M= 1000   -- sieves from 1..M
 local PLAIN= false      -- single threaded (true) or using Lanes (false)
-local SINGLE= false     -- cores to use (false / 1..n) 
+local SINGLE= 0     -- cores to use (0 / 1..n) 
 local TIME= false       -- use Lua for the timing
 local PRIO_ODD, PRIO_EVEN   -- -3..+3
 
@@ -63,7 +62,7 @@ end
 for k,v in pairs( argtable(...) ) do
     if k==1 then            N= tonumber(v) or HELP()
     elseif k=="plain" then  PLAIN= true
-    elseif k=="single" then  SINGLE= v  -- true/number
+    elseif k=="single" then  SINGLE= v  -- number
     elseif k=="time" then   TIME= true
     elseif k=="prio" then   PRIO_ODD, PRIO_EVEN= prio_param(v)
     else                    HELP()
@@ -104,7 +103,7 @@ local function sieve_lane(N,id)
     while 1 do
       local n = g()
       if n == nil then return end
-      if math.mod(n, p) ~= 0 then coroutine.yield(n) end
+      if math.fmod(n, p) ~= 0 then coroutine.yield(n) end
     end
   end)
  end
@@ -138,7 +137,7 @@ local f_odd= lanes.gen( "base,coroutine,math,table,io",  -- "*" = all
 
 io.stderr:write( "*** Counting primes 1.."..M.." "..N.." times ***\n\n" )
 
-local t0= TIME and os.time()
+local t0= TIME and lanes.now_secs()
 
 if PLAIN then
     io.stderr:write( "Plain (no multithreading):\n" )
@@ -148,9 +147,9 @@ if PLAIN then
         assert( type(tmp)=="table" and tmp[1]==2 and tmp[168]==997 )
     end
 else
-    if SINGLE then
+    if SINGLE > 0 then
         io.stderr:write( (tonumber(SINGLE) and SINGLE or 1) .. " core(s):\n" )
-        lanes.single(SINGLE)    -- limit to N cores (just OS X)
+        lanes.set_singlethreaded(SINGLE)    -- limit to N cores (just OS X)
     else
         io.stderr:write( "Multi core:\n" )
     end
@@ -177,7 +176,7 @@ end
 io.stderr:write "\n"
 
 if TIME then
-    local t= os.time() - t0
+    local t= lanes.now_secs() - t0
     io.stderr:write( "*** TIMING: "..t.." seconds ***\n" )
 end
 

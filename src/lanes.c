@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.7.7";
+char const* VERSION = "3.7.8";
 
 /*
 ===============================================================================
@@ -189,11 +189,59 @@ struct s_lane
 	// For tracking only
 };
 
-static enum e_cancel_request cancel_test( lua_State* L);
-static void cancel_error( lua_State*L );
+// To allow free-running threads (longer lifespan than the handle's)
+// 'struct s_lane' are malloc/free'd and the handle only carries a pointer.
+// This is not deep userdata since the handle's not portable among lanes.
+//
+#define lua_toLane( L, i)  (*((struct s_lane**) lua_touserdata( L, i)))
 
-#define CANCEL_TEST_KEY ((void*)cancel_test)    // used as registry key
+#define CANCEL_TEST_KEY ((void*)get_lane)    // used as registry key
+static inline struct s_lane* get_lane( lua_State* L)
+{
+	struct s_lane* s;
+	STACK_GROW( L, 1);
+	STACK_CHECK( L);
+	lua_pushlightuserdata( L, CANCEL_TEST_KEY);
+	lua_rawget( L, LUA_REGISTRYINDEX);
+	s = lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) / nil
+	lua_pop( L, 1);
+	STACK_END( L, 0);
+	return s;
+}
+
+/*
+* Check if the thread in question ('L') has been signalled for cancel.
+*
+* Called by cancellation hooks and/or pending Linda operations (because then
+* the check won't affect performance).
+*
+* Returns TRUE if any locks are to be exited, and 'cancel_error()' called,
+* to make execution of the lane end.
+*/
+static inline enum e_cancel_request cancel_test( lua_State* L)
+{
+	struct s_lane* const s = get_lane( L);
+	// 's' is NULL for the original main state (and no-one can cancel that)
+	return s ? s->cancel_request : CANCEL_NONE;
+}
+
 #define CANCEL_ERROR ((void*)cancel_error)      // 'cancel_error' sentinel
+static int cancel_error( lua_State* L)
+{
+	STACK_GROW( L, 1);
+	lua_pushlightuserdata( L, CANCEL_ERROR); // special error value
+	return lua_error( L); // doesn't return
+}
+
+static void cancel_hook( lua_State* L, lua_Debug* ar)
+{
+	(void)ar;
+	if( cancel_test( L) != CANCEL_NONE)
+	{
+		cancel_error( L);
+	}
+}
+
 
 #if ERROR_FULL_STACK
 static int lane_error( lua_State* L);
@@ -383,6 +431,7 @@ static void check_key_types( lua_State*L, int _start, int _end)
 *
 * Returns:  'true' if the value was queued
 *           'false' for timeout (only happens when the queue size is limited)
+*           nil, CANCEL_ERROR if cancelled
 */
 LUAG_FUNC( linda_send)
 {
@@ -417,7 +466,7 @@ LUAG_FUNC( linda_send)
 	// convert nils to some special non-nil sentinel in sent values
 	keeper_toggle_nil_sentinels( L, key_i + 1, 1);
 
-	STACK_GROW(L, 1);
+	STACK_GROW( L, 1);
 	{
 		struct s_Keeper* K = keeper_acquire( linda);
 		lua_State* KL = K ? K->L : NULL; // need to do this for 'STACK_CHECK'
@@ -451,26 +500,17 @@ LUAG_FUNC( linda_send)
 			}
 			/* limit faced; push until timeout */
 
-			cancel = cancel_test( L);   // testing here causes no delays
-			if( cancel != CANCEL_NONE) // if user wants to cancel, the call returns without sending anything
 			{
-				break;
-			}
-
-			// change status of lane to "waiting"
-			{
-				struct s_lane* s;
 				enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
-				STACK_GROW( L, 1);
-
-				STACK_CHECK( L);
-				lua_pushlightuserdata( L, CANCEL_TEST_KEY);
-				lua_rawget( L, LUA_REGISTRYINDEX);
-				s = lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) or nil if in the main Lua state
-				lua_pop( L, 1);
-				STACK_END( L, 0);
+				struct s_lane* const s = get_lane( L);
 				if( s != NULL)
 				{
+					cancel = s->cancel_request; // testing here causes no delays
+					if( cancel != CANCEL_NONE) // if user wants to cancel, the call returns without sending anything
+					{
+						break;
+					}
+					// change status of lane to "waiting"
 					prev_status = s->status; // RUNNING, most likely
 					ASSERT_L( prev_status == RUNNING); // but check, just in case
 					s->status = WAITING;
@@ -484,6 +524,8 @@ LUAG_FUNC( linda_send)
 					{
 						s->waiting_on = NULL;
 						s->status = prev_status;
+						// if woken by a cancel request, be sure to handle it properly
+						cancel = s->cancel_request;
 					}
 					break;
 				}
@@ -504,12 +546,21 @@ LUAG_FUNC( linda_send)
 		return luaL_error( L, "tried to copy unsupported types");
 	}
 
-	// raise an error interrupting execution only in case of hard cancel
-	if( cancel == CANCEL_HARD)
-		cancel_error( L);
+	switch( cancel)
+	{
+		case CANCEL_SOFT:
+		// if user wants to soft-cancel, the call returns CANCEL_ERROR
+		lua_pushlightuserdata( L, CANCEL_ERROR);
+		return 1;
 
-	lua_pushboolean( L, ret);
-	return 1;
+		case CANCEL_HARD:
+		// raise an error interrupting execution only in case of hard cancel
+		return cancel_error( L); // raises an error and doesn't return
+
+		default:
+		lua_pushboolean( L, ret); // true (success) or false (timeout)
+		return 1;
+	}
 }
 
 
@@ -611,26 +662,17 @@ LUAG_FUNC( linda_receive)
 			}
 			/* nothing received; wait until timeout */
 
-			cancel = cancel_test( L);   // testing here causes no delays
-			if( cancel != CANCEL_NONE) // if user wants to cancel, the call returns without providing anything
 			{
-				break;
-			}
-
-			// change status of lane to "waiting"
-			{
-				struct s_lane* s;
 				enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
-				STACK_GROW( L, 1);
-
-				STACK_CHECK( L);
-				lua_pushlightuserdata( L, CANCEL_TEST_KEY);
-				lua_rawget( L, LUA_REGISTRYINDEX);
-				s = lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) or nil if in the main Lua state
-				lua_pop( L, 1);
-				STACK_END( L, 0);
+				struct s_lane* const s = get_lane( L);
 				if( s != NULL)
 				{
+					cancel = s->cancel_request; // testing here causes no delays
+					if( cancel != CANCEL_NONE) // if user wants to cancel, the call returns without providing anything
+					{
+						break;
+					}
+					// change status of lane to "waiting"
 					prev_status = s->status; // RUNNING, most likely
 					ASSERT_L( prev_status == RUNNING); // but check, just in case
 					s->status = WAITING;
@@ -644,6 +686,8 @@ LUAG_FUNC( linda_receive)
 					{
 						s->waiting_on = NULL;
 						s->status = prev_status;
+						// if woken by a cancel request, be sure to handle it properly
+						cancel = s->cancel_request;
 					}
 					break;
 				}
@@ -663,11 +707,20 @@ LUAG_FUNC( linda_receive)
 		return luaL_error( L, "tried to copy unsupported types");
 	}
 
-	// raise an error interrupting execution only in case of hard cancel
-	if( cancel == CANCEL_HARD)
-		cancel_error( L);
+	switch( cancel)
+	{
+		case CANCEL_SOFT:
+		// if user wants to soft-cancel, the call returns CANCEL_ERROR
+		lua_pushlightuserdata( L, CANCEL_ERROR);
+		return 1;
 
-	return pushed;
+		case CANCEL_HARD:
+		// raise an error interrupting execution only in case of hard cancel
+		return cancel_error( L); // raises an error and doesn't return
+
+		default:
+		return pushed;
+	}
 }
 
 
@@ -1225,6 +1278,14 @@ static cancel_result thread_cancel( lua_State* L, struct s_lane* s, double secs,
 		{
 			s->cancel_request = CANCEL_SOFT;    // it's now signaled to stop
 			// negative timeout: we don't want to truly abort the lane, we just want it to react to cancel_test() on its own
+			if( force) // wake the thread so that execution returns from any pending linda operation if desired
+			{
+				SIGNAL_T *waiting_on = s->waiting_on;
+				if( s->status == WAITING && waiting_on != NULL)
+				{
+					SIGNAL_ALL( waiting_on);
+				}
+			}
 			// say we succeeded though
 			result = CR_Cancelled;
 		}
@@ -1506,54 +1567,6 @@ static int selfdestruct_gc( lua_State* L)
 	}
 
 	return 0;
-}
-
-
-// To allow free-running threads (longer lifespan than the handle's)
-// 'struct s_lane' are malloc/free'd and the handle only carries a pointer.
-// This is not deep userdata since the handle's not portable among lanes.
-//
-#define lua_toLane(L,i)  (* ((struct s_lane**) lua_touserdata(L,i)))
-
-
-/*
-* Check if the thread in question ('L') has been signalled for cancel.
-*
-* Called by cancellation hooks and/or pending Linda operations (because then
-* the check won't affect performance).
-*
-* Returns TRUE if any locks are to be exited, and 'cancel_error()' called,
-* to make execution of the lane end.
-*/
-static enum e_cancel_request cancel_test( lua_State* L)
-{
-	struct s_lane* s;
-
-	STACK_GROW( L, 1);
-
-	STACK_CHECK( L);
-	lua_pushlightuserdata( L, CANCEL_TEST_KEY);
-	lua_rawget( L, LUA_REGISTRYINDEX);
-	s = lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) / nil
-	lua_pop( L, 1);
-	STACK_END( L, 0);
-
-	// 's' is NULL for the original main state (no-one can cancel that)
-	//
-	return s ? s->cancel_request : CANCEL_NONE;
-}
-
-static void cancel_error( lua_State*L ) {
-    STACK_GROW(L,1);
-    lua_pushlightuserdata( L, CANCEL_ERROR );    // special error value
-    lua_error(L);   // no return
-}
-
-static void cancel_hook( lua_State*L, lua_Debug *ar )
-{
-	(void)ar;
-	if( cancel_test( L) != CANCEL_NONE)
-		cancel_error( L);
 }
 
 
@@ -2294,7 +2307,7 @@ LUAG_FUNC( thread_gc)
 	return 0;
 }
 
-// lane_h:cancel( [timeout,] force[, forcekill_timeout])
+// lane_h:cancel( [timeout] [, force [, forcekill_timeout]])
 LUAG_FUNC( thread_cancel)
 {
 	if( lua_gettop( L) < 1 || lua_type( L, 1) != LUA_TUSERDATA)
@@ -2311,10 +2324,11 @@ LUAG_FUNC( thread_cancel)
 		if( lua_isnumber( L, 2))
 		{
 			secs = lua_tonumber( L, 2);
-			if( secs < 0.0 && lua_gettop( L) > 2)
+			if( secs < 0.0 && lua_gettop( L) > 3)
 			{
-				return luaL_error( L, "can't force a soft cancel");
+				return luaL_error( L, "can't force_kill a soft cancel");
 			}
+			// negative timeout and force flag means we want to wake linda-waiting threads
 			++ force_i;
 			++ forcekill_timeout_i;
 		}
@@ -2330,16 +2344,16 @@ LUAG_FUNC( thread_cancel)
 
 			switch( thread_cancel( L, s, secs, force, forcekill_timeout))
 			{
-			case CR_Timeout:
+				case CR_Timeout:
 				lua_pushboolean( L, 0);
 				lua_pushstring( L, "timeout");
 				return 2;
 
-			case CR_Cancelled:
+				case CR_Cancelled:
 				lua_pushboolean( L, 1);
 				return 1;
 
-			case CR_Killed:
+				case CR_Killed:
 				lua_pushboolean( L, 0);
 				lua_pushstring( L, "killed");
 				return 2;

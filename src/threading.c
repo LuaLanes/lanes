@@ -87,11 +87,13 @@ THE SOFTWARE.
 #if defined( PLATFORM_XBOX) || defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
 static void FAIL( char const* funcname, int rc)
 {
-	fprintf( stderr, "%s() failed! (%d)\n", funcname, rc );
+	char buf[256];
+	FormatMessageA( FORMAT_MESSAGE_FROM_SYSTEM, NULL, rc, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 256, NULL);
+	fprintf( stderr, "%s() failed! [GetLastError() -> %d] '%s'", funcname, rc, buf);
 #ifdef _MSC_VER
-    __debugbreak(); // give a chance to the debugger!
+	__debugbreak(); // give a chance to the debugger!
 #endif // _MSC_VER
-    abort();
+	abort();
 }
 #endif // win32 build
 
@@ -296,11 +298,15 @@ void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (__stdcall *func)( void*), vo
 		NULL  // thread id (not used)
 	);
 
-	if( h == INVALID_HANDLE_VALUE)
+	if( h == NULL) // _beginthreadex returns 0L on failure instead of -1L (like _beginthread)
+	{
 		FAIL( "CreateThread", GetLastError());
+	}
 
 	if (!SetThreadPriority( h, gs_prio_remap[prio + 3]))
+	{
 		FAIL( "SetThreadPriority", GetLastError());
+	}
 
 	*ref = h;
 }

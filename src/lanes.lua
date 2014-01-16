@@ -128,7 +128,6 @@ lanes.configure = function( settings_)
 	end
 	local settings = core.configure and core.configure( params_checker( settings_)) or core.settings
 	local thread_new = assert( core.thread_new)
-	local set_singlethreaded = assert( core.set_singlethreaded)
 	local max_prio = assert( core.max_prio)
 
 lanes.ABOUT =
@@ -664,6 +663,7 @@ end
 	lanes.linda = core.linda
 	lanes.cancel_error = core.cancel_error
 	lanes.nameof = core.nameof
+	lanes.set_singlethreaded = core.set_singlethreaded
 	lanes.threads = core.threads or function() error "lane tracking is not available" end -- core.threads isn't registered if settings.track_lanes is false
 	lanes.set_thread_priority = core.set_thread_priority
 	lanes.timer = timer

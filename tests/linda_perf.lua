@@ -34,7 +34,7 @@ local function ziva( preloop, loop, batch)
 	-- prefill the linda a bit to increase fifo stress
 	local top = math.max( preloop, loop)
 	local l, lane = lanes.linda()
-	local t1 = os.time()
+	local t1 = lanes.now_secs()
 	for i = 1, preloop do
 		l:send( "key", i)
 	end
@@ -59,7 +59,7 @@ local function ziva( preloop, loop, batch)
 	end
 	l:send( "done" ,"are you happy?")
 	lane:join()
-	return os.difftime(os.time(), t1)
+	return lanes.now_secs() - t1
 end
 
 local tests =
@@ -149,7 +149,7 @@ local function ziva2( preloop, loop, batch)
 			l:receive( "key")
 		end
 	end
-	local t1 = os.time()
+	local t1 = lanes.now_secs()
 	-- first, prime the linda with some data
 	for i = 1, preloop, step do
 		batch_send()
@@ -165,7 +165,7 @@ local function ziva2( preloop, loop, batch)
 	for i = 1, preloop, step do
 			batch_read()
 	end
-	return os.difftime(os.time(), t1)
+	return lanes.now_secs() - t1
 end
 
 local tests2 =

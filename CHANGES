@@ -1,5 +1,16 @@
 CHANGES:
 
+CHANGE 90: BGe 16-Jan-14
+   * version 3.7.8
+   * lane:cancel() now accepts a boolean second argument when soft cancelling (negative timeout) to wake the thread if necessary
+   * if a blocked linda send() or receive() call is interrupted by a cancellation request,
+     it returns CANCEL_ERROR so that this case can be differentiated from a simple timeout
+   * fixed WIN32 THREAD_CREATE() wrong _beginthreadex() error detection
+   * fatal WIN32 threading errors retrieve and output the error description string with FormatMessage()
+   * fixed missing lanes.set_singlethreaded
+   * fixed perftest.lua
+   * added test/cancel.lua
+
 CHANGE 89: BGe 09-Jan-14
    * version 3.7.7
    * fix crash when calling linda:count() on unknown keys
