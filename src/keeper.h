@@ -20,7 +20,7 @@ void close_keepers( void);
 
 struct s_Keeper *keeper_acquire( const void *ptr);
 void keeper_release( struct s_Keeper *K);
-void keeper_toggle_nil_sentinels( lua_State *L, int _val_i, int _nil_to_sentinel);
+void keeper_toggle_nil_sentinels( lua_State *L, int _val_i, enum eLookupMode const mode_);
 int keeper_push_linda_storage( lua_State* L, void* ptr);
 
 typedef lua_CFunction keeper_api_t;

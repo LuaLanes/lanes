@@ -115,11 +115,11 @@ static void fifo_push( lua_State* L, keeper_fifo* fifo, int _count)
 // expects exactly 1 value on the stack!
 // currently only called with a count of 1, but this may change in the future
 // function assumes that there is enough data in the fifo to satisfy the request
-static void fifo_peek( lua_State* L, keeper_fifo* fifo, int _count)
+static void fifo_peek( lua_State* L, keeper_fifo* fifo, int count_)
 {
 	int i;
-	STACK_GROW( L, _count);
-	for( i = 0; i < _count; ++ i)
+	STACK_GROW( L, count_);
+	for( i = 0; i < count_; ++ i)
 	{
 		lua_rawgeti( L, 1, fifo->first + i);
 	}
@@ -384,54 +384,21 @@ int keepercall_limit( lua_State* L)
 	return lua_gettop( L);
 }
 
-//in: linda_ud key [val]
+//in: linda_ud key [[val] ...]
 //out: true or nil
 int keepercall_set( lua_State* L)
 {
 	bool_t should_wake_writers = FALSE;
 	STACK_GROW( L, 6);
-	// make sure we have a value on the stack
-	if( lua_gettop( L) == 2)                          // ud key val?
-	{
-		lua_pushnil( L);                                // ud key nil
-	}
 
 	// retrieve fifos associated with the linda
-	push_table( L, 1);                                // ud key val fifos
-	lua_replace( L, 1);                               // fifos key val
+	push_table( L, 1);                                // ud key [val [, ...]] fifos
+	lua_replace( L, 1);                               // fifos key [val [, ...]]
 
-	if( !lua_isnil( L, 3)) // set/replace contents stored at the specified key?
+	// make sure we have a value on the stack
+	if( lua_gettop( L) == 2)                          // fifos key
 	{
 		keeper_fifo* fifo;
-		lua_pushvalue( L, -2);                          // fifos key val key
-		lua_rawget( L, 1);                              // fifos key val fifo|nil
-		fifo = (keeper_fifo*) lua_touserdata( L, -1);
-		if( fifo == NULL) // can be NULL if we store a value at a new key
-		{                                               // fifos key val nil
-			lua_pop( L, 1);                               // fifos key val
-			fifo_new( L);                                 // fifos key val fifo
-			lua_pushvalue( L, 2);                         // fifos key val fifo key
-			lua_pushvalue( L, -2);                        // fifos key val fifo key fifo
-			lua_rawset( L, 1);                            // fifos key val fifo
-		}
-		else // the fifo exists, we just want to update its contents
-		{                                               // fifos key val fifo
-			// we create room if the fifo was full but it is no longer the case
-			should_wake_writers = (fifo->limit > 0) && (fifo->count >= fifo->limit);
-			// empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
-			lua_newtable( L);                             // fifos key val fifo {}
-			lua_setuservalue( L, -2);                     // fifos key val fifo
-			fifo->first = 1;
-			fifo->count = 0;
-		}
-		fifo = prepare_fifo_access( L, -1);
-		lua_insert( L, -2);                             // fifos key fifo val
-		fifo_push( L, fifo, 1);                         // fifos key fifo
-	}
-	else // val == nil: we clear the key contents
-	{                                                 // fifos key nil
-		keeper_fifo* fifo;
-		lua_pop( L, 1);                                 // fifos key
 		lua_pushvalue( L, -1);                          // fifos key key
 		lua_rawget( L, 1);                              // fifos key fifo|nil
 		// empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
@@ -456,13 +423,51 @@ int keepercall_set( lua_State* L)
 			}
 		}
 	}
+	else // set/replace contents stored at the specified key?
+	{
+		int count = lua_gettop( L) - 2; // number of items we want to store
+		keeper_fifo* fifo;                              // fifos key [val [, ...]]
+		lua_pushvalue( L, 2);                           // fifos key [val [, ...]] key
+		lua_rawget( L, 1);                              // fifos key [val [, ...]] fifo|nil
+		fifo = (keeper_fifo*) lua_touserdata( L, -1);
+		if( fifo == NULL) // can be NULL if we store a value at a new key
+		{                                               // fifos key [val [, ...]] nil
+			// no need to wake writers in that case, because a writer can't wait on an inexistent key
+			lua_pop( L, 1);                               // fifos key [val [, ...]]
+			fifo_new( L);                                 // fifos key [val [, ...]] fifo
+			lua_pushvalue( L, 2);                         // fifos key [val [, ...]] fifo key
+			lua_pushvalue( L, -2);                        // fifos key [val [, ...]] fifo key fifo
+			lua_rawset( L, 1);                            // fifos key [val [, ...]] fifo
+		}
+		else // the fifo exists, we just want to update its contents
+		{                                               // fifos key [val [, ...]] fifo
+			// we create room if the fifo was full but it is no longer the case
+			should_wake_writers = (fifo->limit > 0) && (fifo->count >= fifo->limit) && (count < fifo->limit);
+			// empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
+			lua_newtable( L);                             // fifos key [val [, ...]] fifo {}
+			lua_setuservalue( L, -2);                     // fifos key [val [, ...]] fifo
+			fifo->first = 1;
+			fifo->count = 0;
+		}
+		fifo = prepare_fifo_access( L, -1);
+		// move the fifo below the values we want to store
+		lua_insert( L, 3);                              // fifos key fifo [val [, ...]]
+		fifo_push( L, fifo, count);                     // fifos key fifo
+	}
 	return should_wake_writers ? (lua_pushboolean( L, 1), 1) : 0;
 }
 
-// in: linda_ud key
+// in: linda_ud key [count]
+// out: at most <count> values
 int keepercall_get( lua_State* L)
 {
 	keeper_fifo* fifo;
+	int count = 1;
+	if( lua_gettop( L) == 3)                          // ud key count
+	{
+		count = lua_tointeger( L, 3);
+		lua_pop( L, 1);                                 // ud key
+	}
 	push_table( L, 1);                                // ud key fifos
 	lua_replace( L, 1);                               // fifos key
 	lua_rawget( L, 1);                                // fifos fifo
@@ -470,9 +475,10 @@ int keepercall_get( lua_State* L)
 	if( fifo != NULL && fifo->count > 0)
 	{
 		lua_remove( L, 1);                              // fifo
-		// read one value off the fifo
-		fifo_peek( L, fifo, 1);                         // fifo ...
-		return 1;
+		count = __min( count, fifo->count);
+		// read <count> value off the fifo
+		fifo_peek( L, fifo, count);                     // fifo ...
+		return count;
 	}
 	// no fifo was ever registered for this key, or it is empty
 	return 0;
@@ -682,16 +688,16 @@ void keeper_release( struct s_Keeper* K)
 	if( K) MUTEX_UNLOCK( &K->lock_);
 }
 
-void keeper_toggle_nil_sentinels( lua_State* L, int _val_i, int _nil_to_sentinel)
+void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, enum eLookupMode mode_)
 {
 	int i, n = lua_gettop( L);
 	/* We could use an empty table in 'keeper.lua' as the sentinel, but maybe
 	* checking for a lightuserdata is faster. (any unique value will do -> take the address of some global of ours)
 	*/
 	void* nil_sentinel = &GNbKeepers;
-	for( i = _val_i; i <= n; ++ i)
+	for( i = val_i_; i <= n; ++ i)
 	{
-		if( _nil_to_sentinel)
+		if( mode_ == eLM_ToKeeper)
 		{
 			if( lua_isnil( L, i))
 			{

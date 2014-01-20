@@ -596,8 +596,8 @@ end -- settings.with_timers
 --
 -- PUBLIC LANES API
 local genlock = function( linda, key, N)
+	linda:set( key) -- clears existing data
 	linda:limit( key, N)
-	linda:set( key, nil)  -- clears existing data
 
 	--
 	-- [true [, ...]= trues(uint)

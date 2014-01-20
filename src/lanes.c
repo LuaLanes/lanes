@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.7.8";
+char const* VERSION = "3.8.0";
 
 /*
 ===============================================================================
@@ -464,7 +464,7 @@ LUAG_FUNC( linda_send)
 	}
 
 	// convert nils to some special non-nil sentinel in sent values
-	keeper_toggle_nil_sentinels( L, key_i + 1, 1);
+	keeper_toggle_nil_sentinels( L, key_i + 1, eLM_ToKeeper);
 
 	STACK_GROW( L, 1);
 	{
@@ -649,7 +649,7 @@ LUAG_FUNC( linda_receive)
 			{
 				ASSERT_L( pushed >= expected_pushed_min && pushed <= expected_pushed_max);
 				// replace sentinels with real nils
-				keeper_toggle_nil_sentinels( L, lua_gettop( L) - pushed, 0);
+				keeper_toggle_nil_sentinels( L, lua_gettop( L) - pushed, eLM_FromKeeper);
 				// To be done from within the 'K' locking area
 				//
 				SIGNAL_ALL( &linda->read_happened);
@@ -725,28 +725,31 @@ LUAG_FUNC( linda_receive)
 
 
 /*
-* [true] = linda_set( linda_ud, key_num|str|bool|lightuserdata [,value] )
+* [true] = linda_set( linda_ud, key_num|str|bool|lightuserdata [, value [, ...]])
 *
-* Set a value to Linda.
+* Set one or more value to Linda.
 * TODO: what do we do if we set to non-nil and limit is 0?
 *
-* Existing slot value is replaced, and possible queue entries removed.
+* Existing slot value is replaced, and possible queued entries removed.
 */
 LUAG_FUNC( linda_set)
 {
-	struct s_Linda *linda = lua_toLinda( L, 1);
+	struct s_Linda* const linda = lua_toLinda( L, 1);
 	int pushed;
-	bool_t has_value = !lua_isnil( L, 3);
+	bool_t has_value = lua_gettop( L) > 2;
 	luaL_argcheck( L, linda, 1, "expected a linda object!");
-	luaL_argcheck( L, lua_gettop( L) <= 3, 4, "too many arguments");
 
-	// make sure the key is of a valid type
+	// make sure the key is of a valid type (throws an error if not the case)
 	check_key_types( L, 2, 2);
 
 	{
 		struct s_Keeper* K = keeper_acquire( linda);
 		if( K == NULL) return 0;
-		// no nil->sentinel toggling, we really clear the linda contents for the given key with a set()
+		if( has_value)
+		{
+			// convert nils to some special non-nil sentinel in sent values
+			keeper_toggle_nil_sentinels( L, 3, eLM_ToKeeper);
+		}
 		pushed = keeper_call( K->L, KEEPER_API( set), L, linda, 2);
 		if( pushed >= 0) // no error?
 		{
@@ -801,31 +804,32 @@ LUAG_FUNC( linda_count)
 
 
 /*
-* [val]= linda_get( linda_ud, key_num|str|bool|lightuserdata )
+* [val [, ...]] = linda_get( linda_ud, key_num|str|bool|lightuserdata [, count = 1])
 *
-* Get a value from Linda.
-* TODO: add support to get multiple values?
+* Get one or more values from Linda.
 */
 LUAG_FUNC( linda_get)
 {
-	struct s_Linda *linda= lua_toLinda( L, 1);
+	struct s_Linda* const linda = lua_toLinda( L, 1);
 	int pushed;
+	int count = luaL_optint( L, 3, 1);
+	luaL_argcheck( L, count >= 1, 3, "count should be >= 1");
+	luaL_argcheck( L, linda, 1, "expected a linda object");
+	luaL_argcheck( L, lua_gettop( L) <= 3, 4, "too many arguments");
 
-	luaL_argcheck( L, linda, 1, "expected a linda object!");
-	// make sure the key is of a valid type
+	// make sure the key is of a valid type (throws an error if not the case)
 	check_key_types( L, 2, 2);
-
 	{
 		struct s_Keeper* K = keeper_acquire( linda);
 		if( K == NULL) return 0;
 		pushed = keeper_call( K->L, KEEPER_API( get), L, linda, 2);
-		ASSERT_L( pushed == 0 || pushed == 1);
 		if( pushed > 0)
 		{
-			keeper_toggle_nil_sentinels( L, lua_gettop( L) - pushed, 0);
+			keeper_toggle_nil_sentinels( L, lua_gettop( L) - pushed, eLM_FromKeeper);
 		}
 		keeper_release( K);
 		// must trigger error after keeper state has been released
+		// (an error can be raised if we attempt to read an unregistered function)
 		if( pushed < 0)
 		{
 			return luaL_error( L, "tried to copy unsupported types");
