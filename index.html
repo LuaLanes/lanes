@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 16-Jan-14, and applies to version <tt>3.7.8</tt>.
+				This document was revised on 20-Jan-14, and applies to version <tt>3.8.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -1068,23 +1068,31 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	[true] = linda_h:set( key, [val])
+	[bool] = linda_h:set( key [, val [, ...]])
 
-	[val] = linda_h:get( key)
+	[val [, ...]] = linda_h:get( key [, count = 1])
 </pre></td></tr></table>
 
 <p>
 	The table access methods are for accessing a slot without queuing or consuming. They can be used for making shared tables of storage among the lanes.
+	<br/>
+	Writing to a slot never blocks because it ignores the limit. It overwrites existing value and clears any possible queued entries.
+	<br/>
+	Reading doesn't block either because <tt>get()</tt> returns whatever is available (which can be nothing), up to the specified count.
+	<br/>
+	Table access and <tt>send()</tt>/<tt>receive()</tt> can be used together; reading a slot essentially peeks the next outcoming value of a queue.
 </p>
 
 <p>
-	Writing to a slot never blocks because it ignores the limit. It overwrites existing value and clears any possible queued entries.
+	<tt>set()</tt> signals the linda for write if a value is stored.
 	<br/>
-	<tt>set()</tt> signals the linda from write if a value is stored.
+	(Since version 3.7.7) if the key was full but the new data count of the key after <tt>set()</tt> is below its limit, <tt>set()</tt> returns <tt>true</tt> and the linda is also signaled for read so that send()-blocked threads are awakened.
+</p>
+
+<p>
+	Since version 3.8.0, <tt>set()</tt> can write several values at the specified key, writing <tt>nil</tt> values is now possible, and clearing the contents at the specified key is done by not providing any value.
 	<br/>
-	(Since version 3.7.7) if the key was full but the new data count of the key after <tt>set()</tt> is below its limit,  <tt>set()</tt> returns <tt>true</tt> and the linda is also signaled for read so that send()-blocked threads are awakened.
-	<br/>
-	Table access and <tt>send()</tt>/<tt>receive()</tt> can be used together; reading a slot essentially peeks the next outcoming value of a queue.
+	Also, <tt>get()</tt> can read several values at once. If the key contains no data, <tt>get()</tt> returns no value. This can be used to separate the case when reading stored <tt>nil</tt> values.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
