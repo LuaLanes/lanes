@@ -1,5 +1,13 @@
 CHANGES:
 
+CHANGE 92: BGe 20-Jan-14
+   * version 3.8.1
+   * new function lane:get_debug_threadname()
+   * Fix invalid memory accesses when fetching the name of a joined lane with lanes:threads() (because its lua_State is closed)
+   * use luaL_newmetatable() to create the metatable for lane objects
+   * prevent malicious code from crashing by calling lane methods without passing the lane as first argument (raise an error instead)
+   * set_debug_threadname() is no longer registered in the function lookup databases because it holds a C pointer as upvalue and it might crash if used maliciously
+
 CHANGE 91: BGe 20-Jan-14
    * version 3.8.0
    * linda:set() accepts multiple values to set in the specified slot

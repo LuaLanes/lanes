@@ -413,6 +413,8 @@ PRINT( "\n\n", "---=== :join test ===---", "\n\n")
 
 local S= lanes_gen( "table",
   function(arg)
+		set_debug_threadname "join test lane"
+		set_finalizer( function() end)
     aux= {}
     for i, v in ipairs(arg) do
 	   table.insert (aux, 1, v)
@@ -422,11 +424,14 @@ local S= lanes_gen( "table",
 end )
 
 h= S { 12, 13, 14 }     -- execution starts, h[1..3] will get the return values
-
+-- wait a bit so that the lane hasa chance to set its debug name
+linda:receive(0.5, "gloupti")
+print( "joining with '" .. h:get_debug_threadname() .. "'")
 local a,b,c,d= h:join()
 if h.status == "error" then
-	print( "h error: " , a, b, c, d)
+	print( h:get_debug_threadname(), "error: " , a, b, c, d)
 else
+	print( h:get_debug_threadname(), a,b,c,d)
 	assert(a==14)
 	assert(b==13)
 	assert(c==12)
