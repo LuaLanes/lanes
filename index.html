@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 20-Jan-14, and applies to version <tt>3.8.0</tt>.
+				This document was revised on 20-Jan-14, and applies to version <tt>3.8.1</tt>.
 			</p>
 		</font>
 	</center>
@@ -630,7 +630,9 @@
 	</table>
 
 <p>
-	Each lane also gets a function <tt>set_debug_threadname()</tt> that it can use anytime to do as the name says. Supported debuggers are Microsoft Visual Studio (for the C side) and Decoda (for the Lua side).
+	Each lane also gets a global function <tt>set_debug_threadname()</tt> that it can use anytime to do as the name says. Supported debuggers are Microsoft Visual Studio (for the C side) and Decoda (for the Lua side).
+	<br/>
+	Starting with version 3.8.1, the lane has a new method <tt>lane:get_debug_threadname()</tt> that gives access to that name from the caller side (returns <tt>"&lt;unnamed&gt;"</tt> if unset, <tt>"&lt;closed&gt;"</tt> if the internal Lua state is closed).
 </p>
 
 <p>
