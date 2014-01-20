@@ -127,14 +127,14 @@ static void fifo_peek( lua_State* L, keeper_fifo* fifo, int count_)
 
 // in: fifo
 // out: remove the fifo from the stack, push as many items as required on the stack (function assumes they exist in sufficient number)
-static void fifo_pop( lua_State* L, keeper_fifo* fifo, int _count)
+static void fifo_pop( lua_State* L, keeper_fifo* fifo, int count_)
 {
 	int fifo_idx = lua_gettop( L);           // ... fifo
 	int i;
 	// each iteration pushes a value on the stack!
-	STACK_GROW( L, _count + 2);
+	STACK_GROW( L, count_ + 2);
 	// skip first item, we will push it last
-	for( i = 1; i < _count; ++ i)
+	for( i = 1; i < count_; ++ i)
 	{
 		int const at = fifo->first + i;
 		// push item on the stack
@@ -151,8 +151,12 @@ static void fifo_pop( lua_State* L, keeper_fifo* fifo, int _count)
 		lua_rawseti( L, fifo_idx, at);         // ... fifo vals val
 		lua_replace( L, fifo_idx);             // ... vals
 	}
-	fifo->first += _count;
-	fifo->count -= _count;
+	{
+		// avoid ever-growing indexes by resetting each time we detect the fifo is empty
+		int const new_count = fifo->count - count_;
+		fifo->first = (new_count == 0) ? 1 : (fifo->first + count_);
+		fifo->count = new_count;
+	}
 }
 
 // in: linda_ud expected at *absolute* stack slot idx

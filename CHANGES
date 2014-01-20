@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 93: BGe 20-Jan-14
+   * slightly improve linda performance when the producer/consumer scenario leaves leave the key empty
+
 CHANGE 92: BGe 20-Jan-14
    * version 3.8.1
    * new function lane:get_debug_threadname()
