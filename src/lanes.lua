@@ -196,7 +196,10 @@ end
 --
 --        .globals:  table of globals to set for a new thread (passed by value)
 --
---        .required:  table of packages to require
+--        .required: table of packages to require
+--
+--        .gc_cb:    function called when the lane handle is collected
+--
 --        ... (more options may be introduced later) ...
 --
 -- Calling with a function parameter ('lane_func') ends the string/table
@@ -272,10 +275,11 @@ local function gen( ... )
         end
     end
     
-    local prio, cs, g_tbl, package_tbl, required
+    local prio, cs, g_tbl, package_tbl, required, gc_cb
 
     for k,v in pairs(opt) do
-            if k=="priority" then prio= v
+        if k == "priority" then
+            prio = (type( v) == "number") and v or error( "Bad 'prio' option: expecting number, got " .. type( v), lev)
         elseif k=="cancelstep" then
             cs = (v==true) and 100 or
                 (v==false) and 0 or 
@@ -286,6 +290,8 @@ local function gen( ... )
             package_tbl = (type( v) == "table") and v or error( "Bad package: " .. tostring( v), lev)
         elseif k=="required" then
             required= (type( v) == "table") and v or error( "Bad 'required' option: expecting table, got " .. type( v), lev)
+        elseif k == "gc_cb" then
+            gc_cb = (type( v) == "function") and v or error( "Bad 'gc_cb' option: expecting function, got " .. type( v), lev)
         --..
         elseif k==1 then error( "unkeyed option: ".. tostring(v), lev )
         else error( "Bad option: ".. tostring(k), lev )
@@ -296,7 +302,7 @@ local function gen( ... )
     -- Lane generator
     --
     return function(...)
-        return thread_new( func, libs, cs, prio, g_tbl, package_tbl, required, ...)     -- args
+        return thread_new( func, libs, cs, prio, g_tbl, package_tbl, required, gc_cb, ...)     -- args
     end
 end
 

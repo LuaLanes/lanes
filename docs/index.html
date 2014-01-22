@@ -63,14 +63,14 @@
 
 		<font size="-1">
 			<p>
-				<br>
+				<br/>
 				<i>Copyright &copy; 2007-14 Asko Kauppi, Benoit Germain. All rights reserved.</i>
-				<br>
+				<br/>
 				Lua Lanes is published under the same <a href="http://en.wikipedia.org/wiki/MIT_License">MIT license</a> as Lua 5.1 and 5.2.
 			</p>
 
 			<p>
-				This document was revised on 20-Jan-14, and applies to version <tt>3.8.1</tt>.
+				This document was revised on 22-Jan-14, and applies to version <tt>3.8.2</tt>.
 			</p>
 		</font>
 	</center>
@@ -386,7 +386,7 @@
 
 <p>
 	(Since v3.5.0) Once Lanes is configured, one should register with Lanes the modules exporting functions that will be transferred either during lane generation or through <a href="#lindas">lindas</a>.
-	<br>
+	<br/>
 	Use <tt>lanes.require()</tt> for this purpose. This will call the original <tt>require()</tt>, then add the result to the lookup databases.
 </p>
 
@@ -418,7 +418,7 @@
 		</td>
 	</tr>
 </table>
-<br>
+<br/>
 <table border=1 bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 	<tr>
 		<td>
@@ -596,8 +596,17 @@
 				These tables are built from the modules listed here. <tt>required</tt> must be a list of strings, each one being the name of a module to be required. Each module is required with <tt>require()</tt> before the lanes function is invoked.
 				So, from the required module's point of view, requiring it manually from inside the lane body or having it required this way doesn't change anything. From the lane body's point of view, the only difference is that a module not creating a global won't be accessible.
 				Therefore, a lane body will also have to require a module manually, but this won't do anything more (see Lua's <tt>require</tt> documentation).
-				<br>
+				<br/>
 				ATTEMPTING TO TRANSFER A FUNCTION REGISTERED BY A MODULE NOT LISTED HERE WILL RAISE AN ERROR.
+			</td>
+		</tr>
+		<tr id="Tr1" valign=top>
+			<td>
+				<code>.gc_cb</code>
+			</td>
+			<td>function</td>
+			<td>
+				(Since version 3.8.2) Callback that gets invoked when the lane is garbage collected. The function receives two arguments (the lane name and a string, either <tt>"closed"</tt> or <tt>"selfdestruct"</tt>).
 			</td>
 		</tr>
 		<tr valign=top>
@@ -608,9 +617,9 @@
 			<td>
 				The priority of lanes generated in the range -3..+3 (default is 0).
 				These values are a mapping over the actual priority range of the underlying implementation.
-				<br>
+				<br/>
 				Implementation and dependability of priorities varies by platform. Especially Linux kernel 2.6 is not supporting priorities in user mode.
-				<br>
+				<br/>
 				A lane can also change its own thread priority dynamically with <a href="#priority"><tt>lanes.set_thread_priority()</tt></a>.
 			</td>
 		</tr>
@@ -621,9 +630,9 @@
 			<td> table</td>
 			<td>
 				Introduced at version 3.0.
-				<br>
+				<br/>
 				Specifying it when <code>libs_str</code> doesn't cause the <code>package</code> library to be loaded will generate an error.
-				<br>
+				<br/>
 				If not specified, the created lane will receive the current values of <tt>package</tt>. Only <tt>path</tt>, <tt>cpath</tt>, <tt>preload</tt> and <tt>loaders</tt> (Lua 5.1)/<tt>searchers</tt> (Lua 5.2) are transfered.
 			</td>
 		</tr>
@@ -678,7 +687,7 @@
 	</table>
 <p>
 	Besides setting a default priority in the generator <a href="#generator_settings">settings</a>, each thread can change its own priority at will. This is also true for the main Lua state.
-	<br>
+	<br/>
 	The priority must be in the range <tt>[-3,+3]</tt>.
 </p>
 
@@ -793,7 +802,7 @@
 
 <p>
 	Only available if lane tracking feature is compiled (see <tt>HAVE_LANE_TRACKING</tt> in <tt>lanes.c</tt>) and <a href="#track_lanes"><tt>track_lanes</tt></a> is set.
-	<br>
+	<br/>
 	Returns a table where keys are a lane's name and values are the lane's status. Returns <tt>nil</tt> if no lane is running.
 </p>
 
@@ -820,7 +829,7 @@
 
 <p>
 	Makes sure lane has finished, and gives its first (maybe only) return value. Other return values will be available in other <tt>lane_h</tt> indices.
-	<br>
+	<br/>
 	If the lane ended in an error, it is propagated to master state at this place.
 </p>
 
@@ -835,9 +844,9 @@
 
 <p>
   <tt>stack_tbl</tt> is a table describing where the error was thrown.
-	<br>
+	<br/>
   In <tt>"extended"</tt> mode, <tt>stack_tbl</tt> is an array of tables containing info gathered with <tt>lua_getinfo()</tt> (<tt>"source"</tt>,<tt>"currentline"</tt>,<tt>"name"</tt>,<tt>"namewhat"</tt>,<tt>"what"</tt>).
-	<br>
+	<br/>
 	In <tt>"basic mode"</tt>, <tt>stack_tbl</tt> is an array of "&lt;filename&gt;:&lt;line&gt;" strings. Use <tt>table.concat()</tt> to format it to your liking (or just ignore it).
 </p>
 
@@ -908,11 +917,11 @@
 
 <p>
 	Cancellation is tested <u>before</u> going to sleep in <tt>receive()</tt> or <tt>send()</tt> calls and after executing <tt>cancelstep</tt> Lua statements. Starting with version 3.0-beta, a pending <tt>receive()</tt>or <tt>send()</tt> call is awakened.
-	<br>
+	<br/>
 	This means the execution of the lane will resume although the operation has not completed, to give the lane a chance to detect cancellation (even in the case the code waits on a <a href="#lindas">linda</a> with infinite timeout).
-	<br>
+	<br/>
 	The code should be able to handle this situation appropriately if required (in other words, it should gracefully handle the fact that it didn't receive the expected values).
-	<br>
+	<br/>
 	It is also possible to manually test for cancel requests with <tt>cancel_test()</tt>.
 </p>
 
@@ -1103,13 +1112,13 @@
 
 <p>
 	Returns some information about the contents of the linda.
-	<br>
+	<br/>
 	If no key is specified, and the linda is empty, returns nothing.
-	<br>
+	<br/>
 	If no key is specified, and the linda is not empty, returns a table of key/count pairs that counts the number of items in each of the exiting keys of the linda. This count can be 0 if the key has been used but is empty.
-	<br>
+	<br/>
 	If a single key is specified, returns the number of pending items, or nothing if the key is unknown.
-	<br>
+	<br/>
 	If more than one key is specified, return a table of key/count pairs for the known keys.
 </p>
 
@@ -1125,17 +1134,17 @@
 
 <p>
 	A linda is a gateway to read and write data inside some hidden Lua states, called keeper states. Lindas are hashed to a fixed number of keeper states, which are a locking entity.
-	<br>
+	<br/>
 	The data sent through a linda is stored inside the associated keeper state in a Lua table where each linda slot is the key to another table containing a FIFO for that slot.
-	<br>
+	<br/>
 	Each keeper state is associated with an OS mutex, to prevent concurrent access to the keeper state. The linda itself uses two signals to be made aware of operations occuring on it.
-	<br>
+	<br/>
 	Whenever Lua code reads from or writes to a linda, the mutex is acquired. If linda limits don't block the operation, it is fulfilled, then the mutex is released.
-	<br>
+	<br/>
 	If the linda has to block, the mutex is released and the OS thread sleeps, waiting for a linda operation to be signalled. When an operation occurs on the same linda, possibly fufilling the condition, or a timeout expires, the thread wakes up.
-	<br>
+	<br/>
 	If the thread is woken but the condition is not yet fulfilled, it goes back to sleep, until the timeout expires.
-	<br>
+	<br/>
 	When a lane is cancelled, the signal it is waiting on (if any) is signalled. In that case, the linda operation will return no data.
 </p>
 
@@ -1264,9 +1273,9 @@ events to a common Linda, but... :).</font>
 
 <p>
 	The generated function acquires M tokens from the N available, or releases them if the value is negative. The acquiring call will suspend the lane, if necessary. Use <tt>M=N=1</tt> for a critical section lock (only one lane allowed to enter).
-	<br>
+	<br/>
 	When passsing <tt>"try"</tt> as second argument when acquiring, then <tt>lock_func</tt> operates on the linda with a timeout of 0 to emulate a TryLock() operation. If locking fails, <tt>lock_func</tt> returns <tt>false</tt>. <tt>"try"</tt> is ignored when releasing (as it it not expected to ever have to wait unless the acquisition/release pairs are not properly matched).
-	<br>
+	<br/>
 	Upon successful lock/unlock, <tt>lock_func</tt> returns <tt>true</tt> (always the case when block-waiting for completion).
 </p>
 
@@ -1364,7 +1373,7 @@ events to a common Linda, but... :).</font>
 
 <p>
 	This has the main drawback of not being LuaJIT-compatible, because some functions registered by LuaJIT are not regular C functions, but specially optimized implementations. As a result, <tt>lua_tocfunction()</tt> returns <tt>NULL</tt> for them.
-	<br>
+	<br/>
 	Therefore, Lanes no longer transfers functions that way. Instead, functions are transfered as follows (more or less):
 </p>
 
@@ -1385,15 +1394,15 @@ events to a common Linda, but... :).</font>
 
 <p>
 	Since functions are first class values, they don't have a name. All we know for sure is that when a C module registers some functions, they are accessible to the script that required the module through some exposed variables.
-	<br>
+	<br/>
 	For example, loading the <tt>string</tt> base library creates a table accessible when indexing the global environment with key <tt>"string"</tt>. Indexing this table with <tt>"match"</tt>, <tt>"gsub"</tt>, etc. will give us a function.
-	<br>
+	<br/>
 	When a lane generator creates a lane and performs initializations described by the list of base libraries and the list of required modules, it recursively scans the table created by the initialisation of the module, looking for all values that are C functions.
-	<br>
+	<br/>
 	Each time a function is encountered, the sequence of keys that reached that function is contatenated in a (hopefully) unique name. The [name, function] and [function, name] pairs are both stored in a lookup table in all involved Lua states (main Lua state and lanes states).
-	<br>
+	<br/>
 	Then when a function is transfered from one state to another, all we have to do is retrieve the name associated to a function in the source Lua state, then with that name retrieve the equivalent function that already exists in the destination state.
-	<br>
+	<br/>
 	Note that there is no need to transfer upvalues, as they are already bound to the function registered in the destination state. (And in any event, it is not possible to create a closure from a C function pushed on the stack, it can only be created with a <tt>lua_CFunction</tt> pointer).
 </p>
 

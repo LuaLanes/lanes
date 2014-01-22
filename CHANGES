@@ -1,5 +1,10 @@
 CHANGES:
 
+CHANGE 94: BGe 22-Jan-14
+   * version 3.8.2
+   * new lane launcher option gc_cb to set a callback that is invoked when a lane is garbage collected
+   * Fix more invalid memory accesses when fetching the name of a joined lane with lanes:threads() (because its lua_State is closed)
+
 CHANGE 93: BGe 20-Jan-14
    * slightly improve linda performance when the producer/consumer scenario leaves leave the key empty
 

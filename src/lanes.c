@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.8.1";
+char const* VERSION = "3.8.2";
 
 /*
 ===============================================================================
@@ -207,6 +207,19 @@ static inline struct s_lane* get_lane_from_registry( lua_State* L)
 	lua_pop( L, 1);
 	STACK_END( L, 0);
 	return s;
+}
+
+// intern the debug name in the specified lua state so that the pointer remains valid when the lane's state is closed
+static void securize_debug_threadname( lua_State* L, struct s_lane* s)
+{
+	STACK_CHECK( L);
+	STACK_GROW( L, 3);
+	lua_getuservalue( L, 1);
+	lua_newtable( L);
+	s->debug_name = lua_pushstring( L, s->debug_name);
+	lua_rawset( L, -3);
+	lua_pop( L, 1);
+	STACK_END( L, 0);
 }
 
 /*
@@ -1766,7 +1779,7 @@ LUAG_FUNC( get_debug_threadname)
 {
 	struct s_lane* const s = lua_toLane( L, 1);
 	luaL_argcheck( L, lua_gettop( L) == 1, 2, "too many arguments");
-	lua_pushstring( L, s->debug_name ? s->debug_name : "<unnamed>");
+	lua_pushstring( L, s->debug_name);
 	return 1;
 }
 
@@ -1998,6 +2011,8 @@ LUAG_FUNC( require)
 	return 1;
 }
 
+LUAG_FUNC( thread_gc);
+#define GCCB_KEY (void*)LG_thread_gc
 //---
 // lane_ud= thread_new( function, [libs_str], 
 //                          [cancelstep_uint=0], 
@@ -2005,6 +2020,7 @@ LUAG_FUNC( require)
 //                          [globals_tbl],
 //                          [package_tbl],
 //                          [required],
+//                          [gc_cb],
 //                          [... args ...] )
 //
 // Upvalues: metatable to use for 'lane_ud'
@@ -2022,8 +2038,9 @@ LUAG_FUNC( thread_new)
 	uint_t glob = lua_isnoneornil( L, 5) ? 0 : 5;
 	uint_t package = lua_isnoneornil( L, 6) ? 0 : 6;
 	uint_t required = lua_isnoneornil( L, 7) ? 0 : 7;
+	uint_t gc_cb = lua_isnoneornil( L, 8) ? 0 : 8;
 
-#define FIXED_ARGS 7
+#define FIXED_ARGS 8
 	uint_t args = lua_gettop(L) - FIXED_ARGS;
 
 	// public Lanes API accepts a generic range -3/+3
@@ -2203,7 +2220,7 @@ LUAG_FUNC( thread_new)
 	}
 	STACK_MID( L, 0);
 
-	ASSERT_L( (uint_t)lua_gettop( L2) == 1+args);
+	ASSERT_L( (uint_t)lua_gettop( L2) == 1 + args);
 	ASSERT_L( lua_isfunction( L2, 1));
 
 	// 's' is allocated from heap, not Lua, since its life span may surpass 
@@ -2217,9 +2234,9 @@ LUAG_FUNC( thread_new)
 
 	//memset( s, 0, sizeof(struct s_lane) );
 	s->L = L2;
-	s->status= PENDING;
+	s->status = PENDING;
 	s->waiting_on = NULL;
-	s->debug_name = NULL;
+	s->debug_name = "<unnamed>";
 	s->cancel_request = CANCEL_NONE;
 
 #if THREADWAIT_METHOD == THREADWAIT_CONDVAR
@@ -2238,25 +2255,32 @@ LUAG_FUNC( thread_new)
 	lua_setmetatable( L, -2);
 	STACK_MID( L, 1);
 
-	// Clear environment for the userdata
-	//
+	// Create uservalue for the userdata
+	// (this is where lane body return values will be stored when the handle is indexed by a numeric key)
 	lua_newtable( L);
+
+	// Store the gc_cb callback in the uservalue
+	if( gc_cb > 0)
+	{
+		lua_pushlightuserdata( L, GCCB_KEY);
+		lua_pushvalue( L, gc_cb);
+		lua_rawset( L, -3);
+	}
+
 	lua_setuservalue( L, -2);
 
-	// Place 's' in registry, for 'cancel_test()' (even if 'cs'==0 we still
-	// do cancel tests at pending send/receive).
-	//
+	// Store 's' in the lane's registry, for 'cancel_test()' (even if 'cs'==0 we still do cancel tests at pending send/receive).
 	lua_pushlightuserdata( L2, CANCEL_TEST_KEY);
 	lua_pushlightuserdata( L2, s);
 	lua_rawset( L2, LUA_REGISTRYINDEX);
 
 	if( cs)
 	{
-		lua_sethook( L2, cancel_hook, LUA_MASKCOUNT, cs );
+		lua_sethook( L2, cancel_hook, LUA_MASKCOUNT, cs);
 	}
 
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "thread_new: launching thread\n" INDENT_END));
-	THREAD_CREATE( &s->thread, lane_main, s, prio );
+	THREAD_CREATE( &s->thread, lane_main, s, prio);
 	STACK_END( L, 1);
 
 	DEBUGSPEW_CODE( -- debugspew_indent_depth);
@@ -2279,7 +2303,23 @@ LUAG_FUNC( thread_new)
 //
 LUAG_FUNC( thread_gc)
 {
-	struct s_lane* s = lua_toLane( L, 1);
+	bool_t have_gc_cb = FALSE;
+	struct s_lane* s = lua_toLane( L, 1);                               // ud
+
+	// if there a gc callback?
+	lua_getuservalue( L, 1);                                            // ud uservalue
+	lua_pushlightuserdata( L, GCCB_KEY);                                // ud uservalue __gc
+	lua_rawget( L, -2);                                                 // ud uservalue gc_cb|nil
+	if( !lua_isnil( L, -1))
+	{
+		lua_remove( L, -2);                                               // ud gc_cb|nil
+		lua_pushstring( L, s->debug_name);                                // ud gc_cb name
+		have_gc_cb = TRUE;
+	}
+	else
+	{
+		lua_pop( L, 2);                                                   // ud
+	}
 
 	// We can read 's->status' without locks, but not wait for it
 	// test KILLED state first, as it doesn't need to enter the selfdestruct chain
@@ -2291,13 +2331,17 @@ LUAG_FUNC( thread_gc)
 		DEBUGSPEW_CODE( fprintf( stderr, "** Joining with a killed thread (needs testing) **"));
 		// make sure the thread is no longer running, just like thread_join()
 		if(! THREAD_ISNULL( s->thread))
+		{
 			THREAD_WAIT( &s->thread, -1, &s->done_signal, &s->done_lock, &s->status);
-		// we know the thread was killed while the Lua VM was not doing anything: we should be able to close it without crashing
-		// now, thread_cancel() will not forcefully kill a lane with s->status >= DONE, so I am not sure it can ever happen
+		}
 		if( s->status >= DONE && s->L)
 		{
+			// we know the thread was killed while the Lua VM was not doing anything: we should be able to close it without crashing
+			// now, thread_cancel() will not forcefully kill a lane with s->status >= DONE, so I am not sure it can ever happen
 			lua_close( s->L);
 			s->L = 0;
+			// just in case, but s will be freed soon so...
+			s->debug_name = "<gc>";
 		}
 		DEBUGSPEW_CODE( fprintf( stderr, "** Joined ok **"));
 	}
@@ -2306,18 +2350,31 @@ LUAG_FUNC( thread_gc)
 		// still running: will have to be cleaned up later
 		selfdestruct_add( s);
 		assert( s->selfdestruct_next);
+		if( have_gc_cb)
+		{
+			lua_pushliteral( L, "selfdestruct");                            // ud gc_cb name status
+			lua_call( L, 2, 0);                                             // ud
+		}
 		return 0;
-
 	}
 	else if( s->L)
 	{
 		// no longer accessing the Lua VM: we can close right now
 		lua_close( s->L);
 		s->L = 0;
+		// just in case, but s will be freed soon so...
+		s->debug_name = "<gc>";
 	}
 
 	// Clean up after a (finished) thread
 	lane_cleanup( s);
+
+	// do this after lane cleanup in case the callback triggers an error
+	if( have_gc_cb)
+	{
+		lua_pushliteral( L, "closed");                                    // ud gc_cb name status
+		lua_call( L, 2, 0);                                               // ud
+	}
 	return 0;
 }
 
@@ -2422,23 +2479,26 @@ LUAG_FUNC( thread_join)
 	bool_t done;
 
 	done = THREAD_ISNULL( s->thread) || THREAD_WAIT( &s->thread, wait_secs, &s->done_signal, &s->done_lock, &s->status);
-	if (!done || !L2)
+	if( !done || !L2)
+	{
 		return 0;      // timeout: pushes none, leaves 'L2' alive
+	}
 
 	// Thread is DONE/ERROR_ST/CANCELLED; all ours now
-
-	STACK_GROW( L, 1);
 
 	if( s->mstatus == KILLED) // OS thread was killed if thread_cancel was forced
 	{
 		// in that case, even if the thread was killed while DONE/ERROR_ST/CANCELLED, ignore regular return values
-		
+		STACK_GROW( L, 1);
 		lua_pushnil( L);
 		lua_pushliteral( L, "killed");
 		ret = 2;
 	}
 	else
 	{
+		// debug_name is a pointer to string possibly interned in the lane's state, that no longer exists when the state is closed
+		// so store it in the userdata uservalue at a key that can't possibly collide
+		securize_debug_threadname( L, s);
 		switch( s->status)
 		{
 			case DONE:
@@ -2467,11 +2527,9 @@ LUAG_FUNC( thread_join)
 
 			default:
 			DEBUGSPEW_CODE( fprintf( stderr, "Status: %d\n", s->status));
-			ASSERT_L( FALSE ); ret= 0;
+			ASSERT_L( FALSE); ret = 0;
 		}
 		lua_close( L2);
-		// debug_name is a pointer to an interned string, that no longer exists when the state is closed
-		s->debug_name = "<closed>";
 	}
 	s->L = 0;
 
@@ -2652,10 +2710,7 @@ LUAG_FUNC( threads)
 		lua_newtable( L);                                          // {}
 		while( s != TRACKING_END)
 		{
-			if( s->debug_name)
-				lua_pushstring( L, s->debug_name);                     // {} "name"
-			else
-				lua_pushfstring( L, "Lane %p", s);                     // {} "name"
+			lua_pushstring( L, s->debug_name);                       // {} "name"
 			push_thread_status( L, s);                               // {} "name" "status"
 			lua_rawset( L, -3);                                      // {}
 			s = s->tracking_next;
