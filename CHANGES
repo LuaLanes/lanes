@@ -1,5 +1,11 @@
 CHANGES:
 
+CHANGE 95: BGe 22-Jan-14
+   * version 3.8.3
+   * fixed a possible Lua stack overflow when sending complex function through lindas or as lane body
+   * experimental: lanes.nameof() scans the registry if a regular search didn't yield anything interesting
+   * fixed lanes.nameof() misbehaving when encountering a LUA_TTHREAD object
+
 CHANGE 94: BGe 22-Jan-14
    * version 3.8.2
    * new lane launcher option gc_cb to set a callback that is invoked when a lane is garbage collected

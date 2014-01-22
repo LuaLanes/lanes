@@ -1443,14 +1443,7 @@ static int discover_object_name_recur( lua_State* L, int shortest_, int depth_)
 			break;
 
 			case LUA_TTHREAD:                                   // o "r" {c} {fqn} ... {?} k T
-			// search in the object's uservalue if it is a table
-			lua_getuservalue( L, -1);                           // o "r" {c} {fqn} ... {?} k T {u}
-			if( lua_istable( L, -1))
-			{
-				shortest_ = discover_object_name_recur( L, shortest_, depth_);
-			}
-			lua_pop( L, 1);                                     // o "r" {c} {fqn} ... {?} k T
-			STACK_MID( L, 2);
+			// TODO: explore the thread's stack frame looking for our culprit?
 			break;
 
 			case LUA_TUSERDATA:                                 // o "r" {c} {fqn} ... {?} k U
@@ -1531,9 +1524,19 @@ int luaG_nameof( lua_State* L)
 	lua_newtable( L);                                       // o nil {c}
 	// push a table whose contents are strings that, when concatenated, produce unique name
 	lua_newtable( L);                                       // o nil {c} {fqn}
+	lua_pushliteral( L, "_G");                              // o nil {c} {fqn} "_G"
+	lua_rawseti( L, -2, 1);                                 // o nil {c} {fqn}
 	// this is where we start the search
 	lua_pushglobaltable( L);                                // o nil {c} {fqn} _G
-	(void) discover_object_name_recur( L, 6666, 0);
+	(void) discover_object_name_recur( L, 6666, 1);
+	if( lua_isnil( L, 2)) // try again with registry, just in case...
+	{
+		lua_pop( L, 1);                                       // o nil {c} {fqn}
+		lua_pushliteral( L, "_R");                            // o nil {c} {fqn} "_R"
+		lua_rawseti( L, -2, 1);                               // o nil {c} {fqn}
+		lua_pushvalue( L, LUA_REGISTRYINDEX);                 // o nil {c} {fqn} _R
+		(void) discover_object_name_recur( L, 6666, 1);
+	}
 	lua_pop( L, 3);                                         // o "result"
 	STACK_END( L, 1);
 	lua_pushstring( L, luaL_typename( L, 1));               // o "result" "type"
@@ -1606,6 +1609,7 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, enum eLoo
 	STACK_END( L, 0);
 	// push the equivalent function in the destination's stack, retrieved from the lookup table
 	STACK_CHECK( L2);
+	STACK_GROW( L2, 2);
 	if( mode_ == eLM_ToKeeper)
 	{
 		// push a sentinel closure that holds the lookup name as upvalue
