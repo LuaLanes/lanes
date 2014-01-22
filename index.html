@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 22-Jan-14, and applies to version <tt>3.8.2</tt>.
+				This document was revised on 22-Jan-14, and applies to version <tt>3.8.3</tt>.
 			</p>
 		</font>
 	</center>
@@ -645,8 +645,8 @@
 </p>
 
 <p>
-    If a lane body pulls a C function imported by a module required before Lanes itself (thus not through a hooked <tt>require</tt>), the lane generator creation will raise an error.
-    The function name it shows is a path where it was found by scanning <tt>_G</tt>. As a utility, the name guessing functionality is exposed as such:
+	If a lane body pulls a C function imported by a module required before Lanes itself (thus not through a hooked <tt>require</tt>), the lane generator creation will raise an error.
+	The function name it shows is a path where it was found by scanning <tt>_G</tt>. As a utility, the name guessing functionality is exposed as such:
 
 	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 		<tr>
@@ -655,6 +655,10 @@
 			</td>
 		</tr>
 	</table>
+</p>
+
+<p>
+	Starting with version 3.8.3, <tt>lanes.nameof()</tt> searches the registry as well.
 </p>
 
 <h3>Free running lanes</h3>
