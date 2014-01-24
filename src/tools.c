@@ -1559,6 +1559,7 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, enum eLoo
 	size_t len;
 	ASSERT_L( lua_isfunction( L, i));                        // ... f ...
 	STACK_CHECK( L);
+	STACK_GROW( L, 3); // up to 3 slots are necessary on error
 	if( mode_ == eLM_FromKeeper)
 	{
 		lua_CFunction f = lua_tocfunction( L, i); // should *always* be sentinelfunc!
@@ -1609,7 +1610,7 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, enum eLoo
 	STACK_END( L, 0);
 	// push the equivalent function in the destination's stack, retrieved from the lookup table
 	STACK_CHECK( L2);
-	STACK_GROW( L2, 2);
+	STACK_GROW( L2, 3); // up to 3 slots are necessary on error
 	if( mode_ == eLM_ToKeeper)
 	{
 		// push a sentinel closure that holds the lookup name as upvalue

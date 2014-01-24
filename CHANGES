@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 96: BGe 24-Jan-14
+   * another Lua stack overflow fix when sending complex function through lindas or as lane body
+
 CHANGE 95: BGe 22-Jan-14
    * version 3.8.3
    * fixed a possible Lua stack overflow when sending complex function through lindas or as lane body
