@@ -216,7 +216,9 @@ static void securize_debug_threadname( lua_State* L, struct s_lane* s)
 	STACK_GROW( L, 3);
 	lua_getuservalue( L, 1);
 	lua_newtable( L);
-	s->debug_name = lua_pushstring( L, s->debug_name);
+	// Lua 5.1 can't do 's->debug_name = lua_pushstring( L, s->debug_name);'
+	lua_pushstring( L, s->debug_name);
+	s->debug_name = lua_tostring( L, -1);
 	lua_rawset( L, -3);
 	lua_pop( L, 1);
 	STACK_END( L, 0);
