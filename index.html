@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 22-Jan-14, and applies to version <tt>3.8.3</tt>.
+				This document was revised on 10-Feb-14, and applies to version <tt>3.8.4</tt>.
 			</p>
 		</font>
 	</center>
@@ -902,10 +902,12 @@
 <p>
 	<tt>cancel()</tt> sends a cancellation request to the lane.<br/>
 	First argument is a timeout, that defaults to 0 if not specified. (Starting with version 3.6.3) signification of the following arguments differ depending on whether the timeout is negative or not.
-	<br/>
+</p>
+<p>
 	If <tt>timeout_secs</tt> is negative (aka "soft cancel"), cancellation will only cause <tt>cancel_test()</tt> to return <tt>true</tt>, so that the lane can cleanup manually (the actual value is irrelevant).
-	If <tt>wake_bool</tt> is <tt>true</tt>, the lane is also signalled so that execution returns from any pending linda operation.
-	<br/>
+	If <tt>wake_bool</tt> is <tt>true</tt>, the lane is also signalled so that execution returns from any pending linda operation. Linda operations detecting the cancellation request return <tt>lanes.cancel_error</tt>.
+</p>
+<p>
 	If <tt>timeout_secs</tt> is positive (aka "hard cancel"), waits for the request to be processed, or a timeout to occur. Linda operations detecting the cancellation request will raise a special cancellation error (meaning they won't return in that case).
 	If <tt>force_kill_bool</tt> is <tt>true</tt>, <tt>forcekill_timeout</tt> can be set to tell how long lanes will wait for the OS thread to terminate before raising an error. Windows threads always terminate immediately, but it might not always be the case with some pthread implementations.
 	Returns <tt>true</tt> if soft cancelling, or the lane was already done (in <tt>"done"</tt>, <tt>"error"</tt> or <tt>"cancelled"</tt> status), or the cancellation was fruitful within <tt>timeout_secs</tt> timeout period.
@@ -1007,7 +1009,7 @@
 			print( "timed out")
 			break
 		end
-		print( "received: " .. val)
+		print( tostring( linda) .. " received: " .. val)
 	end
 </pre></td></tr></table>
 
@@ -1024,27 +1026,28 @@
 		<li><tt>receive</tt> can wait for multiple keys at once.</li>
 		<li><tt>receive</tt> has a batched mode to consume more than one value from a single key, as in <tt>linda:receive( 1.0, linda.batched, "key", 3, 6).</tt></li>
 		<li>individual keys' queue length can be limited, balancing speed differences in a producer/consumer scenario (making <tt>:send</tt> wait).</li>
+		<li><tt>tostring( linda)</tt> returns a string of the form <tt>"Linda: &lt;opt_name&gt;"</tt></li>
 	</ul>
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
 	h = lanes.linda( [opt_name])
 
-	bool|cancel_error = h:send( [timeout_secs,] key, ...)
+	[true|lanes.cancel_error] = h:send( [timeout_secs,] key, ...)
 
-	[key, val]|[cancel_error] = h:receive( [timeout_secs,] key [, ...])
+	[key, val]|[lanes.cancel_error] = h:receive( [timeout_secs,] key [, ...])
 
-	[key, val [, ...]]|[cancel_error] = h:receive( timeout, h.batched, key, n_uint_min[, n_uint_max])
+	[key, val [, ...]]|[lanes.cancel_error] = h:receive( timeout, h.batched, key, n_uint_min[, n_uint_max])
 
 	[true] = h:limit( key, n_uint)
 </pre></td></tr></table>
 
 <p>
-	The <tt>send</tt> and <tt>receive</tt> methods use Linda keys as FIFO stacks (first in, first out). Timeouts are given in seconds (millisecond accuracy). If using numbers as the first Linda key, one must explicitly give <tt>nil</tt> as the timeout parameter to avoid ambiguities.
+	The <tt>send()</tt> and <tt>receive()</tt> methods use Linda keys as FIFO stacks (first in, first out). Timeouts are given in seconds (millisecond accuracy). If using numbers as the first Linda key, one must explicitly give <tt>nil</tt> as the timeout parameter to avoid ambiguities.
 </p>
 
 <p>
-	By default, stack sizes are unlimited but limits can be enforced using the <tt>limit</tt> method. This can be useful to balance execution speeds in a producer/consumer scenario. Any negative value removes the limit.
+	By default, stack sizes are unlimited but limits can be enforced using the <tt>limit()</tt> method. This can be useful to balance execution speeds in a producer/consumer scenario. Any negative value removes the limit.
 	<br/>
 	A limit of 0 is allowed to block everything.
 	<br/>
@@ -1083,9 +1086,9 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	[bool] = linda_h:set( key [, val [, ...]])
+	bool|lanes.cancel_error = linda_h:set( key [, val [, ...]])
 
-	[val [, ...]] = linda_h:get( key [, count = 1])
+	[[val [, ...]]|lanes.cancel_error] = linda_h:get( key [, count = 1])
 </pre></td></tr></table>
 
 <p>
@@ -1099,15 +1102,19 @@
 </p>
 
 <p>
-	<tt>set()</tt> signals the linda for write if a value is stored.
+	<tt>set()</tt> signals the linda for write if a value is stored. If nothing special happens, <tt>set() </tt>returns nothing.
 	<br/>
-	(Since version 3.7.7) if the key was full but the new data count of the key after <tt>set()</tt> is below its limit, <tt>set()</tt> returns <tt>true</tt> and the linda is also signaled for read so that send()-blocked threads are awakened.
+	Since version 3.7.7, if the key was full but the new data count of the key after <tt>set()</tt> is below its limit, <tt>set()</tt> returns <tt>true</tt> and the linda is also signaled for read so that <tt>send()</tt>-blocked threads are awakened.
 </p>
 
 <p>
 	Since version 3.8.0, <tt>set()</tt> can write several values at the specified key, writing <tt>nil</tt> values is now possible, and clearing the contents at the specified key is done by not providing any value.
 	<br/>
 	Also, <tt>get()</tt> can read several values at once. If the key contains no data, <tt>get()</tt> returns no value. This can be used to separate the case when reading stored <tt>nil</tt> values.
+</p>
+
+<p>
+	Since version 3.8.4, trying to send or receive data through a cancelled linda does nothing and returns <tt>lanes.cancel_error</tt>.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
@@ -1132,6 +1139,19 @@
 
 <p>
 	Returns a table describing the full contents of a linda, or <tt>nil</tt> if the linda wasn't used yet.
+</p>
+
+<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
+	void = linda_h:cancel("read"|"write"|"both"|"none")
+</pre></td></tr></table>
+
+<p>
+	(Starting with version 3.8.4) Signals the linda so that lanes waiting for read, write, or both, wake up.
+	All linda operations (including <tt>get()</tt> and <tt>set()</tt>) will return <tt>lanes.cancel_error</tt> as when the calling lane is <a href="#cancelling">soft-cancelled</a> as long as the linda is marked as cancelled.
+	<br/>
+	<tt>"none"</tt> reset the linda's cancel status, but doesn't signal it.
+	<br/>
+	If not void, the lane's cancel status overrides the linda's cancel status.
 </p>
 
 <h3>Granularity of using Lindas</h3>
