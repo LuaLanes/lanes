@@ -83,9 +83,24 @@ h = lanes.gen("*", laneBody)()
 print "wait 3s"
 linda:receive( 3, "yeah")
 
--- hard cancel and wait 10s: the lane will be interrupted from inside its current linda:receive() and won't return from it
+-- hard cancel: the lane will be interrupted from inside its current linda:receive() and won't return from it
 print "hard cancel (always awakens)"
 h:cancel()
+
+print "wait 5s"
+linda:receive( 5, "yeah")
+
+--####################################################################
+print "\n\n####################################################################\nbegin linda cancel test\n"
+h = lanes.gen("*", laneBody)()
+
+-- wait 3s before cancelling the lane
+print "wait 3s"
+linda:receive( 3, "yeah")
+
+-- linda cancel: the lane will be interrupted from inside its current linda:receive() and won't return from it
+print "linda cancel (always awakens the lane)"
+linda:cancel( "both")
 
 print "wait 5s"
 linda:receive( 5, "yeah")

@@ -1,5 +1,11 @@
 CHANGES:
 
+CHANGE 97: BGe 10-Feb-14
+   * version 3.8.4
+   * new API linda:cancel("read"|"write"|"both"|"none")
+   * all linda operations return lanes.cancel_error on a cancelled linda
+   * raised an internal string length so that longer linda names are fully output before truncation applies when doing tostring( linda)
+
 CHANGE 96: BGe 24-Jan-14
    * another Lua stack overflow fix when sending complex function through lindas or as lane body
 
