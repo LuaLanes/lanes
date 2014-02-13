@@ -1,5 +1,12 @@
 CHANGES:
 
+CHANGE 98: BGe 13-Feb-14
+   * version 3.8.5
+   * linda:limit() returns lanes.cancel_error on a limited linda
+   * lanes.genlock() and lanes.genatomic() support cancelled lindas by returning lanes.cancel_error whenever appropriate
+   * fixed a possible Lua stack overflow when calling linda:dump()
+   * fixed cases where linda:send() and linda:receive() would not return lanes.cancel_error when they should
+
 CHANGE 97: BGe 10-Feb-14
    * version 3.8.4
    * new API linda:cancel("read"|"write"|"both"|"none")

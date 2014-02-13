@@ -190,6 +190,7 @@ int keeper_push_linda_storage( lua_State* L, void* ptr)
 	struct s_Keeper* K = keeper_acquire( ptr);
 	lua_State* KL = K ? K->L : NULL;
 	if( KL == NULL) return 0;
+	STACK_GROW( KL, 4);
 	STACK_CHECK( KL);
 	lua_pushlightuserdata( KL, fifos_key);                      // fifos_key
 	lua_rawget( KL, LUA_REGISTRYINDEX);                         // fifos
@@ -204,6 +205,7 @@ int keeper_push_linda_storage( lua_State* L, void* ptr)
 	}
 	// move data from keeper to destination state                  KEEPER                       MAIN
 	lua_pushnil( KL);                                           // storage nil
+	STACK_GROW( L, 5);
 	STACK_CHECK( L);
 	lua_newtable( L);                                                                        // out
 	while( lua_next( KL, -2))                                   // storage key fifo

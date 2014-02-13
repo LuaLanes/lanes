@@ -2,6 +2,33 @@ local lanes = require "lanes" .configure{ with_timers = false}
 
 local linda = lanes.linda()
 
+--####################################################################
+print "\n\n####################################################################\nbegin genlock & genatomic cancel test\n"
+
+-- get a lock and a atomic operator
+local lock = lanes.genlock( linda, "lock", 1)
+local atomic = lanes.genatomic( linda, "atomic")
+
+-- check that cancelled lindas give cancel_error as they should
+linda:cancel()
+assert( linda:get( "empty") == lanes.cancel_error)
+assert( lanes.genlock( linda, "any", 1) == lanes.cancel_error)
+assert( lanes.genatomic( linda, "any") == lanes.cancel_error)
+
+-- check that lock and atomic functions return cancel_error if the linda was cancelled
+assert( lock( 1) == lanes.cancel_error)
+assert( lock( -1) == lanes.cancel_error)
+assert( atomic( 1) == lanes.cancel_error)
+
+-- reset the linda so that the other tests work
+linda:cancel( "none")
+linda:limit( "lock", -1)
+linda:set( "lock")
+linda:limit( "atomic", -1)
+linda:set( "atomic")
+
+--####################################################################
+
 local laneBody = function( timeout_)
 	set_finalizer( function( err, stk)
 		if err == lanes.cancel_error then
@@ -105,4 +132,7 @@ linda:cancel( "both")
 print "wait 5s"
 linda:receive( 5, "yeah")
 
+--####################################################################
+
 print "\ndone"
+

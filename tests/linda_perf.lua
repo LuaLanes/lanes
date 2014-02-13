@@ -31,8 +31,8 @@ local batched = function( l, loop, batch)
 	print( val)
 end
 
-local lane_eater_gen = lanes.gen( "*", eater)
-local lane_batched_gen = lanes.gen( "*", batched)
+local lane_eater_gen = lanes.gen( "*", {priority = 3}, eater)
+local lane_batched_gen = lanes.gen( "*", {priority = 3}, batched)
 
 -- main thread writes data while a lane reads it
 local function ziva( preloop, loop, batch)

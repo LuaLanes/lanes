@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.8.4";
+char const* VERSION = "3.8.5";
 
 /*
 ===============================================================================
@@ -424,13 +424,17 @@ struct s_Linda
 
 static void linda_id( lua_State*, char const * const which);
 
-#define lua_toLinda(L,n) ((struct s_Linda *)luaG_todeep( L, linda_id, n ))
+static inline struct s_Linda* lua_toLinda( lua_State* L, int idx_)
+{
+	struct s_Linda* linda = luaG_todeep( L, linda_id, idx_);
+	luaL_argcheck( L, linda != NULL, idx_, "expecting a linda object");
+	return linda;
+}
 
-
-static void check_key_types( lua_State*L, int _start, int _end)
+static void check_key_types( lua_State* L, int start_, int end_)
 {
 	int i;
-	for( i = _start; i <= _end; ++ i)
+	for( i = start_; i <= end_; ++ i)
 	{
 		int t = lua_type( L, i);
 		if( t == LUA_TBOOLEAN || t == LUA_TNUMBER || t == LUA_TSTRING || t == LUA_TLIGHTUSERDATA)
@@ -459,8 +463,6 @@ LUAG_FUNC( linda_send)
 	time_d timeout = -1.0;
 	uint_t key_i = 2; // index of first key, if timeout not there
 
-	luaL_argcheck( L, linda, 1, "expected a linda object!");
-
 	if( lua_type( L, 2) == LUA_TNUMBER) // we don't want to use lua_isnumber() because of autocoercion
 	{
 		timeout = SIGNAL_TIMEOUT_PREPARE( lua_tonumber( L,2));
@@ -485,12 +487,26 @@ LUAG_FUNC( linda_send)
 
 	STACK_GROW( L, 1);
 	{
+		bool_t try_again = TRUE;
+		struct s_lane* const s = get_lane_from_registry( L);
 		struct s_Keeper* K = keeper_acquire( linda);
 		lua_State* KL = K ? K->L : NULL; // need to do this for 'STACK_CHECK'
 		if( KL == NULL) return 0;
 		STACK_CHECK( KL);
 		for( ;;)
 		{
+			if( s != NULL)
+			{
+				cancel = s->cancel_request;
+			}
+			cancel = (cancel != CANCEL_NONE) ? cancel : linda->simulate_cancel;
+			// if user wants to cancel, or looped because of a timeout, the call returns without sending anything
+			if( !try_again || cancel != CANCEL_NONE)
+			{
+				pushed = 0;
+				break;
+			}
+
 			STACK_MID( KL, 0);
 			pushed = keeper_call( KL, KEEPER_API( send), L, linda, key_i);
 			if( pushed < 0)
@@ -506,28 +522,19 @@ LUAG_FUNC( linda_send)
 			if( ret)
 			{
 				// Wake up ALL waiting threads
-				//
 				SIGNAL_ALL( &linda->write_happened);
 				break;
 			}
+
+			// instant timout to bypass the 
 			if( timeout == 0.0)
 			{
 				break;  /* no wait; instant timeout */
 			}
-			/* limit faced; push until timeout */
 
+			// storage limit hit, wait until timeout or signalled that we should try again
 			{
 				enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
-				struct s_lane* const s = get_lane_from_registry( L);
-				if( s != NULL)
-				{
-					cancel = s->cancel_request;
-				}
-				cancel = (cancel != CANCEL_NONE) ? cancel : linda->simulate_cancel;
-				if( cancel != CANCEL_NONE) // if user wants to cancel, the call returns without sending anything
-				{
-					break;
-				}
 				if( s != NULL)
 				{
 					// change status of lane to "waiting"
@@ -537,22 +544,12 @@ LUAG_FUNC( linda_send)
 					ASSERT_L( s->waiting_on == NULL);
 					s->waiting_on = &linda->read_happened;
 				}
+				// could not send because no room: wait until some data was read before trying again, or until timeout is reached
+				try_again = SIGNAL_WAIT( &linda->read_happened, &K->lock_, timeout);
+				if( s != NULL)
 				{
-					// could not send because no room: wait until some data was read before trying again, or until timeout is reached
-					bool_t const signalled = SIGNAL_WAIT( &linda->read_happened, &K->lock_, timeout);
-					if( s != NULL)
-					{
-						s->waiting_on = NULL;
-						s->status = prev_status;
-						// if a cancel request is pending, be sure to handle it as soon as possible
-						cancel = s->cancel_request;
-					}
-					cancel = (cancel != CANCEL_NONE) ? cancel : linda->simulate_cancel;
-					if( !signalled || cancel != CANCEL_NONE)
-					{
-						// waiting returned after a timeout, or pending cancel: we are done
-						break;
-					}
+					s->waiting_on = NULL;
+					s->status = prev_status;
 				}
 			}
 		}
@@ -569,7 +566,7 @@ LUAG_FUNC( linda_send)
 	switch( cancel)
 	{
 		case CANCEL_SOFT:
-		// if user wants to soft-cancel, the call returns CANCEL_ERROR
+		// if user wants to soft-cancel, the call returns lanes.cancel_error
 		lua_pushlightuserdata( L, CANCEL_ERROR);
 		return 1;
 
@@ -605,8 +602,6 @@ LUAG_FUNC( linda_receive)
 	
 	time_d timeout = -1.0;
 	uint_t key_i = 2;
-
-	luaL_argcheck( L, linda, 1, "expected a linda object!");
 
 	if( lua_type( L, 2) == LUA_TNUMBER) // we don't want to use lua_isnumber() because of autocoercion
 	{
@@ -655,10 +650,24 @@ LUAG_FUNC( linda_receive)
 	}
 
 	{
+		bool_t try_again = TRUE;
+		struct s_lane* const s = get_lane_from_registry( L);
 		struct s_Keeper* K = keeper_acquire( linda);
 		if( K == NULL) return 0;
 		for( ;;)
 		{
+			if( s != NULL)
+			{
+				cancel = s->cancel_request;
+			}
+			cancel = (cancel != CANCEL_NONE) ? cancel : linda->simulate_cancel;
+			// if user wants to cancel, or looped because of a timeout, the call returns without sending anything
+			if( !try_again || cancel != CANCEL_NONE)
+			{
+				pushed = 0;
+				break;
+			}
+
 			// all arguments of receive() but the first are passed to the keeper's receive function
 			pushed = keeper_call( K->L, keeper_receive, L, linda, key_i);
 			if( pushed < 0)
@@ -674,26 +683,16 @@ LUAG_FUNC( linda_receive)
 				//
 				SIGNAL_ALL( &linda->read_happened);
 				break;
-
 			}
+
 			if( timeout == 0.0)
 			{
 				break;  /* instant timeout */
 			}
-			/* nothing received; wait until timeout */
 
+			// nothing received, wait until timeout or signalled that we should try again
 			{
 				enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
-				struct s_lane* const s = get_lane_from_registry( L);
-				if( s != NULL)
-				{
-					cancel = s->cancel_request;
-				}
-				cancel = (cancel != CANCEL_NONE) ? cancel : linda->simulate_cancel;
-				if( cancel != CANCEL_NONE) // if user wants to cancel, the call returns without providing anything
-				{
-					break;
-				}
 				if( s != NULL)
 				{
 					// change status of lane to "waiting"
@@ -703,22 +702,12 @@ LUAG_FUNC( linda_receive)
 					ASSERT_L( s->waiting_on == NULL);
 					s->waiting_on = &linda->write_happened;
 				}
+				// not enough data to read: wakeup when data was sent, or when timeout is reached
+				try_again = SIGNAL_WAIT( &linda->write_happened, &K->lock_, timeout);
+				if( s != NULL)
 				{
-					// not enough data to read: wakeup when data was sent, or when timeout is reached
-					bool_t const signalled = SIGNAL_WAIT( &linda->write_happened, &K->lock_, timeout);
-					if( s != NULL)
-					{
-						s->waiting_on = NULL;
-						s->status = prev_status;
-						// if a cancel request is pending, be sure to handle it as soon as possible
-						cancel = s->cancel_request;
-					}
-					cancel = (cancel != CANCEL_NONE) ? cancel : linda->simulate_cancel;
-					if( !signalled || cancel != CANCEL_NONE)
-					{
-						// waiting returned after a timeout, or pending cancel: we are done
-						break;
-					}
+					s->waiting_on = NULL;
+					s->status = prev_status;
 				}
 			}
 		}
@@ -761,7 +750,6 @@ LUAG_FUNC( linda_set)
 	struct s_Linda* const linda = lua_toLinda( L, 1);
 	int pushed;
 	bool_t has_value = lua_gettop( L) > 2;
-	luaL_argcheck( L, linda, 1, "expected a linda object!");
 
 	// make sure the key is of a valid type (throws an error if not the case)
 	check_key_types( L, 2, 2);
@@ -819,7 +807,6 @@ LUAG_FUNC( linda_count)
 	struct s_Linda* linda = lua_toLinda( L, 1);
 	int pushed;
 
-	luaL_argcheck( L, linda, 1, "expected a linda object!");
 	// make sure the keys are of a valid type
 	check_key_types( L, 2, lua_gettop( L));
 
@@ -848,7 +835,6 @@ LUAG_FUNC( linda_get)
 	int pushed;
 	int count = luaL_optint( L, 3, 1);
 	luaL_argcheck( L, count >= 1, 3, "count should be >= 1");
-	luaL_argcheck( L, linda, 1, "expected a linda object");
 	luaL_argcheck( L, lua_gettop( L) <= 3, 4, "too many arguments");
 
 	// make sure the key is of a valid type (throws an error if not the case)
@@ -897,7 +883,6 @@ LUAG_FUNC( linda_limit)
 	bool_t wake_writers = FALSE;
 
 	// make sure we got 3 arguments: the linda, a key and a limit
-	luaL_argcheck( L, linda, 1, "expected a linda object!");
 	luaL_argcheck( L, lua_gettop( L) == 3, 2, "wrong number of arguments");
 	// make sure we got a numeric limit
 	luaL_checknumber( L, 3);
@@ -907,12 +892,22 @@ LUAG_FUNC( linda_limit)
 	{
 		struct s_Keeper* K = keeper_acquire( linda);
 		if( K == NULL) return 0;
-		pushed = keeper_call( K->L, KEEPER_API( limit), L, linda, 2);
-		ASSERT_L( pushed == 0 || pushed == 1); // no error, optional boolean value saying if we should wake blocked writer threads
-		if( pushed == 1)
+
+		if( linda->simulate_cancel == CANCEL_NONE)
 		{
-			ASSERT_L( lua_type( L, -1) == LUA_TBOOLEAN && lua_toboolean( L, -1) == 1);
-			SIGNAL_ALL( &linda->read_happened); // To be done from within the 'K' locking area
+			pushed = keeper_call( K->L, KEEPER_API( limit), L, linda, 2);
+			ASSERT_L( pushed == 0 || pushed == 1); // no error, optional boolean value saying if we should wake blocked writer threads
+			if( pushed == 1)
+			{
+				ASSERT_L( lua_type( L, -1) == LUA_TBOOLEAN && lua_toboolean( L, -1) == 1);
+				SIGNAL_ALL( &linda->read_happened); // To be done from within the 'K' locking area
+			}
+		}
+		else // linda is cancelled
+		{
+			// do nothing and return lanes.cancel_error
+			lua_pushlightuserdata( L, CANCEL_ERROR);
+			pushed = 1;
 		}
 		keeper_release( K);
 	}
@@ -929,12 +924,11 @@ LUAG_FUNC( linda_limit)
 LUAG_FUNC( linda_cancel)
 {
 	struct s_Linda* linda = lua_toLinda( L, 1);
-	char const* who = luaL_checkstring( L, 2);
+	char const* who = luaL_optstring( L, 2, "both");
 	struct s_Keeper* K;
 
 	// make sure we got 3 arguments: the linda, a key and a limit
-	luaL_argcheck( L, linda, 1, "expected a linda object!");
-	luaL_argcheck( L, lua_gettop( L) == 2, 2, "wrong number of arguments");
+	luaL_argcheck( L, lua_gettop( L) <= 2, 2, "wrong number of arguments");
 
 	// signalling must be done from inside the K locking area
 	K = keeper_acquire( linda);
@@ -984,11 +978,11 @@ LUAG_FUNC( linda_cancel)
 * different userdata and won't be known to be essentially the same deep one
 * without this.
 */
-LUAG_FUNC( linda_deep ) {
-    struct s_Linda *linda= lua_toLinda( L, 1 );
-    luaL_argcheck( L, linda, 1, "expected a linda object!");
-    lua_pushlightuserdata( L, linda );      // just the address
-    return 1;
+LUAG_FUNC( linda_deep)
+{
+	struct s_Linda* linda= lua_toLinda( L, 1);
+	lua_pushlightuserdata( L, linda); // just the address
+	return 1;
 }
 
 
@@ -1002,10 +996,10 @@ LUAG_FUNC( linda_deep ) {
 
 static int linda_tostring( lua_State* L, int idx_, bool_t opt_)
 {
-	struct s_Linda* linda = lua_toLinda( L, idx_);
+	struct s_Linda* linda = luaG_todeep( L, linda_id, idx_);
 	if( !opt_)
 	{
-		luaL_argcheck( L, linda, idx_, "expected a linda object!");
+		luaL_argcheck( L, linda, idx_, "expecting a linda object");
 	}
 	if( linda != NULL)
 	{
