@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 10-Feb-14, and applies to version <tt>3.8.4</tt>.
+				This document was revised on 13-Feb-14, and applies to version <tt>3.8.5</tt>.
 			</p>
 		</font>
 	</center>
@@ -1039,7 +1039,7 @@
 
 	[key, val [, ...]]|[lanes.cancel_error] = h:receive( timeout, h.batched, key, n_uint_min[, n_uint_max])
 
-	[true] = h:limit( key, n_uint)
+	[true|lanes.cancel_error] = h:limit( key, n_uint)
 </pre></td></tr></table>
 
 <p>
@@ -1288,11 +1288,11 @@ events to a common Linda, but... :).</font>
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	lock_func = lanes.genlock( linda_h, key [,N_uint=1])
+	lock_func|lanes.cancel_error = lanes.genlock( linda_h, key [,N_uint=1])
 
-	bool = lock_func( M_uint [, "try"] )     -- acquire
+	bool|lanes.cancel_error = lock_func( M_uint [, "try"] )     -- acquire
 	..
-	bool = lock_func( -M_uint)    -- release
+	bool|lanes.cancel_error = lock_func( -M_uint)    -- release
 </pre></td></tr></table>
 
 <p>
@@ -1314,9 +1314,9 @@ events to a common Linda, but... :).</font>
 <p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	atomic_func = lanes.genatomic( linda_h, key [,initial_num=0.0])
+	atomic_func|lanes.cancel_error = lanes.genatomic( linda_h, key [,initial_num=0.0])
 
-	new_num = atomic_func( [diff_num=+1.0])
+	new_num|lanes.cancel_error = atomic_func( [diff_num=+1.0])
 </pre></td></tr></table>
 
 <p>
