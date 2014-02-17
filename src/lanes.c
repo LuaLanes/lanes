@@ -419,8 +419,10 @@ struct s_Linda
 	SIGNAL_T read_happened;
 	SIGNAL_T write_happened;
 	enum e_cancel_request simulate_cancel;
+	unsigned long group;
 	char name[1];
 };
+#define LINDA_KEEPER_HASHSEED( linda) (linda->group ? linda->group : (unsigned long)linda)
 
 static void* linda_id( lua_State*, enum eDeepOp);
 
@@ -489,7 +491,7 @@ LUAG_FUNC( linda_send)
 	{
 		bool_t try_again = TRUE;
 		struct s_lane* const s = get_lane_from_registry( L);
-		struct s_Keeper* K = keeper_acquire( linda);
+		struct s_Keeper* K = keeper_acquire( LINDA_KEEPER_HASHSEED( linda));
 		lua_State* KL = K ? K->L : NULL; // need to do this for 'STACK_CHECK'
 		if( KL == NULL) return 0;
 		STACK_CHECK( KL);
@@ -652,7 +654,7 @@ LUAG_FUNC( linda_receive)
 	{
 		bool_t try_again = TRUE;
 		struct s_lane* const s = get_lane_from_registry( L);
-		struct s_Keeper* K = keeper_acquire( linda);
+		struct s_Keeper* K = keeper_acquire( LINDA_KEEPER_HASHSEED( linda));
 		if( K == NULL) return 0;
 		for( ;;)
 		{
@@ -755,7 +757,7 @@ LUAG_FUNC( linda_set)
 	check_key_types( L, 2, 2);
 
 	{
-		struct s_Keeper* K = keeper_acquire( linda);
+		struct s_Keeper* K = keeper_acquire( LINDA_KEEPER_HASHSEED( linda));
 		if( K == NULL) return 0;
 
 		if( linda->simulate_cancel == CANCEL_NONE)
@@ -811,7 +813,7 @@ LUAG_FUNC( linda_count)
 	check_key_types( L, 2, lua_gettop( L));
 
 	{
-		struct s_Keeper* K = keeper_acquire( linda);
+		struct s_Keeper* K = keeper_acquire( LINDA_KEEPER_HASHSEED( linda));
 		if( K == NULL) return 0;
 		pushed = keeper_call( K->L, KEEPER_API( count), L, linda, 2);
 		keeper_release( K);
@@ -840,7 +842,7 @@ LUAG_FUNC( linda_get)
 	// make sure the key is of a valid type (throws an error if not the case)
 	check_key_types( L, 2, 2);
 	{
-		struct s_Keeper* K = keeper_acquire( linda);
+		struct s_Keeper* K = keeper_acquire( LINDA_KEEPER_HASHSEED( linda));
 		if( K == NULL) return 0;
 
 		if( linda->simulate_cancel == CANCEL_NONE)
@@ -890,7 +892,7 @@ LUAG_FUNC( linda_limit)
 	check_key_types( L, 2, 2);
 
 	{
-		struct s_Keeper* K = keeper_acquire( linda);
+		struct s_Keeper* K = keeper_acquire( LINDA_KEEPER_HASHSEED( linda));
 		if( K == NULL) return 0;
 
 		if( linda->simulate_cancel == CANCEL_NONE)
@@ -931,7 +933,7 @@ LUAG_FUNC( linda_cancel)
 	luaL_argcheck( L, lua_gettop( L) <= 2, 2, "wrong number of arguments");
 
 	// signalling must be done from inside the K locking area
-	K = keeper_acquire( linda);
+	K = keeper_acquire( LINDA_KEEPER_HASHSEED( linda));
 	if( K == NULL) return 0;
 
 	linda->simulate_cancel = CANCEL_SOFT;
@@ -1057,7 +1059,7 @@ LUAG_FUNC( linda_concat)
 LUAG_FUNC( linda_dump)
 {
 	struct s_Linda* linda = lua_toLinda( L, 1);
-	return keeper_push_linda_storage( L, linda);
+	return keeper_push_linda_storage( L, linda, LINDA_KEEPER_HASHSEED( linda));
 }
 
 /*
@@ -1093,11 +1095,28 @@ static void* linda_id( lua_State* L, enum eDeepOp op_)
 			struct s_Linda* s;
 			size_t name_len = 0;
 			char const* linda_name = NULL;
-			int const top = lua_gettop( L);
-
-			if( top > 0 && lua_type( L, top) == LUA_TSTRING)
+			unsigned long linda_group = 0;
+			// should have a string and/or a number of the stack as parameters (name and group)
+			switch( lua_gettop( L))
 			{
-				linda_name = lua_tolstring( L, top, &name_len);
+				default: // 0
+				break;
+
+				case 1: // 1 parameter, either a name or a group
+				if( lua_type( L, -1) == LUA_TSTRING)
+				{
+					linda_name = lua_tolstring( L, -1, &name_len);
+				}
+				else
+				{
+					linda_group = (unsigned long) lua_tointeger( L, -1);
+				}
+				break;
+
+				case 2: // 2 parameters, a name and group, in that order
+				linda_name = lua_tolstring( L, -2, &name_len);
+				linda_group = lua_tointeger( L, -1);
+				break;
 			}
 
 			/* The deep data is allocated separately of Lua stack; we might no
@@ -1110,6 +1129,7 @@ static void* linda_id( lua_State* L, enum eDeepOp op_)
 			SIGNAL_INIT( &s->read_happened);
 			SIGNAL_INIT( &s->write_happened);
 			s->simulate_cancel = CANCEL_NONE;
+			s->group = linda_group << KEEPER_MAGIC_SHIFT;
 			s->name[0] = 0;
 			memcpy( s->name, linda_name, name_len ? name_len + 1 : 0);
 			return s;
@@ -1118,24 +1138,24 @@ static void* linda_id( lua_State* L, enum eDeepOp op_)
 		case eDO_delete:
 		{
 			struct s_Keeper* K;
-			struct s_Linda* l = lua_touserdata( L, 1);
-			ASSERT_L( l);
+			struct s_Linda* linda = lua_touserdata( L, 1);
+			ASSERT_L( linda);
 
 			/* Clean associated structures in the keeper state.
 			*/
-			K = keeper_acquire( l);
+			K = keeper_acquire( LINDA_KEEPER_HASHSEED( linda));
 			if( K && K->L) // can be NULL if this happens during main state shutdown (lanes is GC'ed -> no keepers -> no need to cleanup)
 			{
-				keeper_call( K->L, KEEPER_API( clear), L, l, 0);
+				keeper_call( K->L, KEEPER_API( clear), L, linda, 0);
 			}
 			keeper_release( K);
 
 			/* There aren't any lanes waiting on these lindas, since all proxies
 			* have been gc'ed. Right?
 			*/
-			SIGNAL_FREE( &l->read_happened);
-			SIGNAL_FREE( &l->write_happened);
-			free( l);
+			SIGNAL_FREE( &linda->read_happened);
+			SIGNAL_FREE( &linda->write_happened);
+			free( linda);
 			return NULL;
 		}
 
@@ -1209,16 +1229,24 @@ static void* linda_id( lua_State* L, enum eDeepOp op_)
 }
 
 /*
- * ud = lanes.linda()
+ * ud = lanes.linda( [name[,group]])
  *
  * returns a linda object
  */
 LUAG_FUNC( linda)
 {
 	int const top = lua_gettop( L);
-	luaL_argcheck( L, top <= 1, top, "too many arguments");
+	luaL_argcheck( L, top <= 2, top, "too many arguments");
 	if( top == 1)
+	{
+		int const t = lua_type( L, 1);
+		luaL_argcheck( L, t == LUA_TSTRING || t == LUA_TNUMBER, 1, "wrong parameter (should be a string or a number)");
+	}
+	else if( top == 2)
+	{
 		luaL_checktype( L, 1, LUA_TSTRING);
+		luaL_checktype( L, 2, LUA_TNUMBER);
+	}
 	return luaG_newdeepuserdata( L, linda_id);
 }
 

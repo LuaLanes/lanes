@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 100: BGe 17-Feb-14
+   * lanes.linda() accepts an optional integer group to give control on keeper state repartition
+
 CHANGE 99: BGe 17-Feb-14
    * version 3.9.0
    * keepers now require "package", receive package.path & package.cpath, and call on_state_create() if it is a C function

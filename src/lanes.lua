@@ -306,17 +306,6 @@ local function gen( ... )
     end
 end
 
----=== Lindas ===---
-
--- We let the C code attach methods to userdata directly
-
------
--- lanes.linda(["name"]) -> linda_ud
---
--- PUBLIC LANES API
-local linda = core.linda
-
-
 ---=== Timers ===---
 
 -- PUBLIC LANES API

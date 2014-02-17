@@ -186,9 +186,9 @@ static void push_table( lua_State* L, int idx)
 	STACK_END( L, 1);
 }
 
-int keeper_push_linda_storage( lua_State* L, void* ptr)
+int keeper_push_linda_storage( lua_State* L, void* ptr, unsigned long magic_)
 {
-	struct s_Keeper* K = keeper_acquire( ptr);
+	struct s_Keeper* K = keeper_acquire( magic_);
 	lua_State* KL = K ? K->L : NULL;
 	if( KL == NULL) return 0;
 	STACK_GROW( KL, 4);
@@ -685,7 +685,7 @@ char const* init_keepers( lua_State* L)
 	return NULL; // ok
 }
 
-struct s_Keeper* keeper_acquire( void const* ptr)
+struct s_Keeper* keeper_acquire( unsigned long magic_)
 {
 	// can be 0 if this happens during main state shutdown (lanes is being GC'ed -> no keepers)
 	if( GNbKeepers == 0)
@@ -701,7 +701,7 @@ struct s_Keeper* keeper_acquire( void const* ptr)
 		* Pointers are often aligned by 8 or so - ignore the low order bits
 		* have to cast to unsigned long to avoid compilation warnings about loss of data when converting pointer-to-integer
 		*/
-		unsigned int i = (unsigned int)(((unsigned long)(ptr) >> 3) % GNbKeepers);
+		unsigned int i = (unsigned int)((magic_ >> KEEPER_MAGIC_SHIFT) % GNbKeepers);
 		struct s_Keeper* K= &GKeepers[i];
 
 		MUTEX_LOCK( &K->lock_);

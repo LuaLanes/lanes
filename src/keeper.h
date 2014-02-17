@@ -18,10 +18,11 @@ char const* init_keepers( lua_State* L);
 void close_keepers( void);
 #endif // HAVE_KEEPER_ATEXIT_DESINIT
 
-struct s_Keeper *keeper_acquire( const void *ptr);
-void keeper_release( struct s_Keeper *K);
+struct s_Keeper *keeper_acquire( unsigned long magic_);
+#define KEEPER_MAGIC_SHIFT 3
+void keeper_release( struct s_Keeper* K);
 void keeper_toggle_nil_sentinels( lua_State *L, int _val_i, enum eLookupMode const mode_);
-int keeper_push_linda_storage( lua_State* L, void* ptr);
+int keeper_push_linda_storage( lua_State* L, void* ptr, unsigned long magic_);
 
 typedef lua_CFunction keeper_api_t;
 #define KEEPER_API( _op) keepercall_ ## _op
