@@ -1,5 +1,12 @@
 CHANGES:
 
+CHANGE 99: BGe 17-Feb-14
+   * version 3.9.0
+   * keepers now require "package", receive package.path & package.cpath, and call on_state_create() if it is a C function
+   * changed the deep public API (improved deep idfunc signature, renamed luaG_deep_userdata to luaG_newdeepuserdata)
+   * if an error occurs while copying a deep userdata, don't raise inside the keeper state
+   * fixed situations where raised errors could lead to memory leaks (deep gc)
+
 CHANGE 98: BGe 13-Feb-14
    * version 3.8.5
    * linda:limit() returns lanes.cancel_error on a limited linda

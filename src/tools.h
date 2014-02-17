@@ -99,11 +99,15 @@ extern int debugspew_indent_depth;
 void luaG_dump( lua_State* L );
 
 lua_State* luaG_newstate( lua_State* _from, char const* libs);
-void luaG_copy_one_time_settings( lua_State* L, lua_State* L2, char const* name_);
+void luaG_copy_one_time_settings( lua_State* L, lua_State* L2);
 
-typedef struct {
-    volatile int refcount;
-    void *deep;
+// this is pointed to by full userdata proxies, and allocated with malloc() to survive any lua_State lifetime
+typedef struct
+{
+	volatile int refcount;
+	void* deep;
+	// when stored in a keeper state, the full userdata doesn't have a metatable, so we need direct access to the idfunc
+	luaG_IdFunction idfunc;
 } DEEP_PRELUDE;
 
 enum eLookupMode
@@ -113,7 +117,7 @@ enum eLookupMode
 	eLM_FromKeeper // send a function from a keeper state to a lane
 };
 
-void luaG_push_proxy( lua_State *L, luaG_IdFunction idfunc, DEEP_PRELUDE *deep_userdata);
+char const* push_deep_proxy( lua_State* L, DEEP_PRELUDE* prelude, enum eLookupMode mode_);
 void luaG_inter_copy_package( lua_State* L, lua_State* L2, int _idx, enum eLookupMode mode_);
 
 int luaG_inter_copy( lua_State *L, lua_State *L2, uint_t n, enum eLookupMode mode_);
@@ -130,6 +134,8 @@ extern MUTEX_T mtid_lock;
 void populate_func_lookup_table( lua_State* L, int _i, char const* _name);
 void serialize_require( lua_State *L);
 int initialize_on_state_create( lua_State *L);
+void call_on_state_create( lua_State* L, lua_State* from_, enum eLookupMode mode_);
+
 extern MUTEX_T require_cs;
 
 // for verbose errors

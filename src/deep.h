@@ -15,9 +15,17 @@
 #define LANES_API
 #endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 
-typedef void (*luaG_IdFunction)( lua_State* L, char const* const which);
+enum eDeepOp
+{
+	eDO_new,
+	eDO_delete,
+	eDO_metatable,
+	eDO_module,
+};
 
-extern LANES_API int luaG_deep_userdata( lua_State* L, luaG_IdFunction idfunc);
+typedef void* (*luaG_IdFunction)( lua_State* L, enum eDeepOp op_);
+
+extern LANES_API int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc);
 extern LANES_API void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index);
 
 #endif // __LANES_DEEP_H__

@@ -44,6 +44,7 @@
 #include <ctype.h>
 
 #include "lua.h"
+#include "lualib.h"
 #include "lauxlib.h"
 
 #include "threading.h"
@@ -623,11 +624,10 @@ char const* init_keepers( lua_State* L)
 	int i;
 	PROPAGATE_ALLOCF_PREP( L);
 
-	STACK_CHECK( L);
-	lua_getfield( L, 1, "nb_keepers");
+	STACK_CHECK( L);                                       // L                            K
+	lua_getfield( L, 1, "nb_keepers");                     // nb_keepers
 	GNbKeepers = (int) lua_tointeger( L, -1);
-	lua_pop( L, 1);
-	STACK_END( L, 0);
+	lua_pop( L, 1);                                        //
 	assert( GNbKeepers >= 1);
 
 	GKeepers = malloc( GNbKeepers * sizeof( struct s_Keeper));
@@ -640,16 +640,37 @@ char const* init_keepers( lua_State* L)
 		}
 		STACK_CHECK( K);
 
+		// make sure 'package' is initialized in keeper states, so that we have require()
+		// this because this is needed when transfering deep userdata object
+		luaL_requiref( K, "package", luaopen_package, 1);                                 // package
+		lua_pop( K, 1);                                                                   //
+		STACK_MID( K, 0);
+		serialize_require( K);
+		STACK_MID( K, 0);
+
+		// copy package.path and package.cpath from the source state
+		lua_getglobal( L, "package");                        // package
+		if( !lua_isnil( L, -1))
+		{
+			luaG_inter_copy_package( L, K, -1, eLM_ToKeeper);
+		}
+		lua_pop( L, 1);                                      //
+		STACK_MID( L, 0);
+
+		// attempt to call on_state_create(), if we have one and it is a C function
+		// (only support a C function because we can't transfer executable Lua code in keepers)
+		call_on_state_create( K, L, eLM_ToKeeper);
+
 		// to see VM name in Decoda debugger
-		lua_pushliteral( K, "Keeper #");
-		lua_pushinteger( K, i + 1);
-		lua_concat( K, 2);
-		lua_setglobal( K, "decoda_name");
+		lua_pushliteral( K, "Keeper #");                                                  // "Keeper #"
+		lua_pushinteger( K, i + 1);                                                       // "Keeper #" n
+		lua_concat( K, 2);                                                                // "Keeper #n"
+		lua_setglobal( K, "decoda_name");                                                 //
 
 		// create the fifos table in the keeper state
-		lua_pushlightuserdata( K, fifos_key);
-		lua_newtable( K);
-		lua_rawset( K, LUA_REGISTRYINDEX);
+		lua_pushlightuserdata( K, fifos_key);                                             // fifo_key
+		lua_newtable( K);                                                                 // fifo_key {}
+		lua_rawset( K, LUA_REGISTRYINDEX);                                                //
 
 		STACK_END( K, 0);
 		// we can trigger a GC from inside keeper_call(), where a keeper is acquired
@@ -660,6 +681,7 @@ char const* init_keepers( lua_State* L)
 #if HAVE_KEEPER_ATEXIT_DESINIT
 	atexit( atexit_close_keepers);
 #endif // HAVE_KEEPER_ATEXIT_DESINIT
+	STACK_END( L, 0);
 	return NULL; // ok
 }
 
