@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 17-Feb-14, and applies to version <tt>3.9.0</tt>.
+				This document was revised on 17-Feb-14, and applies to version <tt>3.9.1</tt>.
 			</p>
 		</font>
 	</center>
@@ -1029,11 +1029,12 @@
 		<li><tt>receive</tt> has a batched mode to consume more than one value from a single key, as in <tt>linda:receive( 1.0, linda.batched, "key", 3, 6).</tt></li>
 		<li>individual keys' queue length can be limited, balancing speed differences in a producer/consumer scenario (making <tt>:send</tt> wait).</li>
 		<li><tt>tostring( linda)</tt> returns a string of the form <tt>"Linda: &lt;opt_name&gt;"</tt></li>
+		<li>several lindas may share the same keeper state. Since version 3.9.1, state assignation can be controlled with the linda's group (an integer). All lindas belonging to the same group will share the same keeper state. One keeper state may be shared by several groups.</li>
 	</ul>
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	h = lanes.linda( [opt_name])
+	h = lanes.linda( [opt_name, [opt_group]])
 
 	[true|lanes.cancel_error] = h:send( [timeout_secs,] key, ...)
 
@@ -1171,7 +1172,7 @@
 	<br/>
 	If the thread is woken but the condition is not yet fulfilled, it goes back to sleep, until the timeout expires.
 	<br/>
-	When a lane is cancelled, the signal it is waiting on (if any) is signalled. In that case, the linda operation will return no data.
+	When a lane is cancelled, the signal it is waiting on (if any) is signalled. In that case, the linda operation will return <tt>lanes.cancel_error</tt>.
 </p>
 
 <p>
