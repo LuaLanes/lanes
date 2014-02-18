@@ -8,15 +8,8 @@ struct s_Keeper
 	//int count;
 };
 
-// if enabled, call close_keepers at the very last as we want to be sure no thread is GCing after.
-// (and therefore may perform linda object dereferencing after keepers are gone)
-// problem: maybe on some platforms (linux) atexit() is called after DLL/so are unloaded...
-#define HAVE_KEEPER_ATEXIT_DESINIT 0
-
-char const* init_keepers( lua_State* L);
-#if !HAVE_KEEPER_ATEXIT_DESINIT
-void close_keepers( void);
-#endif // HAVE_KEEPER_ATEXIT_DESINIT
+int init_keepers( lua_State* L);
+void close_keepers( lua_State* L);
 
 struct s_Keeper *keeper_acquire( unsigned long magic_);
 #define KEEPER_MAGIC_SHIFT 3

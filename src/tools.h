@@ -118,7 +118,7 @@ enum eLookupMode
 };
 
 char const* push_deep_proxy( lua_State* L, DEEP_PRELUDE* prelude, enum eLookupMode mode_);
-void luaG_inter_copy_package( lua_State* L, lua_State* L2, int _idx, enum eLookupMode mode_);
+int luaG_inter_copy_package( lua_State* L, lua_State* L2, int package_idx_, enum eLookupMode mode_);
 
 int luaG_inter_copy( lua_State *L, lua_State *L2, uint_t n, enum eLookupMode mode_);
 int luaG_inter_move( lua_State *L, lua_State *L2, uint_t n, enum eLookupMode mode_);
@@ -134,7 +134,7 @@ extern MUTEX_T mtid_lock;
 void populate_func_lookup_table( lua_State* L, int _i, char const* _name);
 void serialize_require( lua_State *L);
 int initialize_on_state_create( lua_State *L);
-void call_on_state_create( lua_State* L, lua_State* from_, enum eLookupMode mode_);
+int call_on_state_create( lua_State* L, lua_State* from_, enum eLookupMode mode_);
 
 extern MUTEX_T require_cs;
 

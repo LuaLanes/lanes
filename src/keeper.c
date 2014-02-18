@@ -580,11 +580,7 @@ int keepercall_count( lua_State* L)
 static struct s_Keeper *GKeepers = NULL;
 static int GNbKeepers = 0;
 
-#if HAVE_KEEPER_ATEXIT_DESINIT
-static void atexit_close_keepers( void)
-#else // HAVE_KEEPER_ATEXIT_DESINIT
-void close_keepers( void)
-#endif // HAVE_KEEPER_ATEXIT_DESINIT
+void close_keepers( lua_State* L)
 {
 	int i;
 	int const nbKeepers = GNbKeepers;
@@ -604,25 +600,29 @@ void close_keepers( void)
 	}
 	if( GKeepers != NULL)
 	{
-		free( GKeepers);
+		void* allocUD;
+		lua_Alloc allocF = lua_getallocf( L, &allocUD);
+		allocF( allocUD, GKeepers, nbKeepers * sizeof( struct s_Keeper), 0);
 	}
 	GKeepers = NULL;
 }
 
 /*
-* Initialize keeper states
-*
-* If there is a problem, return an error message (NULL for okay).
-*
-* Note: Any problems would be design flaws; the created Lua state is left
-*       unclosed, because it does not really matter. In production code, this
-*       function never fails.
-* settings table is at position 1 on the stack
-*/
-char const* init_keepers( lua_State* L)
+ * Initialize keeper states
+ *
+ * If there is a problem, return an error message (NULL for okay).
+ *
+ * Note: Any problems would be design flaws; the created Lua state is left
+ *       unclosed, because it does not really matter. In production code, this
+ *       function never fails.
+ * settings table is at position 1 on the stack
+ * pushes an error string on the stack in case of problem
+ */
+int init_keepers( lua_State* L)
 {
 	int i;
-	PROPAGATE_ALLOCF_PREP( L);
+	void* allocUD;
+	lua_Alloc allocF = lua_getallocf( L, &allocUD);
 
 	STACK_CHECK( L);                                       // L                            K
 	lua_getfield( L, 1, "nb_keepers");                     // nb_keepers
@@ -630,13 +630,21 @@ char const* init_keepers( lua_State* L)
 	lua_pop( L, 1);                                        //
 	assert( GNbKeepers >= 1);
 
-	GKeepers = malloc( GNbKeepers * sizeof( struct s_Keeper));
+	GKeepers = (struct s_Keeper*) allocF( allocUD, NULL, 0, GNbKeepers * sizeof( struct s_Keeper));
+	if( GKeepers == NULL)
+	{
+		lua_pushliteral( L, "init_keepers() failed while creating keeper array; out of memory");
+		STACK_MID( L, 1);
+		return 1;
+	}
 	for( i = 0; i < GNbKeepers; ++ i)
 	{
 		lua_State* K = PROPAGATE_ALLOCF_ALLOC();
 		if( K == NULL)
 		{
-			(void) luaL_error( L, "init_keepers() failed while creating keeper state; out of memory");
+			lua_pushliteral( L, "init_keepers() failed while creating keeper states; out of memory");
+			STACK_MID( L, 1);
+			return 1;
 		}
 		STACK_CHECK( K);
 
@@ -652,14 +660,26 @@ char const* init_keepers( lua_State* L)
 		lua_getglobal( L, "package");                        // package
 		if( !lua_isnil( L, -1))
 		{
-			luaG_inter_copy_package( L, K, -1, eLM_ToKeeper);
+			// when copying with mode eLM_ToKeeper, error message is pushed at the top of the stack, not raised immediately
+			if( luaG_inter_copy_package( L, K, -1, eLM_ToKeeper))
+			{
+				// if something went wrong, the error message is at the top of the stack
+				lua_remove( L, -2);                              // error_msg
+				STACK_MID( L, 1);
+				return 1;
+			}
 		}
 		lua_pop( L, 1);                                      //
 		STACK_MID( L, 0);
 
 		// attempt to call on_state_create(), if we have one and it is a C function
 		// (only support a C function because we can't transfer executable Lua code in keepers)
-		call_on_state_create( K, L, eLM_ToKeeper);
+		if( call_on_state_create( K, L, eLM_ToKeeper))
+		{
+			// if something went wrong, the error message is at the top of the stack
+			STACK_MID( L, 1);                                  // error_msg
+			return 1;
+		}
 
 		// to see VM name in Decoda debugger
 		lua_pushliteral( K, "Keeper #");                                                  // "Keeper #"
@@ -678,11 +698,8 @@ char const* init_keepers( lua_State* L)
 		MUTEX_RECURSIVE_INIT( &GKeepers[i].lock_);
 		GKeepers[i].L = K;
 	}
-#if HAVE_KEEPER_ATEXIT_DESINIT
-	atexit( atexit_close_keepers);
-#endif // HAVE_KEEPER_ATEXIT_DESINIT
 	STACK_END( L, 0);
-	return NULL; // ok
+	return 0; // success
 }
 
 struct s_Keeper* keeper_acquire( unsigned long magic_)

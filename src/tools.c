@@ -591,7 +591,7 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* name_)
 	DEBUGSPEW_CODE( -- debugspew_indent_depth);
 }
 
-void call_on_state_create( lua_State* L, lua_State* from_, enum eLookupMode mode_)
+int call_on_state_create( lua_State* L, lua_State* from_, enum eLookupMode mode_)
 {
 	if( s_on_state_create_func != NULL)
 	{
@@ -607,7 +607,8 @@ void call_on_state_create( lua_State* L, lua_State* from_, enum eLookupMode mode
 			if( mode_ != eLM_LaneBody)
 			{
 				// if attempting to call in a keeper state, do nothing because the function doesn't exist there
-				return;
+				// this doesn't count as an error though
+				return 0;
 			}
 			lua_getfield( L, LUA_REGISTRYINDEX, CONFIG_REGKEY);
 			lua_getfield( L, -1, "on_state_create");
@@ -616,10 +617,12 @@ void call_on_state_create( lua_State* L, lua_State* from_, enum eLookupMode mode
 		// capture error and forward it to main state
 		if( lua_pcall( L, 0, 0, 0) != LUA_OK)
 		{
-			(void) luaL_error( from_, "on_state_create failed: \"%s\"", lua_isstring( L, -1) ? lua_tostring( L, -1) : lua_typename( L, lua_type( L, -1)));
+			lua_pushfstring( from_, "on_state_create failed: \"%s\"", lua_isstring( L, -1) ? lua_tostring( L, -1) : lua_typename( L, lua_type( L, -1)));
+			return 1;
 		}
 		STACK_END( L, 0);
 	}
+	return 0;
 }
 
 /* 
@@ -637,7 +640,7 @@ void call_on_state_create( lua_State* L, lua_State* from_, enum eLookupMode mode
  */
 lua_State* luaG_newstate( lua_State* from_, char const* libs_)
 {
-	// reuse alloc function from the originating state
+	// re-use alloc function from the originating state
 #if PROPAGATE_ALLOCF
 	PROPAGATE_ALLOCF_PREP( from_);
 #endif // PROPAGATE_ALLOCF
@@ -648,7 +651,7 @@ lua_State* luaG_newstate( lua_State* from_, char const* libs_)
 		(void) luaL_error( from_, "luaG_newstate() failed while creating state; out of memory");
 	}
 
-	// we'll need this everytime we transfer some C function from/to this state
+	// we'll need this every time we transfer some C function from/to this state
 	lua_newtable( L);
 	lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);
 
@@ -720,7 +723,11 @@ lua_State* luaG_newstate( lua_State* from_, char const* libs_)
 	lua_gc( L, LUA_GCRESTART, 0);
 
 	// call this after the base libraries are loaded and GC is restarted
-	call_on_state_create( L, from_, eLM_LaneBody);
+	if( call_on_state_create( L, from_, eLM_LaneBody))
+	{
+		// if something went wrong, the error message is pushed on the stack
+		lua_error( from_);
+	}
 
 	STACK_CHECK( L);
 	// after all this, register everything we find in our name<->function database
@@ -2158,17 +2165,20 @@ int luaG_inter_move( lua_State* L, lua_State* L2, uint_t n, enum eLookupMode mod
 	return ret;
 }
 
-void luaG_inter_copy_package( lua_State* L, lua_State* L2, int _idx, enum eLookupMode mode_)
+int luaG_inter_copy_package( lua_State* L, lua_State* L2, int package_idx_, enum eLookupMode mode_)
 {
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_inter_copy_package()\n" INDENT_END));
 	DEBUGSPEW_CODE( ++ debugspew_indent_depth);
 	// package
 	STACK_CHECK( L);
 	STACK_CHECK( L2);
-	_idx = lua_absindex( L, _idx);
-	if( lua_type( L, _idx) != LUA_TTABLE)
+	package_idx_ = lua_absindex( L, package_idx_);
+	if( lua_type( L, package_idx_) != LUA_TTABLE)
 	{
-		(void) luaL_error( L, "expected package as table, got %s", luaL_typename( L, _idx));
+		lua_pushfstring( L, "expected package as table, got %s", luaL_typename( L, package_idx_));
+		STACK_MID( L, 1);
+		// raise the error when copying from lane to lane, else just leave it on the stack to be raised later
+		return ( mode_ == eLM_LaneBody) ? lua_error( L) : 1;
 	}
 	lua_getglobal( L2, "package");
 	if( !lua_isnil( L2, -1)) // package library not loaded: do nothing
@@ -2182,7 +2192,7 @@ void luaG_inter_copy_package( lua_State* L, lua_State* L2, int _idx, enum eLooku
 		for( i = 0; entries[i]; ++ i)
 		{
 			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%s\n" INDENT_END, entries[i]));
-			lua_getfield( L, _idx, entries[i]);
+			lua_getfield( L, package_idx_, entries[i]);
 			if( lua_isnil( L, -1))
 			{
 				lua_pop( L, 1);
@@ -2204,6 +2214,7 @@ void luaG_inter_copy_package( lua_State* L, lua_State* L2, int _idx, enum eLooku
 	STACK_END( L2, 0);
 	STACK_END( L, 0);
 	DEBUGSPEW_CODE( -- debugspew_indent_depth);
+	return 0;
 }
 
 

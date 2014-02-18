@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.9.0";
+char const* VERSION = "3.9.1";
 
 /*
 ===============================================================================
@@ -1679,9 +1679,7 @@ static int selfdestruct_gc( lua_State* L)
 			DEBUGSPEW_CODE( fprintf( stderr, "Killed %d lane(s) at process end.\n", n));
 		}
 	}
-#if !HAVE_KEEPER_ATEXIT_DESINIT
-	close_keepers();
-#endif // !HAVE_KEEPER_ATEXIT_DESINIT
+	close_keepers( L);
 
 	// remove the protected allocator, if any
 	{
@@ -2186,7 +2184,8 @@ LUAG_FUNC( thread_new)
 	// package
 	if( package != 0)
 	{
-		luaG_inter_copy_package( L, L2, package, eLM_LaneBody);
+		// when copying with mode eLM_LaneBody, should raise an error in case of problem, not leave it one the stack
+		(void) luaG_inter_copy_package( L, L2, package, eLM_LaneBody);
 	}
 
 	// modules to require in the target lane *before* the function is transfered!
@@ -2916,10 +2915,11 @@ static const struct luaL_Reg lanes_functions [] = {
 
 
 /*
-** One-time initializations
+ * One-time initializations
  * settings table it at position 1 on the stack
-*/
-static void init_once_LOCKED( lua_State* L)
+ * pushes an error string on the stack in case of problem
+ */
+static int init_once_LOCKED( lua_State* L)
 {
 	initialize_on_state_create( L);
 
@@ -2988,10 +2988,11 @@ static void init_once_LOCKED( lua_State* L)
 #endif // LINUX_SCHED_RR
 #endif // PLATFORM_LINUX
 	{
-		char const* err = init_keepers( L);
-		if (err)
+		// returns non-0 if an error message was pushed on the stack
+		int pushed_error = init_keepers( L);
+		if( pushed_error)
 		{
-			(void) luaL_error( L, "Unable to initialize: %s", err );
+			return pushed_error;
 		}
 	}
 
@@ -3030,11 +3031,12 @@ static void init_once_LOCKED( lua_State* L)
 	lua_insert( L, -2); // Swap key with the Linda object
 	lua_rawset( L, LUA_REGISTRYINDEX);
 
-	// we'll need this everytime we transfer some C function from/to this state
+	// we'll need this every time we transfer some C function from/to this state
 	lua_newtable( L);
 	lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);
 
 	STACK_END( L, 0);
+	return 0;
 }
 
 static volatile long s_initCount = 0;
@@ -3044,6 +3046,8 @@ static volatile long s_initCount = 0;
 // param 1: settings table
 LUAG_FUNC( configure)
 {
+	// set to 1 if an error occured inside init_once_LOCKED(), and message is found at the top of the stack
+	int init_once_error = 0;
 	char const* name = luaL_checkstring( L, lua_upvalueindex( 1));
 	_ASSERT_L( L, lua_type( L, 1) == LUA_TTABLE);
 	STACK_CHECK( L);
@@ -3081,7 +3085,7 @@ LUAG_FUNC( configure)
 		static volatile int /*bool*/ go_ahead; // = 0
 		if( InterlockedCompareExchange( &s_initCount, 1, 0) == 0)
 		{
-			init_once_LOCKED( L);
+			init_once_error = init_once_LOCKED( L);
 			go_ahead = 1; // let others pass
 		}
 		else
@@ -3099,13 +3103,22 @@ LUAG_FUNC( configure)
 			//
 			if( s_initCount == 0)
 			{
-				init_once_LOCKED( L);
+				init_once_error = init_once_LOCKED( L);
 				s_initCount = 1;
 			}
 		}
 		pthread_mutex_unlock( &my_lock);
 	}
 #endif // THREADAPI == THREADAPI_PTHREAD
+
+	// raise error outside the init-once mutex
+	if( init_once_error)
+	{
+		// will raise an error if the error is not a string (should not happen)
+		char const* error = luaL_checkstring( L, -1);
+		// raises an error with the message found at the top of the stack
+		lua_error( L);
+	}
 
 	// Retrieve main module interface table
 	lua_pushvalue( L, lua_upvalueindex( 2));                                  // settings M

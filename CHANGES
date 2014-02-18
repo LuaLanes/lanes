@@ -1,5 +1,12 @@
 CHANGES:
 
+CHANGE 101: BGe 18-Feb-14
+   * version 3.9.1
+   * removed some keeper desinit legacy dead code
+   * keeper array is allocated with master state's alloc function instead of malloc()/free()
+   * prevent application crash when specifying a very large number of keepers in the configuration options
+   * any error occuring during one-time inits is raised outside the one-time mutex protected code region
+
 CHANGE 100: BGe 17-Feb-14
    * lanes.linda() accepts an optional integer group to give control on keeper state repartition
 
