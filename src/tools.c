@@ -1074,7 +1074,10 @@ int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc)
 	{
 		int oldtop = lua_gettop( L);
 		prelude->deep = idfunc( L, eDO_new);
-		ASSERT_L( prelude->deep);
+		if( prelude->deep == NULL)
+		{
+			luaL_error( L, "idfunc(eDO_new) failed to create deep userdata (out of memory)");
+		}
 
 		if( lua_gettop( L) - oldtop != 0)
 		{

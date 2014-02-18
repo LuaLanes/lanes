@@ -1122,16 +1122,18 @@ static void* linda_id( lua_State* L, enum eDeepOp op_)
 			/* The deep data is allocated separately of Lua stack; we might no
 			* longer be around when last reference to it is being released.
 			* One can use any memory allocation scheme.
+			* just don't use L's allocf because we don't know which state will get the honor of GCing the linda
 			*/
 			s = (struct s_Linda*) malloc( sizeof(struct s_Linda) + name_len); // terminating 0 is already included
-			ASSERT_L( s);
-
-			SIGNAL_INIT( &s->read_happened);
-			SIGNAL_INIT( &s->write_happened);
-			s->simulate_cancel = CANCEL_NONE;
-			s->group = linda_group << KEEPER_MAGIC_SHIFT;
-			s->name[0] = 0;
-			memcpy( s->name, linda_name, name_len ? name_len + 1 : 0);
+			if( s)
+			{
+				SIGNAL_INIT( &s->read_happened);
+				SIGNAL_INIT( &s->write_happened);
+				s->simulate_cancel = CANCEL_NONE;
+				s->group = linda_group << KEEPER_MAGIC_SHIFT;
+				s->name[0] = 0;
+				memcpy( s->name, linda_name, name_len ? name_len + 1 : 0);
+			}
 			return s;
 		}
 
@@ -1231,7 +1233,7 @@ static void* linda_id( lua_State* L, enum eDeepOp op_)
 /*
  * ud = lanes.linda( [name[,group]])
  *
- * returns a linda object
+ * returns a linda object, or raises an error if creation failed
  */
 LUAG_FUNC( linda)
 {
@@ -2340,10 +2342,11 @@ LUAG_FUNC( thread_new)
 	// the handle's (if free running thread)
 	//
 	ud = lua_newuserdata( L, sizeof( struct s_lane*));
-	ASSERT_L( ud);
-
-	s = *ud = malloc( sizeof( struct s_lane));
-	ASSERT_L( s);
+	s = *ud = (struct s_lane*) malloc( sizeof( struct s_lane));
+	if( s == NULL)
+	{
+		return luaL_error( L, "could not create lane: out of memory");
+	}
 
 	//memset( s, 0, sizeof(struct s_lane) );
 	s->L = L2;

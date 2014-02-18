@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 102: BGe 18-Feb-14
+   * raise an error instead of dereferencing a NULL pointer on deep userdata creation and lane struct creation
+
 CHANGE 101: BGe 18-Feb-14
    * version 3.9.1
    * removed some keeper desinit legacy dead code
