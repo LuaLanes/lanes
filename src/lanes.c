@@ -3034,10 +3034,6 @@ static int init_once_LOCKED( lua_State* L)
 	lua_insert( L, -2); // Swap key with the Linda object
 	lua_rawset( L, LUA_REGISTRYINDEX);
 
-	// we'll need this every time we transfer some C function from/to this state
-	lua_newtable( L);
-	lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);
-
 	STACK_END( L, 0);
 	return 0;
 }
@@ -3186,13 +3182,17 @@ LUAG_FUNC( configure)
 	lua_setfield( L, -2, "require");                                          // settings M
 
 	lua_pushstring(L, VERSION);                                               // settings M VERSION
-	lua_setfield(L, -2, "version");                                           // settings M
+	lua_setfield( L, -2, "version");                                          // settings M
 
 	lua_pushinteger(L, THREAD_PRIO_MAX);                                      // settings M THREAD_PRIO_MAX
-	lua_setfield(L, -2, "max_prio");                                          // settings M
+	lua_setfield( L, -2, "max_prio");                                         // settings M
 
 	lua_pushlightuserdata( L, CANCEL_ERROR);                                  // settings M CANCEL_ERROR
-	lua_setfield(L, -2, "cancel_error");                                      // settings M
+	lua_setfield( L, -2, "cancel_error");                                     // settings M
+
+	// we'll need this every time we transfer some C function from/to this state
+	lua_newtable( L);
+	lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);
 
 	// register all native functions found in that module in the transferable functions database
 	// we process it before _G because we don't want to find the module when scanning _G (this would generate longer names)

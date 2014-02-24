@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 103: BGe 24-Feb-14
+   * Fix lookup database table not being created when it should if Lanes is required in more than one Lua master state
+
 CHANGE 102: BGe 18-Feb-14
    * raise an error instead of dereferencing a NULL pointer on deep userdata creation and lane struct creation
 
