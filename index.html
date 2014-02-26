@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 17-Feb-14, and applies to version <tt>3.9.1</tt>.
+				This document was revised on 26-Feb-14, and applies to version <tt>3.9.2</tt>.
 			</p>
 		</font>
 	</center>
@@ -105,6 +105,7 @@
 		<li>Threads can be given priorities.</li>
 		<li>Lanes are cancellable, with proper cleanup.</li>
 		<li>No Lua-side application level locking - ever!</li>
+		<li>Several totally independant Lanes universes may coexist in an application, one per "master" Lua state.</li>
 	</ul>
 
 
@@ -114,6 +115,7 @@
 		<li>Coroutines are not passed between states.</li>
 		<li>Sharing full userdata between states needs special C side preparations (-&gt; <A HREF="#deep_userdata">deep userdata</A>).</li>
 		<li>Network level parallelism not included.</li>
+		<li>Just like independant Lua states, Lanes universes cannot communicate together.</li>
 	</ul>
 </p>
 

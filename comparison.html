@@ -32,7 +32,7 @@ With the introduction of Lindas (Jun-2008), Lua Lanes simplifies its API while
 simultaneously adding more power and speed.
 
 Pros:
-    - regular Lua 5.1 module
+    - regular Lua 5.1/5.2 module
     - completely separate Lua states, one per OS thread
     - message passing, or shared data using Lindas
     - no application level locking, ever
@@ -54,7 +54,7 @@ Cons:
 
 Sample:
 <<
-  require "lanes"
+  lanes = require "lanes".configure()
   
   local function calculate(a,b,c)
     if not a then 
@@ -63,9 +63,9 @@ Sample:
     return a+b+c
   end
 
-  local h1= lanes.new(calculate)(1,2,3)
-  local h2= lanes.new(calculate)(10,20,30)
-  local h3= lanes.new(calculate)(100,200,300)
+  local h1= lanes.gen("base", calculate)(1,2,3)
+  local h2= lanes.new("base", calculate)(10,20,30)
+  local h3= lanes.new("base", calculate)(100,200,300)
 
   print( h1[1], h2[1], h3[1] )     -- pends for the results, or propagates error
 <<
@@ -304,11 +304,13 @@ Cons:
 <!-- footnotes +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
 <hr/>
 
-<p>For feedback, questions and suggestions:
-<UL>
-    <li><A HREF="http://luaforge.net/projects/lanes">Lanes @ LuaForge</A></li>
-    <li><A HREF="mailto:akauppi@gmail.com">the author</A></li>
-</UL>
+<p>
+	For feedback, questions and suggestions:
+	<ul>
+		<li><A HREF="http://github.com/LuaLanes/lanes">Lanes @ GitHub</A></li>
+		<li><A HREF="mailto:bnt.germain@gmail.com">the maintainer</A></li>
+		<li><A HREF="http://www.lua.org/lua-l.html">the lua mailing list</A></li>
+	</ul>
 </p>
 
 <!--
