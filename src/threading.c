@@ -248,7 +248,7 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
 
 #if THREADAPI == THREADAPI_WINDOWS
 
-#if WINVER <= 0x0400 // Windows NT4: Use Mutexes with Events
+#if _WIN32_WINNT < 0x0600 // CONDITION_VARIABLE aren't available
   //
   void MUTEX_INIT( MUTEX_T *ref ) {
      *ref= CreateMutex( NULL /*security attr*/, FALSE /*not locked*/, NULL );
@@ -270,7 +270,7 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
     if (!ReleaseMutex(*ref))
         FAIL( "ReleaseMutex", GetLastError() );
   }
-#endif // Windows NT4
+#endif // CONDITION_VARIABLE aren't available
 
 static int const gs_prio_remap[] =
 {
@@ -384,7 +384,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 #endif // !__GNUC__
 	}
 
-#if WINVER <= 0x0400 // Windows NT4
+#if _WIN32_WINNT < 0x0600 // CONDITION_VARIABLE aren't available
 
 	void SIGNAL_INIT( SIGNAL_T* ref)
 	{
@@ -477,7 +477,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 			FAIL( "WaitForSingleObject", GetLastError());
 	}
 
-#else // Windows Vista and above: condition variables exist, use them
+#else // CONDITION_VARIABLE are available, use them
 
 	//
 	void SIGNAL_INIT( SIGNAL_T *ref )
@@ -534,7 +534,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 		WakeAllConditionVariable( ref);
 	}
 
-#endif // Windows Vista and above
+#endif // CONDITION_VARIABLE are available
 
 #else // THREADAPI == THREADAPI_PTHREAD
   // PThread (Linux, OS X, ...)

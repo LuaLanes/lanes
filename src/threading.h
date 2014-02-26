@@ -59,17 +59,24 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
 */
 
 #if THREADAPI == THREADAPI_WINDOWS
-  #if defined ( PLATFORM_XBOX)
+  #if defined( PLATFORM_XBOX)
     #include <xtl.h>
   #else // !PLATFORM_XBOX
     #define WIN32_LEAN_AND_MEAN
-    // 'SignalObjectAndWait' needs this (targets Windows 2000 and above)
-    #ifndef _WIN32_WINNT // already defined by TDSM-Mingw64, so avoid a warning in that case
-    #define _WIN32_WINNT 0x0400
+    // CONDITION_VARIABLE needs version 0x0600+
+    // _WIN32_WINNT value is already defined by MinGW, but not by MSVC
+    #ifndef _WIN32_WINNT
+    #define _WIN32_WINNT 0x0600
     #endif // _WIN32_WINNT
     #include <windows.h>
   #endif // !PLATFORM_XBOX
   #include <process.h>
+
+/*
+#define XSTR(x) STR(x)
+#define STR(x) #x
+#pragma message( "The value of _WIN32_WINNT: " XSTR(_WIN32_WINNT))
+*/
 
   // MSDN: http://msdn2.microsoft.com/en-us/library/ms684254.aspx
   //
@@ -77,7 +84,8 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   // needed for use with the SIGNAL system.
   //
 
-	#if WINVER <= 0x0400 // Windows NT4: use a signal
+	#if _WIN32_WINNT < 0x0600 // CONDITION_VARIABLE aren't available, use a signal
+
 	typedef struct
 	{
 		CRITICAL_SECTION    signalCS;
@@ -94,7 +102,7 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
 	void MUTEX_LOCK( MUTEX_T* ref);
 	void MUTEX_UNLOCK( MUTEX_T* ref);
 
-	#else // Vista and above: use a condition variable
+	#else // CONDITION_VARIABLE are available, use them
 
 	#define SIGNAL_T CONDITION_VARIABLE
 	#define MUTEX_T CRITICAL_SECTION
@@ -103,7 +111,7 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
 	#define MUTEX_LOCK( ref) EnterCriticalSection( ref)
 	#define MUTEX_UNLOCK( ref) LeaveCriticalSection( ref)
 
-	#endif // // Vista and above
+	#endif // CONDITION_VARIABLE are available
 
   #define MUTEX_RECURSIVE_INIT(ref)  MUTEX_INIT(ref)  /* always recursive in Win32 */
 
