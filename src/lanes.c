@@ -876,7 +876,6 @@ LUAG_FUNC( linda_limit)
 {
 	struct s_Linda* linda = lua_toLinda( L, 1);
 	int pushed;
-	bool_t wake_writers = FALSE;
 
 	// make sure we got 3 arguments: the linda, a key and a limit
 	luaL_argcheck( L, lua_gettop( L) == 3, 2, "wrong number of arguments");
@@ -3211,8 +3210,8 @@ static void EnableCrashingOnCrashes( void)
 	{
 		typedef BOOL (WINAPI* tGetPolicy)( LPDWORD lpFlags);
 		typedef BOOL (WINAPI* tSetPolicy)( DWORD dwFlags);
-		typedef void (* SignalHandlerPointer)( int);
-		SignalHandlerPointer previousHandler = signal( SIGABRT, signal_handler);
+		//typedef void (* SignalHandlerPointer)( int);
+		/*SignalHandlerPointer previousHandler =*/ signal( SIGABRT, signal_handler);
 		const DWORD EXCEPTION_SWALLOWING = 0x1;
 
 		HMODULE kernel32 = LoadLibraryA("kernel32.dll");
