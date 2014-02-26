@@ -3,19 +3,25 @@
 
 struct s_Keeper
 {
-	MUTEX_T lock_;
-	lua_State *L;
+	MUTEX_T keeper_cs;
+	lua_State* L;
 	//int count;
 };
 
-int init_keepers( lua_State* L);
-void close_keepers( lua_State* L);
+struct s_Keepers
+{
+	int nb_keepers;
+	struct s_Keeper keeper_array[1];
+};
 
-struct s_Keeper *keeper_acquire( unsigned long magic_);
+void init_keepers( struct s_Universe* U, lua_State* L);
+void close_keepers( struct s_Universe* U, lua_State* L);
+
+struct s_Keeper* keeper_acquire( struct s_Keepers* keepers_, unsigned long magic_);
 #define KEEPER_MAGIC_SHIFT 3
 void keeper_release( struct s_Keeper* K);
-void keeper_toggle_nil_sentinels( lua_State *L, int _val_i, enum eLookupMode const mode_);
-int keeper_push_linda_storage( lua_State* L, void* ptr, unsigned long magic_);
+void keeper_toggle_nil_sentinels( lua_State* L, int _val_i, enum eLookupMode const mode_);
+int keeper_push_linda_storage( struct s_Universe* U, lua_State* L, void* ptr, unsigned long magic_);
 
 typedef lua_CFunction keeper_api_t;
 #define KEEPER_API( _op) keepercall_ ## _op
@@ -30,6 +36,6 @@ int keepercall_get( lua_State* L);
 int keepercall_set( lua_State* L);
 int keepercall_count( lua_State* L);
 
-int keeper_call( lua_State *K, keeper_api_t _func, lua_State *L, void *linda, uint_t starting_index);
+int keeper_call( struct s_Universe* U, lua_State* K, keeper_api_t _func, lua_State* L, void* linda, uint_t starting_index);
 
 #endif // __keeper_h__

@@ -186,9 +186,9 @@ static void push_table( lua_State* L, int idx)
 	STACK_END( L, 1);
 }
 
-int keeper_push_linda_storage( lua_State* L, void* ptr, unsigned long magic_)
+int keeper_push_linda_storage( struct s_Universe* U, lua_State* L, void* ptr, unsigned long magic_)
 {
-	struct s_Keeper* K = keeper_acquire( magic_);
+	struct s_Keeper* K = keeper_acquire( U->keepers, magic_);
 	lua_State* KL = K ? K->L : NULL;
 	if( KL == NULL) return 0;
 	STACK_GROW( KL, 4);
@@ -213,10 +213,10 @@ int keeper_push_linda_storage( lua_State* L, void* ptr, unsigned long magic_)
 	{
 		keeper_fifo* fifo = prepare_fifo_access( KL, -1);         // storage key fifo
 		lua_pushvalue( KL, -2);                                   // storage key fifo key
-		luaG_inter_move( KL, L, 1, eLM_FromKeeper);               // storage key fifo          // out key
+		luaG_inter_move( U, KL, L, 1, eLM_FromKeeper);            // storage key fifo          // out key
 		STACK_MID( L, 2);
 		lua_newtable( L);                                                                      // out key keyout
-		luaG_inter_move( KL, L, 1, eLM_FromKeeper);               // storage key               // out key keyout fifo
+		luaG_inter_move( U, KL, L, 1, eLM_FromKeeper);            // storage key               // out key keyout fifo
 		lua_pushinteger( L, fifo->first);                                                      // out key keyout fifo first
 		STACK_MID( L, 5);
 		lua_setfield( L, -3, "first");                                                         // out key keyout fifo
@@ -577,79 +577,107 @@ int keepercall_count( lua_State* L)
 * bigger the pool, the less chances of unnecessary waits. Lindas map to the
 * keepers randomly, by a hash.
 */
-static struct s_Keeper *GKeepers = NULL;
-static int GNbKeepers = 0;
 
-void close_keepers( lua_State* L)
+// called as __gc for the keepers array userdata
+void close_keepers( struct s_Universe* U, lua_State* L)
 {
-	int i;
-	int const nbKeepers = GNbKeepers;
-	// NOTE: imagine some keeper state N+1 currently holds a linda that uses another keeper N, and a _gc that will make use of it
-	// when keeper N+1 is closed, object is GCed, linda operation is called, which attempts to acquire keeper N, whose Lua state no longer exists
-	// in that case, the linda operation should do nothing. which means that these operations must check for keeper acquisition success
-	GNbKeepers = 0;
-	for( i = 0; i < nbKeepers; ++ i)
+	if( U->keepers != NULL)
 	{
-		lua_State* L = GKeepers[i].L;
-		GKeepers[i].L = NULL;
-		lua_close( L);
+		int i;
+		int nbKeepers = U->keepers->nb_keepers;
+		// NOTE: imagine some keeper state N+1 currently holds a linda that uses another keeper N, and a _gc that will make use of it
+		// when keeper N+1 is closed, object is GCed, linda operation is called, which attempts to acquire keeper N, whose Lua state no longer exists
+		// in that case, the linda operation should do nothing. which means that these operations must check for keeper acquisition success
+		// which is early-outed with a U->keepers->nbKeepers null-check
+		U->keepers->nb_keepers = 0;
+		for( i = 0; i < nbKeepers; ++ i)
+		{
+			lua_State* K = U->keepers->keeper_array[i].L;
+			U->keepers->keeper_array[i].L = NULL;
+			if( K != NULL)
+			{
+				lua_close( K);
+			}
+			else
+			{
+				// detected partial init: destroy only the mutexes that got initialized properly
+				nbKeepers = i;
+			}
+		}
+		for( i = 0; i < nbKeepers; ++ i)
+		{
+			MUTEX_FREE( &U->keepers->keeper_array[i].keeper_cs);
+		}
+		// free the keeper bookkeeping structure
+		{
+			void* allocUD;
+			lua_Alloc allocF = lua_getallocf( L, &allocUD);
+			allocF( L, U->keepers, sizeof( struct s_Keepers) + (nbKeepers - 1) * sizeof(struct s_Keeper), 0);
+			U->keepers = NULL;
+		}
 	}
-	for( i = 0; i < nbKeepers; ++ i)
-	{
-		MUTEX_FREE( &GKeepers[i].lock_);
-	}
-	if( GKeepers != NULL)
-	{
-		void* allocUD;
-		lua_Alloc allocF = lua_getallocf( L, &allocUD);
-		allocF( allocUD, GKeepers, nbKeepers * sizeof( struct s_Keeper), 0);
-	}
-	GKeepers = NULL;
 }
 
 /*
  * Initialize keeper states
  *
- * If there is a problem, return an error message (NULL for okay).
+ * If there is a problem, returns NULL and pushes the error message on the stack
+ * else returns the keepers bookkeeping structure.
  *
  * Note: Any problems would be design flaws; the created Lua state is left
  *       unclosed, because it does not really matter. In production code, this
  *       function never fails.
  * settings table is at position 1 on the stack
- * pushes an error string on the stack in case of problem
  */
-int init_keepers( lua_State* L)
+void init_keepers( struct s_Universe* U, lua_State* L)
 {
 	int i;
+	int nb_keepers;
 	void* allocUD;
 	lua_Alloc allocF = lua_getallocf( L, &allocUD);
 
 	STACK_CHECK( L);                                       // L                            K
 	lua_getfield( L, 1, "nb_keepers");                     // nb_keepers
-	GNbKeepers = (int) lua_tointeger( L, -1);
+	nb_keepers = (int) lua_tointeger( L, -1);
 	lua_pop( L, 1);                                        //
-	assert( GNbKeepers >= 1);
+	assert( nb_keepers >= 1);
 
-	GKeepers = (struct s_Keeper*) allocF( allocUD, NULL, 0, GNbKeepers * sizeof( struct s_Keeper));
-	if( GKeepers == NULL)
+	// struct s_Keepers contains an array of 1 s_Keeper, adjust for the actual number of keeper states
 	{
-		lua_pushliteral( L, "init_keepers() failed while creating keeper array; out of memory");
-		STACK_MID( L, 1);
-		return 1;
+		size_t const bytes = sizeof( struct s_Keepers) + (nb_keepers - 1) * sizeof(struct s_Keeper);
+		U->keepers = (struct s_Keepers*) allocF( L, NULL, 0, bytes);
+		if( U->keepers == NULL)
+		{
+			(void) luaL_error( L, "init_keepers() failed while creating keeper array; out of memory");
+			return;
+		}
+		memset( U->keepers, 0, bytes);
+		U->keepers->nb_keepers = nb_keepers;
 	}
-	for( i = 0; i < GNbKeepers; ++ i)
+	for( i = 0; i < nb_keepers; ++ i)                      // keepersUD
 	{
 		lua_State* K = PROPAGATE_ALLOCF_ALLOC();
 		if( K == NULL)
 		{
-			lua_pushliteral( L, "init_keepers() failed while creating keeper states; out of memory");
-			STACK_MID( L, 1);
-			return 1;
+			(void) luaL_error( L, "init_keepers() failed while creating keeper states; out of memory");
+			return;
 		}
+
+		U->keepers->keeper_array[i].L = K;
+		// we can trigger a GC from inside keeper_call(), where a keeper is acquired
+		// from there, GC can collect a linda, which would acquire the keeper again, and deadlock the thread.
+		// therefore, we need a recursive mutex.
+		MUTEX_RECURSIVE_INIT( &U->keepers->keeper_array[i].keeper_cs);
 		STACK_CHECK( K);
 
+		// copy the universe pointer in the keeper itself
+		lua_pushlightuserdata( K, UNIVERSE_REGKEY);
+		lua_pushlightuserdata( K, U);
+		lua_rawset( K, LUA_REGISTRYINDEX);
+		STACK_MID( K, 0);
+
 		// make sure 'package' is initialized in keeper states, so that we have require()
-		// this because this is needed when transfering deep userdata object
+		// this because this is needed when transferring deep userdata object
 		luaL_requiref( K, "package", luaopen_package, 1);                                 // package
 		lua_pop( K, 1);                                                                   //
 		STACK_MID( K, 0);
@@ -657,16 +685,16 @@ int init_keepers( lua_State* L)
 		STACK_MID( K, 0);
 
 		// copy package.path and package.cpath from the source state
-		lua_getglobal( L, "package");                        // package
+		lua_getglobal( L, "package");                        // "..." keepersUD package
 		if( !lua_isnil( L, -1))
 		{
 			// when copying with mode eLM_ToKeeper, error message is pushed at the top of the stack, not raised immediately
-			if( luaG_inter_copy_package( L, K, -1, eLM_ToKeeper))
+			if( luaG_inter_copy_package( U, L, K, -1, eLM_ToKeeper))
 			{
 				// if something went wrong, the error message is at the top of the stack
 				lua_remove( L, -2);                              // error_msg
-				STACK_MID( L, 1);
-				return 1;
+				(void) lua_error( L);
+				return;
 			}
 		}
 		lua_pop( L, 1);                                      //
@@ -674,12 +702,8 @@ int init_keepers( lua_State* L)
 
 		// attempt to call on_state_create(), if we have one and it is a C function
 		// (only support a C function because we can't transfer executable Lua code in keepers)
-		if( call_on_state_create( K, L, eLM_ToKeeper))
-		{
-			// if something went wrong, the error message is at the top of the stack
-			STACK_MID( L, 1);                                  // error_msg
-			return 1;
-		}
+		// will raise an error in L in case of problem
+		call_on_state_create( U, K, L, eLM_ToKeeper);
 
 		// to see VM name in Decoda debugger
 		lua_pushliteral( K, "Keeper #");                                                  // "Keeper #"
@@ -693,19 +717,15 @@ int init_keepers( lua_State* L)
 		lua_rawset( K, LUA_REGISTRYINDEX);                                                //
 
 		STACK_END( K, 0);
-		// we can trigger a GC from inside keeper_call(), where a keeper is acquired
-		// from there, GC can collect a linda, which would acquire the keeper again, and deadlock the thread.
-		MUTEX_RECURSIVE_INIT( &GKeepers[i].lock_);
-		GKeepers[i].L = K;
 	}
 	STACK_END( L, 0);
-	return 0; // success
 }
 
-struct s_Keeper* keeper_acquire( unsigned long magic_)
+struct s_Keeper* keeper_acquire( struct s_Keepers* keepers_, unsigned long magic_)
 {
+	int const nbKeepers = keepers_->nb_keepers;
 	// can be 0 if this happens during main state shutdown (lanes is being GC'ed -> no keepers)
-	if( GNbKeepers == 0)
+	if( nbKeepers == 0)
 	{
 		return NULL;
 	}
@@ -718,10 +738,10 @@ struct s_Keeper* keeper_acquire( unsigned long magic_)
 		* Pointers are often aligned by 8 or so - ignore the low order bits
 		* have to cast to unsigned long to avoid compilation warnings about loss of data when converting pointer-to-integer
 		*/
-		unsigned int i = (unsigned int)((magic_ >> KEEPER_MAGIC_SHIFT) % GNbKeepers);
-		struct s_Keeper* K= &GKeepers[i];
+		unsigned int i = (unsigned int)((magic_ >> KEEPER_MAGIC_SHIFT) % nbKeepers);
+		struct s_Keeper* K = &keepers_->keeper_array[i];
 
-		MUTEX_LOCK( &K->lock_);
+		MUTEX_LOCK( &K->keeper_cs);
 		//++ K->count;
 		return K;
 	}
@@ -730,16 +750,16 @@ struct s_Keeper* keeper_acquire( unsigned long magic_)
 void keeper_release( struct s_Keeper* K)
 {
 	//-- K->count;
-	if( K) MUTEX_UNLOCK( &K->lock_);
+	if( K) MUTEX_UNLOCK( &K->keeper_cs);
 }
 
 void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, enum eLookupMode mode_)
 {
 	int i, n = lua_gettop( L);
 	/* We could use an empty table in 'keeper.lua' as the sentinel, but maybe
-	* checking for a lightuserdata is faster. (any unique value will do -> take the address of some global of ours)
+	* checking for a lightuserdata is faster. (any unique value will do -> take the address of some global symbol of ours)
 	*/
-	void* nil_sentinel = &GNbKeepers;
+	void* nil_sentinel = (void*) keeper_toggle_nil_sentinels;
 	for( i = val_i_; i <= n; ++ i)
 	{
 		if( mode_ == eLM_ToKeeper)
@@ -770,7 +790,7 @@ void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, enum eLookupMode mod
 *
 * Returns: number of return values (pushed to 'L') or -1 in case of error
 */
-int keeper_call( lua_State* K, keeper_api_t func_, lua_State* L, void* linda, uint_t starting_index)
+int keeper_call( struct s_Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, void* linda, uint_t starting_index)
 {
 	int const args = starting_index ? (lua_gettop( L) - starting_index + 1) : 0;
 	int const Ktos = lua_gettop( K);
@@ -782,7 +802,7 @@ int keeper_call( lua_State* K, keeper_api_t func_, lua_State* L, void* linda, ui
 
 	lua_pushlightuserdata( K, linda);
 
-	if( (args == 0) || luaG_inter_copy( L, K, args, eLM_ToKeeper) == 0) // L->K
+	if( (args == 0) || luaG_inter_copy( U, L, K, args, eLM_ToKeeper) == 0) // L->K
 	{
 		lua_call( K, 1 + args, LUA_MULTRET);
 
@@ -791,7 +811,7 @@ int keeper_call( lua_State* K, keeper_api_t func_, lua_State* L, void* linda, ui
 		// this may interrupt a lane, causing the destruction of the underlying OS thread
 		// after this, another lane making use of this keeper can get an error code from the mutex-locking function
 		// when attempting to grab the mutex again (WINVER <= 0x400 does this, but locks just fine, I don't know about pthread)
-		if( (retvals > 0) && luaG_inter_move( K, L, retvals, eLM_FromKeeper) != 0) // K->L
+		if( (retvals > 0) && luaG_inter_move( U, K, L, retvals, eLM_FromKeeper) != 0) // K->L
 		{
 			retvals = -1;
 		}

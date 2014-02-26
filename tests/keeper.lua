@@ -4,7 +4,7 @@
 -- Test program for Lua Lanes
 --
 
-local lanes = require "lanes".configure{ with_timers = false}
+local lanes = require "lanes".configure{ with_timers = false, nb_keepers = 200}
 
 local function keeper(linda)
     local mt= {

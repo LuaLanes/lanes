@@ -14,7 +14,7 @@ local function func( depth )
     local lanes = require "lanes"
     -- lanes.configure() is available only at the first require()
     if lanes.configure then
-			lanes = lanes.configure()
+			lanes = lanes.configure{with_timers = false}
 		end
     local lane= lanes.gen("*", func)( depth+1 )
     return lane[1]

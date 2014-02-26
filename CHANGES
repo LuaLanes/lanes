@@ -1,5 +1,14 @@
 CHANGES:
 
+CHANGE 104: BGe 25-Feb-14
+   * Internal rework: the whole Lanes engine now works "per universe" to allow concurrent Lanes execution in more than one embedded master state
+   * this universe is a full userdata created in the master state, selfdestruct_gc is the __gc for this userdata
+   * most of what was initialized only once is now per-universe
+   * Fixed potential crashes at desinit if problems occur during keeper states initialisation
+   * Fixed require() not always serialized properly
+   * Raise an error instead of crashing on deep userdata prelude memory allocation failure
+   * Added forgotten mutex desinitialisation at universe shutdown
+
 CHANGE 103: BGe 24-Feb-14
    * Fix lookup database table not being created when it should if Lanes is required in more than one Lua master state
 

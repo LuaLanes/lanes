@@ -55,9 +55,8 @@ void luaL_requiref (lua_State* L, const char* modname, lua_CFunction openf, int 
 #define USE_DEBUG_SPEW 0
 #if USE_DEBUG_SPEW
 extern char const* debugspew_indent;
-extern int debugspew_indent_depth;
 #define INDENT_BEGIN "%.*s "
-#define INDENT_END , debugspew_indent_depth, debugspew_indent
+#define INDENT_END , (U ? U->debugspew_indent_depth : 0), debugspew_indent
 #define DEBUGSPEW_CODE(_code) _code
 #else // USE_DEBUG_SPEW
 #define DEBUGSPEW_CODE(_code)
@@ -98,8 +97,10 @@ extern int debugspew_indent_depth;
 
 void luaG_dump( lua_State* L );
 
-lua_State* luaG_newstate( lua_State* _from, char const* libs);
-void luaG_copy_one_time_settings( lua_State* L, lua_State* L2);
+lua_State* luaG_newstate( struct s_Universe* U, lua_State* _from, char const* libs);
+void luaG_copy_one_time_settings( struct s_Universe* U, lua_State* L, lua_State* L2);
+
+// ################################################################################################
 
 // this is pointed to by full userdata proxies, and allocated with malloc() to survive any lua_State lifetime
 typedef struct
@@ -117,29 +118,77 @@ enum eLookupMode
 	eLM_FromKeeper // send a function from a keeper state to a lane
 };
 
-char const* push_deep_proxy( lua_State* L, DEEP_PRELUDE* prelude, enum eLookupMode mode_);
-int luaG_inter_copy_package( lua_State* L, lua_State* L2, int package_idx_, enum eLookupMode mode_);
+char const* push_deep_proxy( struct s_Universe* U, lua_State* L, DEEP_PRELUDE* prelude, enum eLookupMode mode_);
+void free_deep_prelude( lua_State* L, DEEP_PRELUDE* prelude_);
 
-int luaG_inter_copy( lua_State *L, lua_State *L2, uint_t n, enum eLookupMode mode_);
-int luaG_inter_move( lua_State *L, lua_State *L2, uint_t n, enum eLookupMode mode_);
+int luaG_inter_copy_package( struct s_Universe* U, lua_State* L, lua_State* L2, int package_idx_, enum eLookupMode mode_);
+
+int luaG_inter_copy( struct s_Universe* U, lua_State* L, lua_State* L2, uint_t n, enum eLookupMode mode_);
+int luaG_inter_move( struct s_Universe* U, lua_State* L, lua_State* L2, uint_t n, enum eLookupMode mode_);
 
 int luaG_nameof( lua_State* L);
 int luaG_new_require( lua_State* L);
 
-// Lock for reference counter inc/dec locks (to be initialized by outside code)
-//
-extern MUTEX_T deep_lock;
-extern MUTEX_T mtid_lock;
-
 void populate_func_lookup_table( lua_State* L, int _i, char const* _name);
 void serialize_require( lua_State *L);
-int initialize_on_state_create( lua_State *L);
-int call_on_state_create( lua_State* L, lua_State* from_, enum eLookupMode mode_);
+void initialize_on_state_create( struct s_Universe* U, lua_State* L);
+void call_on_state_create( struct s_Universe* U, lua_State* L, lua_State* from_, enum eLookupMode mode_);
 
-extern MUTEX_T require_cs;
+// ################################################################################################
 
-// for verbose errors
-extern bool_t GVerboseErrors;
+/*
+ * Do we want to activate full lane tracking feature? (EXPERIMENTAL)
+ */
+#define HAVE_LANE_TRACKING 1
+
+// ################################################################################################
+
+// everything regarding the a Lanes universe is stored in that global structure
+// held as a full userdata in the master Lua state that required it for the first time
+// don't forget to initialize all members in LG_configure()
+struct s_Universe
+{
+	// for verbose errors
+	bool_t verboseErrors;
+
+	lua_CFunction on_state_create_func;
+
+	struct s_Keepers* keepers;
+
+	// Initialized by 'init_once_LOCKED()': the deep userdata Linda object
+	// used for timers (each lane will get a proxy to this)
+	volatile DEEP_PRELUDE* timer_deep;  // = NULL
+
+#if HAVE_LANE_TRACKING
+	MUTEX_T tracking_cs;
+	struct s_lane* volatile tracking_first; // will change to TRACKING_END if we want to activate tracking
+#endif // HAVE_LANE_TRACKING
+
+	MUTEX_T selfdestruct_cs;
+
+	// require() serialization
+	MUTEX_T require_cs;
+
+	// Lock for reference counter inc/dec locks (to be initialized by outside code) TODO: get rid of this and use atomics instead!
+	MUTEX_T deep_lock; 
+	MUTEX_T mtid_lock;
+
+	int last_mt_id;
+
+#if USE_DEBUG_SPEW
+	int debugspew_indent_depth;
+#endif // USE_DEBUG_SPEW
+
+	struct s_lane* volatile selfdestruct_first;
+	// After a lane has removed itself from the chain, it still performs some processing.
+	// The terminal desinit sequence should wait for all such processing to terminate before force-killing threads
+	int volatile selfdestructing_count;
+};
+
+struct s_Universe* get_universe( lua_State* L);
+extern void* const UNIVERSE_REGKEY;
+
+// ################################################################################################
 
 extern char const* const CONFIG_REGKEY;
 extern char const* const LOOKUP_REGKEY;
