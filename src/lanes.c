@@ -3210,8 +3210,6 @@ static void EnableCrashingOnCrashes( void)
 	{
 		typedef BOOL (WINAPI* tGetPolicy)( LPDWORD lpFlags);
 		typedef BOOL (WINAPI* tSetPolicy)( DWORD dwFlags);
-		//typedef void (* SignalHandlerPointer)( int);
-		/*SignalHandlerPointer previousHandler =*/ signal( SIGABRT, signal_handler);
 		const DWORD EXCEPTION_SWALLOWING = 0x1;
 
 		HMODULE kernel32 = LoadLibraryA("kernel32.dll");
@@ -3226,6 +3224,8 @@ static void EnableCrashingOnCrashes( void)
 				pSetPolicy( dwFlags & ~EXCEPTION_SWALLOWING);
 			}
 		}
+		//typedef void (* SignalHandlerPointer)( int);
+		/*SignalHandlerPointer previousHandler =*/ signal( SIGABRT, signal_handler);
 
 		s_ecoc_go_ahead = 1; // let others pass
 	}
