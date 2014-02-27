@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.9.2";
+char const* VERSION = "3.9.3";
 
 /*
 ===============================================================================
@@ -442,7 +442,7 @@ static void check_key_types( lua_State* L, int start_, int end_)
 }
 
 /*
-* bool= linda_send( linda_ud, [timeout_secs=-1,] key_num|str|bool|lightuserdata, ... )
+* bool= linda_send( linda_ud, [timeout_secs=-1,] [linda.null,] key_num|str|bool|lightuserdata, ... )
 *
 * Send one or more values to a Linda. If there is a limit, all values must fit.
 *
@@ -458,10 +458,11 @@ LUAG_FUNC( linda_send)
 	int pushed;
 	time_d timeout = -1.0;
 	uint_t key_i = 2; // index of first key, if timeout not there
+	void* as_nil_sentinel; // if not NULL, send() will silently send a single nil if nothing is provided
 
 	if( lua_type( L, 2) == LUA_TNUMBER) // we don't want to use lua_isnumber() because of autocoercion
 	{
-		timeout = SIGNAL_TIMEOUT_PREPARE( lua_tonumber( L,2));
+		timeout = SIGNAL_TIMEOUT_PREPARE( lua_tonumber( L, 2));
 		++ key_i;
 	}
 	else if( lua_isnil( L, 2)) // alternate explicit "no timeout" by passing nil before the key
@@ -469,19 +470,35 @@ LUAG_FUNC( linda_send)
 		++ key_i;
 	}
 
-	// make sure the keys are of a valid type
+	as_nil_sentinel = lua_touserdata( L, key_i);
+	if( as_nil_sentinel == NIL_SENTINEL)
+	{
+		// the real key to send data to is after the NIL_SENTINEL marker
+		++ key_i;
+	}
+
+	// make sure the key is of a valid type
 	check_key_types( L, key_i, key_i);
+
+	STACK_GROW( L, 1);
 
 	// make sure there is something to send
 	if( (uint_t)lua_gettop( L) == key_i)
 	{
-		return luaL_error( L, "no data to send");
+		if( as_nil_sentinel == NIL_SENTINEL)
+		{
+			// send a single nil if nothing is provided
+			lua_pushlightuserdata( L, NIL_SENTINEL);
+		}
+		else
+		{
+			return luaL_error( L, "no data to send");
+		}
 	}
 
 	// convert nils to some special non-nil sentinel in sent values
 	keeper_toggle_nil_sentinels( L, key_i + 1, eLM_ToKeeper);
 
-	STACK_GROW( L, 1);
 	{
 		bool_t try_again = TRUE;
 		struct s_lane* const s = get_lane_from_registry( L);
@@ -1209,6 +1226,9 @@ static void* linda_id( lua_State* L, enum eDeepOp op_)
 
 			lua_pushliteral( L, BATCH_SENTINEL);
 			lua_setfield(L, -2, "batched");
+
+			lua_pushlightuserdata( L, NIL_SENTINEL);
+			lua_setfield(L, -2, "null");
 
 			STACK_END( L, 1);
 			return NULL;

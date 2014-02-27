@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 26-Feb-14, and applies to version <tt>3.9.2</tt>.
+				This document was revised on 27-Feb-14, and applies to version <tt>3.9.3</tt>.
 			</p>
 		</font>
 	</center>
@@ -1038,7 +1038,7 @@
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
 	h = lanes.linda( [opt_name, [opt_group]])
 
-	[true|lanes.cancel_error] = h:send( [timeout_secs,] key, ...)
+	[true|lanes.cancel_error] = h:send( [timeout_secs,] [h.null,] key, ...)
 
 	[key, val]|[lanes.cancel_error] = h:receive( [timeout_secs,] key [, ...])
 
@@ -1071,6 +1071,10 @@
 	<tt>send()</tt> returns <tt>true</tt> if the sending succeeded, and <tt>false</tt> if the queue limit was met, and the queue did not empty enough during the given timeout.
 	<br/>
 	(Since version 3.7.8) <tt>send()</tt> returns <tt>lanes.cancel_error</tt> if interrupted by a soft cancel request.
+	<br/>
+	If no data is provided after the key, <tt>send()</tt> raises an error. Since version 3.9.3,  if provided with <tt>linda.null</tt> before the actual key and there is no data to send, <tt>send()</tt> sends a single <tt>nil</tt>.
+	<br/>
+	Also, if <tt>linda.null</tt> is sent as data in a linda, it will be read as a <tt>nil</tt>.
 </p>
 
 <p>

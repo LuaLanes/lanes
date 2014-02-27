@@ -1,5 +1,11 @@
 CHANGES:
 
+CHANGE 105: BGe 27-Feb-14
+   * Bumped version to 3.9.3
+   * new exposed variable linda.null that exposes the internal NIL_SENTINEL marker
+   * linda:send() interprets send key linda.null as authorization to silently send a single nil when not provided with anything to send
+     (useful when sending results of a function that can return nothing)
+
 CHANGE 104: BGe 25-Feb-14
    * Bumped version to 3.9.2
    * Internal rework: the whole Lanes engine now works "per universe" to allow concurrent Lanes execution in more than one embedded master state

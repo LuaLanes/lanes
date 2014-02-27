@@ -756,23 +756,19 @@ void keeper_release( struct s_Keeper* K)
 void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, enum eLookupMode mode_)
 {
 	int i, n = lua_gettop( L);
-	/* We could use an empty table in 'keeper.lua' as the sentinel, but maybe
-	* checking for a lightuserdata is faster. (any unique value will do -> take the address of some global symbol of ours)
-	*/
-	void* nil_sentinel = (void*) keeper_toggle_nil_sentinels;
 	for( i = val_i_; i <= n; ++ i)
 	{
 		if( mode_ == eLM_ToKeeper)
 		{
 			if( lua_isnil( L, i))
 			{
-				lua_pushlightuserdata( L, nil_sentinel);
+				lua_pushlightuserdata( L, NIL_SENTINEL);
 				lua_replace( L, i);
 			}
 		}
 		else
 		{
-			if( lua_touserdata( L, i) == nil_sentinel)
+			if( lua_touserdata( L, i) == NIL_SENTINEL)
 			{
 				lua_pushnil( L);
 				lua_replace( L, i);

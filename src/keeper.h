@@ -23,6 +23,8 @@ void keeper_release( struct s_Keeper* K);
 void keeper_toggle_nil_sentinels( lua_State* L, int _val_i, enum eLookupMode const mode_);
 int keeper_push_linda_storage( struct s_Universe* U, lua_State* L, void* ptr, unsigned long magic_);
 
+#define NIL_SENTINEL ((void*)keeper_toggle_nil_sentinels)
+
 typedef lua_CFunction keeper_api_t;
 #define KEEPER_API( _op) keepercall_ ## _op
 #define PUSH_KEEPER_FUNC lua_pushcfunction
