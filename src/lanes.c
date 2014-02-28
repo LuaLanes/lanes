@@ -2092,15 +2092,13 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void* vs)
         // We're a free-running thread and no-one's there to clean us up.
         //
         lua_close( s->L);
-        s->L = L = 0;
-        // debug_name is a pointer to an interned string, that no longer exists when the state is closed
-        s->debug_name = "<closed>";
 
-        lane_cleanup( s);
         MUTEX_LOCK( &s->U->selfdestruct_cs);
         // done with lua_close(), terminal shutdown sequence may proceed
         -- s->U->selfdestructing_count;
         MUTEX_UNLOCK( &s->U->selfdestruct_cs);
+
+        lane_cleanup( s); // s is freed at this point
     }
     else
     {
