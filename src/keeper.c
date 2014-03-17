@@ -612,7 +612,7 @@ void close_keepers( struct s_Universe* U, lua_State* L)
 		{
 			void* allocUD;
 			lua_Alloc allocF = lua_getallocf( L, &allocUD);
-			allocF( L, U->keepers, sizeof( struct s_Keepers) + (nbKeepers - 1) * sizeof(struct s_Keeper), 0);
+			allocF( allocUD, U->keepers, sizeof( struct s_Keepers) + (nbKeepers - 1) * sizeof(struct s_Keeper), 0);
 			U->keepers = NULL;
 		}
 	}
@@ -645,7 +645,7 @@ void init_keepers( struct s_Universe* U, lua_State* L)
 	// struct s_Keepers contains an array of 1 s_Keeper, adjust for the actual number of keeper states
 	{
 		size_t const bytes = sizeof( struct s_Keepers) + (nb_keepers - 1) * sizeof(struct s_Keeper);
-		U->keepers = (struct s_Keepers*) allocF( L, NULL, 0, bytes);
+		U->keepers = (struct s_Keepers*) allocF( allocUD, NULL, 0, bytes);
 		if( U->keepers == NULL)
 		{
 			(void) luaL_error( L, "init_keepers() failed while creating keeper array; out of memory");

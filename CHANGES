@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 106: BGe 17-Mar-14
+   * Fixed crash when using protect_allocator option
+
 CHANGE 105: BGe 27-Feb-14
    * Bumped version to 3.9.3
    * new exposed variable linda.null that exposes the internal NIL_SENTINEL marker

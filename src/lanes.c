@@ -1133,7 +1133,7 @@ static void* linda_id( lua_State* L, enum eDeepOp op_)
 			/* The deep data is allocated separately of Lua stack; we might no
 			* longer be around when last reference to it is being released.
 			* One can use any memory allocation scheme.
-			* just don't use L's allocf because we don't know which state will get the honor of GCing the linda
+			* just don't use L's allocF because we don't know which state will get the honor of GCing the linda
 			*/
 			s = (struct s_Linda*) malloc( sizeof(struct s_Linda) + name_len); // terminating 0 is already included
 			if( s)
@@ -1545,8 +1545,8 @@ static bool_t selfdestruct_remove( struct s_lane* s)
 */
 struct ProtectedAllocator_s
 {
-	lua_Alloc allocf;
-	void* ud;
+	lua_Alloc allocF;
+	void* allocUD;
 	MUTEX_T lock;
 };
 void * protected_lua_Alloc( void *ud, void *ptr, size_t osize, size_t nsize)
@@ -1554,7 +1554,7 @@ void * protected_lua_Alloc( void *ud, void *ptr, size_t osize, size_t nsize)
 	void* p;
 	struct ProtectedAllocator_s* s = (struct ProtectedAllocator_s*) ud;
 	MUTEX_LOCK( &s->lock);
-	p = s->allocf( s->ud, ptr, osize, nsize);
+	p = s->allocF( s->allocUD, ptr, osize, nsize);
 	MUTEX_UNLOCK( &s->lock);
 	return p;
 }
@@ -1700,14 +1700,14 @@ static int selfdestruct_gc( lua_State* L)
 	// remove the protected allocator, if any
 	{
 		void* ud;
-		lua_Alloc allocf = lua_getallocf( L, &ud);
+		lua_Alloc allocF = lua_getallocf( L, &ud);
 
-		if( allocf == protected_lua_Alloc)
+		if( allocF == protected_lua_Alloc)
 		{
 			struct ProtectedAllocator_s* s = (struct ProtectedAllocator_s*) ud;
-			lua_setallocf( L, s->allocf, s->ud);
+			lua_setallocf( L, s->allocF, s->allocUD);
 			MUTEX_FREE( &s->lock);
-			s->allocf( s->ud, s, sizeof( struct ProtectedAllocator_s), 0);
+			s->allocF( s->allocUD, s, sizeof( struct ProtectedAllocator_s), 0);
 		}
 	}
 
@@ -3046,13 +3046,13 @@ LUAG_FUNC( configure)
 	lua_getfield( L, 1, "protect_allocator");                                            // settings protect_allocator
 	if( lua_toboolean( L, -1))
 	{
-		void* ud;
-		lua_Alloc allocf = lua_getallocf( L, &ud);
-		if( allocf != protected_lua_Alloc) // just in case
+		void* allocUD;
+		lua_Alloc allocF = lua_getallocf( L, &allocUD);
+		if( allocF != protected_lua_Alloc) // just in case
 		{
-			struct ProtectedAllocator_s* s = (struct ProtectedAllocator_s*) allocf( ud, NULL, 0, sizeof( struct ProtectedAllocator_s));
-			s->allocf = allocf;
-			s->ud = ud;
+			struct ProtectedAllocator_s* s = (struct ProtectedAllocator_s*) allocF( allocUD, NULL, 0, sizeof( struct ProtectedAllocator_s));
+			s->allocF = allocF;
+			s->allocUD = allocUD;
 			MUTEX_INIT( &s->lock);
 			lua_setallocf( L, protected_lua_Alloc, s);
 		}
