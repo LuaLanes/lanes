@@ -735,7 +735,7 @@ lua_State* luaG_newstate( struct s_Universe* U, lua_State* from_, char const* li
 	}
 	lua_gc( L, LUA_GCRESTART, 0);
 
-	serialize_require( L);
+	serialize_require( U, L);
 
 	// call this after the base libraries are loaded and GC is restarted
 	// will raise an error in from_ in case of problem
@@ -2316,15 +2316,16 @@ int luaG_new_require( lua_State* L)
 /*
 * Serialize calls to 'require', if it exists
 */
-void serialize_require( lua_State* L)
+void serialize_require( struct s_Universe* U, lua_State* L)
 {
 	STACK_GROW( L, 1);
 	STACK_CHECK( L);
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "serializing require()\n" INDENT_END));
 
-	// Check 'require' is there; if not, do nothing
+	// Check 'require' is there and not already wrapped; if not, do nothing
 	//
 	lua_getglobal( L, "require");
-	if( lua_isfunction( L, -1))
+	if( lua_isfunction( L, -1) && lua_tocfunction( L, -1) != luaG_new_require)
 	{
 		// [-1]: original 'require' function
 		lua_pushcclosure( L, luaG_new_require, 1 /*upvalues*/);

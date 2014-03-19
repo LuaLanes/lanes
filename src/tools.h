@@ -187,7 +187,7 @@ int luaG_nameof( lua_State* L);
 int luaG_new_require( lua_State* L);
 
 void populate_func_lookup_table( lua_State* L, int _i, char const* _name);
-void serialize_require( lua_State *L);
+void serialize_require( struct s_Universe* U, lua_State *L);
 void initialize_on_state_create( struct s_Universe* U, lua_State* L);
 void call_on_state_create( struct s_Universe* U, lua_State* L, lua_State* from_, enum eLookupMode mode_);
 

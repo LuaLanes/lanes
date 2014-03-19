@@ -681,7 +681,7 @@ void init_keepers( struct s_Universe* U, lua_State* L)
 		luaL_requiref( K, "package", luaopen_package, 1);                                 // package
 		lua_pop( K, 1);                                                                   //
 		STACK_MID( K, 0);
-		serialize_require( K);
+		serialize_require( U, K);
 		STACK_MID( K, 0);
 
 		// copy package.path and package.cpath from the source state

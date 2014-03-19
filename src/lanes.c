@@ -3108,7 +3108,7 @@ LUAG_FUNC( configure)
 	STACK_MID( L, 0);
 
 	// Serialize calls to 'require' from now on, also in the primary state
-	serialize_require( L);
+	serialize_require( U, L);
 
 	// Retrieve main module interface table
 	lua_pushvalue( L, lua_upvalueindex( 2));                                             // settings M

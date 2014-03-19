@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 107: BGe 19-Mar-14
+   * Make sure we don't mutex-wrap require() more than once, just in case
+
 CHANGE 106: BGe 17-Mar-14
    * Fixed crash when using protect_allocator option
 
