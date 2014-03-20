@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.9.3";
+char const* VERSION = "3.9.4";
 
 /*
 ===============================================================================
@@ -293,26 +293,29 @@ struct s_Linda;
 * Returns: TRUE if a table was pushed
 *          FALSE if no table found, not created, and nothing pushed
 */
-static bool_t push_registry_table( lua_State*L, void *key, bool_t create ) {
+static bool_t push_registry_table( lua_State* L, void* key, bool_t create)
+{
+	STACK_GROW( L, 3);
+	STACK_CHECK( L);
+	lua_pushlightuserdata( L, key);                                              // key
+	lua_gettable( L, LUA_REGISTRYINDEX);                                         // t?
 
-    STACK_GROW(L,3);
-    
-    lua_pushlightuserdata( L, key );
-    lua_gettable( L, LUA_REGISTRYINDEX );
-    
-    if (lua_isnil(L,-1)) {
-        lua_pop(L,1);
+	if( lua_isnil( L, -1))                                                       // nil?
+	{
+		lua_pop( L, 1);                                                            //
 
-        if (!create) return FALSE;  // nothing pushed
+		if( !create)
+		{
+			return FALSE;
+		}
 
-        lua_newtable(L);
-        lua_pushlightuserdata( L, key );
-        lua_pushvalue(L,-2);    // duplicate of the table
-        lua_settable( L, LUA_REGISTRYINDEX );
-        
-        // [-1]: table that's also bound in registry
-    }
-    return TRUE;    // table pushed
+		lua_newtable(L);                                                           // t
+		lua_pushlightuserdata( L, key);                                            // t key
+		lua_pushvalue( L, -2);                                                     // t key t
+		lua_rawset( L, LUA_REGISTRYINDEX);                                         // t
+	}
+	STACK_END( L, 1);
+	return TRUE;    // table pushed
 }
 
 #if HAVE_LANE_TRACKING
@@ -1281,20 +1284,18 @@ LUAG_FUNC( linda)
 // Add a function that will be called when exiting the lane, either via
 // normal return or an error.
 //
-LUAG_FUNC( set_finalizer )
+LUAG_FUNC( set_finalizer)
 {
-    STACK_GROW(L,3);
-    
-    // Get the current finalizer table (if any)
-    //
-    push_registry_table( L, FINALIZER_REG_KEY, TRUE /*do create if none*/ );
-
-    lua_pushinteger( L, lua_rawlen(L,-1)+1 );
-    lua_pushvalue( L, 1 );  // copy of the function
-    lua_settable( L, -3 );
-    
-    lua_pop(L,1);
-    return 0;
+	luaL_argcheck( L, lua_isfunction( L, 1), 1, "finalizer should be a function");
+	luaL_argcheck( L, lua_gettop( L) == 1, 1, "too many arguments");
+	// Get the current finalizer table (if any)
+	push_registry_table( L, FINALIZER_REG_KEY, TRUE /*do create if none*/);      // finalizer {finalisers}
+	STACK_GROW( L, 2);
+	lua_pushinteger( L, lua_rawlen( L, -1) + 1);                                 // finalizer {finalisers} idx
+	lua_pushvalue( L, 1);                                                        // finalizer {finalisers} idx finalizer
+	lua_rawset( L, -3);                                                          // finalizer {finalisers}
+	lua_pop( L, 2);                                                              //
+	return 0;
 }
 
 
@@ -1311,14 +1312,15 @@ LUAG_FUNC( set_finalizer )
 //
 // TBD: should we add stack trace on failing finalizer, wouldn't be hard..
 //
+static void push_stack_trace( lua_State* L, int rc_, int stk_base_);
+
 static int run_finalizers( lua_State* L, int lua_rc)
 {
-	int error_index, finalizers_index;
+	int finalizers_index;
 	int n;
 	int err_handler_index = 0;
-	int rc = 0;                                                                     // [err_msg {stack_trace}]?
-
-	if( !push_registry_table( L, FINALIZER_REG_KEY, FALSE))                         // [err_msg {stack_trace}]? {func [, ...]}?
+	int rc = LUA_OK;                                                                // ...
+	if( !push_registry_table( L, FINALIZER_REG_KEY, FALSE))                         // ... finalizers?
 	{
 		return 0;   // no finalizers
 	}
@@ -1328,51 +1330,58 @@ static int run_finalizers( lua_State* L, int lua_rc)
 	finalizers_index = lua_gettop( L);
 
 #if ERROR_FULL_STACK
-	lua_pushcfunction( L, lane_error);                                              // [err_msg {stack_trace}]? {func [, ...]}? lane_error
+	lua_pushcfunction( L, lane_error);                                              // ... finalizers lane_error
 	err_handler_index = lua_gettop( L);
 #endif // ERROR_FULL_STACK
-	error_index = (lua_rc != LUA_OK) ? finalizers_index - (1 + ERROR_FULL_STACK) : 0;
 
 	for( n = (int) lua_rawlen( L, finalizers_index); n > 0; -- n)
 	{
 		int args = 0;
-		lua_pushinteger( L, n);                                                       // [err_msg {stack_trace}]? {func [, ...]}? lane_error n
-		lua_gettable( L, finalizers_index);                                           // [err_msg {stack_trace}]? {func [, ...]}? lane_error finalizer
+		lua_pushinteger( L, n);                                                       // ... finalizers lane_error n
+		lua_rawget( L, finalizers_index);                                             // ... finalizers lane_error finalizer
 		ASSERT_L( lua_isfunction( L, -1));
-		if( error_index)
+		if( lua_rc != LUA_OK) // we have an error message and an optional stack trace at the bottom of the stack
 		{
-			//char const* err_msg = lua_tostring( L, error_index);
-			lua_pushvalue( L, error_index);                                             // [err_msg {stack_trace}]? {func [, ...]}? lane_error finalizer err_msg
-#if ERROR_FULL_STACK
-			lua_pushvalue( L, error_index + 1);                                         // [err_msg {stack_trace}]? {func [, ...]}? lane_error finalizer err_msg {stack_trace}
-#endif // ERROR_FULL_STACK
-			args = 1 + ERROR_FULL_STACK;
+			ASSERT_L( finalizers_index == 2 || finalizers_index == 3);
+			//char const* err_msg = lua_tostring( L, 1);
+			lua_pushvalue( L, 1);                                                       // ... finalizers lane_error finalizer err_msg
+			// note we don't always have a stack trace for example when CANCEL_ERROR, or when we got an error that doesn't call our handler, such as LUA_ERRMEM
+			if( finalizers_index == 3)
+			{
+				lua_pushvalue( L, 2);                                                     // ... finalizers lane_error finalizer err_msg stack_trace
+			}
+			args = finalizers_index - 1;
 		}
 
-		rc = lua_pcall( L, args, 0, err_handler_index);                               // [err_msg {stack_trace}]? {func [, ...]}? lane_error err_msg2?
-		//
-		// LUA_ERRRUN / LUA_ERRMEM
-
+		// if no error from the main body, finlizer doesn't receive any argument, else it gets the error message and optional stack trace
+		rc = lua_pcall( L, args, 0, err_handler_index);                               // ... finalizers lane_error err_msg2?
 		if( rc != LUA_OK)
 		{
-#if ERROR_FULL_STACK
-			lua_pushlightuserdata( L, STACK_TRACE_KEY);                                 // [err_msg {stack_trace}]? {func [, ...]}? lane_error err_msg2 STACK_TRACE_KEY
-			lua_gettable( L, LUA_REGISTRYINDEX);                                        // [err_msg {stack_trace}]? {func [, ...]}? lane_error err_msg2 {stack_trace2}
-#endif // ERROR_FULL_STACK
-
+			push_stack_trace( L, rc, lua_gettop( L));
 			// If one finalizer fails, don't run the others. Return this
 			// as the 'real' error, replacing what we could have had (or not)
 			// from the actual code.
-			//
 			break;
 		}
+		// no error, proceed to next finalizer                                        // ... finalizers lane_error
 	}
 
-	// remove error handler function (if any) and finalizers table from the stack
-#if ERROR_FULL_STACK
-	lua_remove( L, err_handler_index);                                              // [err_msg {stack_trace}]? {func [, ...]}? err_msg2 {stack_trace2}
-#endif // ERROR_FULL_STACK
-	lua_remove( L, finalizers_index);                                               // [err_msg {stack_trace}]? err_msg2 {stack_trace2}
+	if( rc != LUA_OK)
+	{
+		// ERROR_FULL_STACK accounts for the presence of lane_error on the stack
+		int nb_err_slots = lua_gettop( L) - finalizers_index - ERROR_FULL_STACK;
+		// a finalizer generated an error, this is what we leave of the stack
+		for( n = nb_err_slots; n > 0; -- n)
+		{
+			lua_replace( L, n);
+		}
+		// leave on the stack only the error and optional stack trace produced by the error in the finalizer
+		lua_settop( L, nb_err_slots);
+	}
+	else // no error from the finalizers, make sure only the original return values from the lane body remain on the stack
+	{
+		lua_settop( L, finalizers_index - 1);
+	}
 
 	return rc;
 }
@@ -1896,6 +1905,40 @@ static int lane_error( lua_State* L)
 }
 #endif // ERROR_FULL_STACK
 
+static void push_stack_trace( lua_State* L, int rc_, int stk_base_)
+{
+	// Lua 5.1 error handler is limited to one return value; it stored the stack trace in the registry
+	switch( rc_)
+	{
+		case LUA_OK: // no error, body return values are on the stack
+		break;
+
+		case LUA_ERRRUN: // cancellation or a runtime error
+#if ERROR_FULL_STACK // when ERROR_FULL_STACK, we installed a handler
+		{
+			// fetch the call stack table from the registry where the handler stored it
+			STACK_GROW( L, 1);
+			lua_pushlightuserdata( L, STACK_TRACE_KEY);                              // err STACK_TRACE_KEY
+			// yields nil if no stack was generated (in case of cancellation for example)
+			lua_gettable( L, LUA_REGISTRYINDEX);                                     // err trace|nil
+
+			// For cancellation the error message is CANCEL_ERROR, and a stack trace isn't placed
+			// For other errors, the message should be a string, and we should have a stack trace table
+			ASSERT_L( (lua_istable( L, 1 + stk_base_) && lua_type( L, stk_base_) == LUA_TSTRING) || (lua_touserdata( L, stk_base_) == CANCEL_ERROR));
+			// Just leaving the stack trace table on the stack is enough to get it through to the master.
+			break;
+		}
+#endif // fall through if not ERROR_FULL_STACK
+
+		case LUA_ERRMEM: // memory allocation error (handler not called)
+		case LUA_ERRERR: // error while running the error handler (if any, for example an out-of-memory condition)
+		default:
+		// we should have a single value which is either a string (the error message) or CANCEL_ERROR
+		ASSERT_L( (lua_gettop( L) == stk_base_) && ((lua_type( L, stk_base_) == LUA_TSTRING) || (lua_touserdata( L, stk_base_) == CANCEL_ERROR)));
+		break;
+	}
+}
+
 LUAG_FUNC( set_debug_threadname)
 {
 	// C s_lane structure is a light userdata upvalue
@@ -1979,152 +2022,107 @@ static void thread_cleanup_handler( void* opaque)
 }
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 
-//---
 static THREAD_RETURN_T THREAD_CALLCONV lane_main( void* vs)
 {
-    struct s_lane* s = (struct s_lane*) vs;
-    int rc, rc2;
-    lua_State* L = s->L;
-    DEBUGSPEW_CODE( struct s_Universe* U = get_universe( L));
+	struct s_lane* s = (struct s_lane*) vs;
+	int rc, rc2;
+	lua_State* L = s->L;
+	// Called with the lane function and arguments on the stack
+	int const nargs = lua_gettop( L) - 1;
+	DEBUGSPEW_CODE( struct s_Universe* U = get_universe( L));
 #if HAVE_LANE_TRACKING
-    if( s->U->tracking_first)
-    {
-        tracking_add( s);
-    }
+	if( s->U->tracking_first)
+	{
+		tracking_add( s);
+	}
 #endif // HAVE_LANE_TRACKING
-    THREAD_MAKE_ASYNCH_CANCELLABLE();
-    THREAD_CLEANUP_PUSH( thread_cleanup_handler, s);
-    s->status = RUNNING;  // PENDING -> RUNNING
+	THREAD_MAKE_ASYNCH_CANCELLABLE();
+	THREAD_CLEANUP_PUSH( thread_cleanup_handler, s);
+	s->status = RUNNING;  // PENDING -> RUNNING
 
-    // Tie "set_finalizer()" to the state
-    //
-    lua_pushcfunction( L, LG_set_finalizer );
-    populate_func_lookup_table( L, -1, "set_finalizer");
-    lua_setglobal( L, "set_finalizer");
+	// Tie "set_finalizer()" to the state
+	lua_pushcfunction( L, LG_set_finalizer);
+	populate_func_lookup_table( L, -1, "set_finalizer");
+	lua_setglobal( L, "set_finalizer");
 
-    // Tie "set_debug_threadname()" to the state
-    // But don't register it in the lookup database because of the s_lane pointer upvalue
-    lua_pushlightuserdata( L, s);
-    lua_pushcclosure( L, LG_set_debug_threadname, 1);
-    lua_setglobal( L, "set_debug_threadname" );
+	// Tie "set_debug_threadname()" to the state
+	// But don't register it in the lookup database because of the s_lane pointer upvalue
+	lua_pushlightuserdata( L, s);
+	lua_pushcclosure( L, LG_set_debug_threadname, 1);
+	lua_setglobal( L, "set_debug_threadname" );
 
-    // Tie "cancel_test()" to the state
-    //
-    lua_pushcfunction( L, LG_cancel_test);
-    populate_func_lookup_table( L, -1, "cancel_test");
-    lua_setglobal( L, "cancel_test");
+	// Tie "cancel_test()" to the state
+	lua_pushcfunction( L, LG_cancel_test);
+	populate_func_lookup_table( L, -1, "cancel_test");
+	lua_setglobal( L, "cancel_test");
 
 #if ERROR_FULL_STACK
-    // Tie "set_error_reporting()" to the state
-    //
-    lua_pushcfunction( L, LG_set_error_reporting);
-    populate_func_lookup_table( L, -1, "set_error_reporting");
-    lua_setglobal( L, "set_error_reporting");
+	// Tie "set_error_reporting()" to the state
+	lua_pushcfunction( L, LG_set_error_reporting);
+	populate_func_lookup_table( L, -1, "set_error_reporting");
+	lua_setglobal( L, "set_error_reporting");
 
-    STACK_GROW( L, 1 );
-    lua_pushcfunction( L, lane_error);
-    lua_insert( L, 1 );
-
-    // [1]: error handler
-    // [2]: function to run
-    // [3..top]: parameters
-    //
-    rc= lua_pcall( L, lua_gettop(L)-2, LUA_MULTRET, 1 /*error handler*/ );
-        // 0: no error, body return values are on the stack
-        // LUA_ERRRUN: cancellation or a runtime error (error pushed on stack)
-        // LUA_ERRMEM: memory allocation error
-        // LUA_ERRERR: error while running the error handler (if any)
-
-    assert( rc!=LUA_ERRERR );   // since we've authored it
-
-    lua_remove(L,1);    // remove error handler
-
-    // Lua 5.1 error handler is limited to one return value; taking stack trace via registry
-    if( rc != LUA_OK)
-    {
-        STACK_GROW(L,1);
-        lua_pushlightuserdata( L, STACK_TRACE_KEY );
-        lua_gettable(L, LUA_REGISTRYINDEX); // yields nil if no stack was generated (in case of cancellation for example)
-
-        // For cancellation, a stack trace isn't placed
-        //
-        assert( lua_istable(L,2) || (lua_touserdata(L,1)==CANCEL_ERROR) );
-        
-        // Just leaving the stack trace table on the stack is enough to get
-        // it through to the master.
-    }
-
-#else // ERROR_FULL_STACK == 0
-    // This code does not use 'lane_error'
-    //
-    // [1]: function to run
-    // [2..top]: parameters
-    //
-    rc = lua_pcall( L, lua_gettop( L) - 1, LUA_MULTRET, 0); // no error handler
-        // LUA_OK(0): no error
-        // LUA_ERRRUN(2): a runtime error (error pushed on stack)
-        // LUA_ERRMEM(4): memory allocation error
+	STACK_GROW( L, 1);
+	lua_pushcfunction( L, lane_error);                                           // func args handler
+	lua_insert( L, 1);                                                           // handler func args
 #endif // ERROR_FULL_STACK
 
-    DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "Lane %p body: %s (%s)\n" INDENT_END, L, get_errcode_name( rc), (lua_touserdata(L,1)==CANCEL_ERROR) ? "cancelled" : lua_typename( L, lua_type( L, 1))));
-    //STACK_DUMP(L);
-    // Call finalizers, if the script has set them up.
-    //
-    rc2 = run_finalizers( L, rc);
-    DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "Lane %p finalizer: %s\n" INDENT_END, L, get_errcode_name( rc2)));
-    if( rc2 != LUA_OK) // Error within a finalizer!
-    {
-        rc = rc2;    // we're overruling the earlier script error or normal return
-        // the finalizer generated an error, the error message [and stack trace] are pushed on the stack
-        // remove the rest so that only the error message [and stack trace] remain on the stack
+	rc = lua_pcall( L, nargs, LUA_MULTRET, ERROR_FULL_STACK);                    // retvals|err
+
 #if ERROR_FULL_STACK
-        lua_insert( L, 1);
-        lua_insert( L, 1);
-        lua_settop( L, 2);
-#else // ERROR_FULL_STACK == 0
-        lua_insert( L, 1);
-        lua_settop( L, 1);
-#endif // ERROR_FULL_STACK
-    }
-    s->waiting_on = NULL; // just in case
-    if( selfdestruct_remove( s)) // check and remove (under lock!)
-    {
-        // We're a free-running thread and no-one's there to clean us up.
-        //
-        lua_close( s->L);
+	lua_remove( L, 1);                                                           // retvals|error
+#	endif // ERROR_FULL_STACK
 
-        MUTEX_LOCK( &s->U->selfdestruct_cs);
-        // done with lua_close(), terminal shutdown sequence may proceed
-        -- s->U->selfdestructing_count;
-        MUTEX_UNLOCK( &s->U->selfdestruct_cs);
+	// in case of error and if it exists, fetch stack trace from registry and push it
+	push_stack_trace( L, rc, 1);
 
-        lane_cleanup( s); // s is freed at this point
-    }
-    else
-    {
-        // leave results (1..top) or error message + stack trace (1..2) on the stack - master will copy them
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "Lane %p body: %s (%s)\n" INDENT_END, L, get_errcode_name( rc), (lua_touserdata( L, 1)==CANCEL_ERROR) ? "cancelled" : lua_typename( L, lua_type( L, 1))));
+	//STACK_DUMP(L);
+	// Call finalizers, if the script has set them up.
+	//
+	rc2 = run_finalizers( L, rc);
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "Lane %p finalizer: %s\n" INDENT_END, L, get_errcode_name( rc2)));
+	if( rc2 != LUA_OK) // Error within a finalizer!
+	{
+		// the finalizer generated an error, and left its own error message [and stack trace] on the stack
+		rc = rc2;    // we're overruling the earlier script error or normal return
+	}
+	s->waiting_on = NULL; // just in case
+	if( selfdestruct_remove( s)) // check and remove (under lock!)
+	{
+		// We're a free-running thread and no-one's there to clean us up.
+		//
+		lua_close( s->L);
 
-        enum e_status st= 
-            (rc==0) ? DONE 
-                    : (lua_touserdata(L,1)==CANCEL_ERROR) ? CANCELLED 
-                    : ERROR_ST;
+		MUTEX_LOCK( &s->U->selfdestruct_cs);
+		// done with lua_close(), terminal shutdown sequence may proceed
+		-- s->U->selfdestructing_count;
+		MUTEX_UNLOCK( &s->U->selfdestruct_cs);
 
-        // Posix no PTHREAD_TIMEDJOIN:
-        // 'done_lock' protects the -> DONE|ERROR_ST|CANCELLED state change
-        //
+		lane_cleanup( s); // s is freed at this point
+	}
+	else
+	{
+		// leave results (1..top) or error message + stack trace (1..2) on the stack - master will copy them
+
+		enum e_status st = (rc == 0) ? DONE : (lua_touserdata( L, 1) == CANCEL_ERROR) ? CANCELLED : ERROR_ST;
+
+		// Posix no PTHREAD_TIMEDJOIN:
+		// 'done_lock' protects the -> DONE|ERROR_ST|CANCELLED state change
+		//
 #if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-        MUTEX_LOCK( &s->done_lock);
-        {
+		MUTEX_LOCK( &s->done_lock);
+		{
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-            s->status = st;
+			s->status = st;
 #if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-            SIGNAL_ONE( &s->done_signal);   // wake up master (while 's->done_lock' is on)
-        }
-        MUTEX_UNLOCK( &s->done_lock);
+			SIGNAL_ONE( &s->done_signal);   // wake up master (while 's->done_lock' is on)
+		}
+		MUTEX_UNLOCK( &s->done_lock);
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-    }
-    THREAD_CLEANUP_POP( FALSE);
-    return 0;   // ignored
+	}
+	THREAD_CLEANUP_POP( FALSE);
+	return 0;   // ignored
 }
 
 // --- If a client wants to transfer stuff of a given module from the current state to another Lane, the module must be required
@@ -2312,11 +2310,12 @@ LUAG_FUNC( thread_new)
 		DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 	}
 
+
+	STACK_CHECK( L);
+	STACK_CHECK( L2);
 	ASSERT_L( lua_gettop( L2) == 0);
 
 	// Lane main function
-	//
-	STACK_CHECK( L);
 	if( lua_type( L, 1) == LUA_TFUNCTION)
 	{
 		int res;
@@ -2340,7 +2339,7 @@ LUAG_FUNC( thread_new)
 		}
 	}
 
-	ASSERT_L( lua_gettop( L2) == 1);
+	STACK_MID( L2, 1);
 	ASSERT_L( lua_isfunction( L2, 1));
 
 	// revive arguments
@@ -2359,8 +2358,7 @@ LUAG_FUNC( thread_new)
 	}
 	STACK_MID( L, 0);
 
-	ASSERT_L( (uint_t)lua_gettop( L2) == 1 + args);
-	ASSERT_L( lua_isfunction( L2, 1));
+	STACK_END( L2, 1 + args);
 
 	// 's' is allocated from heap, not Lua, since its life span may surpass 
 	// the handle's (if free running thread)
@@ -2616,20 +2614,19 @@ LUAG_FUNC( thread_join)
 	double wait_secs = luaL_optnumber( L, 2, -1.0);
 	lua_State* L2 = s->L;
 	int ret;
-	bool_t done;
-
-	done = THREAD_ISNULL( s->thread) || THREAD_WAIT( &s->thread, wait_secs, &s->done_signal, &s->done_lock, &s->status);
+	bool_t done = THREAD_ISNULL( s->thread) || THREAD_WAIT( &s->thread, wait_secs, &s->done_signal, &s->done_lock, &s->status);
 	if( !done || !L2)
 	{
 		return 0;      // timeout: pushes none, leaves 'L2' alive
 	}
 
+	STACK_CHECK( L);
 	// Thread is DONE/ERROR_ST/CANCELLED; all ours now
 
 	if( s->mstatus == KILLED) // OS thread was killed if thread_cancel was forced
 	{
 		// in that case, even if the thread was killed while DONE/ERROR_ST/CANCELLED, ignore regular return values
-		STACK_GROW( L, 1);
+		STACK_GROW( L, 2);
 		lua_pushnil( L);
 		lua_pushliteral( L, "killed");
 		ret = 2;
@@ -2654,13 +2651,17 @@ LUAG_FUNC( thread_join)
 			break;
 
 			case ERROR_ST:
-			STACK_GROW( L, 1);
-			lua_pushnil( L);
-			if( luaG_inter_move( U, L2, L, 1 + ERROR_FULL_STACK, eLM_LaneBody) != 0)    // error message at [-2], stack trace at [-1]
 			{
-				return luaL_error( L, "tried to copy unsupported types");
+				int const n = lua_gettop( L2);
+				STACK_GROW( L, 3);
+				lua_pushnil( L);
+				// even when ERROR_FULL_STACK, if the error is not LUA_ERRRUN, the handler wasn't called, and we only have 1 error message on the stack ...
+				if( luaG_inter_move( U, L2, L, n, eLM_LaneBody) != 0)  // nil "err" [trace]
+				{
+					return luaL_error( L, "tried to copy unsupported types: %s", lua_tostring( L, -n));
+				}
+				ret = 1 + n;
 			}
-			ret = 2 + ERROR_FULL_STACK;
 			break;
 
 			case CANCELLED:
@@ -2675,7 +2676,7 @@ LUAG_FUNC( thread_join)
 		lua_close( L2);
 	}
 	s->L = 0;
-
+	STACK_END( L, ret);
 	return ret;
 }
 

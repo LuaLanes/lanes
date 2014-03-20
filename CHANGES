@@ -1,5 +1,11 @@
 CHANGES:
 
+CHANGE 108: BGe 20-Mar-14
+   * bumped version to 3.9.4
+   * set_finalizer throws an error if provided finalizer isn't a function
+   * fix error handling when the error doesn't generate an error handler call (IOW, all errors but LUA_ERRRUN)
+   * provide callstack if LUA_ERRRUN occurs inside a finalizer
+
 CHANGE 107: BGe 19-Mar-14
    * Make sure we don't mutex-wrap require() more than once, just in case
 
