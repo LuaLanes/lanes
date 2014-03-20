@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 27-Feb-14, and applies to version <tt>3.9.3</tt>.
+				This document was revised on 20-Mar-14, and applies to version <tt>3.9.4</tt>.
 			</p>
 		</font>
 	</center>
@@ -251,6 +251,10 @@
 </p>
 <p>
 	At the same time, <tt>configure()</tt> itself will be replaced by another function that raises an error if called again with differing arguments, if any.
+</p>
+<p>
+	Also, once Lanes is initialized, <tt>require()</tt> is replaced by another one that wraps it inside a mutex, both in the main state and in all created lanes. This prevents multiple thread-unsafe module initializations from several lanes to occur simultaneously.
+	It remains to be seen whether this is actually useful or not: If a module is already threadsafe, protecting its initialization isn't useful. And if it is not, any parallel operation may crash without Lanes being able to do anything about it.
 </p>
 <p>
 	<b>IMPORTANT NOTE:</b> Starting with version 3.7.0, only the first occurence of <tt>require "lanes"</tt> must be followed by a call to <tt>.configure()</tt>. From this point, a simple <tt>require "lanes"</tt> will do wherever you need to require lanes again.
