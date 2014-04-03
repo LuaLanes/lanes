@@ -90,6 +90,7 @@ THE SOFTWARE.
 #include "lauxlib.h"
 
 #include "threading.h"
+#include "compat.h"
 #include "tools.h"
 #include "keeper.h"
 #include "lanes.h"
