@@ -17,16 +17,18 @@
 #endif
 
 // For some reason, LuaJIT 64bits doesn't support lua_newstate()
-// If you build specifically for this situation, change value to 0
 #if defined(LUA_LJDIR) && (defined(__x86_64__) || defined(_M_X64))
 #define PROPAGATE_ALLOCF 0
+#else // LuaJIT x64
+#define PROPAGATE_ALLOCF 1
+#endif // LuaJIT x64
+#if PROPAGATE_ALLOCF
 #define PROPAGATE_ALLOCF_PREP( L) void* allocUD; lua_Alloc allocF = lua_getallocf( L, &allocUD)
 #define PROPAGATE_ALLOCF_ALLOC() lua_newstate( allocF, allocUD)
-#else // luaJIT x64
-#define PROPAGATE_ALLOCF 1
+#else // PROPAGATE_ALLOCF
 #define PROPAGATE_ALLOCF_PREP( L)
 #define PROPAGATE_ALLOCF_ALLOC() luaL_newstate()
-#endif // luaJIT x64
+#endif // PROPAGATE_ALLOCF
 
 #define USE_DEBUG_SPEW 0
 #if USE_DEBUG_SPEW
