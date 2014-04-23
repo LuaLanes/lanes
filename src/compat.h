@@ -1,6 +1,10 @@
 #if !defined( __COMPAT_H__)
 #define __COMPAT_H__ 1
 
+#include "lua.h"
+#include "lualib.h"
+#include "lauxlib.h"
+
 // code is now using Lua 5.2 API
 // add Lua 5.2 API when building for Lua 5.1
 #if LUA_VERSION_NUM == 501

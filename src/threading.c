@@ -41,7 +41,6 @@ THE SOFTWARE.
 #include <math.h>
 
 #include "threading.h"
-#include "lua.h"
 
 #if !defined( PLATFORM_XBOX) && !defined( PLATFORM_WIN32) && !defined( PLATFORM_POCKETPC)
 # include <sys/time.h>

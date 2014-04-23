@@ -31,12 +31,10 @@ THE SOFTWARE.
 ===============================================================================
 */
 
+#include "compat.h"
 #include "tools.h"
 #include "keeper.h"
 #include "lanes.h"
-
-#include "lualib.h"
-#include "lauxlib.h"
 
 #include <stdio.h>
 #include <string.h>

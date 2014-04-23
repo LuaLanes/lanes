@@ -43,11 +43,8 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-
 #include "threading.h"
+#include "compat.h"
 #include "tools.h"
 #include "keeper.h"
 
