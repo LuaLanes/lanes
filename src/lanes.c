@@ -454,7 +454,7 @@ static void check_key_types( lua_State* L, int start_, int end_)
 LUAG_FUNC( linda_send)
 {
 	struct s_Linda* linda = lua_toLinda( L, 1);
-	bool_t ret;
+	bool_t ret = FALSE;
 	enum e_cancel_request cancel = CANCEL_NONE;
 	int pushed;
 	time_d timeout = -1.0;
@@ -525,7 +525,6 @@ LUAG_FUNC( linda_send)
 			pushed = keeper_call( linda->U, KL, KEEPER_API( send), L, linda, key_i);
 			if( pushed < 0)
 			{
-				ret = FALSE;
 				break;
 			}
 			ASSERT_L( pushed == 1);
