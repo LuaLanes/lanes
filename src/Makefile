@@ -41,24 +41,32 @@ ifeq "$(LUAROCKS)" ""
     # Autodetect LUA_FLAGS and/or LUA_LIBS
     #
     ifneq "$(shell which pkg-config)" ""
-      ifeq "$(shell pkg-config --exists lua5.1 && echo 1)" "1"
-        LUA_FLAGS:=$(shell pkg-config --cflags lua5.1)
-        LUA_LIBS:=$(shell pkg-config --libs lua5.1)
+      ifeq "$(shell pkg-config --exists luajit && echo 1)" "1"
+        LUA_FLAGS:=$(shell pkg-config --cflags luajit)
+        LUA_LIBS:=$(shell pkg-config --libs luajit)
           #
-          # Ubuntu: -I/usr/include/lua5.1 
-          #         -llua5.1
+          # Debian: -I/usr/include/luajit-2.0
+          #         -lluajit-5.1
       else
-        ifeq "$(shell pkg-config --exists lua && echo 1)" "1"
-          LUA_FLAGS:=$(shell pkg-config --cflags lua)
-          LUA_LIBS:=$(shell pkg-config --libs lua)
+        ifeq "$(shell pkg-config --exists lua5.1 && echo 1)" "1"
+          LUA_FLAGS:=$(shell pkg-config --cflags lua5.1)
+          LUA_LIBS:=$(shell pkg-config --libs lua5.1)
             #
-            # OS X fink with pkg-config:
-            #      -I/sw/include 
-            #      -L/sw/lib -llua -lm
+            # Ubuntu: -I/usr/include/lua5.1 
+            #         -llua5.1
         else
-          $(warning *** 'pkg-config' existed but did not know of 'lua[5.1]' - Good luck!)
-          LUA_FLAGS:=
-          LUA_LIBS:=-llua
+          ifeq "$(shell pkg-config --exists lua && echo 1)" "1"
+            LUA_FLAGS:=$(shell pkg-config --cflags lua)
+            LUA_LIBS:=$(shell pkg-config --libs lua)
+              #
+              # OS X fink with pkg-config:
+              #      -I/sw/include 
+              #      -L/sw/lib -llua -lm
+          else
+            $(warning *** 'pkg-config' existed but did not know of 'lua[5.1]' - Good luck!)
+            LUA_FLAGS:=
+            LUA_LIBS:=-llua
+          endif
         endif
       endif
     else
