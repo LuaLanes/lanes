@@ -1,5 +1,19 @@
 CHANGES:
 
+CHANGE 112 BGe 16-May-14
+   * bumped version to 3.9.5
+   * fix linda.__towatch to return non-nil when the linda is empty
+   * lanes.gen() error reporting improvements
+
+CHANGE 111 BGe 24-Apr-14
+   * fixed linda:send() possibly returning an undefined value
+
+CHANGE 110 Stepets 20-Apr-14
+   * fix LuaJIT detection issues
+
+CHANGE 109 BGe 03-Apr-14
+   * moved some Lua-version compatibility code in separate source files
+
 CHANGE 108: BGe 20-Mar-14
    * bumped version to 3.9.4
    * set_finalizer throws an error if provided finalizer isn't a function

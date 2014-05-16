@@ -56,8 +56,9 @@ lanes.configure = function( settings_)
 	-- 
 	-- Cache globals for code that might run under sandboxing
 	--
-	local assert = assert
+	local assert = assert( assert)
 	local string_gmatch = assert( string.gmatch)
+	local string_format = assert( string.format)
 	local select = assert( select)
 	local type = assert( type)
 	local pairs = assert( pairs)
@@ -127,7 +128,7 @@ lanes.configure = function( settings_)
 		return settings
 	end
 	local settings = core.configure and core.configure( params_checker( settings_)) or core.settings
-	local thread_new = assert( core.thread_new)
+	local core_lane_new = assert( core.lane_new)
 	local max_prio = assert( core.max_prio)
 
 lanes.ABOUT =
@@ -203,11 +204,9 @@ end
 --        ... (more options may be introduced later) ...
 --
 -- Calling with a function parameter ('lane_func') ends the string/table
--- modifiers, and prepares a lane generator. One can either finish here,
--- and call the generator later (maybe multiple times, with different parameters) 
--- or add on actual thread arguments to also ignite the thread on the same call.
+-- modifiers, and prepares a lane generator.
 
-local valid_libs=
+local valid_libs =
 {
 	["package"] = true,
 	["table"] = true,
@@ -223,88 +222,110 @@ local valid_libs=
 	["lanes.core"] = true
 }
 
--- PUBLIC LANES API
-local function gen( ... )
-    local opt= {}
-    local libs= nil
-    local lev= 2  -- level for errors
-
-    local n= select('#',...)
-    
-    if n==0 then
-        error( "No parameters!" )
-    end
-
-    for i=1,n-1 do
-        local v= select(i,...)
-        if type(v)=="string" then
-            libs= libs and libs..","..v or v
-        elseif type(v)=="table" then
-            for k,vv in pairs(v) do
-                opt[k]= vv
-            end
-        elseif v==nil then
-            -- skip
-        else
-            error( "Bad parameter: "..tostring(v) )
-        end
-    end
-
-    local func= select(n,...)
-    local functype = type(func)
-    if functype ~= "function" and functype ~= "string" then
-        error( "Last parameter not function or string: "..tostring(func))
-    end
-
-    -- Check 'libs' already here, so the error goes in the right place
-    -- (otherwise will be noticed only once the generator is called)
-    -- "*" is a special case that doesn't require individual checking
-    --
-    if libs and libs ~= "*" then
-        local found = {}
-        -- check that the caller only provides reserved library names
-        for s in string_gmatch(libs, "[%a%d.]+") do
-            if not valid_libs[s] then
-                error( "Bad library name: " .. s)
-            else
-                found[s] = (found[s] or 0) + 1
-                if found[s] > 1 then
-                    error( "libs specification contains '" .. s .. "' more than once")
-                end
-            end
-        end
-    end
-    
-    local prio, cs, g_tbl, package_tbl, required, gc_cb
-
-    for k,v in pairs(opt) do
-        if k == "priority" then
-            prio = (type( v) == "number") and v or error( "Bad 'prio' option: expecting number, got " .. type( v), lev)
-        elseif k=="cancelstep" then
-            cs = (v==true) and 100 or
-                (v==false) and 0 or 
-                type(v)=="number" and v or
-                error( "Bad cancelstep: "..tostring(v), lev )
-        elseif k=="globals" then g_tbl= v
-        elseif k=="package" then
-            package_tbl = (type( v) == "table") and v or error( "Bad package: " .. tostring( v), lev)
-        elseif k=="required" then
-            required= (type( v) == "table") and v or error( "Bad 'required' option: expecting table, got " .. type( v), lev)
-        elseif k == "gc_cb" then
-            gc_cb = (type( v) == "function") and v or error( "Bad 'gc_cb' option: expecting function, got " .. type( v), lev)
-        --..
-        elseif k==1 then error( "unkeyed option: ".. tostring(v), lev )
-        else error( "Bad option: ".. tostring(k), lev )
-        end
-    end
-
-    if not package_tbl then package_tbl = package end
-    -- Lane generator
-    --
-    return function(...)
-        return thread_new( func, libs, cs, prio, g_tbl, package_tbl, required, gc_cb, ...)     -- args
-    end
+local raise_option_error = function( name_, tv_, v_)
+	error( "Bad '" .. name_ .. "' option: " .. tv_ .. " " .. string_format( "%q", tostring( v_)), 4)
 end
+
+local opt_validators =
+{
+	priority = function( v_)
+		local tv = type( v_)
+		return (tv == "number") and v_ or raise_option_error( "priority", tv, v_)
+	end,
+	cancelstep = function( v_)
+		local tv = type( v_)
+		return (tv == "number") and v_ or (v_ == true) and 100 or (v_ == false) and 0 or raise_option_error( "cancelstep", tv, v_)
+	end,
+	globals = function( v_)
+		local tv = type( v_)
+		return (tv == "table") and v_ or raise_option_error( "globals", tv, v_)
+	end,
+	package = function( v_)
+		local tv = type( v_)
+		return (tv == "table") and v_ or raise_option_error( "package", tv, v_)
+	end,
+	required = function( v_)
+		local tv = type( v_)
+		return (tv == "table") and v_ or raise_option_error( "required", tv, v_)
+	end,
+	gc_cb = function( v_)
+		local tv = type( v_)
+		return (tv == "function") and v_ or raise_option_error( "gc_cb", tv, v_)
+	end
+}
+
+-- PUBLIC LANES API
+-- receives a sequence of strings and tables, plus a function
+local gen = function( ...)
+	-- aggregrate all strings together, separated by "," as well as tables
+	-- the strings are a list of libraries to open
+	-- the tables contain the lane options
+	local opt = {}
+	local libs = nil
+
+	local n = select( '#', ...)
+
+	-- we need at least a function
+	if n == 0 then
+		error( "No parameters!", 2)
+	end
+
+	-- all arguments but the last must be nil, strings, or tables
+	for i = 1, n - 1 do
+		local v = select( i, ...)
+		local tv = type( v)
+		if tv == "string" then
+			libs = libs and libs .. "," .. v or v
+		elseif tv == "table" then
+			for k, vv in pairs( v) do
+				opt[k]= vv
+			end
+		elseif v == nil then
+			-- skip
+		else
+			error( "Bad parameter " .. i .. ": " .. tv .. " " .. string_format( "%q", tostring( v)), 2)
+		end
+	end
+
+	-- the last argument should be a function or a string
+	local func = select( n, ...)
+	local functype = type( func)
+	if functype ~= "function" and functype ~= "string" then
+		error( "Last parameter not function or string: " .. functype .. " " .. string_format( "%q", tostring( func)), 2)
+	end
+
+	-- check that the caller only provides reserved library names, and those only once
+	-- "*" is a special case that doesn't require individual checking
+	if libs and libs ~= "*" then
+		local found = {}
+		for s in string_gmatch(libs, "[%a%d.]+") do
+			if not valid_libs[s] then
+				error( "Bad library name: " .. s, 2)
+			else
+				found[s] = (found[s] or 0) + 1
+				if found[s] > 1 then
+					error( "libs specification contains '" .. s .. "' more than once", 2)
+				end
+			end
+		end
+	end
+
+	-- validate that each option is known and properly valued
+	for k, v in pairs( opt) do
+		local validator = opt_validators[k]
+		if not validator then
+			error( (type( k) == "number" and "Unkeyed option: " .. type( v) .. " " .. string_format( "%q", tostring( v)) or "Bad '" .. tostring( k) .. "' option"), 2)
+		else
+			opt[k] = validator( v)
+		end
+	end
+
+	local cancelstep, priority, globals, package, required, gc_cb = opt.cancelstep, opt.priority, opt.globals, opt.package or package, opt.required, opt.gc_cb
+	return function( ...)
+		-- must pass functions args last else they will be truncated to the first one
+		return core_lane_new( func, libs, cancelstep, priority, globals, package, required, gc_cb, ...)
+	end
+end -- gen()
 
 ---=== Timers ===---
 

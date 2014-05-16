@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.9.4";
+char const* VERSION = "3.9.5";
 
 /*
 ===============================================================================
@@ -1074,6 +1074,24 @@ LUAG_FUNC( linda_dump)
 }
 
 /*
+ * table = linda:dump()
+ * return a table listing all pending data inside the linda
+ */
+LUAG_FUNC( linda_towatch)
+{
+	struct s_Linda* linda = lua_toLinda( L, 1);
+	int pushed;
+	ASSERT_L( linda->U == get_universe( L));
+	pushed = keeper_push_linda_storage( linda->U, L, linda, LINDA_KEEPER_HASHSEED( linda));
+	if( pushed == 0)
+	{
+		// if the linda is empty, don't return nil
+		pushed = linda_tostring( L, 1, FALSE);
+	}
+	return pushed;
+}
+
+/*
 * Identity function of a shared userdata object.
 * 
 *   lightuserdata= linda_id( "new" [, ...] )
@@ -1190,7 +1208,7 @@ static void* linda_id( lua_State* L, enum eDeepOp op_)
 			lua_setfield( L, -2, "__tostring");
 
 			// Decoda __towatch support
-			lua_pushcfunction( L, LG_linda_dump);
+			lua_pushcfunction( L, LG_linda_towatch);
 			lua_setfield( L, -2, "__towatch");
 
 			lua_pushcfunction( L, LG_linda_concat);
@@ -2027,12 +2045,6 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void* vs)
 	// Called with the lane function and arguments on the stack
 	int const nargs = lua_gettop( L) - 1;
 	DEBUGSPEW_CODE( struct s_Universe* U = get_universe( L));
-#if HAVE_LANE_TRACKING
-	if( s->U->tracking_first)
-	{
-		tracking_add( s);
-	}
-#endif // HAVE_LANE_TRACKING
 	THREAD_MAKE_ASYNCH_CANCELLABLE();
 	THREAD_CLEANUP_PUSH( thread_cleanup_handler, s);
 	s->status = RUNNING;  // PENDING -> RUNNING
@@ -2147,85 +2159,86 @@ LUAG_FUNC( require)
 LUAG_FUNC( thread_gc);
 #define GCCB_KEY (void*)LG_thread_gc
 //---
-// lane_ud= thread_new( function, [libs_str], 
-//                          [cancelstep_uint=0], 
-//                          [prio_int=0],
-//                          [globals_tbl],
-//                          [package_tbl],
-//                          [required],
-//                          [gc_cb],
-//                          [... args ...] )
+// lane_ud = lane_new( function
+//                   , [libs_str]
+//                   , [cancelstep_uint=0]
+//                   , [priority_int=0]
+//                   , [globals_tbl]
+//                   , [package_tbl]
+//                   , [required_tbl]
+//                   , [gc_cb_func]
+//                  [, ... args ...])
 //
 // Upvalues: metatable to use for 'lane_ud'
 //
-
-LUAG_FUNC( thread_new)
+LUAG_FUNC( lane_new)
 {
 	lua_State* L2;
 	struct s_lane* s;
 	struct s_lane** ud;
 
-	char const* libs = lua_tostring( L, 2);
-	uint_t cs = luaG_optunsigned( L, 3, 0);
-	int const prio = (int) luaL_optinteger( L, 4, 0);
-	uint_t glob = lua_isnoneornil( L, 5) ? 0 : 5;
-	uint_t package = lua_isnoneornil( L, 6) ? 0 : 6;
-	uint_t required = lua_isnoneornil( L, 7) ? 0 : 7;
-	uint_t gc_cb = lua_isnoneornil( L, 8) ? 0 : 8;
+	char const* libs_str = lua_tostring( L, 2);
+	uint_t cancelstep_idx = luaG_optunsigned( L, 3, 0);
+	int const priority = (int) luaL_optinteger( L, 4, 0);
+	uint_t globals_idx = lua_isnoneornil( L, 5) ? 0 : 5;
+	uint_t package_idx = lua_isnoneornil( L, 6) ? 0 : 6;
+	uint_t required_idx = lua_isnoneornil( L, 7) ? 0 : 7;
+	uint_t gc_cb_idx = lua_isnoneornil( L, 8) ? 0 : 8;
 
 #define FIXED_ARGS 8
-	uint_t args = lua_gettop(L) - FIXED_ARGS;
+	int const nargs = lua_gettop(L) - FIXED_ARGS;
 	struct s_Universe* U = get_universe( L);
+	ASSERT_L( nargs >= 0);
 
 	// public Lanes API accepts a generic range -3/+3
 	// that will be remapped into the platform-specific scheduler priority scheme
 	// On some platforms, -3 is equivalent to -2 and +3 to +2
-	if( prio < THREAD_PRIO_MIN || prio > THREAD_PRIO_MAX)
+	if( priority < THREAD_PRIO_MIN || priority > THREAD_PRIO_MAX)
 	{
-		return luaL_error( L, "Priority out of range: %d..+%d (%d)", THREAD_PRIO_MIN, THREAD_PRIO_MAX, prio);
+		return luaL_error( L, "Priority out of range: %d..+%d (%d)", THREAD_PRIO_MIN, THREAD_PRIO_MAX, priority);
 	}
 
 	/* --- Create and prepare the sub state --- */
-	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "thread_new: setup\n" INDENT_END));
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: setup\n" INDENT_END));
 	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
 
 	// populate with selected libraries at the same time
-	L2 = luaG_newstate( U, L, libs);
+	L2 = luaG_newstate( U, L, libs_str);                     // L                                                                              // L2
 
-	STACK_GROW( L, 2);
-	STACK_GROW( L2, 3);
+	STACK_GROW( L2, nargs + 3);                                                                                                                //
+	STACK_CHECK( L2);
+
+	STACK_GROW( L, 3);                                       // func libs cancelstep priority globals package required gc_cb [... args ...]
+	STACK_CHECK( L);
 
 	// give a default "Lua" name to the thread to see VM name in Decoda debugger
-	lua_pushfstring( L2, "Lane #%p", L2);
-	lua_setglobal( L2, "decoda_name");
+	lua_pushfstring( L2, "Lane #%p", L2);                                                                                                      // "..."
+	lua_setglobal( L2, "decoda_name");                                                                                                         //
+	ASSERT_L( lua_gettop( L2) == 0);
 
-	ASSERT_L( lua_gettop(L2) == 0);
-
-	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "thread_new: update 'package'\n" INDENT_END));
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: update 'package'\n" INDENT_END));
 	// package
-	if( package != 0)
+	if( package_idx != 0)
 	{
 		// when copying with mode eLM_LaneBody, should raise an error in case of problem, not leave it one the stack
-		(void) luaG_inter_copy_package( U, L, L2, package, eLM_LaneBody);
+		(void) luaG_inter_copy_package( U, L, L2, package_idx, eLM_LaneBody);
 	}
 
 	// modules to require in the target lane *before* the function is transfered!
 
-	STACK_CHECK( L);
-	STACK_CHECK( L2);
-	if( required != 0)
+	if( required_idx != 0)
 	{
 		int nbRequired = 1;
-		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "thread_new: require 'required' list\n" INDENT_END));
+		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: require 'required' list\n" INDENT_END));
 		DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
-		// should not happen, was checked in lanes.lua before calling thread_new()
-		if( lua_type( L, required) != LUA_TTABLE)
+		// should not happen, was checked in lanes.lua before calling lane_new()
+		if( lua_type( L, required_idx) != LUA_TTABLE)
 		{
-			return luaL_error( L, "expected required module list as a table, got %s", luaL_typename( L, required));
+			return luaL_error( L, "expected required module list as a table, got %s", luaL_typename( L, required_idx));
 		}
 
-		lua_pushnil( L);
-		while( lua_next( L, required) != 0)
+		lua_pushnil( L);                                       // func libs cancelstep priority globals package required gc_cb [... args ...] nil
+		while( lua_next( L, required_idx) != 0)                // func libs cancelstep priority globals package required gc_cb [... args ...] n "modname"
 		{
 			if( lua_type( L, -1) != LUA_TSTRING || lua_type( L, -2) != LUA_TNUMBER || lua_tonumber( L, -2) != nbRequired)
 			{
@@ -2238,12 +2251,10 @@ LUAG_FUNC( thread_new)
 				char const* name = lua_tolstring( L, -1, &len);
 
 				// require the module in the target lane
-				STACK_GROW( L2, 2);
-				STACK_CHECK( L2);
-				lua_getglobal( L2, "require");                       // require()?
+				lua_getglobal( L2, "require");                                                                                                       // require()?
 				if( lua_isnil( L2, -1))
 				{
-					lua_pop( L2, 1);                                   //
+					lua_pop( L2, 1);                                                                                                                   //
 					luaL_error( L, "cannot pre-require modules without loading 'package' library first");
 				}
 				else
@@ -2254,113 +2265,102 @@ LUAG_FUNC( thread_new)
 					{
 						luaG_copy_one_time_settings( U, L, L2);
 					}
-					lua_pushlstring( L2, name, len);                   // require() name
-					if( lua_pcall( L2, 1, 1, 0) != LUA_OK)             // ret/errcode
+					lua_pushlstring( L2, name, len);                                                                                                   // require() name
+					if( lua_pcall( L2, 1, 1, 0) != LUA_OK)                                                                                             // ret/errcode
 					{
 						// propagate error to main state if any
-						luaG_inter_move( U, L2, L, 1, eLM_LaneBody);     //
+						luaG_inter_move( U, L2, L, 1, eLM_LaneBody);   // func libs cancelstep priority globals package required gc_cb [... args ...] n "modname" error
 						return lua_error( L);
 					}
-					STACK_MID( L2, 1);
 					// after requiring the module, register the functions it exported in our name<->function database
 					populate_func_lookup_table( L2, -1, name);
-					STACK_MID( L2, 1);
-					lua_pop( L2, 1);
+					lua_pop( L2, 1);                                                                                                                   //
 				}
-				STACK_END( L2, 0);
 			}
-			lua_pop( L, 1);
+			lua_pop( L, 1);                                      // func libs cancelstep priority globals package required gc_cb [... args ...] n
 			++ nbRequired;
-		}
+		}                                                      // func libs cancelstep priority globals package required gc_cb [... args ...]
 		DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 	}
-	STACK_END( L2, 0);
-	STACK_END( L, 0);
+	STACK_MID( L, 0);
+	STACK_MID( L2, 0);                                                                                                                         //
 
 	// Appending the specified globals to the global environment
 	// *after* stdlibs have been loaded and modules required, in case we transfer references to native functions they exposed...
 	//
-	if( glob != 0)
+	if( globals_idx != 0)
 	{
-		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "thread_new: transfer globals\n" INDENT_END));
-		STACK_CHECK( L);
-		STACK_CHECK( L2);
-		if( !lua_istable( L, glob))
+		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: transfer globals\n" INDENT_END));
+		if( !lua_istable( L, globals_idx))
 		{
-			return luaL_error( L, "Expected table, got %s", luaL_typename( L, glob));
+			return luaL_error( L, "Expected table, got %s", luaL_typename( L, globals_idx));
 		}
 
 		DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
-		lua_pushnil( L);
-		lua_pushglobaltable( L2); // Lua 5.2 wants us to push the globals table on the stack
-		while( lua_next( L, glob))
+		lua_pushnil( L);                                       // func libs cancelstep priority globals package required gc_cb [... args ...] nil
+		// Lua 5.2 wants us to push the globals table on the stack
+		lua_pushglobaltable( L2);                                                                                                                // _G
+		while( lua_next( L, globals_idx))                      // func libs cancelstep priority globals package required gc_cb [... args ...] k v
 		{
-			luaG_inter_copy( U, L, L2, 2, eLM_LaneBody);  // moves the key/value pair to the L2 stack
+			luaG_inter_copy( U, L, L2, 2, eLM_LaneBody);                                                                                           // _G k v
 			// assign it in L2's globals table
-			lua_rawset( L2, -3);
-			lua_pop( L, 1);
-		}
-		lua_pop( L2, 1);
+			lua_rawset( L2, -3);                                                                                                                   // _G
+			lua_pop( L, 1);                                      // func libs cancelstep priority globals package required gc_cb [... args ...] k
+		}                                                      // func libs cancelstep priority globals package required gc_cb [... args ...]
+		lua_pop( L2, 1);                                                                                                                         //
 
-		STACK_END( L2, 0);
-		STACK_END( L, 0);
 		DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 	}
-
-
-	STACK_CHECK( L);
-	STACK_CHECK( L2);
-	ASSERT_L( lua_gettop( L2) == 0);
+	STACK_MID( L, 0);
+	STACK_MID( L2, 0);
 
 	// Lane main function
 	if( lua_type( L, 1) == LUA_TFUNCTION)
 	{
 		int res;
-		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "thread_new: transfer lane body\n" INDENT_END));
+		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane body\n" INDENT_END));
 		DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
-		lua_pushvalue( L, 1);
-		res = luaG_inter_move( U, L, L2, 1, eLM_LaneBody);    // L->L2
+		lua_pushvalue( L, 1);                                  // func libs cancelstep priority globals package required gc_cb [... args ...] func
+		res = luaG_inter_move( U, L, L2, 1, eLM_LaneBody);     // func libs cancelstep priority globals package required gc_cb [... args ...]    // func
 		DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 		if( res != 0)
 		{
 			return luaL_error( L, "tried to copy unsupported types");
 		}
-		STACK_MID( L, 0);
 	}
 	else if( lua_type( L, 1) == LUA_TSTRING)
 	{
 		// compile the string
-		if( luaL_loadstring( L2, lua_tostring( L, 1)) != 0)
+		if( luaL_loadstring( L2, lua_tostring( L, 1)) != 0)                                                                                      // func
 		{
 			return luaL_error( L, "error when parsing lane function code");
 		}
 	}
-
+	STACK_MID( L, 0);
 	STACK_MID( L2, 1);
 	ASSERT_L( lua_isfunction( L2, 1));
 
 	// revive arguments
-	//
-	if( args > 0)
+	if( nargs > 0)
 	{
 		int res;
-		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "thread_new: transfer lane arguments\n" INDENT_END));
+		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane arguments\n" INDENT_END));
 		DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
-		res = luaG_inter_copy( U, L, L2, args, eLM_LaneBody);    // L->L2
+		res = luaG_inter_move( U, L, L2, nargs, eLM_LaneBody); // func libs cancelstep priority globals package required gc_cb                   // func [... args ...]
 		DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 		if( res != 0)
 		{
 			return luaL_error( L, "tried to copy unsupported types");
 		}
 	}
-	STACK_MID( L, 0);
+	STACK_END( L, -nargs);
+	ASSERT_L( lua_gettop( L) == FIXED_ARGS);
+	STACK_CHECK( L);
+	STACK_MID( L2, 1 + nargs);
 
-	STACK_END( L2, 1 + args);
-
-	// 's' is allocated from heap, not Lua, since its life span may surpass 
-	// the handle's (if free running thread)
+	// 's' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
 	//
-	ud = lua_newuserdata( L, sizeof( struct s_lane*));
+	ud = lua_newuserdata( L, sizeof( struct s_lane*));       // func libs cancelstep priority globals package required gc_cb lane
 	s = *ud = (struct s_lane*) malloc( sizeof( struct s_lane));
 	if( s == NULL)
 	{
@@ -2382,44 +2382,49 @@ LUAG_FUNC( thread_new)
 	s->selfdestruct_next = NULL;
 #if HAVE_LANE_TRACKING
 	s->tracking_next = NULL;
+	if( s->U->tracking_first)
+	{
+		tracking_add( s);
+	}
 #endif // HAVE_LANE_TRACKING
 
 	// Set metatable for the userdata
 	//
-	lua_pushvalue( L, lua_upvalueindex( 1));
-	lua_setmetatable( L, -2);
+	lua_pushvalue( L, lua_upvalueindex( 1));                 // func libs cancelstep priority globals package required gc_cb lane mt
+	lua_setmetatable( L, -2);                                // func libs cancelstep priority globals package required gc_cb lane
 	STACK_MID( L, 1);
 
 	// Create uservalue for the userdata
 	// (this is where lane body return values will be stored when the handle is indexed by a numeric key)
-	lua_newtable( L);
+	lua_newtable( L);                                        // func libs cancelstep priority globals package required gc_cb lane uv
 
 	// Store the gc_cb callback in the uservalue
-	if( gc_cb > 0)
+	if( gc_cb_idx > 0)
 	{
-		lua_pushlightuserdata( L, GCCB_KEY);
-		lua_pushvalue( L, gc_cb);
-		lua_rawset( L, -3);
+		lua_pushlightuserdata( L, GCCB_KEY);                   // func libs cancelstep priority globals package required gc_cb lane uv k
+		lua_pushvalue( L, gc_cb_idx);                          // func libs cancelstep priority globals package required gc_cb lane uv k gc_cb
+		lua_rawset( L, -3);                                    // func libs cancelstep priority globals package required gc_cb lane uv
 	}
 
-	lua_setuservalue( L, -2);
+	lua_setuservalue( L, -2);                                // func libs cancelstep priority globals package required gc_cb lane
 
 	// Store 's' in the lane's registry, for 'cancel_test()' (even if 'cs'==0 we still do cancel tests at pending send/receive).
-	lua_pushlightuserdata( L2, CANCEL_TEST_KEY);
-	lua_pushlightuserdata( L2, s);
-	lua_rawset( L2, LUA_REGISTRYINDEX);
+	lua_pushlightuserdata( L2, CANCEL_TEST_KEY);                                                                                               // func [... args ...] k
+	lua_pushlightuserdata( L2, s);                                                                                                             // func [... args ...] k s
+	lua_rawset( L2, LUA_REGISTRYINDEX);                                                                                                        // func [... args ...]
 
-	if( cs)
+	if( cancelstep_idx)
 	{
-		lua_sethook( L2, cancel_hook, LUA_MASKCOUNT, cs);
+		lua_sethook( L2, cancel_hook, LUA_MASKCOUNT, cancelstep_idx);
 	}
 
-	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "thread_new: launching thread\n" INDENT_END));
-	THREAD_CREATE( &s->thread, lane_main, s, prio);
-	STACK_END( L, 1);
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: launching thread\n" INDENT_END));
+	THREAD_CREATE( &s->thread, lane_main, s, priority);
 
 	DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 
+	STACK_END( L, 1);
+	STACK_END( L2, 1 + nargs);
 	return 1;
 }
 
@@ -3161,8 +3166,8 @@ LUAG_FUNC( configure)
 		lua_setfield( L, -2, "__metatable");                                               // settings M mt
 	}
 
-	lua_pushcclosure( L, LG_thread_new, 1);                                              // settings M LG_thread_new
-	lua_setfield( L, -2, "thread_new");                                                  // settings M
+	lua_pushcclosure( L, LG_lane_new, 1);                                                // settings M lane_new
+	lua_setfield( L, -2, "lane_new");                                                    // settings M
 
 	// we can't register 'lanes.require' normally because we want to create an upvalued closure
 	lua_getglobal( L, "require");                                                        // settings M require
