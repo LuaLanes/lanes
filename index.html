@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 20-Mar-14, and applies to version <tt>3.9.4</tt>.
+				This document was revised on 17-Jun-14, and applies to version <tt>3.9.6</tt>.
 			</p>
 		</font>
 	</center>
@@ -1511,12 +1511,12 @@ events to a common Linda, but... :).</font>
 		<ul>
 			<li><tt>eDO_new</tt>: requests the creation of a new object, whose pointer is returned.</li>
 			<li><tt>eDO_delete</tt>: receives this same pointer on the stack as a light userdata, and should cleanup the object.</li>
-			<li><tt>eDO_metatable</tt>: should build a metatable for the object. Don't cache the metatable yourself, Lanes takes care of it (<tt>eDO_metatable</tt> should only be invoked once per state).</li>
+			<li><tt>eDO_metatable</tt>: should build a metatable for the object. Don't cache the metatable yourself, Lanes takes care of it (<tt>eDO_metatable</tt> should only be invoked once per state). Push the metatable on the stack, then call <tt>luaG_pushdeepversion()</tt> before returning (new in version 3.9.5).</li>
 			<li><tt>eDO_module</tt>: requests the name of the module that exports the idfunc, to be returned. It is necessary so that Lanes can require it in any lane state that receives a userdata. This is to prevent crashes in situations where the module could be unloaded while the idfunc pointer is still held.</li>
 		</ul>
 		Take a look at <tt>linda_id</tt> in <tt>lanes.c</tt>.
 	</li>
-	<li>Include <tt>"deep.h"</tt> and link against Lanes.
+	<li>Include <tt>"deep.h"</tt> and either link against Lanes or statically compile deep.c into your module if you want to avoid a runtime dependency for users that will use your module without Lanes.
 	<li>Instanciate your userdata using <tt>luaG_newdeepuserdata()</tt>, instead of the regular <tt>lua_newuserdata()</tt>. Given an <tt>idfunc</tt>, it sets up the support structures and returns a state-specific proxy userdata for accessing your data. This proxy can also be copied over to other lanes.</li>
 	<li>Accessing the deep userdata from your C code, use <tt>luaG_todeep()</tt> instead of the regular <tt>lua_touserdata()</tt>.</li>
 </ol>
