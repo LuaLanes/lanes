@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.9.5";
+char const* VERSION = "3.9.6";
 
 /*
 ===============================================================================
@@ -1248,7 +1248,8 @@ static void* linda_id( lua_State* L, enum eDeepOp op_)
 			lua_pushlightuserdata( L, NIL_SENTINEL);
 			lua_setfield(L, -2, "null");
 
-			STACK_END( L, 1);
+			luaG_pushdeepversion( L);
+			STACK_END( L, 2);
 			return NULL;
 		}
 

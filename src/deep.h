@@ -27,5 +27,6 @@ typedef void* (*luaG_IdFunction)( lua_State* L, enum eDeepOp op_);
 
 extern LANES_API int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc);
 extern LANES_API void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index);
+extern LANES_API void luaG_pushdeepversion( lua_State* L);
 
 #endif // __LANES_DEEP_H__

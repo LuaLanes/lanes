@@ -1,5 +1,10 @@
 CHANGES:
 
+CHANGE 113: BGe 17-Jun-14
+   * bumped version to 3.9.6
+   * separate deep userdata code in a dedicated file to allow external modules to implement Lanes-compatible deep userdata without requiring a binary dependency against the Lanes module
+     because of this linda_id function(eDO_metatable) must push 2 values on the stack: a metatable and a deep version string obtained from luaG_pushdeepversion()
+
 CHANGE 112 BGe 16-May-14
    * bumped version to 3.9.5
    * fix linda.__towatch to return non-nil when the linda is empty

@@ -7,11 +7,11 @@
 
 package = "Lanes"
 
-version = "3.9.4-1"
+version = "3.9.6-1"
 
 source= {
 	url= "git://github.com/LuaLanes/lanes.git",
-	branch= "v3.9.4"
+	branch= "v3.9.6"
 }
 
 description = {
@@ -58,7 +58,7 @@ build = {
 	{
 		["lanes.core"] =
 		{
-			sources = { "src/compat.c", "src/lanes.c", "src/keeper.c", "src/tools.c", "src/threading.c"},
+			sources = { "src/compat.c", "src/deep.c", "src/lanes.c", "src/keeper.c", "src/tools.c", "src/threading.c"},
 			incdirs = { "src"},
 		},
 		lanes = "src/lanes.lua"

@@ -7,7 +7,7 @@
 
 MODULE=lanes
 
-SRC=lanes.c compat.c threading.c tools.c keeper.c
+SRC=lanes.c compat.c threading.c tools.c deep.c keeper.c
 
 OBJ=$(SRC:.c=.o)
 
