@@ -38,7 +38,7 @@ ENDIF(CYGWIN)
 
 # Build
 INCLUDE_DIRECTORIES(src)
-ADD_LIBRARY(lua51-lanes MODULE src/lanes.c src/deep.c src/threading.c src/tools.c src/keeper.c src/compat.c)
+ADD_LIBRARY(core MODULE src/lanes.c src/deep.c src/threading.c src/tools.c src/keeper.c src/compat.c)
 
 IF(UNIX AND NOT CYGWIN)
   SET(LIBS pthread)
