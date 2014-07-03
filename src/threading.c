@@ -86,9 +86,13 @@ THE SOFTWARE.
 #if defined( PLATFORM_XBOX) || defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
 static void FAIL( char const* funcname, int rc)
 {
+#if defined( PLATFORM_XBOX)
+	fprintf( stderr, "%s() failed! (%d)\n", funcname, rc );
+#else // PLATFORM_XBOX
 	char buf[256];
 	FormatMessageA( FORMAT_MESSAGE_FROM_SYSTEM, NULL, rc, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 256, NULL);
 	fprintf( stderr, "%s() failed! [GetLastError() -> %d] '%s'", funcname, rc, buf);
+#endif // PLATFORM_XBOX
 #ifdef _MSC_VER
 	__debugbreak(); // give a chance to the debugger!
 #endif // _MSC_VER
