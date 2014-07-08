@@ -3000,6 +3000,7 @@ static volatile long s_initCount = 0;
 LUAG_FUNC( configure)
 {
 	struct s_Universe* U = get_universe( L);
+	bool_t const from_master_state = (U == NULL);
 	char const* name = luaL_checkstring( L, lua_upvalueindex( 1));
 	_ASSERT_L( L, lua_type( L, 1) == LUA_TTABLE);
 
@@ -3045,7 +3046,7 @@ LUAG_FUNC( configure)
 	STACK_CHECK( L);
 
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END, L));
-	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+	DEBUGSPEW_CODE( if( U) ++ U->debugspew_indent_depth);
 
 	lua_getfield( L, 1, "protect_allocator");                                            // settings protect_allocator
 	if( lua_toboolean( L, -1))
@@ -3070,6 +3071,7 @@ LUAG_FUNC( configure)
 		lua_pushlightuserdata( L, UNIVERSE_REGKEY);                                        // settings UNIVERSE_REGKEY
 		U = (struct s_Universe*) lua_newuserdata( L, sizeof( struct s_Universe));          // settings UNIVERSE_REGKEY universe
 		memset( U, 0, sizeof( struct s_Universe));
+		DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
 		lua_newtable( L);                                                                  // settings UNIVERSE_REGKEY universe mt
 		lua_getfield( L, 1, "shutdown_timeout");                                           // settings UNIVERSE_REGKEY universe mt shutdown_timeout
 		lua_pushcclosure( L, selfdestruct_gc, 1);                                          // settings UNIVERSE_REGKEY universe mt selfdestruct_gc
@@ -3195,9 +3197,15 @@ LUAG_FUNC( configure)
 
 	// record all existing C/JIT-fast functions
 	// Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
-	lua_pushglobaltable( L);                                                             // settings M _G
-	populate_func_lookup_table( L, -1, NULL);
-	lua_pop( L, 1);                                                                      // settings M
+	if( from_master_state)
+	{
+		// don't do this when called during the initialization of a new lane,
+		// because we will do it after on_state_create() is called,
+		// and we don't want  skip _G because of caching in case globals are created then
+		lua_pushglobaltable( L);                                                           // settings M _G
+		populate_func_lookup_table( L, -1, NULL);
+		lua_pop( L, 1);                                                                    // settings M
+	}
 	// set _R[CONFIG_REGKEY] = settings
 	lua_pushvalue( L, -2);                                                               // settings M settings
 	lua_setfield( L, LUA_REGISTRYINDEX, CONFIG_REGKEY);                                  // settings M

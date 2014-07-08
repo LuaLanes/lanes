@@ -446,6 +446,8 @@ static void populate_func_lookup_table_recur( lua_State* L, int _ctx_base, int _
 				// prepare the stack for database feed
 				lua_pushvalue( L, -1);                                                              // ... {_i} {bfc} k func "f.q.n" "f.q.n"
 				lua_pushvalue( L, -3);                                                              // ... {_i} {bfc} k func "f.q.n" "f.q.n" func
+				ASSERT_L( lua_rawequal( L, -1, -4));
+				ASSERT_L( lua_rawequal( L, -2, -3));
 				// t["f.q.n"] = func 
 				lua_rawset( L, dest);                                                               // ... {_i} {bfc} k func "f.q.n"
 				// t[func] = "f.q.n"
@@ -704,6 +706,23 @@ lua_State* luaG_newstate( struct s_Universe* U, lua_State* from_, char const* li
 	// after all this, register everything we find in our name<->function database
 	lua_pushglobaltable( L); // Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
 	populate_func_lookup_table( L, -1, NULL);
+
+#if 0 && USE_DEBUG_SPEW
+	// dump the lookup database contents
+	lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);                       // {}
+	lua_pushnil( L);                                                          // {} nil
+	while( lua_next( L, -2))                                                  // {} k v
+	{
+		lua_getglobal( L, "print");                                             // {} k v print
+		lua_pushlstring( L, debugspew_indent, U->debugspew_indent_depth);       // {} k v print " "
+		lua_pushvalue( L, -4);                                                  // {} k v print " " k
+		lua_pushvalue( L, -4);                                                  // {} k v print " " k v
+		lua_call( L, 3, 0);                                                     // {} k v
+		lua_pop( L, 1);                                                         // {} k
+	}
+	lua_pop( L, 1);                                                           // {}
+#endif // USE_DEBUG_SPEW
+
 	lua_pop( L, 1);
 	STACK_END( L, 0);
 	DEBUGSPEW_CODE( -- U->debugspew_indent_depth);

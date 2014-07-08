@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 114: BGe 8-Jul-14
+   * Postponed _G scan for function lookup database to after on_state_create invocation
+   * Fixed a crash when USE_DEBUG_SPEW == 1
+
 CHANGE 113: BGe 17-Jun-14
    * bumped version to 3.9.6
    * separate deep userdata code in a dedicated file to allow external modules to implement Lanes-compatible deep userdata without requiring a binary dependency against the Lanes module
