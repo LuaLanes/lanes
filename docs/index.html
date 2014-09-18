@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 17-Jun-14, and applies to version <tt>3.9.6</tt>.
+				This document was revised on 18-Sep-14, and applies to version <tt>3.9.7</tt>.
 			</p>
 		</font>
 	</center>
@@ -1291,6 +1291,14 @@ events to a common Linda, but... :).</font>
 	The full list of active timers can be obtained. Obviously, this is a snapshot, and non-repeating timers might no longer exist by the time the results are inspected.
 </p>
 
+<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
+	void = lanes.sleep( [seconds|false])
+</pre></td></tr></table>
+
+<p>
+	(Since version 3.9.7) A very simple way of sleeping when nothing else is available. Is implemented by attempting to read some data in an unused channel of the internal linda used for timers (this linda exists even when timers aren't enabled).
+	Default duration is null, which should only cause a thread context switch.
+</p>
 
 <!-- locks +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
 <hr/>

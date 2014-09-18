@@ -331,12 +331,28 @@ end -- gen()
 
 -- PUBLIC LANES API
 local timer = function() error "timers are not active" end
-local timer_lane = nil
 local timers = timer
+local timer_lane = nil
+
+-- timer_gateway should always exist, even when the settings disable the timers
+local timer_gateway = assert( core.timer_gateway)
+
+-----
+-- <void> = sleep( [seconds_])
+--
+-- PUBLIC LANES API
+local sleep = function( seconds_)
+	seconds_ = seconds_ or 0.0 -- this causes false and nil to be a valid input, equivalent to 0.0, but that's ok
+	if type( seconds_) ~= "number" then
+		error( "invalid duration " .. string_format( "%q", tostring(seconds_)))
+	end
+	-- receive data on a channel no-one ever sends anything, thus blocking for the specified duration
+	return timer_gateway:receive( seconds_, "ac100de1-a696-4619-b2f0-a26de9d58ab8")
+end
+
 
 if settings.with_timers ~= false then
 
-local timer_gateway = assert( core.timer_gateway)
 --
 -- On first 'require "lanes"', a timer lane is spawned that will maintain
 -- timer tables and sleep in between the timer events. All interaction with
@@ -351,8 +367,8 @@ local TGW_KEY= "(timer control)"    -- the key does not matter, a 'weird' key ma
 local TGW_QUERY, TGW_REPLY = "(timer query)", "(timer reply)"
 local first_time_key= "first time"
 
-local first_time= timer_gateway:get(first_time_key) == nil
-timer_gateway:set(first_time_key,true)
+local first_time = timer_gateway:get( first_time_key) == nil
+timer_gateway:set( first_time_key, true)
 
 --
 -- Timer lane; initialize only on the first 'require "lanes"' instance (which naturally
@@ -703,6 +719,7 @@ end
 	lanes.timer = timer
 	lanes.timer_lane = timer_lane
 	lanes.timers = timers
+	lanes.sleep = sleep
 	lanes.genlock = genlock
 	lanes.now_secs = core.now_secs
 	lanes.genatomic = genatomic
