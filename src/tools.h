@@ -132,7 +132,7 @@ extern void* const UNIVERSE_REGKEY;
 #endif
 #define ASSERT_L(c) _ASSERT_L(L,c)
 
-#define STACK_GROW(L,n) do { if (!lua_checkstack(L,n)) luaL_error( L, "Cannot grow stack!" ); } while( 0)
+#define STACK_GROW( L, n) do { if (!lua_checkstack(L,(int)(n))) luaL_error( L, "Cannot grow stack!" ); } while( 0)
 
 #define LUAG_FUNC( func_name ) static int LG_##func_name( lua_State* L)
 

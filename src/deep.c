@@ -309,7 +309,7 @@ char const* push_deep_proxy( struct s_Universe* U, lua_State* L, DEEP_PRELUDE* p
 				return "Bad idfunc(eOP_metatable): unexpected pushed value";
 			}
 			luaG_pushdeepversion( L);                                                                      // DPC proxy metatable deepversion deepversion
-			if( !lua_equal( L, -1, -2))
+			if( !lua501_equal( L, -1, -2))
 			{
 				lua_pop( L, 5);                                                                              //
 				return "Bad idfunc(eOP_metatable): mismatched deep version";

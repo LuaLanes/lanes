@@ -630,7 +630,7 @@ LUAG_FUNC( linda_receive)
 	{
 		int is_batched;
 		lua_pushliteral( L, BATCH_SENTINEL);
-		is_batched = lua_equal( L, key_i, -1);
+		is_batched = lua501_equal( L, key_i, -1);
 		lua_pop( L, 1);
 		if( is_batched)
 		{
@@ -846,7 +846,7 @@ LUAG_FUNC( linda_get)
 {
 	struct s_Linda* const linda = lua_toLinda( L, 1);
 	int pushed;
-	int count = luaL_optint( L, 3, 1);
+	lua_Integer count = luaL_optinteger( L, 3, 1);
 	luaL_argcheck( L, count >= 1, 3, "count should be >= 1");
 	luaL_argcheck( L, lua_gettop( L) <= 3, 4, "too many arguments");
 
@@ -1144,7 +1144,7 @@ static void* linda_id( lua_State* L, enum eDeepOp op_)
 
 				case 2: // 2 parameters, a name and group, in that order
 				linda_name = lua_tolstring( L, -2, &name_len);
-				linda_group = lua_tointeger( L, -1);
+				linda_group = (unsigned long) lua_tointeger( L, -1);
 				break;
 			}
 
@@ -1982,7 +1982,7 @@ LUAG_FUNC( get_debug_threadname)
 
 LUAG_FUNC( set_thread_priority)
 {
-	int const prio = luaL_checkint( L, 1);
+	int const prio = (int) luaL_checkinteger( L, 1);
 	// public Lanes API accepts a generic range -3/+3
 	// that will be remapped into the platform-specific scheduler priority scheme
 	// On some platforms, -3 is equivalent to -2 and +3 to +2

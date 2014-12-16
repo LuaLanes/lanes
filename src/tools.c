@@ -286,7 +286,7 @@ FuncSubType luaG_getfuncsubtype( lua_State *L, int _i)
 		// the provided writer fails with code 666
 		// therefore, anytime we get 666, this means that lua_dump() attempted a dump
 		// all other cases mean this is either a C or LuaJIT-fast function
-		dumpres = lua_dump( L, dummy_writer, NULL);
+		dumpres = lua503_dump( L, dummy_writer, NULL, 1);
 		lua_pop( L, mustpush);
 		if( dumpres == 666)
 		{
@@ -1192,7 +1192,7 @@ static void inter_copy_func( struct s_Universe* U, lua_State* L2, uint_t L2_cach
 	// "value returned is the error code returned by the last call 
 	// to the writer" (and we only return 0)
 	// not sure this could ever fail but for memory shortage reasons
-	if( lua_dump( L, buf_writer, &b) != 0)
+	if( lua503_dump( L, buf_writer, &b, 1) != 0)
 	{
 		luaL_error( L, "internal error: function dump failed.");
 	}
@@ -1400,9 +1400,8 @@ static bool_t inter_copy_one_( struct s_Universe* U, lua_State* L2, uint_t L2_ca
 
 		case LUA_TNUMBER:
 		/* LNUM patch support (keeping integer accuracy) */
-		// TODO: support for integer in Lua 5.3
-#ifdef LUA_LNUM
-		if( lua_isinteger(L,i))
+#if defined LUA_LNUM || LUA_VERSION_NUM >= 503
+		if( lua_isinteger( L, i))
 		{
 			lua_Integer v = lua_tointeger( L, i);
 			DEBUGSPEW_CODE( if( vt == VT_KEY) fprintf( stderr, INDENT_BEGIN "KEY: %d\n" INDENT_END, v));
