@@ -2419,13 +2419,13 @@ LUAG_FUNC( lane_new)
 		lua_sethook( L2, cancel_hook, LUA_MASKCOUNT, cancelstep_idx);
 	}
 
+	STACK_END( L, 1);
+	STACK_END( L2, 1 + nargs);
+
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: launching thread\n" INDENT_END));
 	THREAD_CREATE( &s->thread, lane_main, s, priority);
 
 	DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
-
-	STACK_END( L, 1);
-	STACK_END( L2, 1 + nargs);
 	return 1;
 }
 
