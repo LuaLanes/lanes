@@ -1,18 +1,20 @@
-assert(nil == package.loaders[5])
+local loaders = package.loaders or package.searchers
+
+assert(nil == loaders[5])
 
 local configure_loaders = function()
-	table.insert(package.loaders, 4, function() end)
-	assert(package.loaders[1])
-	assert(package.loaders[2])
-	assert(package.loaders[3])
-	assert(package.loaders[4])
-	assert(package.loaders[5])
+	table.insert(loaders, 4, function() end)
+	assert(loaders[1])
+	assert(loaders[2])
+	assert(loaders[3])
+	assert(loaders[4])
+	assert(loaders[5])
 	print "loaders configured!"
 end
 
 configure_loaders()
 
-for k,v in pairs(package.loaders) do
+for k,v in pairs(loaders) do
 	print( k, type(v))
 end
 
