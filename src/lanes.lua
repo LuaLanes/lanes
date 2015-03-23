@@ -216,6 +216,7 @@ local valid_libs =
 	["math"] = true,
 	["debug"] = true,
 	["bit32"] = true, -- Lua 5.2 only, ignored silently under 5.1
+	["utf8"] = true, -- Lua 5.3 only, ignored silently under 5.1 and 5.2
 	--
 	["base"] = true,
 	["coroutine"] = true, -- part of "base" in Lua 5.1
