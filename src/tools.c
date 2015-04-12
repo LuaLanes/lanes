@@ -286,7 +286,7 @@ FuncSubType luaG_getfuncsubtype( lua_State *L, int _i)
 		// the provided writer fails with code 666
 		// therefore, anytime we get 666, this means that lua_dump() attempted a dump
 		// all other cases mean this is either a C or LuaJIT-fast function
-		dumpres = lua503_dump( L, dummy_writer, NULL, 1);
+		dumpres = lua503_dump( L, dummy_writer, NULL, 0);
 		lua_pop( L, mustpush);
 		if( dumpres == 666)
 		{
@@ -1192,7 +1192,7 @@ static void inter_copy_func( struct s_Universe* U, lua_State* L2, uint_t L2_cach
 	// "value returned is the error code returned by the last call 
 	// to the writer" (and we only return 0)
 	// not sure this could ever fail but for memory shortage reasons
-	if( lua503_dump( L, buf_writer, &b, 1) != 0)
+	if( lua503_dump( L, buf_writer, &b, 0) != 0)
 	{
 		luaL_error( L, "internal error: function dump failed.");
 	}
