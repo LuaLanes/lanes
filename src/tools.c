@@ -194,8 +194,13 @@ static const luaL_Reg libs[] =
 	{ LUA_OSLIBNAME, luaopen_os},
 	{ LUA_IOLIBNAME, luaopen_io},
 #endif // PLATFORM_XBOX
+#if LUA_VERSION_NUM >= 503
+	{ LUA_UTF8LIBNAME, luaopen_utf8},
+#endif
 #if LUA_VERSION_NUM >= 502
+#ifdef luaopen_bit32
 	{ LUA_BITLIBNAME, luaopen_bit32},
+#endif
 	{ LUA_COLIBNAME, luaopen_coroutine}, // Lua 5.2: coroutine is no longer a part of base!
 #else // LUA_VERSION_NUM
 	{ LUA_COLIBNAME, NULL},              // Lua 5.1: part of base package
