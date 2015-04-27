@@ -1,6 +1,11 @@
 CHANGES:
 
-CHANGE 115: BGe 18-sep-14
+CHANGE 116: BGe, mpeterv 27-Apr-15
+   * bumped version to 3.10.0
+   * segfault fixed in LG_lane_new
+   * Lua 5.3 support
+
+CHANGE 115: BGe 18-Sep-14
    * bumped version to 3.9.7
    * new function lanes.sleep()
 
