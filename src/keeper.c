@@ -702,9 +702,7 @@ void init_keepers( struct s_Universe* U, lua_State* L)
 		call_on_state_create( U, K, L, eLM_ToKeeper);
 
 		// to see VM name in Decoda debugger
-		lua_pushliteral( K, "Keeper #");                                                  // "Keeper #"
-		lua_pushinteger( K, i + 1);                                                       // "Keeper #" n
-		lua_concat( K, 2);                                                                // "Keeper #n"
+		lua_pushfstring( K, "Keeper #%d", i + 1);                                         // "Keeper #n"
 		lua_setglobal( K, "decoda_name");                                                 //
 
 		// create the fifos table in the keeper state
