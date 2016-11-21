@@ -17,11 +17,11 @@ struct s_Keepers
 void init_keepers( struct s_Universe* U, lua_State* L);
 void close_keepers( struct s_Universe* U, lua_State* L);
 
-struct s_Keeper* keeper_acquire( struct s_Keepers* keepers_, unsigned long magic_);
+struct s_Keeper* keeper_acquire( struct s_Keepers* keepers_, ptrdiff_t magic_);
 #define KEEPER_MAGIC_SHIFT 3
 void keeper_release( struct s_Keeper* K);
-void keeper_toggle_nil_sentinels( lua_State* L, int _val_i, enum eLookupMode const mode_);
-int keeper_push_linda_storage( struct s_Universe* U, lua_State* L, void* ptr, unsigned long magic_);
+void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, enum eLookupMode const mode_);
+int keeper_push_linda_storage( struct s_Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_);
 
 #define NIL_SENTINEL ((void*)keeper_toggle_nil_sentinels)
 

@@ -43,6 +43,7 @@ void luaL_requiref (lua_State* L, const char* modname, lua_CFunction openf, int 
 #endif // lua_lessthan
 #define luaG_registerlibfuncs( L, _funcs) luaL_setfuncs( L, _funcs, 0)
 #define lua503_dump lua_dump
+#define luaL_optint(L,n,d) ((int)luaL_optinteger(L, (n), (d)))
 #endif // LUA_VERSION_NUM == 503
 
 #endif // __COMPAT_H__

@@ -413,11 +413,11 @@ struct s_Linda
 	SIGNAL_T read_happened;
 	SIGNAL_T write_happened;
 	struct s_Universe* U; // the universe this linda belongs to
+	ptrdiff_t group; // a group to control keeper allocation between lindas
 	enum e_cancel_request simulate_cancel;
-	unsigned long group; // a group to control keeper allocation between lindas
 	char name[1];
 };
-#define LINDA_KEEPER_HASHSEED( linda) (linda->group ? linda->group : (unsigned long)linda)
+#define LINDA_KEEPER_HASHSEED( linda) (linda->group ? linda->group : (ptrdiff_t)linda)
 
 static void* linda_id( lua_State*, enum eDeepOp);
 
