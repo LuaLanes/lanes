@@ -1,5 +1,12 @@
 CHANGES:
 
+CHANGE 118: trukanduk 21-Nov-16
+   * bumped version to 3.10.1
+   * objects with a metatable that contains __lanesignore are skipped during data transfers
+
+CHANGE 117: mpeterv 21-Nov-16
+   * Fix an implicit number-to-string conversion
+
 CHANGE 116: BGe, mpeterv 27-Apr-15
    * bumped version to 3.10.0
    * segfault fixed in LG_lane_new
