@@ -1392,10 +1392,26 @@ static void push_cached_func( struct s_Universe* U, lua_State* L2, uint_t L2_cac
 static bool_t inter_copy_one_( struct s_Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, enum eLookupMode mode_, char const* upName_)
 {
 	bool_t ret = TRUE;
+	bool_t ignore = FALSE;
 	STACK_GROW( L2, 1);
 	STACK_CHECK( L2);
 
-	switch( lua_type( L, i))
+	/* Skip the object if it has metatable with { __lanesignore = true } */
+	if( lua_getmetatable( L, i))                                                                    // ... mt
+	{
+		lua_pushstring( L, "__lanesignore");                                                        // ... mt "__lanesignore"
+		lua_gettable( L, -2);                                                                       // ... mt ignore?
+
+		if( lua_isboolean( L, -1) && lua_toboolean( L, -1))
+		{
+			ignore = TRUE;
+		}
+
+		lua_pop( L, 2);                                                                             // ...
+	}
+
+	/* Lets push nil to L2 if the object should be ignored */
+	switch( ignore ? LUA_TNIL : lua_type( L, i))
 	{
 		/* Basic types allowed both as values, and as table keys */
 
