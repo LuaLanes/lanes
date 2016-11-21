@@ -64,13 +64,13 @@
 		<font size="-1">
 			<p>
 				<br/>
-				<i>Copyright &copy; 2007-15 Asko Kauppi, Benoit Germain. All rights reserved.</i>
+				<i>Copyright &copy; 2007-16 Asko Kauppi, Benoit Germain. All rights reserved.</i>
 				<br/>
 				Lua Lanes is published under the same <a href="http://en.wikipedia.org/wiki/MIT_License">MIT license</a> as Lua 5.1, 5.2, and 5.3.
 			</p>
 
 			<p>
-				This document was revised on 27-Apr-15, and applies to version <tt>3.10.0</tt>.
+				This document was revised on 21-Nov-16, and applies to version <tt>3.10.1</tt>.
 			</p>
 		</font>
 	</center>
@@ -88,7 +88,7 @@
     Lanes is included into your software by the regular <tt>require "lanes"</tt> method. No C side programming is needed; all APIs are Lua side, and most existing extension modules should work seamlessly together with the multiple lanes.
 </p>
 <p>
-  Starting with version 3.1.6, Lanes should build and run identically with either Lua 5.1 or Lua 5.2.
+  Starting with version 3.1.6, Lanes should build and run identically with either Lua 5.1 or Lua 5.2. Version 3.10.0 supports Lua 5.3.
 </p>
 <p>
     See <A HREF="comparison.html">comparison</A> of Lua Lanes with other Lua multithreading solutions.
@@ -1393,6 +1393,7 @@ events to a common Linda, but... :).</font>
 			</ul>
 		</li>
 		<li>Coroutines cannot be passed. A coroutine's Lua state is tied to the Lua state that created it, and there is no way the mixed C/Lua stack of a coroutine can be transfered from one Lua state to another.</li>
+        <li>Starting with version 3.10.1, if the metatable contains <tt>__lanesignore</tt>, the object is skipped and <tt>nil</tt> is transfered instead.</li>
 	</ul>
 </p>
 
