@@ -224,7 +224,7 @@ static void open1lib( struct s_Universe* U, lua_State* L, char const* name_, siz
 			if( libfunc != NULL)
 			{
 				bool_t const isLanesCore = (libfunc == require_lanes_core) ? TRUE : FALSE; // don't want to create a global for "lanes.core"
-				DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening %.*s library\n" INDENT_END, len_, name_));
+				DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening %.*s library\n" INDENT_END, (int) len_, name_));
 				STACK_CHECK( L);
 				if( isLanesCore == TRUE)
 				{
