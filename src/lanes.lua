@@ -220,6 +220,9 @@ lanes.configure = function( settings_)
 		["debug"] = true,
 		["bit32"] = true, -- Lua 5.2 only, ignored silently under 5.1
 		["utf8"] = true, -- Lua 5.3 only, ignored silently under 5.1 and 5.2
+		["bit"] = true, -- LuaJIT only, ignored silently under PUC-Lua
+		["jit"] = true, -- LuaJIT only, ignored silently under PUC-Lua
+		["ffi"] = true, -- LuaJIT only, ignored silently under PUC-Lua
 		--
 		["base"] = true,
 		["coroutine"] = true, -- part of "base" in Lua 5.1

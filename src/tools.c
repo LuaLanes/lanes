@@ -206,6 +206,14 @@ static const luaL_Reg libs[] =
 	{ LUA_COLIBNAME, NULL},              // Lua 5.1: part of base package
 #endif // LUA_VERSION_NUM
 	{ LUA_DBLIBNAME, luaopen_debug},
+#if defined LUA_JITLIBNAME // building against LuaJIT headers, add some LuaJIT-specific libs
+#pragma message( "supporting JIT base libs")
+	{ LUA_BITLIBNAME, luaopen_bit},
+	{ LUA_JITLIBNAME, luaopen_jit},
+	{ LUA_FFILIBNAME, luaopen_ffi},
+#endif // LUA_JITLIBNAME
+
+	{ LUA_DBLIBNAME, luaopen_debug},
 	{ "lanes.core", require_lanes_core}, // So that we can open it like any base library (possible since we have access to the init function)
 	//
 	{ "base", NULL},                     // ignore "base" (already acquired it)
@@ -1393,25 +1401,23 @@ static bool_t inter_copy_one_( struct s_Universe* U, lua_State* L2, uint_t L2_ca
 {
 	bool_t ret = TRUE;
 	bool_t ignore = FALSE;
+	int val_type = lua_type(L, i);
 	STACK_GROW( L2, 1);
 	STACK_CHECK( L2);
 
 	/* Skip the object if it has metatable with { __lanesignore = true } */
 	if( lua_getmetatable( L, i))                                                                    // ... mt
 	{
-		lua_pushstring( L, "__lanesignore");                                                        // ... mt "__lanesignore"
-		lua_gettable( L, -2);                                                                       // ... mt ignore?
-
+		lua_getfield( L, -1, "__lanesignore");                                                      // ... mt ignore?
 		if( lua_isboolean( L, -1) && lua_toboolean( L, -1))
 		{
-			ignore = TRUE;
+			val_type = LUA_TNIL;
 		}
-
 		lua_pop( L, 2);                                                                             // ...
 	}
 
 	/* Lets push nil to L2 if the object should be ignored */
-	switch( ignore ? LUA_TNIL : lua_type( L, i))
+	switch( val_type)
 	{
 		/* Basic types allowed both as values, and as table keys */
 
@@ -1664,6 +1670,7 @@ static bool_t inter_copy_one_( struct s_Universe* U, lua_State* L2, uint_t L2_ca
 
 		/* The following types cannot be copied */
 
+		case 10: // LuaJIT CDATA
 		case LUA_TTHREAD: 
 		ret = FALSE;
 		break;

@@ -103,7 +103,7 @@ static void fifo_push( lua_State* L, keeper_fifo* fifo_, lua_Integer count_)
 	for( i = count_; i >= 1; -- i)
 	{
 		// store in the fifo the value at the top of the stack at the specified index, popping it from the stack
-		lua_rawseti( L, idx, start + i);
+		lua_rawseti( L, idx, (int)(start + i));
 	}
 	fifo_->count += count_;
 }
@@ -115,11 +115,11 @@ static void fifo_push( lua_State* L, keeper_fifo* fifo_, lua_Integer count_)
 // function assumes that there is enough data in the fifo to satisfy the request
 static void fifo_peek( lua_State* L, keeper_fifo* fifo_, lua_Integer count_)
 {
-	int i;
+	lua_Integer i;
 	STACK_GROW( L, count_);
 	for( i = 0; i < count_; ++ i)
 	{
-		lua_rawgeti( L, 1, fifo_->first + i);
+		lua_rawgeti( L, 1, (int)( fifo_->first + i));
 	}
 }
 
@@ -134,7 +134,7 @@ static void fifo_pop( lua_State* L, keeper_fifo* fifo_, lua_Integer count_)
 	// skip first item, we will push it last
 	for( i = 1; i < count_; ++ i)
 	{
-		lua_Integer const at = fifo_->first + i;
+		int const at = (int)( fifo_->first + i);
 		// push item on the stack
 		lua_rawgeti( L, fifo_idx, at);         // ... fifo val
 		// remove item from the fifo
@@ -143,7 +143,7 @@ static void fifo_pop( lua_State* L, keeper_fifo* fifo_, lua_Integer count_)
 	}
 	// now process first item
 	{
-		lua_Integer const at = fifo_->first;
+		int const at = (int)( fifo_->first);
 		lua_rawgeti( L, fifo_idx, at);         // ... fifo vals val
 		lua_pushnil( L);                       // ... fifo vals val nil
 		lua_rawseti( L, fifo_idx, at);         // ... fifo vals val

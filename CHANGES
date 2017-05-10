@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 119: BGe 10-May-17
+   * Fixed some compilation warnings
+   * Improved LuaJIT support 
+
 CHANGE 118: trukanduk 21-Nov-16
    * bumped version to 3.10.1
    * objects with a metatable that contains __lanesignore are skipped during data transfers
