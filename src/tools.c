@@ -207,7 +207,7 @@ static const luaL_Reg libs[] =
 #endif // LUA_VERSION_NUM
 	{ LUA_DBLIBNAME, luaopen_debug},
 #if defined LUA_JITLIBNAME // building against LuaJIT headers, add some LuaJIT-specific libs
-#pragma message( "supporting JIT base libs")
+//#pragma message( "supporting JIT base libs")
 	{ LUA_BITLIBNAME, luaopen_bit},
 	{ LUA_JITLIBNAME, luaopen_jit},
 	{ LUA_FFILIBNAME, luaopen_ffi},
