@@ -8,7 +8,7 @@
 ===============================================================================
 
 Copyright (C) 2002-10 Asko Kauppi <akauppi@gmail.com>
-              2011-14 benoit Germain <bnt.germain@gmail.com>
+              2011-17 benoit Germain <bnt.germain@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -71,48 +71,52 @@ DEBUGSPEW_CODE( char const* debugspew_indent = "----+----!----+----!----+----!--
 
 /*---=== luaG_dump ===---*/
 
-void luaG_dump( lua_State* L ) {
+void luaG_dump( lua_State* L)
+{
+	int top = lua_gettop( L);
+	int i;
 
-    int top= lua_gettop(L);
-    int i;
+	fprintf( stderr, "\n\tDEBUG STACK:\n");
 
-	fprintf( stderr, "\n\tDEBUG STACK:\n" );
+	if( top == 0)
+		fprintf( stderr, "\t(none)\n");
 
-	if (top==0)
-		fprintf( stderr, "\t(none)\n" );
+	for( i = 1; i <= top; ++ i)
+	{
+		int type = lua_type( L, i);
 
-	for( i=1; i<=top; i++ ) {
-		int type= lua_type( L, i );
-
-		fprintf( stderr, "\t[%d]= (%s) ", i, lua_typename(L,type) );
+		fprintf( stderr, "\t[%d]= (%s) ", i, lua_typename(L, type));
 
 		// Print item contents here...
 		//
 		// Note: this requires 'tostring()' to be defined. If it is NOT,
 		//       enable it for more debugging.
 		//
-    STACK_CHECK( L);
-        STACK_GROW( L, 2);
+		STACK_CHECK( L);
+		STACK_GROW( L, 2);
 
-        lua_getglobal( L, "tostring" );
-            //
-            // [-1]: tostring function, or nil
-        
-        if (!lua_isfunction(L,-1)) {
-             fprintf( stderr, "('tostring' not available)" );
-         } else {
-             lua_pushvalue( L, i );
-             lua_call( L, 1 /*args*/, 1 /*retvals*/ );
+		lua_getglobal( L, "tostring");
+		//
+		// [-1]: tostring function, or nil
 
-             // Don't trust the string contents
-             //                
-             fprintf( stderr, "%s", lua_tostring(L,-1) );
-         }
-         lua_pop(L,1);
-    STACK_END( L, 0);
-		fprintf( stderr, "\n" );
+		if( !lua_isfunction(L, -1))
+		{
+			fprintf( stderr, "('tostring' not available)");
 		}
-	fprintf( stderr, "\n" );
+		else
+		{
+			lua_pushvalue( L, i);
+			lua_call( L, 1 /*args*/, 1 /*retvals*/);
+
+			// Don't trust the string contents
+			//                
+			fprintf( stderr, "%s", lua_tostring(L, -1));
+		}
+		lua_pop( L, 1);
+		STACK_END( L, 0);
+		fprintf( stderr, "\n");
+	}
+	fprintf( stderr, "\n");
 }
 
 void initialize_on_state_create( struct s_Universe* U, lua_State* L)
@@ -813,13 +817,13 @@ static int buf_writer( lua_State *L, const void* b, size_t n, void* B ) {
  * Returns TRUE if the table was cached (no need to fill it!); FALSE if
  * it's a virgin.
  */
-static bool_t push_cached_table( lua_State *L2, uint_t L2_cache_i, lua_State *L, uint_t i )
+static bool_t push_cached_table( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i)
 {
 	bool_t ret;
 
-	ASSERT_L( L2_cache_i != 0 );
+	ASSERT_L( L2_cache_i != 0);
 
-	STACK_GROW(L2,3);
+	STACK_GROW( L2, 3);
 
 	// L2_cache[id_str]= [{...}]
 	//
@@ -828,33 +832,32 @@ static bool_t push_cached_table( lua_State *L2, uint_t L2_cache_i, lua_State *L,
 	// We don't need to use the from state ('L') in ID since the life span
 	// is only for the duration of a copy (both states are locked).
 	//
-	lua_pushlightuserdata( L2, (void*)lua_topointer( L, i )); // push a light userdata uniquely representing the table
+	lua_pushlightuserdata( L2, (void*)lua_topointer( L, i)); // push a light userdata uniquely representing the table
 
 	//fprintf( stderr, "<< ID: %s >>\n", lua_tostring(L2,-1) );
 
-	lua_pushvalue( L2, -1 );
-	lua_rawget( L2, L2_cache_i );
+	lua_pushvalue( L2, -1);
+	lua_rawget( L2, L2_cache_i);
 	//
 	// [-2]: identity table pointer lightuserdata
 	// [-1]: table|nil
 
-	if (lua_isnil(L2,-1))
+	if( lua_isnil( L2, -1))
 	{
-		lua_pop(L2,1);
-		lua_newtable(L2);
-		lua_pushvalue(L2,-1);
-		lua_insert(L2,-3);
+		lua_pop( L2, 1);
+		lua_newtable( L2);
+		lua_pushvalue( L2, -1);
+		lua_insert( L2, -3);
 		//
 		// [-3]: new table (2nd ref)
 		// [-2]: identity table pointer lightuserdata
 		// [-1]: new table
 
-		lua_rawset(L2, L2_cache_i);
+		lua_rawset( L2, L2_cache_i);
 		//
 		// [-1]: new table (tied to 'L2_cache' table')
 
-		ret= FALSE;     // brand new
-
+		ret = FALSE;     // brand new
 	}
 	else
 	{
@@ -865,7 +868,7 @@ static bool_t push_cached_table( lua_State *L2, uint_t L2_cache_i, lua_State *L,
 	//
 	// L2 [-1]: table to use as destination
 
-	ASSERT_L( lua_istable(L2,-1) );
+	ASSERT_L( lua_istable( L2, -1));
 	return ret;
 }
 
@@ -1537,7 +1540,7 @@ static bool_t inter_copy_one_( struct s_Universe* U, lua_State* L2, uint_t L2_ca
 			* to the same subtable.
 			*
 			* Note: Even metatables need to go through this test; to detect
-			*      loops s.a. those in required module tables (getmetatable(lanes).lanes == lanes)
+			*       loops such as those in required module tables (getmetatable(lanes).lanes == lanes)
 			*/
 			if( push_cached_table( L2, L2_cache_i, L, i))
 			{
@@ -1555,8 +1558,7 @@ static bool_t inter_copy_one_( struct s_Universe* U, lua_State* L2, uint_t L2_ca
 				uint_t val_i = lua_gettop(L);
 				uint_t key_i = val_i - 1;
 
-				/* Only basic key types are copied over; others ignored
-				*/
+				// Only basic key types are copied over; others ignored
 				if( inter_copy_one_( U, L2, 0 /*key*/, L, key_i, VT_KEY, mode_, upName_))
 				{
 					char* valPath = (char*) upName_;
