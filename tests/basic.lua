@@ -220,6 +220,10 @@ local chunk= function( linda )
 
     k,v=receive(); WR( v.." received\n" ); assert( v==4 )
 
+    local subT1 = { "subT1"}
+    local subT2 = { "subT2"}
+    send { subT1, subT2, subT1, subT2}; WR( "{ subT1, subT2, subT1, subT2} sent\n" )
+
     WR( "Lane ends!\n" )
 end
 
@@ -262,6 +266,10 @@ assert( tables_match( a, {'a','b','c',d=10} ) )
 
 assert( PEEK() == nil )
 SEND(4)
+
+local complex_table = RECEIVE(); WR( type(complex_table).." received\n" )
+assert( complex_table[1] == complex_table[3] and complex_table[2] == complex_table[4])
+WR( table.concat( {complex_table[1][1],complex_table[2][1],complex_table[3][1],complex_table[4][1]},", "))
 
 t = nil
 collectgarbage()
