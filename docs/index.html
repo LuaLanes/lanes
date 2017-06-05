@@ -64,13 +64,13 @@
 		<font size="-1">
 			<p>
 				<br/>
-				<i>Copyright &copy; 2007-16 Asko Kauppi, Benoit Germain. All rights reserved.</i>
+				<i>Copyright &copy; 2007-17 Asko Kauppi, Benoit Germain. All rights reserved.</i>
 				<br/>
 				Lua Lanes is published under the same <a href="http://en.wikipedia.org/wiki/MIT_License">MIT license</a> as Lua 5.1, 5.2, and 5.3.
 			</p>
 
 			<p>
-				This document was revised on 21-Nov-16, and applies to version <tt>3.10.1</tt>.
+				This document was revised on 5-Jun-17, and applies to version <tt>3.11</tt>.
 			</p>
 		</font>
 	</center>
@@ -396,12 +396,15 @@
 	(Since v3.5.0) Once Lanes is configured, one should register with Lanes the modules exporting functions that will be transferred either during lane generation or through <a href="#lindas">lindas</a>.
 	<br/>
 	Use <tt>lanes.require()</tt> for this purpose. This will call the original <tt>require()</tt>, then add the result to the lookup databases.
+	<br/>
+	(Since version 3.11) It is also possible to register a given module with <tt>lanes.register()</tt>. This function will raise an error if the registered module is not a function or table.
 </p>
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%">
 	<tr>
 		<td>
 			<pre>	local m = lanes.require "modname"</pre>
+			<pre>	lanes.register( "modname", module)</pre>
 		</td>
 	</tr>
 </table>

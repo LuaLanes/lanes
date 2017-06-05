@@ -1,5 +1,10 @@
 CHANGES:
 
+CHANGE 120: BGe 5-Jun-17
+   * new API function lanes.register( "name", module) to manually register a module table after it was required
+   * Transfering registered module tables will link the equivalent in the destination state instead of cloning it
+   * bumped version to 3.11
+
 CHANGE 119: BGe 10-May-17
    * Fixed some compilation warnings
    * Improved LuaJIT support

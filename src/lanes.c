@@ -1,6 +1,6 @@
 /*
  * LANES.C                              Copyright (c) 2007-08, Asko Kauppi
- *                                      Copyright (C) 2009-14, Benoit Germain
+ *                                      Copyright (C) 2009-17, Benoit Germain
  *
  * Multithreading in Lua.
  * 
@@ -52,13 +52,13 @@
  *      ...
  */
 
-char const* VERSION = "3.10.1";
+char const* VERSION = "3.11";
 
 /*
 ===============================================================================
 
 Copyright (C) 2007-10 Asko Kauppi <akauppi@gmail.com>
-              2011-14 Benoit Germain <bnt.germain@gmail.com>
+              2011-17 Benoit Germain <bnt.germain@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -162,7 +162,8 @@ struct s_lane
 	// lane status changes to DONE/ERROR_ST/CANCELLED.
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 
-	volatile enum { 
+	volatile enum
+	{
 		NORMAL,         // normal master side state
 		KILLED          // issued an OS kill
 	} mstatus;
@@ -307,7 +308,7 @@ static bool_t push_registry_table( lua_State* L, void* key, bool_t create)
 			return FALSE;
 		}
 
-		lua_newtable(L);                                                           // t
+		lua_newtable( L);                                                          // t
 		lua_pushlightuserdata( L, key);                                            // t key
 		lua_pushvalue( L, -2);                                                     // t key t
 		lua_rawset( L, LUA_REGISTRYINDEX);                                         // t
@@ -351,7 +352,7 @@ static bool_t tracking_remove( struct s_lane* s)
 		// still (at process exit they will remove us from chain and then
 		// cancel/kill).
 		//
-		if (s->tracking_next != NULL)
+		if( s->tracking_next != NULL)
 		{
 			struct s_lane** ref = (struct s_lane**) &s->U->tracking_first;
 
@@ -539,7 +540,7 @@ LUAG_FUNC( linda_send)
 				break;
 			}
 
-			// instant timout to bypass the 
+			// instant timout to bypass the wait syscall
 			if( timeout == 0.0)
 			{
 				break;  /* no wait; instant timeout */
@@ -2157,6 +2158,30 @@ LUAG_FUNC( require)
 	return 1;
 }
 
+
+// --- If a client wants to transfer stuff of a previously required module from the current state to another Lane, the module must be registered
+// to populate the lookup database in the source lane (and in the destination too, of course)
+// lanes.register( "modname", module)
+LUAG_FUNC( register)
+{
+	char const* name = luaL_checkstring( L, 1);
+	int const nargs = lua_gettop( L);
+	int const mod_type = lua_type( L, 2);
+	// ignore extra parameters, just in case
+	lua_settop( L, 2);
+	luaL_argcheck( L, (mod_type == LUA_TTABLE) || (mod_type == LUA_TFUNCTION), 2, "unexpected module type");
+	DEBUGSPEW_CODE( struct s_Universe* U = get_universe( L));
+	STACK_CHECK( L);                          // "name" mod_table
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lanes.register %s BEGIN\n" INDENT_END, name));
+	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+	populate_func_lookup_table( L, -1, name);
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lanes.register %s END\n" INDENT_END, name));
+	DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+	STACK_END( L, 0);
+	return 0;
+}
+
+
 LUAG_FUNC( thread_gc);
 #define GCCB_KEY (void*)LG_thread_gc
 //---
@@ -2945,6 +2970,7 @@ static const struct luaL_Reg lanes_functions [] = {
     {"wakeup_conv", LG_wakeup_conv},
     {"set_thread_priority", LG_set_thread_priority},
     {"nameof", luaG_nameof},
+    {"register", LG_register},
     {"set_singlethreaded", LG_set_singlethreaded},
     {NULL, NULL}
 };
@@ -3201,7 +3227,7 @@ LUAG_FUNC( configure)
 	{
 		// don't do this when called during the initialization of a new lane,
 		// because we will do it after on_state_create() is called,
-		// and we don't want  skip _G because of caching in case globals are created then
+		// and we don't want to skip _G because of caching in case globals are created then
 		lua_pushglobaltable( L);                                                           // settings M _G
 		populate_func_lookup_table( L, -1, NULL);
 		lua_pop( L, 1);                                                                    // settings M
