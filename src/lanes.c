@@ -297,7 +297,7 @@ static bool_t push_registry_table( lua_State* L, void* key, bool_t create)
 	STACK_GROW( L, 3);
 	STACK_CHECK( L);
 	lua_pushlightuserdata( L, key);                                              // key
-	lua_gettable( L, LUA_REGISTRYINDEX);                                         // t?
+	lua_rawget( L, LUA_REGISTRYINDEX);                                           // t?
 
 	if( lua_isnil( L, -1))                                                       // nil?
 	{
@@ -1842,12 +1842,11 @@ done:
 static int lane_error( lua_State* L)
 {
 	lua_Debug ar;
-	unsigned lev, n;
+	int n;
 	bool_t extended;
 
-	// [1]: error message (any type)
-
-	assert( lua_gettop( L) == 1);
+	// error message (any type)
+	assert( lua_gettop( L) == 1);                                                   // some_error
 
 	// Don't do stack survey for cancelled lanes.
 	//
@@ -1856,10 +1855,11 @@ static int lane_error( lua_State* L)
 		return 1;   // just pass on
 	}
 
-	lua_pushlightuserdata( L, EXTENDED_STACK_TRACE_KEY);
-	lua_gettable( L, LUA_REGISTRYINDEX);
+	STACK_GROW( L, 3);
+	lua_pushlightuserdata( L, EXTENDED_STACK_TRACE_KEY);                            // some_error estk
+	lua_rawget( L, LUA_REGISTRYINDEX);                                              // some_error basic|extended
 	extended = lua_toboolean( L, -1);
-	lua_pop( L, 1);
+	lua_pop( L, 1);                                                                 // some_error
 
 	// Place stack trace at 'registry[lane_error]' for the 'lua_pcall()'
 	// caller to fetch. This bypasses the Lua 5.1 limitation of only one
@@ -1871,50 +1871,48 @@ static int lane_error( lua_State* L)
 	//
 	// table of { "sourcefile.lua:<line>", ... }
 	//
-	STACK_GROW( L, 4);
-	lua_newtable( L);
+	lua_newtable( L);                                                                // some_error {}
 
 	// Best to start from level 1, but in some cases it might be a C function
 	// and we don't get '.currentline' for that. It's okay - just keep level
 	// and table index growing separate.    --AKa 22-Jan-2009
 	//
-	lev = 0;
-	n = 1;
-	while( lua_getstack( L, ++ lev, &ar))
+	for( n = 1; lua_getstack( L, n, &ar); ++ n)
 	{
 		lua_getinfo( L, extended ? "Sln" : "Sl", &ar);
 		if( extended)
 		{
-			lua_newtable( L);
+			lua_newtable( L);                                                           // some_error {} {}
 
-			lua_pushstring( L, ar.source);
-			lua_setfield( L, -2, "source");
+			lua_pushstring( L, ar.source);                                              // some_error {} {} source
+			lua_setfield( L, -2, "source");                                             // some_error {} {}
 
-			lua_pushinteger( L, ar.currentline);
-			lua_setfield( L, -2, "currentline");
+			lua_pushinteger( L, ar.currentline);                                        // some_error {} {} currentline
+			lua_setfield( L, -2, "currentline");                                        // some_error {} {}
 
-			lua_pushstring( L, ar.name);
-			lua_setfield( L, -2, "name");
+			lua_pushstring( L, ar.name);                                                // some_error {} {} name
+			lua_setfield( L, -2, "name");                                               // some_error {} {}
 
-			lua_pushstring( L, ar.namewhat);
-			lua_setfield( L, -2, "namewhat");
+			lua_pushstring( L, ar.namewhat);                                            // some_error {} {} namewhat
+			lua_setfield( L, -2, "namewhat");                                           // some_error {} {}
 
-			lua_pushstring( L, ar.what);
-			lua_setfield( L, -2, "what");
-
-			lua_rawseti(L, -2, n ++);
+			lua_pushstring( L, ar.what);                                                // some_error {} {} what
+			lua_setfield( L, -2, "what");                                               // some_error {} {}
 		}
-		else if (ar.currentline > 0)
+		else if( ar.currentline > 0)
 		{
-			lua_pushinteger( L, n++ );
-			lua_pushfstring( L, "%s:%d", ar.short_src, ar.currentline );
-			lua_settable( L, -3 );
+			lua_pushfstring( L, "%s:%d", ar.short_src, ar.currentline);                 // some_error {} "blah:blah"
 		}
+		else
+		{
+			lua_pushfstring( L, "%s:?", ar.short_src);                                  // some_error {} "blah"
+		}
+		lua_rawseti( L, -2, (lua_Integer) n);                                         // some_error {}
 	}
 
-	lua_pushlightuserdata( L, STACK_TRACE_KEY);
-	lua_insert( L, -2);
-	lua_settable( L, LUA_REGISTRYINDEX);
+	lua_pushlightuserdata( L, STACK_TRACE_KEY);                                     // some_error {} stk
+	lua_insert( L, -2);                                                             // some_error stk {}
+	lua_rawset( L, LUA_REGISTRYINDEX);                                              // some_error
 
 	assert( lua_gettop( L) == 1);
 
@@ -1937,11 +1935,12 @@ static void push_stack_trace( lua_State* L, int rc_, int stk_base_)
 			STACK_GROW( L, 1);
 			lua_pushlightuserdata( L, STACK_TRACE_KEY);                              // err STACK_TRACE_KEY
 			// yields nil if no stack was generated (in case of cancellation for example)
-			lua_gettable( L, LUA_REGISTRYINDEX);                                     // err trace|nil
+			lua_rawget( L, LUA_REGISTRYINDEX);                                       // err trace|nil
+			ASSERT_L( lua_gettop( L) == 1 + stk_base_);
 
 			// For cancellation the error message is CANCEL_ERROR, and a stack trace isn't placed
-			// For other errors, the message should be a string, and we should have a stack trace table
-			ASSERT_L( (lua_istable( L, 1 + stk_base_) && lua_type( L, stk_base_) == LUA_TSTRING) || (lua_touserdata( L, stk_base_) == CANCEL_ERROR));
+			// For other errors, the message can be whatever was thrown, and we should have a stack trace table
+			ASSERT_L( lua_type( L, 1 + stk_base_) == ((lua_touserdata( L, stk_base_) == CANCEL_ERROR) ? LUA_TNIL : LUA_TTABLE));
 			// Just leaving the stack trace table on the stack is enough to get it through to the master.
 			break;
 		}
@@ -2085,7 +2084,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void* vs)
 #	endif // ERROR_FULL_STACK
 
 	// in case of error and if it exists, fetch stack trace from registry and push it
-	push_stack_trace( L, rc, 1);
+	push_stack_trace( L, rc, 1);                                                 // retvals|error [trace]
 
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "Lane %p body: %s (%s)\n" INDENT_END, L, get_errcode_name( rc), (lua_touserdata( L, 1)==CANCEL_ERROR) ? "cancelled" : lua_typename( L, lua_type( L, 1))));
 	//STACK_DUMP(L);

@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 121: BGe 13-Jun-17
+   * no longer internally assert when an error message is not a string
+
 CHANGE 120: BGe 5-Jun-17
    * new API function lanes.register( "name", module) to manually register a module table after it was required
    * Transfering registered module tables will link the equivalent in the destination state instead of cloning it
