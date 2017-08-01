@@ -46,6 +46,7 @@
 #include "threading.h"
 #include "compat.h"
 #include "tools.h"
+#include "universe.h"
 #include "keeper.h"
 
 //###################################################################################
@@ -664,14 +665,11 @@ void init_keepers( struct s_Universe* U, lua_State* L)
 		// from there, GC can collect a linda, which would acquire the keeper again, and deadlock the thread.
 		// therefore, we need a recursive mutex.
 		MUTEX_RECURSIVE_INIT( &U->keepers->keeper_array[i].keeper_cs);
-		STACK_CHECK( K);
 
 		// copy the universe pointer in the keeper itself
-		lua_pushlightuserdata( K, UNIVERSE_REGKEY);
-		lua_pushlightuserdata( K, U);
-		lua_rawset( K, LUA_REGISTRYINDEX);
-		STACK_MID( K, 0);
+		universe_store( K, U);
 
+		STACK_CHECK( K);
 		// make sure 'package' is initialized in keeper states, so that we have require()
 		// this because this is needed when transferring deep userdata object
 		luaL_requiref( K, "package", luaopen_package, 1);                                 // package

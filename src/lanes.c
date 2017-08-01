@@ -52,7 +52,7 @@
  *      ...
  */
 
-char const* VERSION = "3.11";
+char const* VERSION = "3.12";
 
 /*
 ===============================================================================
@@ -89,6 +89,7 @@ THE SOFTWARE.
 #include "threading.h"
 #include "compat.h"
 #include "tools.h"
+#include "universe.h"
 #include "keeper.h"
 #include "lanes.h"
 
@@ -1070,7 +1071,7 @@ LUAG_FUNC( linda_concat)
 LUAG_FUNC( linda_dump)
 {
 	struct s_Linda* linda = lua_toLinda( L, 1);
-	ASSERT_L( linda->U == get_universe( L));
+	ASSERT_L( linda->U == universe_get( L));
 	return keeper_push_linda_storage( linda->U, L, linda, LINDA_KEEPER_HASHSEED( linda));
 }
 
@@ -1082,7 +1083,7 @@ LUAG_FUNC( linda_towatch)
 {
 	struct s_Linda* linda = lua_toLinda( L, 1);
 	int pushed;
-	ASSERT_L( linda->U == get_universe( L));
+	ASSERT_L( linda->U == universe_get( L));
 	pushed = keeper_push_linda_storage( linda->U, L, linda, LINDA_KEEPER_HASHSEED( linda));
 	if( pushed == 0)
 	{
@@ -1159,7 +1160,7 @@ static void* linda_id( lua_State* L, enum eDeepOp op_)
 			{
 				SIGNAL_INIT( &s->read_happened);
 				SIGNAL_INIT( &s->write_happened);
-				s->U = get_universe( L);
+				s->U = universe_get( L);
 				s->simulate_cancel = CANCEL_NONE;
 				s->group = linda_group << KEEPER_MAGIC_SHIFT;
 				s->name[0] = 0;
@@ -1718,7 +1719,7 @@ static int selfdestruct_gc( lua_State* L)
 	lua_settop( L, 0);
 	// no need to mutex-protect this as all threads in the universe are gone at that point
 	-- U->timer_deep->refcount; // should be 0 now
-	free_deep_prelude( L, (DEEP_PRELUDE*) U->timer_deep);
+	free_deep_prelude( L, (struct DEEP_PRELUDE*) U->timer_deep);
 	U->timer_deep = NULL;
 
 	close_keepers( U, L);
@@ -2045,7 +2046,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void* vs)
 	lua_State* L = s->L;
 	// Called with the lane function and arguments on the stack
 	int const nargs = lua_gettop( L) - 1;
-	DEBUGSPEW_CODE( struct s_Universe* U = get_universe( L));
+	DEBUGSPEW_CODE( struct s_Universe* U = universe_get( L));
 	THREAD_MAKE_ASYNCH_CANCELLABLE();
 	THREAD_CLEANUP_PUSH( thread_cleanup_handler, s);
 	s->status = RUNNING;  // PENDING -> RUNNING
@@ -2143,7 +2144,7 @@ LUAG_FUNC( require)
 {
 	char const* name = lua_tostring( L, 1);
 	int const nargs = lua_gettop( L);
-	DEBUGSPEW_CODE( struct s_Universe* U = get_universe( L));
+	DEBUGSPEW_CODE( struct s_Universe* U = universe_get( L));
 	STACK_CHECK( L);
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lanes.require %s BEGIN\n" INDENT_END, name));
 	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
@@ -2169,7 +2170,7 @@ LUAG_FUNC( register)
 	// ignore extra parameters, just in case
 	lua_settop( L, 2);
 	luaL_argcheck( L, (mod_type == LUA_TTABLE) || (mod_type == LUA_TFUNCTION), 2, "unexpected module type");
-	DEBUGSPEW_CODE( struct s_Universe* U = get_universe( L));
+	DEBUGSPEW_CODE( struct s_Universe* U = universe_get( L));
 	STACK_CHECK( L);                          // "name" mod_table
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lanes.register %s BEGIN\n" INDENT_END, name));
 	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
@@ -2212,7 +2213,7 @@ LUAG_FUNC( lane_new)
 
 #define FIXED_ARGS 8
 	int const nargs = lua_gettop(L) - FIXED_ARGS;
-	struct s_Universe* U = get_universe( L);
+	struct s_Universe* U = universe_get( L);
 	ASSERT_L( nargs >= 0);
 
 	// public Lanes API accepts a generic range -3/+3
@@ -2660,7 +2661,7 @@ LUAG_FUNC( thread_join)
 	}
 	else
 	{
-		struct s_Universe* U = get_universe( L);
+		struct s_Universe* U = universe_get( L);
 		// debug_name is a pointer to string possibly interned in the lane's state, that no longer exists when the state is closed
 		// so store it in the userdata uservalue at a key that can't possibly collide
 		securize_debug_threadname( L, s);
@@ -2872,7 +2873,7 @@ LUAG_FUNC( thread_index)
 LUAG_FUNC( threads)
 {
 	int const top = lua_gettop( L);
-	struct s_Universe* U = get_universe( L);
+	struct s_Universe* U = universe_get( L);
 
 	// List _all_ still running threads
 	//
@@ -3024,7 +3025,7 @@ static volatile long s_initCount = 0;
 // param 1: settings table
 LUAG_FUNC( configure)
 {
-	struct s_Universe* U = get_universe( L);
+	struct s_Universe* U = universe_get( L);
 	bool_t const from_master_state = (U == NULL);
 	char const* name = luaL_checkstring( L, lua_upvalueindex( 1));
 	_ASSERT_L( L, lua_type( L, 1) == LUA_TTABLE);
@@ -3093,16 +3094,14 @@ LUAG_FUNC( configure)
 	// grab or create the universe
 	if( U == NULL)
 	{
-		lua_pushlightuserdata( L, UNIVERSE_REGKEY);                                        // settings UNIVERSE_REGKEY
-		U = (struct s_Universe*) lua_newuserdata( L, sizeof( struct s_Universe));          // settings UNIVERSE_REGKEY universe
-		memset( U, 0, sizeof( struct s_Universe));
+		U = universe_create( L);                                                           // settings universe
 		DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
-		lua_newtable( L);                                                                  // settings UNIVERSE_REGKEY universe mt
-		lua_getfield( L, 1, "shutdown_timeout");                                           // settings UNIVERSE_REGKEY universe mt shutdown_timeout
-		lua_pushcclosure( L, selfdestruct_gc, 1);                                          // settings UNIVERSE_REGKEY universe mt selfdestruct_gc
-		lua_setfield( L, -2, "__gc");                                                      // settings UNIVERSE_REGKEY universe mt
-		lua_setmetatable( L, -2);                                                          // settings UNIVERSE_REGKEY universe
-		lua_rawset( L, LUA_REGISTRYINDEX);                                                 // settings
+		lua_newtable( L);                                                                  // settings universe mt
+		lua_getfield( L, 1, "shutdown_timeout");                                           // settings universe mt shutdown_timeout
+		lua_pushcclosure( L, selfdestruct_gc, 1);                                          // settings universe mt selfdestruct_gc
+		lua_setfield( L, -2, "__gc");                                                      // settings universe mt
+		lua_setmetatable( L, -2);                                                          // settings universe
+		lua_pop( L, 1);                                                                    // settings
 		lua_getfield( L, 1, "verbose_errors");                                             // settings verbose_errors
 		U->verboseErrors = lua_toboolean( L, -1);
 		lua_pop( L, 1);                                                                    // settings
@@ -3130,7 +3129,7 @@ LUAG_FUNC( configure)
 		STACK_MID( L, 1);
 
 		// Proxy userdata contents is only a 'DEEP_PRELUDE*' pointer
-		U->timer_deep = * (DEEP_PRELUDE**) lua_touserdata( L, -1);
+		U->timer_deep = *(struct DEEP_PRELUDE**) lua_touserdata( L, -1);
 		ASSERT_L( U->timer_deep && (U->timer_deep->refcount == 1) && U->timer_deep->deep && U->timer_deep->idfunc == linda_id);
 		// increment refcount that this linda remains alive as long as the universe is.
 		++ U->timer_deep->refcount;
@@ -3160,7 +3159,7 @@ LUAG_FUNC( configure)
 
 	{
 		char const* errmsg;
-		errmsg = push_deep_proxy( U, L, (DEEP_PRELUDE*) U->timer_deep, eLM_LaneBody);      // settings M timer_deep
+		errmsg = push_deep_proxy( U, L, (struct DEEP_PRELUDE*) U->timer_deep, eLM_LaneBody);// settings M timer_deep
 		if( errmsg != NULL)
 		{
 			return luaL_error( L, errmsg);

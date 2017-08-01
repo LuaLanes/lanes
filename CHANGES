@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 122: BGe 1-Aug-17
+   * fix crash trying to use a deep-aware module while not requiring Lanes
+   * bumped version to 3.12
+
 CHANGE 121: BGe 13-Jun-17
    * no longer internally assert when an error message is not a string
 

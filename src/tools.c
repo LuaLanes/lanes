@@ -32,6 +32,7 @@ THE SOFTWARE.
 */
 
 #include "compat.h"
+#include "universe.h"
 #include "tools.h"
 #include "keeper.h"
 #include "lanes.h"
@@ -47,21 +48,6 @@ THE SOFTWARE.
 // functions implemented in deep.c
 extern luaG_IdFunction copydeep( struct s_Universe* U, lua_State* L, lua_State* L2, int index, enum eLookupMode mode_);
 extern void push_registry_subtable( lua_State* L, void* key_);
-
-void* const UNIVERSE_REGKEY = (void*) luaopen_lanes_core;
-
-/*
- * ###############################################################################################
- * ########################################### ASSERT ############################################
- * ###############################################################################################
- */
-void ASSERT_IMPL( lua_State* L, bool_t cond_, char const* file_, int const line_, char const* text_)
-{
-	if ( !cond_)
-	{
-		(void) luaL_error( L, "ASSERT failed: %s:%d '%s'", file_, line_, text_);
-	}
-}
 
 char const* const CONFIG_REGKEY = "ee932492-a654-4506-9da8-f16540bdb5d4";
 char const* const LOOKUP_REGKEY = "ddea37aa-50c7-4d3f-8e0b-fb7a9d62bac5";
@@ -150,19 +136,7 @@ void initialize_on_state_create( struct s_Universe* U, lua_State* L)
 	STACK_END( L, 0);
 }
 
-
-struct s_Universe* get_universe( lua_State* L)
-{
-	struct s_Universe* universe;
-	STACK_GROW( L, 2);
-	STACK_CHECK( L);
-	lua_pushlightuserdata( L, UNIVERSE_REGKEY);
-	lua_rawget( L, LUA_REGISTRYINDEX);
-	universe = lua_touserdata( L, -1); // NULL if nil
-	lua_pop( L, 1);
-	STACK_END( L, 0);
-	return universe;
-}
+// ################################################################################################
 
 // just like lua_xmove, args are (from, to)
 void luaG_copy_one_time_settings( struct s_Universe* U, lua_State* L, lua_State* L2)
@@ -367,7 +341,7 @@ static void update_lookup_entry( lua_State* L, int _ctx_base, int _depth)
 	size_t prevNameLength, newNameLength;
 	char const* prevName;
 	DEBUGSPEW_CODE( char const *newName);
-	DEBUGSPEW_CODE( struct s_Universe* U = get_universe( L));
+	DEBUGSPEW_CODE( struct s_Universe* U = universe_get( L));
 
 	STACK_CHECK( L);
 	// first, raise an error if the function is already known
@@ -438,7 +412,7 @@ static void populate_func_lookup_table_recur( lua_State* L, int _ctx_base, int _
 	int const cache = _ctx_base + 2;
 	// we need to remember subtables to process them after functions encountered at the current depth (breadth-first search)
 	int const breadth_first_cache = lua_gettop( L) + 1;
-	DEBUGSPEW_CODE( struct s_Universe* U = get_universe( L));
+	DEBUGSPEW_CODE( struct s_Universe* U = universe_get( L));
 
 	STACK_GROW( L, 6);
 	// slot _i contains a table where we search for functions (or a full userdata with a metatable)
@@ -556,7 +530,7 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* name_)
 	int const ctx_base = lua_gettop( L) + 1;
 	int const in_base = lua_absindex( L, _i);
 	int start_depth = 0;
-	DEBUGSPEW_CODE( struct s_Universe* U = get_universe( L));
+	DEBUGSPEW_CODE( struct s_Universe* U = universe_get( L));
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: populate_func_lookup_table('%s')\n" INDENT_END, L, name_ ? name_ : "NULL"));
 	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
 	STACK_GROW( L, 3);
@@ -670,14 +644,12 @@ lua_State* luaG_newstate( struct s_Universe* U, lua_State* from_, char const* li
 	}
 
 	STACK_GROW( L, 2);
-	STACK_CHECK( L);
 
 	// copy the universe as a light userdata (only the master state holds the full userdata)
 	// that way, if Lanes is required in this new state, we'll know we are part of this universe
-	lua_pushlightuserdata( L, UNIVERSE_REGKEY);
-	lua_pushlightuserdata( L, U);
-	lua_rawset( L, LUA_REGISTRYINDEX);
-	STACK_MID( L, 0);
+	universe_store( L, U);
+
+	STACK_CHECK( L);
 
 	// we'll need this every time we transfer some C function from/to this state
 	lua_newtable( L);
@@ -858,7 +830,7 @@ static int table_lookup_sentinel( lua_State* L)
  */
 static char const* find_lookup_name( lua_State* L, uint_t i, enum eLookupMode mode_, char const* upName_, size_t* len_)
 {
-	DEBUGSPEW_CODE( struct s_Universe* const U = get_universe( L));
+	DEBUGSPEW_CODE( struct s_Universe* const U = universe_get( L));
 	char const* fqn;
 	ASSERT_L( lua_isfunction( L, i) || lua_istable( L, i));  // ... v ...
 	STACK_CHECK( L);
@@ -1950,7 +1922,7 @@ int luaG_new_require( lua_State* L)
 {
 	int rc, i;
 	int args = lua_gettop( L);
-	struct s_Universe* U = get_universe( L);
+	struct s_Universe* U = universe_get( L);
 	//char const* modname = luaL_checkstring( L, 1);
 
 	STACK_GROW( L, args + 1);
