@@ -115,6 +115,7 @@
 		<li>Coroutines are not passed between states.</li>
 		<li>Sharing full userdata between states needs special C side preparations (-&gt; <A HREF="#deep_userdata">deep userdata</A>).</li>
 		<li>Network level parallelism not included.</li>
+		<li>Multi-CPU is done with OS threads, not processes. A lane is a Lua full userdata, therefore it will exist only as long as the Lua state that created it still exists. Therefore, a lane won't continue execution after the main program's termination.</li>
 		<li>Just like independant Lua states, Lanes universes cannot communicate together.</li>
 	</ul>
 </p>
