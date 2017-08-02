@@ -822,7 +822,7 @@ static int func_lookup_sentinel( lua_State* L)
 // function sentinel used to transfer native table from/to keeper states
 static int table_lookup_sentinel( lua_State* L)
 {
-	return luaL_error( L, "table lookup sentinel for %s, should never be called", lua_tostring( L, lua_upvalueindex(1)));
+	return luaL_error( L, "table lookup sentinel for %s, should never be called", lua_tostring( L, lua_upvalueindex( 1)));
 }
 
 /*

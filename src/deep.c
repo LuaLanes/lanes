@@ -104,7 +104,7 @@ void push_registry_subtable( lua_State* L, void* key_)
 
 /*---=== Deep userdata ===---*/
 
-void luaG_pushdeepversion( lua_State* L) { (void) lua_pushliteral( L, "f248e77a-a84d-44b5-9ad0-96c05679b885");}
+void luaG_pushdeepversion( lua_State* L) { (void) lua_pushliteral( L, "ab8743e5-84f8-485d-9c39-008e84656188");}
 
 
 
@@ -219,19 +219,17 @@ void free_deep_prelude( lua_State* L, struct DEEP_PRELUDE* prelude_)
 
 
 /*
-* void= mt.__gc( proxy_ud )
-*
-* End of life for a proxy object; reduce the deep reference count and clean
-* it up if reaches 0.
-*/
+ * void= mt.__gc( proxy_ud )
+ *
+ * End of life for a proxy object; reduce the deep reference count and clean it up if reaches 0.
+ *
+ */
 static int deep_userdata_gc( lua_State* L)
 {
 	struct DEEP_PRELUDE** proxy = (struct DEEP_PRELUDE**) lua_touserdata( L, 1);
 	struct DEEP_PRELUDE* p = *proxy;
 	struct s_Universe* U = universe_get( L);
 	int v;
-
-	*proxy = 0;  // make sure we don't use it any more
 
 	// can work without a universe if creating a deep userdata from some external C module when Lanes isn't loaded
 	// in that case, we are not multithreaded and locking isn't necessary anyway
@@ -241,6 +239,13 @@ static int deep_userdata_gc( lua_State* L)
 
 	if( v == 0)
 	{
+		// retrieve wrapped __gc
+		lua_pushvalue( L, lua_upvalueindex( 1));                            // self __gc?
+		if( !lua_isnil( L, -1))
+		{
+			lua_insert( L, -2);                                               // __gc self
+			lua_call( L, 1, 0);                                               //
+		}
 		// 'idfunc' expects a clean stack to work on
 		lua_settop( L, 0);
 		free_deep_prelude( L, p);
@@ -251,6 +256,7 @@ static int deep_userdata_gc( lua_State* L)
 			luaL_error( L, "Bad idfunc(eDO_delete): should not push anything");
 		}
 	}
+	*proxy = NULL;  // make sure we don't use it any more, just in case
 	return 0;
 }
 
@@ -321,22 +327,26 @@ char const* push_deep_proxy( struct s_Universe* U, lua_State* L, struct DEEP_PRE
 				return "Bad idfunc(eOP_metatable): mismatched deep version";
 			}
 			lua_pop( L, 2);                                                                                // DPC proxy metatable
-			// make sure the idfunc didn't export __gc, as we will store our own
+			// if the metatable contains a __gc, we will call it from our own
 			lua_getfield( L, -1, "__gc");                                                                  // DPC proxy metatable __gc
-			if( !lua_isnil( L, -1))
-			{
-				lua_pop( L, 4);                                                                              //
-				return "idfunc-created metatable shouldn't contain __gc";
-			}
-			lua_pop( L, 1);                                                                                // DPC proxy metatable
 		}
 		else
 		{
-			// keepers need a minimal metatable that only contains __gc
+			// keepers need a minimal metatable that only contains our own __gc
 			lua_newtable( L);                                                                              // DPC proxy metatable
+			lua_pushnil( L);                                                                               // DPC proxy metatable nil
 		}
-		// Add our own '__gc' method
-		lua_pushcfunction( L, deep_userdata_gc);                                                         // DPC proxy metatable __gc
+		if (lua_isnil(L, -1))
+		{
+			// Add our own '__gc' method
+			lua_pop( L, 1);                                                                                // DPC proxy metatable
+			lua_pushcfunction( L, deep_userdata_gc);                                                       // DPC proxy metatable deep_userdata_gc
+		}
+		else
+		{
+			// Add our own '__gc' method wrapping the original
+			lua_pushcclosure( L, deep_userdata_gc, 1);                                                     // DPC proxy metatable deep_userdata_gc
+		}
 		lua_setfield( L, -2, "__gc");                                                                    // DPC proxy metatable
 
 		// Memorize for later rounds

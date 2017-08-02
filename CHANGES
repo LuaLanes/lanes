@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 123: BGe 2-Aug-17
+   * added support for user-provided __gc in deep userdata
+   * more complete deep userdata sample
+
 CHANGE 122: BGe 1-Aug-17
    * fix crash trying to use a deep-aware module while not requiring Lanes
    * bumped version to 3.12
