@@ -1480,6 +1480,58 @@ static void push_cached_func( struct s_Universe* U, lua_State* L2, uint_t L2_cac
 	}
 }
 
+static void inter_copy_keyvaluepair( struct s_Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, enum e_vt vt, enum eLookupMode mode_, char const* upName_)
+{
+	uint_t val_i = lua_gettop( L);
+	uint_t key_i = val_i - 1;
+
+	// Only basic key types are copied over; others ignored
+	if( inter_copy_one_( U, L2, 0 /*key*/, L, key_i, VT_KEY, mode_, upName_))
+	{
+		char* valPath = (char*) upName_;
+		if( U->verboseErrors)
+		{
+			// for debug purposes, let's try to build a useful name
+			if( lua_type( L, key_i) == LUA_TSTRING)
+			{
+				char const* key = lua_tostring( L, key_i);
+				size_t const keyRawLen = lua_rawlen( L, key_i);
+				size_t const bufLen = strlen( upName_) + keyRawLen + 2;
+				valPath = (char*) alloca( bufLen);
+				sprintf( valPath, "%s.%*s", upName_, (int) keyRawLen, key);
+				key = NULL;
+			}
+#if defined LUA_LNUM || LUA_VERSION_NUM >= 503
+			else if( lua_isinteger( L, key_i))
+			{
+				lua_Integer key = lua_tointeger( L, key_i);
+				valPath = (char*) alloca( strlen( upName_) + 32 + 3);
+				sprintf( valPath, "%s[" LUA_INTEGER_FMT "]", upName_, key);
+			}
+#endif // defined LUA_LNUM || LUA_VERSION_NUM >= 503
+			else if( lua_type( L, key_i) == LUA_TNUMBER)
+			{
+				lua_Number key = lua_tonumber( L, key_i);
+				valPath = (char*) alloca( strlen( upName_) + 32 + 3);
+				sprintf( valPath, "%s[" LUA_NUMBER_FMT "]", upName_, key);
+			}
+		}
+		/*
+		* Contents of metatables are copied with cache checking;
+		* important to detect loops.
+		*/
+		if( inter_copy_one_( U, L2, L2_cache_i, L, val_i, VT_NORMAL, mode_, valPath))
+		{
+			ASSERT_L( lua_istable( L2, -3));
+			lua_rawset( L2, -3);    // add to table (pops key & val)
+		}
+		else
+		{
+			luaL_error( L, "Unable to copy over type '%s' (in %s)", luaL_typename( L, val_i), (vt == VT_NORMAL) ? "table" : "metatable");
+		}
+	}
+}
+
 /*
 * Copies a value from 'L' state (at index 'i') to 'L2' state. Does not remove
 * the original value.
@@ -1529,7 +1581,7 @@ static bool_t inter_copy_one_( struct s_Universe* U, lua_State* L2, uint_t L2_ca
 			break;
 		}
 		else
-#endif
+#endif // defined LUA_LNUM || LUA_VERSION_NUM >= 503
 		{
 			lua_Number v = lua_tonumber( L, i);
 			DEBUGSPEW_CODE( if( vt == VT_KEY) fprintf( stderr, INDENT_BEGIN "KEY: " LUA_NUMBER_FMT "\n" INDENT_END, v));
@@ -1655,41 +1707,8 @@ static bool_t inter_copy_one_( struct s_Universe* U, lua_State* L2, uint_t L2_ca
 			lua_pushnil( L);    // start iteration
 			while( lua_next( L, i))
 			{
-				uint_t val_i = lua_gettop( L);
-				uint_t key_i = val_i - 1;
-
-				// Only basic key types are copied over; others ignored
-				if( inter_copy_one_( U, L2, 0 /*key*/, L, key_i, VT_KEY, mode_, upName_))
-				{
-					char* valPath = (char*) upName_;
-					if( U->verboseErrors)
-					{
-						// for debug purposes, let's try to build a useful name
-						if( lua_type( L, key_i) == LUA_TSTRING)
-						{
-							valPath = (char*) alloca( strlen( upName_) + strlen( lua_tostring( L, key_i)) + 2);
-							sprintf( valPath, "%s.%s", upName_, lua_tostring( L, key_i));
-						}
-						else if( lua_type( L, key_i) == LUA_TNUMBER)
-						{
-							valPath = (char*) alloca( strlen( upName_) + 32 + 3);
-							sprintf( valPath, "%s[" LUA_NUMBER_FMT "]", upName_, lua_tonumber( L, key_i));
-						}
-					}
-					/*
-					* Contents of metatables are copied with cache checking;
-					* important to detect loops.
-					*/
-					if( inter_copy_one_( U, L2, L2_cache_i, L, val_i, VT_NORMAL, mode_, valPath))
-					{
-						ASSERT_L( lua_istable( L2, -3));
-						lua_rawset( L2, -3);    // add to table (pops key & val)
-					}
-					else
-					{
-						luaL_error( L, "Unable to copy over type '%s' (in %s)", luaL_typename( L, val_i), (vt == VT_NORMAL) ? "table" : "metatable");
-					}
-				}
+				// need a function to prevent overflowing the stack with verboseErrors-induced alloca()
+				inter_copy_keyvaluepair( U, L2, L2_cache_i, L, vt, mode_, upName_);
 				lua_pop( L, 1);    // pop value (next round)
 			}
 			STACK_MID( L, 0);
