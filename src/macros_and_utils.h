@@ -8,25 +8,38 @@
 
  // M$ compiler doesn't support 'inline' keyword in C files...
 #if defined( _MSC_VER)
-#define inline __inline
+ #define inline __inline
 #endif
 
  // For some reason, LuaJIT 64bits doesn't support lua_newstate()
-#if defined(LUA_JITLIBNAME) && (defined(__x86_64__) || defined(_M_X64))
+#if (defined(LUA_JITLIBNAME) && (defined(__x86_64__) || defined(_M_X64)))
  //#pragma message( "LuaJIT 64 bits detected: don't propagate allocf")
-#define PROPAGATE_ALLOCF 0
+ #define PROPAGATE_ALLOCF 0
 #else // LuaJIT x64
  //#pragma message( "PUC-Lua detected: propagate allocf")
-#define PROPAGATE_ALLOCF 1
+ #define PROPAGATE_ALLOCF 1
 #endif // LuaJIT x64
-#if PROPAGATE_ALLOCF
-#define PROPAGATE_ALLOCF_PREP( L) void* allocUD; lua_Alloc allocF = lua_getallocf( L, &allocUD)
-#define PROPAGATE_ALLOCF_ALLOC() lua_newstate( allocF, allocUD)
-#else // PROPAGATE_ALLOCF
-#define PROPAGATE_ALLOCF_PREP( L)
-#define PROPAGATE_ALLOCF_ALLOC() luaL_newstate()
-#endif // PROPAGATE_ALLOCF
 
+#if (!defined(CUSTOM_ALLOC) && !defined(CUSTOM_ALLOC_WITH_PREP))
+ #if defined(PROPAGATE_ALLOCF)
+  #define PROPAGATE_ALLOCF_PREP( L) void* allocUD; lua_Alloc allocF = lua_getallocf( L, &allocUD)
+  #define PROPAGATE_ALLOCF_ALLOC() lua_newstate( allocF, allocUD)
+ #else // PROPAGATE_ALLOCF
+  #define PROPAGATE_ALLOCF_PREP( L)
+  #define PROPAGATE_ALLOCF_ALLOC() luaL_newstate()
+ #endif // PROPAGATE_ALLOCF
+#else
+ // allow custom allocators for if Lua is using an allocator that isn't thread safe
+ #include "custom_alloc.h"
+ #if defined(CUSTOM_ALLOC_WITH_PREP)
+  #define PROPAGATE_ALLOCF_PREP(L) void* allocUD; lua_Alloc allocF = getallocf(L, &allocUD)
+  #define PROPAGATE_ALLOCF_ALLOC() lua_newstate(allocF, allocUD)
+ #else
+  #define PROPAGATE_ALLOCF_PREP(L)
+  #define PROPAGATE_ALLOCF_ALLOC() lua_newstate(allocF, NULL)
+ #endif
+#endif
+ 
 #define USE_DEBUG_SPEW 0
 #if USE_DEBUG_SPEW
 extern char const* debugspew_indent;
