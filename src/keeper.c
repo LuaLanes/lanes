@@ -45,8 +45,8 @@
 
 #include "threading.h"
 #include "compat.h"
-#include "tools.h"
 #include "universe.h"
+#include "tools.h"
 #include "keeper.h"
 
 //###################################################################################
@@ -184,7 +184,7 @@ static void push_table( lua_State* L, int idx_)
 	STACK_END( L, 1);
 }
 
-int keeper_push_linda_storage( struct s_Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_)
+int keeper_push_linda_storage( s_Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_)
 {
 	struct s_Keeper* const K = keeper_acquire( U->keepers, magic_);
 	lua_State* const KL = K ? K->L : NULL;
@@ -576,7 +576,7 @@ int keepercall_count( lua_State* L)
 */
 
 // called as __gc for the keepers array userdata
-void close_keepers( struct s_Universe* U, lua_State* L)
+void close_keepers( s_Universe* U, lua_State* L)
 {
 	if( U->keepers != NULL)
 	{
@@ -626,7 +626,7 @@ void close_keepers( struct s_Universe* U, lua_State* L)
  *       function never fails.
  * settings table is at position 1 on the stack
  */
-void init_keepers( struct s_Universe* U, lua_State* L)
+void init_keepers( s_Universe* U, lua_State* L)
 {
 	int i;
 	int nb_keepers;
@@ -778,7 +778,7 @@ void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, enum eLookupMode mod
 *
 * Returns: number of return values (pushed to 'L') or -1 in case of error
 */
-int keeper_call( struct s_Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, void* linda, uint_t starting_index)
+int keeper_call( s_Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, void* linda, uint_t starting_index)
 {
 	int const args = starting_index ? (lua_gettop( L) - starting_index + 1) : 0;
 	int const Ktos = lua_gettop( K);

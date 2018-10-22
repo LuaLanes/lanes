@@ -14,14 +14,14 @@ struct s_Keepers
 	struct s_Keeper keeper_array[1];
 };
 
-void init_keepers( struct s_Universe* U, lua_State* L);
-void close_keepers( struct s_Universe* U, lua_State* L);
+void init_keepers( s_Universe* U, lua_State* L);
+void close_keepers( s_Universe* U, lua_State* L);
 
 struct s_Keeper* keeper_acquire( struct s_Keepers* keepers_, ptrdiff_t magic_);
 #define KEEPER_MAGIC_SHIFT 3
 void keeper_release( struct s_Keeper* K);
 void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, enum eLookupMode const mode_);
-int keeper_push_linda_storage( struct s_Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_);
+int keeper_push_linda_storage( s_Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_);
 
 #define NIL_SENTINEL ((void*)keeper_toggle_nil_sentinels)
 
@@ -38,6 +38,6 @@ int keepercall_get( lua_State* L);
 int keepercall_set( lua_State* L);
 int keepercall_count( lua_State* L);
 
-int keeper_call( struct s_Universe* U, lua_State* K, keeper_api_t _func, lua_State* L, void* linda, uint_t starting_index);
+int keeper_call( s_Universe* U, lua_State* K, keeper_api_t _func, lua_State* L, void* linda, uint_t starting_index);
 
 #endif // __keeper_h__

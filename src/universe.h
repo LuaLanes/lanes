@@ -6,7 +6,17 @@
 
 #include "lua.h"
 #include "threading.h"
+#include "deep.h"
 // MUTEX_T
+
+// this is pointed to by full userdata proxies, and allocated with malloc() to survive any lua_State lifetime
+typedef struct 
+{
+	volatile int refcount;
+	void* deep;
+	// when stored in a keeper state, the full userdata doesn't have a metatable, so we need direct access to the idfunc
+	luaG_IdFunction idfunc;
+} DEEP_PRELUDE;
 
 // ################################################################################################
 
@@ -20,7 +30,7 @@
 // everything regarding the a Lanes universe is stored in that global structure
 // held as a full userdata in the master Lua state that required it for the first time
 // don't forget to initialize all members in LG_configure()
-struct s_Universe
+typedef struct 
 {
 	// for verbose errors
 	bool_t verboseErrors;
@@ -31,7 +41,7 @@ struct s_Universe
 
 	// Initialized by 'init_once_LOCKED()': the deep userdata Linda object
 	// used for timers (each lane will get a proxy to this)
-	volatile struct DEEP_PRELUDE* timer_deep;  // = NULL
+	volatile DEEP_PRELUDE* timer_deep;  // = NULL
 
 #if HAVE_LANE_TRACKING
 	MUTEX_T tracking_cs;
@@ -57,10 +67,10 @@ struct s_Universe
 	// After a lane has removed itself from the chain, it still performs some processing.
 	// The terminal desinit sequence should wait for all such processing to terminate before force-killing threads
 	int volatile selfdestructing_count;
-};
+} s_Universe;
 
-struct s_Universe* universe_get( lua_State* L);
-struct s_Universe* universe_create( lua_State* L);
-void universe_store( lua_State* L, struct s_Universe* U);
+s_Universe* universe_get( lua_State* L);
+s_Universe* universe_create( lua_State* L);
+void universe_store( lua_State* L, s_Universe* U);
 
 #endif // UNIVERSE_H

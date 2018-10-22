@@ -37,10 +37,10 @@ static void* const UNIVERSE_REGKEY = ((void*)0x9f877b2cf078f17f);
 
 // ################################################################################################
 
-struct s_Universe* universe_create( lua_State* L)
+s_Universe* universe_create( lua_State* L)
 {
-	struct s_Universe* U = (struct s_Universe*) lua_newuserdata( L, sizeof(struct s_Universe));    // universe
-	memset( U, 0, sizeof( struct s_Universe));
+	s_Universe* U = (s_Universe*) lua_newuserdata( L, sizeof(s_Universe));    // universe
+	memset( U, 0, sizeof( s_Universe));
 	lua_pushlightuserdata( L, UNIVERSE_REGKEY);                                                    // universe UNIVERSE_REGKEY
 	lua_pushvalue( L, -2);                                                                         // universe UNIVERSE_REGKEY universe
 	lua_rawset( L, LUA_REGISTRYINDEX);                                                             // universe
@@ -49,7 +49,7 @@ struct s_Universe* universe_create( lua_State* L)
 
 // ################################################################################################
 
-void universe_store( lua_State* L, struct s_Universe* U)
+void universe_store( lua_State* L, s_Universe* U)
 {
 	STACK_CHECK( L);
 	lua_pushlightuserdata( L, UNIVERSE_REGKEY);
@@ -60,9 +60,9 @@ void universe_store( lua_State* L, struct s_Universe* U)
 
 // ################################################################################################
 
-struct s_Universe* universe_get( lua_State* L)
+s_Universe* universe_get( lua_State* L)
 {
-	struct s_Universe* universe;
+	s_Universe* universe;
 	STACK_GROW( L, 2);
 	STACK_CHECK( L);
 	lua_pushlightuserdata( L, UNIVERSE_REGKEY);
