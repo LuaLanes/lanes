@@ -4,30 +4,12 @@
 #ifndef __threading_h__
 #define __threading_h__ 1
 
-/* Platform detection
+/*
  * win32-pthread:
  * define HAVE_WIN32_PTHREAD and PTW32_INCLUDE_WINDOWS_H in your project configuration when building for win32-pthread.
  * link against pthreadVC2.lib, and of course have pthreadVC2.dll somewhere in your path.
  */
-#ifdef _WIN32_WCE
-  #define PLATFORM_POCKETPC
-#elif defined(_XBOX)
-  #define PLATFORM_XBOX
-#elif (defined _WIN32)
-  #define PLATFORM_WIN32
-#elif (defined __linux__)
-  #define PLATFORM_LINUX
-#elif (defined __APPLE__) && (defined __MACH__)
-  #define PLATFORM_OSX
-#elif (defined __NetBSD__) || (defined __FreeBSD__) || (defined BSD)
-  #define PLATFORM_BSD
-#elif (defined __QNX__)
-  #define PLATFORM_QNX
-#elif (defined __CYGWIN__)
-  #define PLATFORM_CYGWIN
-#else
-  #error "Unknown platform!"
-#endif
+#include "platform.h"
 
 typedef int bool_t;
 #ifndef FALSE

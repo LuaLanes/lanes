@@ -7,6 +7,7 @@
  */
 
 #include "lua.h"
+#include "platform.h"
 
 // forwards
 struct s_Universe;
