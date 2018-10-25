@@ -46,7 +46,7 @@ THE SOFTWARE.
 #include "lanes.h"
 
 // functions implemented in deep.c
-extern luaG_IdFunction copydeep( Universe* U, lua_State* L, lua_State* L2, int index, enum eLookupMode mode_);
+extern luaG_IdFunction copydeep( Universe* U, lua_State* L, lua_State* L2, int index, LookupMode mode_);
 extern void push_registry_subtable( lua_State* L, void* key_);
 
 char const* const CONFIG_REGKEY = "ee932492-a654-4506-9da8-f16540bdb5d4";
@@ -585,7 +585,7 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* name_)
 	DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 }
 
-void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, enum eLookupMode mode_)
+void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, LookupMode mode_)
 {
 	if( U->on_state_create_func != NULL)
 	{
@@ -828,7 +828,7 @@ static int table_lookup_sentinel( lua_State* L)
 /*
  * retrieve the name of a function/table in the lookup database
  */
-static char const* find_lookup_name( lua_State* L, uint_t i, enum eLookupMode mode_, char const* upName_, size_t* len_)
+static char const* find_lookup_name( lua_State* L, uint_t i, LookupMode mode_, char const* upName_, size_t* len_)
 {
 	DEBUGSPEW_CODE( Universe* const U = universe_get( L));
 	char const* fqn;
@@ -899,7 +899,7 @@ static char const* find_lookup_name( lua_State* L, uint_t i, enum eLookupMode mo
 /*
  * Push a looked-up table, or nothing if we found nothing
  */
-static bool_t lookup_table( lua_State* L2, lua_State* L, uint_t i, enum eLookupMode mode_, char const* upName_)
+static bool_t lookup_table( lua_State* L2, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
 {
 	// get the name of the table we want to send
 	size_t len;
@@ -1195,7 +1195,7 @@ int luaG_nameof( lua_State* L)
 /*
  * Push a looked-up native/LuaJIT function.
  */
-static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, enum eLookupMode mode_, char const* upName_)
+static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
 {
 	// get the name of the function we want to send
 	size_t len;
@@ -1276,9 +1276,9 @@ enum e_vt
 	VT_KEY,
 	VT_METATABLE
 };
-static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt value_type, enum eLookupMode mode_, char const* upName_);
+static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt value_type, LookupMode mode_, char const* upName_);
 
-static void inter_copy_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum eLookupMode mode_, char const* upName_)
+static void inter_copy_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
 {
 	int n, needToPush;
 	luaL_Buffer b;
@@ -1427,7 +1427,7 @@ static void inter_copy_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_
  *
  * Always pushes a function to 'L2'.
  */
-static void push_cached_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum eLookupMode mode_, char const* upName_)
+static void push_cached_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
 {
 	FuncSubType funcSubType;
 	/*lua_CFunction cfunc =*/ luaG_tocfunction( L, i, &funcSubType); // NULL for LuaJIT-fast && bytecode functions
@@ -1480,7 +1480,7 @@ static void push_cached_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua
 	}
 }
 
-static void inter_copy_keyvaluepair( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, enum e_vt vt, enum eLookupMode mode_, char const* upName_)
+static void inter_copy_keyvaluepair( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, enum e_vt vt, LookupMode mode_, char const* upName_)
 {
 	uint_t val_i = lua_gettop( L);
 	uint_t key_i = val_i - 1;
@@ -1542,7 +1542,7 @@ static void inter_copy_keyvaluepair( Universe* U, lua_State* L2, uint_t L2_cache
 *
 * Returns TRUE if value was pushed, FALSE if its type is non-supported.
 */
-static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, enum eLookupMode mode_, char const* upName_)
+static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, LookupMode mode_, char const* upName_)
 {
 	bool_t ret = TRUE;
 	bool_t ignore = FALSE;
@@ -1809,7 +1809,7 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 *
 * Note: Parameters are in this order ('L' = from first) to be same as 'lua_xmove'.
 */
-int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, enum eLookupMode mode_)
+int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupMode mode_)
 {
 	uint_t top_L = lua_gettop( L);
 	uint_t top_L2 = lua_gettop( L2);
@@ -1867,14 +1867,14 @@ int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, enum eL
 }
 
 
-int luaG_inter_move( Universe* U, lua_State* L, lua_State* L2, uint_t n, enum eLookupMode mode_)
+int luaG_inter_move( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupMode mode_)
 {
 	int ret = luaG_inter_copy( U, L, L2, n, mode_);
 	lua_pop( L, (int) n);
 	return ret;
 }
 
-int luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int package_idx_, enum eLookupMode mode_)
+int luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int package_idx_, LookupMode mode_)
 {
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_inter_copy_package()\n" INDENT_END));
 	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);

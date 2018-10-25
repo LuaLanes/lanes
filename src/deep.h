@@ -11,6 +11,8 @@
 // forwards
 struct s_Universe;
 typedef struct s_Universe Universe;
+enum eLookupMode;
+typedef enum eLookupMode LookupMode;
 
 #if !defined LANES_API // when deep is compiled standalone outside Lanes
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
@@ -42,7 +44,7 @@ struct s_DeepPrelude
 };
 typedef struct s_DeepPrelude DeepPrelude;
 
-char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, enum eLookupMode mode_);
+char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, LookupMode mode_);
 void free_deep_prelude( lua_State* L, DeepPrelude* prelude_);
 
 extern LANES_API int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc);

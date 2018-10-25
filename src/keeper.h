@@ -7,6 +7,8 @@
 // forwards
 struct s_Universe;
 typedef struct s_Universe Universe;
+enum eLookupMode;
+typedef enum eLookupMode LookupMode;
 
 struct s_Keeper
 {
@@ -29,7 +31,7 @@ void close_keepers( Universe* U, lua_State* L);
 Keeper* keeper_acquire( Keepers* keepers_, ptrdiff_t magic_);
 #define KEEPER_MAGIC_SHIFT 3
 void keeper_release( Keeper* K);
-void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, enum eLookupMode const mode_);
+void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, LookupMode const mode_);
 int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_);
 
 #define NIL_SENTINEL ((void*)keeper_toggle_nil_sentinels)

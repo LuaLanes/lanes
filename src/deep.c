@@ -174,7 +174,7 @@ static void get_deep_lookup( lua_State* L)
 * Return the registered ID function for 'index' (deep userdata proxy),
 * or NULL if 'index' is not a deep userdata proxy.
 */
-static inline luaG_IdFunction get_idfunc( lua_State* L, int index, enum eLookupMode mode_)
+static inline luaG_IdFunction get_idfunc( lua_State* L, int index, LookupMode mode_)
 {
 	// when looking inside a keeper, we are 100% sure the object is a deep userdata
 	if( mode_ == eLM_FromKeeper)
@@ -270,7 +270,7 @@ static int deep_userdata_gc( lua_State* L)
  * used in this Lua state (metatable, registring it). Otherwise, increments the
  * reference count.
  */
-char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, enum eLookupMode mode_)
+char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, LookupMode mode_)
 {
 	DeepPrelude** proxy;
 
@@ -519,7 +519,7 @@ void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index)
  *   the id function of the copied value, or NULL for non-deep userdata
  *   (not copied)
  */
-luaG_IdFunction copydeep( Universe* U, lua_State* L, lua_State* L2, int index, enum eLookupMode mode_)
+luaG_IdFunction copydeep( Universe* U, lua_State* L, lua_State* L2, int index, LookupMode mode_)
 {
 	char const* errmsg;
 	luaG_IdFunction idfunc = get_idfunc( L, index, mode_);

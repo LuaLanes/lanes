@@ -31,11 +31,12 @@ enum eLookupMode
 	eLM_ToKeeper, // send a function from a lane to a keeper state
 	eLM_FromKeeper // send a function from a keeper state to a lane
 };
+typedef enum eLookupMode LookupMode;
 
-int luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int package_idx_, enum eLookupMode mode_);
+int luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int package_idx_, LookupMode mode_);
 
-int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, enum eLookupMode mode_);
-int luaG_inter_move( Universe* U, lua_State* L, lua_State* L2, uint_t n, enum eLookupMode mode_);
+int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupMode mode_);
+int luaG_inter_move( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupMode mode_);
 
 int luaG_nameof( lua_State* L);
 int luaG_new_require( lua_State* L);
@@ -43,7 +44,7 @@ int luaG_new_require( lua_State* L);
 void populate_func_lookup_table( lua_State* L, int _i, char const* _name);
 void serialize_require( Universe* U, lua_State *L);
 void initialize_on_state_create( Universe* U, lua_State* L);
-void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, enum eLookupMode mode_);
+void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, LookupMode mode_);
 
 // ################################################################################################
 
