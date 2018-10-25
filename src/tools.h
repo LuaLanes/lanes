@@ -1,28 +1,15 @@
-/*
-* TOOLS.H
-*/
-#ifndef TOOLS_H
-#define TOOLS_H
+#ifndef __LANES_TOOLS_H__
+#define __LANES_TOOLS_H__
 
-#include "lauxlib.h"
+//#include "lauxlib.h"
 #include "threading.h"
 #include "deep.h"
-    // MUTEX_T
-
-#include <assert.h>
 
 #include "macros_and_utils.h"
 
-// ################################################################################################
-
-// this is pointed to by full userdata proxies, and allocated with malloc() to survive any lua_State lifetime
-struct DEEP_PRELUDE
-{
-	volatile int refcount;
-	void* deep;
-	// when stored in a keeper state, the full userdata doesn't have a metatable, so we need direct access to the idfunc
-	luaG_IdFunction idfunc;
-};
+// forwards
+struct s_Universe;
+typedef struct s_Universe Universe;
 
 // ################################################################################################
 
@@ -33,8 +20,8 @@ struct DEEP_PRELUDE
 
 void luaG_dump( lua_State* L );
 
-lua_State* luaG_newstate( struct s_Universe* U, lua_State* _from, char const* libs);
-void luaG_copy_one_time_settings( struct s_Universe* U, lua_State* L, lua_State* L2);
+lua_State* luaG_newstate( Universe* U, lua_State* _from, char const* libs);
+void luaG_copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2);
 
 // ################################################################################################
 
@@ -45,25 +32,22 @@ enum eLookupMode
 	eLM_FromKeeper // send a function from a keeper state to a lane
 };
 
-char const* push_deep_proxy( struct s_Universe* U, lua_State* L, struct DEEP_PRELUDE* prelude, enum eLookupMode mode_);
-void free_deep_prelude( lua_State* L, struct DEEP_PRELUDE* prelude_);
+int luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int package_idx_, enum eLookupMode mode_);
 
-int luaG_inter_copy_package( struct s_Universe* U, lua_State* L, lua_State* L2, int package_idx_, enum eLookupMode mode_);
-
-int luaG_inter_copy( struct s_Universe* U, lua_State* L, lua_State* L2, uint_t n, enum eLookupMode mode_);
-int luaG_inter_move( struct s_Universe* U, lua_State* L, lua_State* L2, uint_t n, enum eLookupMode mode_);
+int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, enum eLookupMode mode_);
+int luaG_inter_move( Universe* U, lua_State* L, lua_State* L2, uint_t n, enum eLookupMode mode_);
 
 int luaG_nameof( lua_State* L);
 int luaG_new_require( lua_State* L);
 
 void populate_func_lookup_table( lua_State* L, int _i, char const* _name);
-void serialize_require( struct s_Universe* U, lua_State *L);
-void initialize_on_state_create( struct s_Universe* U, lua_State* L);
-void call_on_state_create( struct s_Universe* U, lua_State* L, lua_State* from_, enum eLookupMode mode_);
+void serialize_require( Universe* U, lua_State *L);
+void initialize_on_state_create( Universe* U, lua_State* L);
+void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, enum eLookupMode mode_);
 
 // ################################################################################################
 
 extern char const* const CONFIG_REGKEY;
 extern char const* const LOOKUP_REGKEY;
 
-#endif // TOOLS_H
+#endif // __LANES_TOOLS_H__

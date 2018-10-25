@@ -42,12 +42,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <assert.h>
 
-#include "threading.h"
+#include "keeper.h"
 #include "compat.h"
 #include "tools.h"
 #include "universe.h"
-#include "keeper.h"
 
 //###################################################################################
 // Keeper implementation
@@ -184,9 +184,9 @@ static void push_table( lua_State* L, int idx_)
 	STACK_END( L, 1);
 }
 
-int keeper_push_linda_storage( struct s_Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_)
+int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_)
 {
-	struct s_Keeper* const K = keeper_acquire( U->keepers, magic_);
+	Keeper* const K = keeper_acquire( U->keepers, magic_);
 	lua_State* const KL = K ? K->L : NULL;
 	if( KL == NULL) return 0;
 	STACK_GROW( KL, 4);
@@ -576,7 +576,7 @@ int keepercall_count( lua_State* L)
 */
 
 // called as __gc for the keepers array userdata
-void close_keepers( struct s_Universe* U, lua_State* L)
+void close_keepers( Universe* U, lua_State* L)
 {
 	if( U->keepers != NULL)
 	{
@@ -609,7 +609,7 @@ void close_keepers( struct s_Universe* U, lua_State* L)
 		{
 			void* allocUD;
 			lua_Alloc allocF = lua_getallocf( L, &allocUD);
-			allocF( allocUD, U->keepers, sizeof( struct s_Keepers) + (nbKeepers - 1) * sizeof(struct s_Keeper), 0);
+			allocF( allocUD, U->keepers, sizeof( Keepers) + (nbKeepers - 1) * sizeof( Keeper), 0);
 			U->keepers = NULL;
 		}
 	}
@@ -626,7 +626,7 @@ void close_keepers( struct s_Universe* U, lua_State* L)
  *       function never fails.
  * settings table is at position 1 on the stack
  */
-void init_keepers( struct s_Universe* U, lua_State* L)
+void init_keepers( Universe* U, lua_State* L)
 {
 	int i;
 	int nb_keepers;
@@ -639,10 +639,10 @@ void init_keepers( struct s_Universe* U, lua_State* L)
 	lua_pop( L, 1);                                        //
 	assert( nb_keepers >= 1);
 
-	// struct s_Keepers contains an array of 1 s_Keeper, adjust for the actual number of keeper states
+	// Keepers contains an array of 1 s_Keeper, adjust for the actual number of keeper states
 	{
-		size_t const bytes = sizeof( struct s_Keepers) + (nb_keepers - 1) * sizeof(struct s_Keeper);
-		U->keepers = (struct s_Keepers*) allocF( allocUD, NULL, 0, bytes);
+		size_t const bytes = sizeof( Keepers) + (nb_keepers - 1) * sizeof( Keeper);
+		U->keepers = (Keepers*) allocF( allocUD, NULL, 0, bytes);
 		if( U->keepers == NULL)
 		{
 			(void) luaL_error( L, "init_keepers() failed while creating keeper array; out of memory");
@@ -713,7 +713,7 @@ void init_keepers( struct s_Universe* U, lua_State* L)
 	STACK_END( L, 0);
 }
 
-struct s_Keeper* keeper_acquire( struct s_Keepers* keepers_, ptrdiff_t magic_)
+Keeper* keeper_acquire( Keepers* keepers_, ptrdiff_t magic_)
 {
 	int const nbKeepers = keepers_->nb_keepers;
 	// can be 0 if this happens during main state shutdown (lanes is being GC'ed -> no keepers)
@@ -731,7 +731,7 @@ struct s_Keeper* keeper_acquire( struct s_Keepers* keepers_, ptrdiff_t magic_)
 		* have to cast to unsigned long to avoid compilation warnings about loss of data when converting pointer-to-integer
 		*/
 		unsigned int i = (unsigned int)((magic_ >> KEEPER_MAGIC_SHIFT) % nbKeepers);
-		struct s_Keeper* K = &keepers_->keeper_array[i];
+		Keeper* K = &keepers_->keeper_array[i];
 
 		MUTEX_LOCK( &K->keeper_cs);
 		//++ K->count;
@@ -739,7 +739,7 @@ struct s_Keeper* keeper_acquire( struct s_Keepers* keepers_, ptrdiff_t magic_)
 	}
 }
 
-void keeper_release( struct s_Keeper* K)
+void keeper_release( Keeper* K)
 {
 	//-- K->count;
 	if( K) MUTEX_UNLOCK( &K->keeper_cs);
@@ -778,7 +778,7 @@ void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, enum eLookupMode mod
 *
 * Returns: number of return values (pushed to 'L') or -1 in case of error
 */
-int keeper_call( struct s_Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, void* linda, uint_t starting_index)
+int keeper_call( Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, void* linda, uint_t starting_index)
 {
 	int const args = starting_index ? (lua_gettop( L) - starting_index + 1) : 0;
 	int const Ktos = lua_gettop( K);

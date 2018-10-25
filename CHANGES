@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 125: BGe 25-Oct-18
+   * Fix Lanes build by reorganizing types around a bit
+
 CHANGE 124: BGe 9-Jul-18
    * Fix a stack overflow when copying large tables with verbose_errors option enabled
    * Support for integer formatting in verbose errors

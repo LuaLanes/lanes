@@ -1,27 +1,36 @@
 #if !defined( __keeper_h__)
 #define __keeper_h__ 1
 
+#include "lua.h"
+#include "threading.h"
+
+// forwards
+struct s_Universe;
+typedef struct s_Universe Universe;
+
 struct s_Keeper
 {
 	MUTEX_T keeper_cs;
 	lua_State* L;
 	//int count;
 };
+typedef struct s_Keeper Keeper;
 
 struct s_Keepers
 {
 	int nb_keepers;
-	struct s_Keeper keeper_array[1];
+	Keeper keeper_array[1];
 };
+typedef struct s_Keepers Keepers;
 
-void init_keepers( struct s_Universe* U, lua_State* L);
-void close_keepers( struct s_Universe* U, lua_State* L);
+void init_keepers( Universe* U, lua_State* L);
+void close_keepers( Universe* U, lua_State* L);
 
-struct s_Keeper* keeper_acquire( struct s_Keepers* keepers_, ptrdiff_t magic_);
+Keeper* keeper_acquire( Keepers* keepers_, ptrdiff_t magic_);
 #define KEEPER_MAGIC_SHIFT 3
-void keeper_release( struct s_Keeper* K);
+void keeper_release( Keeper* K);
 void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, enum eLookupMode const mode_);
-int keeper_push_linda_storage( struct s_Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_);
+int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_);
 
 #define NIL_SENTINEL ((void*)keeper_toggle_nil_sentinels)
 
@@ -38,6 +47,6 @@ int keepercall_get( lua_State* L);
 int keepercall_set( lua_State* L);
 int keepercall_count( lua_State* L);
 
-int keeper_call( struct s_Universe* U, lua_State* K, keeper_api_t _func, lua_State* L, void* linda, uint_t starting_index);
+int keeper_call( Universe* U, lua_State* K, keeper_api_t _func, lua_State* L, void* linda, uint_t starting_index);
 
 #endif // __keeper_h__

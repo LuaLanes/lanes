@@ -28,19 +28,19 @@ THE SOFTWARE.
 ===============================================================================
 */
 
+#include "universe.h"
 #include "compat.h"
 #include "macros_and_utils.h"
-#include "universe.h"
 
 // crc64/we of string "UNIVERSE_REGKEY" generated at https://www.nitrxgen.net/hashgen/
 static void* const UNIVERSE_REGKEY = ((void*)0x9f877b2cf078f17f);
 
 // ################################################################################################
 
-struct s_Universe* universe_create( lua_State* L)
+Universe* universe_create( lua_State* L)
 {
-	struct s_Universe* U = (struct s_Universe*) lua_newuserdata( L, sizeof(struct s_Universe));    // universe
-	memset( U, 0, sizeof( struct s_Universe));
+	Universe* U = (Universe*) lua_newuserdata( L, sizeof(Universe));                               // universe
+	memset( U, 0, sizeof( Universe));
 	lua_pushlightuserdata( L, UNIVERSE_REGKEY);                                                    // universe UNIVERSE_REGKEY
 	lua_pushvalue( L, -2);                                                                         // universe UNIVERSE_REGKEY universe
 	lua_rawset( L, LUA_REGISTRYINDEX);                                                             // universe
@@ -49,7 +49,7 @@ struct s_Universe* universe_create( lua_State* L)
 
 // ################################################################################################
 
-void universe_store( lua_State* L, struct s_Universe* U)
+void universe_store( lua_State* L, Universe* U)
 {
 	STACK_CHECK( L);
 	lua_pushlightuserdata( L, UNIVERSE_REGKEY);
@@ -60,9 +60,9 @@ void universe_store( lua_State* L, struct s_Universe* U)
 
 // ################################################################################################
 
-struct s_Universe* universe_get( lua_State* L)
+Universe* universe_get( lua_State* L)
 {
-	struct s_Universe* universe;
+	Universe* universe;
 	STACK_GROW( L, 2);
 	STACK_CHECK( L);
 	lua_pushlightuserdata( L, UNIVERSE_REGKEY);
