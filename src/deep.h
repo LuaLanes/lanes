@@ -7,7 +7,7 @@
  */
 
 #include "lua.h"
-
+#include "tools.h"
 // forwards
 struct s_Universe;
 typedef struct s_Universe Universe;

@@ -3,7 +3,7 @@
 
 //#include "lauxlib.h"
 #include "threading.h"
-#include "deep.h"
+
 
 #include "macros_and_utils.h"
 
@@ -31,7 +31,7 @@ enum eLookupMode
 	eLM_ToKeeper, // send a function from a lane to a keeper state
 	eLM_FromKeeper // send a function from a keeper state to a lane
 };
-
+#include "deep.h"
 int luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int package_idx_, enum eLookupMode mode_);
 
 int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, enum eLookupMode mode_);

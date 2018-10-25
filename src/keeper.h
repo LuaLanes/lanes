@@ -3,7 +3,7 @@
 
 #include "lua.h"
 #include "threading.h"
-
+#include "tools.h"
 // forwards
 struct s_Universe;
 typedef struct s_Universe Universe;
