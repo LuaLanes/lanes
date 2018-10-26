@@ -61,11 +61,18 @@ void* touserdata(lua_State *L,int index)
 	//printf("len %d sizevoid %d ptrs %p\n",len,sizeof(void*),ptrs);
 	if (!ptrs)
 		return ptrs;
-	assert(len == sizeof(void *));
-	assert(ptrs);
+	if(!(len==sizeof(void*)))
+		return NULL;
+	//assert(len == sizeof(void *));
+	//assert(ptrs);
 	void * ptr;
 	memcpy(&ptr,ptrs,len);
 	//printf("pointer %p\n",ptr);
+	if(!(len==sizeof(void*))){
+		printf("len %d sizevoid %d ptrs %p\n",len,sizeof(void*),ptr);
+		int* badp = NULL;
+		int cc = *badp;
+	}
 	return ptr;
 	//return *(void**)ptrs;
 	//return ptrs;
