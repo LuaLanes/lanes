@@ -56,15 +56,16 @@ void* touserdata(lua_State *L,int index)
 	//printf("ud %d lud %d\n",lua_isuserdata(L,index) , lua_islightuserdata(L,index));
 	if(lua_isuserdata(L,index)) 
 		return lua_touserdata(L,index);
+	if(lua_type(L,index)!=LUA_TSTRING)
+		return NULL;
 	size_t len;
 	const char * ptrs = lua_tolstring(L,index,&len);
 	//printf("len %d sizevoid %d ptrs %p\n",len,sizeof(void*),ptrs);
 	if (!ptrs)
-		return ptrs;
+		return NULL;
 	if(!(len==sizeof(void*)))
 		return NULL;
-	//assert(len == sizeof(void *));
-	//assert(ptrs);
+
 	void * ptr;
 	memcpy(&ptr,ptrs,len);
 	//printf("pointer %p\n",ptr);
