@@ -64,14 +64,14 @@ void push_registry_subtable_mode( lua_State* L, void* key_, const char* mode_)
 	STACK_GROW( L, 3);
 	STACK_CHECK( L);
 
-	lua_pushlightuserdata( L, key_);                      // key
+	pushLUD( L, key_);                      // key
 	lua_rawget( L, LUA_REGISTRYINDEX);                    // {}|nil
 
 	if( lua_isnil( L, -1))
 	{
 		lua_pop( L, 1);                                     //
 		lua_newtable( L);                                   // {}
-		lua_pushlightuserdata( L, key_);                    // {} key
+		pushLUD( L, key_);                    // {} key
 		lua_pushvalue( L, -2);                              // {} key {}
 
 		// _R[key_] = {}
@@ -158,7 +158,7 @@ static void get_deep_lookup( lua_State* L)
 {
 	STACK_GROW( L, 1);
 	STACK_CHECK( L);                                         // a
-	lua_pushlightuserdata( L, DEEP_LOOKUP_KEY);              // a DLK
+	pushLUD( L, DEEP_LOOKUP_KEY);              // a DLK
 	lua_rawget( L, LUA_REGISTRYINDEX);                       // a {}
 
 	if( !lua_isnil( L, -1))
@@ -179,7 +179,7 @@ static inline luaG_IdFunction get_idfunc( lua_State* L, int index, LookupMode mo
 	// when looking inside a keeper, we are 100% sure the object is a deep userdata
 	if( mode_ == eLM_FromKeeper)
 	{
-		DeepPrelude** proxy = (DeepPrelude**) lua_touserdata( L, index);
+		DeepPrelude** proxy = (DeepPrelude**) touserdata( L, index);
 		// we can (and must) cast and fetch the internally stored idfunc
 		return (*proxy)->idfunc;
 	}
@@ -200,7 +200,7 @@ static inline luaG_IdFunction get_idfunc( lua_State* L, int index, LookupMode mo
 		// replace metatable with the idfunc pointer, if it is actually a deep userdata
 		get_deep_lookup( L);                    // deep ... idfunc|nil
 
-		ret = (luaG_IdFunction) lua_touserdata( L, -1); // NULL if not a userdata
+		ret = (luaG_IdFunction) touserdata( L, -1); // NULL if not a userdata
 		lua_pop( L, 1);
 		STACK_END( L, 0);
 		return ret;
@@ -211,7 +211,7 @@ static inline luaG_IdFunction get_idfunc( lua_State* L, int index, LookupMode mo
 void free_deep_prelude( lua_State* L, DeepPrelude* prelude_)
 {
 	// Call 'idfunc( "delete", deep_ptr )' to make deep cleanup
-	lua_pushlightuserdata( L, prelude_->deep);
+	pushLUD( L, prelude_->deep);
 	ASSERT_L( prelude_->idfunc);
 	prelude_->idfunc( L, eDO_delete);
 	DEEP_FREE( (void*) prelude_);
@@ -226,7 +226,7 @@ void free_deep_prelude( lua_State* L, DeepPrelude* prelude_)
  */
 static int deep_userdata_gc( lua_State* L)
 {
-	DeepPrelude** proxy = (DeepPrelude**) lua_touserdata( L, 1);
+	DeepPrelude** proxy = (DeepPrelude**) touserdata( L, 1);
 	DeepPrelude* p = *proxy;
 	Universe* U = universe_get( L);
 	int v;
@@ -276,7 +276,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 
 	// Check if a proxy already exists
 	push_registry_subtable_mode( L, DEEP_PROXY_CACHE_KEY, "v");                                        // DPC
-	lua_pushlightuserdata( L, prelude->deep);                                                          // DPC deep
+	pushLUD( L, prelude->deep);                                                          // DPC deep
 	lua_rawget( L, -2);                                                                                // DPC proxy
 	if ( !lua_isnil( L, -1))
 	{
@@ -302,7 +302,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 	*proxy = prelude;
 
 	// Get/create metatable for 'idfunc' (in this state)
-	lua_pushlightuserdata( L, prelude->idfunc);                                                        // DPC proxy idfunc
+	pushLUD( L, prelude->idfunc);                                                        // DPC proxy idfunc
 	get_deep_lookup( L);                                                                               // DPC proxy metatable?
 
 	if( lua_isnil( L, -1)) // // No metatable yet.
@@ -351,7 +351,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 
 		// Memorize for later rounds
 		lua_pushvalue( L, -1);                                                                           // DPC proxy metatable metatable
-		lua_pushlightuserdata( L, prelude->idfunc);                                                      // DPC proxy metatable metatable idfunc
+		pushLUD( L, prelude->idfunc);                                                      // DPC proxy metatable metatable idfunc
 		set_deep_lookup( L);                                                                             // DPC proxy metatable
 
 		// 2 - cause the target state to require the module that exported the idfunc
@@ -420,7 +420,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 	lua_setmetatable( L, -2);                                                                          // DPC proxy
 
 	// If we're here, we obviously had to create a new proxy, so cache it.
-	lua_pushlightuserdata( L, (*proxy)->deep);                                                         // DPC proxy deep
+	pushLUD( L, (*proxy)->deep);                                                         // DPC proxy deep
 	lua_pushvalue( L, -2);                                                                             // DPC proxy deep proxy
 	lua_rawset( L, -4);                                                                                // DPC proxy
 	lua_remove( L, -2);                                                                                // proxy
@@ -505,7 +505,7 @@ void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index)
 		return NULL;    // no metatable, or wrong kind
 	}
 
-	proxy = (DeepPrelude**) lua_touserdata( L, index);
+	proxy = (DeepPrelude**) touserdata( L, index);
 	STACK_END( L, 0);
 
 	return (*proxy)->deep;
@@ -528,7 +528,7 @@ luaG_IdFunction copydeep( Universe* U, lua_State* L, lua_State* L2, int index, L
 		return NULL;   // not a deep userdata
 	}
 
-	errmsg = push_deep_proxy( U, L2, *(DeepPrelude**) lua_touserdata( L, index), mode_);
+	errmsg = push_deep_proxy( U, L2, *(DeepPrelude**) touserdata( L, index), mode_);
 	if( errmsg != NULL)
 	{
 		// raise the error in the proper state (not the keeper)

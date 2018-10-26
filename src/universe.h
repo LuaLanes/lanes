@@ -6,7 +6,7 @@
 
 #include "lua.h"
 #include "threading.h"
-
+#include "tools.h"
 // forwards
 struct s_DeepPrelude;
 typedef struct s_DeepPrelude DeepPrelude;

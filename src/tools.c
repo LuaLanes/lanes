@@ -44,7 +44,33 @@ THE SOFTWARE.
 #include "universe.h"
 #include "keeper.h"
 #include "lanes.h"
-
+#include <assert.h>
+void pushLUD(lua_State *L, void *p)
+{
+	//printf("pushLUD %p\n",p);
+	lua_pushlstring(L,(const char *)&p,sizeof(p));
+	//lua_pushlightuserdata(L,p);
+}
+void* touserdata(lua_State *L,int index)
+{
+	//printf("ud %d lud %d\n",lua_isuserdata(L,index) , lua_islightuserdata(L,index));
+	if(lua_isuserdata(L,index)) 
+		return lua_touserdata(L,index);
+	size_t len;
+	const char * ptrs = lua_tolstring(L,index,&len);
+	//printf("len %d sizevoid %d ptrs %p\n",len,sizeof(void*),ptrs);
+	if (!ptrs)
+		return ptrs;
+	assert(len == sizeof(void *));
+	assert(ptrs);
+	void * ptr;
+	memcpy(&ptr,ptrs,len);
+	//printf("pointer %p\n",ptr);
+	return ptr;
+	//return *(void**)ptrs;
+	//return ptrs;
+	//return lua_touserdata(L,index);
+}
 // functions implemented in deep.c
 extern luaG_IdFunction copydeep( Universe* U, lua_State* L, lua_State* L2, int index, LookupMode mode_);
 extern void push_registry_subtable( lua_State* L, void* key_);
@@ -986,7 +1012,7 @@ static bool_t push_cached_table( lua_State* L2, uint_t L2_cache_i, lua_State* L,
 	// We don't need to use the from state ('L') in ID since the life span
 	// is only for the duration of a copy (both states are locked).
 	// push a light userdata uniquely representing the table
-	lua_pushlightuserdata( L2, p);                                                                 // ... p
+	pushLUD( L2, p);                                                                 // ... p
 
 	//fprintf( stderr, "<< ID: %s >>\n", lua_tostring( L2, -1));
 
@@ -996,7 +1022,7 @@ static bool_t push_cached_table( lua_State* L2, uint_t L2_cache_i, lua_State* L,
 	{
 		lua_pop( L2, 1);                                                                             // ...
 		lua_newtable( L2);                                                                           // ... {}
-		lua_pushlightuserdata( L2, p);                                                               // ... {} p
+		pushLUD( L2, p);                                                               // ... {} p
 		lua_pushvalue( L2, -2);                                                                      // ... {} p {}
 		lua_rawset( L2, L2_cache_i);                                                                 // ... {}
 	}
@@ -1448,7 +1474,7 @@ static void push_cached_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua
 		//
 
 		// push a light userdata uniquely representing the function
-		lua_pushlightuserdata( L2, aspointer);                        // ... {cache} ... p
+		pushLUD( L2, aspointer);                        // ... {cache} ... p
 
 		//fprintf( stderr, "<< ID: %s >>\n", lua_tostring( L2, -1));
 
@@ -1599,7 +1625,7 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 		break;
 
 		case LUA_TLIGHTUSERDATA:
-		lua_pushlightuserdata( L2, lua_touserdata( L, i));
+		pushLUD( L2, touserdata( L, i));
 		break;
 
 			/* The following types are not allowed as table keys */
@@ -1630,8 +1656,8 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 			}
 			if( demote) // attempt demotion to light userdata
 			{
-				void* lud = lua_touserdata( L, i);
-				lua_pushlightuserdata( L2, lud);
+				void* lud = touserdata( L, i);
+				pushLUD( L2, lud);
 			}
 			else // raise an error
 			{

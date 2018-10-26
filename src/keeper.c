@@ -67,7 +67,7 @@ typedef struct
 // replaces the fifo ud by its uservalue on the stack
 static keeper_fifo* prepare_fifo_access( lua_State* L, int idx_)
 {
-	keeper_fifo* fifo = (keeper_fifo*) lua_touserdata( L, idx_);
+	keeper_fifo* fifo = (keeper_fifo*) touserdata( L, idx_);
 	if( fifo != NULL)
 	{
 		idx_ = lua_absindex( L, idx_);
@@ -166,7 +166,7 @@ static void push_table( lua_State* L, int idx_)
 	STACK_GROW( L, 4);
 	STACK_CHECK( L);
 	idx_ = lua_absindex( L, idx_);
-	lua_pushlightuserdata( L, fifos_key);        // ud fifos_key
+	pushLUD( L, fifos_key);        // ud fifos_key
 	lua_rawget( L, LUA_REGISTRYINDEX);           // ud fifos
 	lua_pushvalue( L, idx_);                     // ud fifos ud
 	lua_rawget( L, -2);                          // ud fifos fifos[ud]
@@ -191,9 +191,9 @@ int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, ptrdiff_t 
 	if( KL == NULL) return 0;
 	STACK_GROW( KL, 4);
 	STACK_CHECK( KL);
-	lua_pushlightuserdata( KL, fifos_key);                      // fifos_key
+	pushLUD( KL, fifos_key);                      // fifos_key
 	lua_rawget( KL, LUA_REGISTRYINDEX);                         // fifos
-	lua_pushlightuserdata( KL, ptr_);                           // fifos ud
+	pushLUD( KL, ptr_);                           // fifos ud
 	lua_rawget( KL, -2);                                        // fifos storage
 	lua_remove( KL, -2);                                        // storage
 	if( !lua_istable( KL, -1))
@@ -239,7 +239,7 @@ int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, ptrdiff_t 
 int keepercall_clear( lua_State* L)
 {
 	STACK_GROW( L, 3);
-	lua_pushlightuserdata( L, fifos_key);        // ud fifos_key
+	pushLUD( L, fifos_key);        // ud fifos_key
 	lua_rawget( L, LUA_REGISTRYINDEX);           // ud fifos
 	lua_pushvalue( L, 1);                        // ud fifos ud
 	lua_pushnil( L);                             // ud fifos ud nil
@@ -268,7 +268,7 @@ int keepercall_send( lua_State* L)
 		lua_rawset( L, -4);                        // ud key ... fifos fifo
 	}
 	lua_remove( L, -2);                          // ud key ... fifo
-	fifo = (keeper_fifo*) lua_touserdata( L, -1);
+	fifo = (keeper_fifo*) touserdata( L, -1);
 	if( fifo->limit >= 0 && fifo->count + n > fifo->limit)
 	{
 		lua_settop( L, 0);                         //
@@ -364,12 +364,12 @@ int keepercall_limit( lua_State* L)
 	lua_pop( L, 1);                                    // fifos key
 	lua_pushvalue( L, -1);                             // fifos key key
 	lua_rawget( L, -3);                                // fifos key fifo|nil
-	fifo = (keeper_fifo*) lua_touserdata( L, -1);
+	fifo = (keeper_fifo*) touserdata( L, -1);
 	if( fifo ==  NULL)
 	{                                                  // fifos key nil
 		lua_pop( L, 1);                                  // fifos key
 		fifo_new( L);                                    // fifos key fifo
-		fifo = (keeper_fifo*) lua_touserdata( L, -1);
+		fifo = (keeper_fifo*) touserdata( L, -1);
 		lua_rawset( L, -3);                              // fifos
 	}
 	// remove any clutter on the stack
@@ -407,7 +407,7 @@ int keepercall_set( lua_State* L)
 		lua_pushvalue( L, -1);                          // fifos key key
 		lua_rawget( L, 1);                              // fifos key fifo|nil
 		// empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
-		fifo = (keeper_fifo*) lua_touserdata( L, -1);
+		fifo = (keeper_fifo*) touserdata( L, -1);
 		if( fifo != NULL) // might be NULL if we set a nonexistent key to nil
 		{                                               // fifos key fifo
 			if( fifo->limit < 0) // fifo limit value is the default (unlimited): we can totally remove it
@@ -434,7 +434,7 @@ int keepercall_set( lua_State* L)
 		keeper_fifo* fifo;                              // fifos key [val [, ...]]
 		lua_pushvalue( L, 2);                           // fifos key [val [, ...]] key
 		lua_rawget( L, 1);                              // fifos key [val [, ...]] fifo|nil
-		fifo = (keeper_fifo*) lua_touserdata( L, -1);
+		fifo = (keeper_fifo*) touserdata( L, -1);
 		if( fifo == NULL) // can be NULL if we store a value at a new key
 		{                                               // fifos key [val [, ...]] nil
 			// no need to wake writers in that case, because a writer can't wait on an inexistent key
@@ -704,7 +704,7 @@ void init_keepers( Universe* U, lua_State* L)
 		lua_setglobal( K, "decoda_name");                                                 //
 
 		// create the fifos table in the keeper state
-		lua_pushlightuserdata( K, fifos_key);                                             // fifo_key
+		pushLUD( K, fifos_key);                                             // fifo_key
 		lua_newtable( K);                                                                 // fifo_key {}
 		lua_rawset( K, LUA_REGISTRYINDEX);                                                //
 
@@ -754,13 +754,13 @@ void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, LookupMode mode_)
 		{
 			if( lua_isnil( L, i))
 			{
-				lua_pushlightuserdata( L, NIL_SENTINEL);
+				pushLUD( L, NIL_SENTINEL);
 				lua_replace( L, i);
 			}
 		}
 		else
 		{
-			if( lua_touserdata( L, i) == NIL_SENTINEL)
+			if( touserdata( L, i) == NIL_SENTINEL)
 			{
 				lua_pushnil( L);
 				lua_replace( L, i);
@@ -788,7 +788,7 @@ int keeper_call( Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, vo
 
 	PUSH_KEEPER_FUNC( K, func_);
 
-	lua_pushlightuserdata( K, linda);
+	pushLUD( K, linda);
 
 	if( (args == 0) || luaG_inter_copy( U, L, K, args, eLM_ToKeeper) == 0) // L->K
 	{

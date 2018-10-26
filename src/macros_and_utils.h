@@ -5,6 +5,7 @@
 #define MACROS_AND_UTILS_H
 
 #include "lua.h"
+#include "lualib.h"
 
  // M$ compiler doesn't support 'inline' keyword in C files...
 #if defined( _MSC_VER)
@@ -13,10 +14,10 @@
 
  // For some reason, LuaJIT 64bits doesn't support lua_newstate()
 #if defined(LUA_JITLIBNAME) && (defined(__x86_64__) || defined(_M_X64))
- //#pragma message( "LuaJIT 64 bits detected: don't propagate allocf")
+#pragma message( "LuaJIT 64 bits detected: don't propagate allocf")
 #define PROPAGATE_ALLOCF 0
 #else // LuaJIT x64
- //#pragma message( "PUC-Lua detected: propagate allocf")
+#pragma message( "PUC-Lua detected: propagate allocf")
 #define PROPAGATE_ALLOCF 1
 #endif // LuaJIT x64
 #if PROPAGATE_ALLOCF

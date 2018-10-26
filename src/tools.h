@@ -7,6 +7,9 @@
 
 #include "macros_and_utils.h"
 
+void pushLUD(lua_State *L, void *p);
+void* touserdata(lua_State *L,int index);
+
 // forwards
 struct s_Universe;
 typedef struct s_Universe Universe;
