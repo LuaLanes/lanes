@@ -6,14 +6,22 @@
  * said modules will have to link against lanes (it is not really possible to separate the 'deep userdata' implementation from the rest of Lanes)
  */
 
-
 #include "lua.h"
+#include "platform.h"
 
+// forwards
+struct s_Universe;
+typedef struct s_Universe Universe;
+enum eLookupMode;
+typedef enum eLookupMode LookupMode;
+
+#if !defined LANES_API // when deep is compiled standalone outside Lanes
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 #define LANES_API __declspec(dllexport)
 #else
 #define LANES_API
 #endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
+#endif // LANES_API
 
 enum eDeepOp
 {
@@ -24,6 +32,21 @@ enum eDeepOp
 };
 
 typedef void* (*luaG_IdFunction)( lua_State* L, enum eDeepOp op_);
+
+// ################################################################################################
+
+// this is pointed to by full userdata proxies, and allocated with malloc() to survive any lua_State lifetime
+struct s_DeepPrelude
+{
+	volatile int refcount;
+	void* deep;
+	// when stored in a keeper state, the full userdata doesn't have a metatable, so we need direct access to the idfunc
+	luaG_IdFunction idfunc;
+};
+typedef struct s_DeepPrelude DeepPrelude;
+
+char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, LookupMode mode_);
+void free_deep_prelude( lua_State* L, DeepPrelude* prelude_);
 
 extern LANES_API int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc);
 extern LANES_API void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index);

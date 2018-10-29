@@ -5,6 +5,7 @@
 #define MACROS_AND_UTILS_H
 
 #include "lua.h"
+#include "lualib.h"
 
  // M$ compiler doesn't support 'inline' keyword in C files...
 #if defined( _MSC_VER)

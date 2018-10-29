@@ -1,5 +1,15 @@
 CHANGES:
 
+CHANGE 126: Bge 29-Oct-18
+   * Add deep user data cloning support
+
+CHANGE 125: BGe 25-Oct-18
+   * Fix Lanes build by reorganizing types around a bit
+
+CHANGE 124: BGe 9-Jul-18
+   * Fix a stack overflow when copying large tables with verbose_errors option enabled
+   * Support for integer formatting in verbose errors
+
 CHANGE 123: BGe 2-Aug-17
    * added support for user-provided __gc in deep userdata
    * more complete deep userdata sample

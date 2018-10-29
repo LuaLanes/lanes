@@ -2,6 +2,7 @@
 #define __lanes_h__ 1
 
 #include "lua.h"
+#include "platform.h"
 
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 #define LANES_API __declspec(dllexport)

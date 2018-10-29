@@ -32,11 +32,6 @@ THE SOFTWARE.
 ===============================================================================
 */
 
-#include "compat.h"
-#include "tools.h"
-#include "universe.h"
-#include "deep.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -44,6 +39,11 @@ THE SOFTWARE.
 #if !defined(__APPLE__)
 #include <malloc.h>
 #endif
+
+#include "compat.h"
+#include "deep.h"
+#include "tools.h"
+#include "universe.h"
 
 /*-- Metatable copying --*/
 
@@ -174,12 +174,12 @@ static void get_deep_lookup( lua_State* L)
 * Return the registered ID function for 'index' (deep userdata proxy),
 * or NULL if 'index' is not a deep userdata proxy.
 */
-static inline luaG_IdFunction get_idfunc( lua_State* L, int index, enum eLookupMode mode_)
+static inline luaG_IdFunction get_idfunc( lua_State* L, int index, LookupMode mode_)
 {
 	// when looking inside a keeper, we are 100% sure the object is a deep userdata
 	if( mode_ == eLM_FromKeeper)
 	{
-		struct DEEP_PRELUDE** proxy = (struct DEEP_PRELUDE**) lua_touserdata( L, index);
+		DeepPrelude** proxy = (DeepPrelude**) lua_touserdata( L, index);
 		// we can (and must) cast and fetch the internally stored idfunc
 		return (*proxy)->idfunc;
 	}
@@ -208,7 +208,7 @@ static inline luaG_IdFunction get_idfunc( lua_State* L, int index, enum eLookupM
 }
 
 
-void free_deep_prelude( lua_State* L, struct DEEP_PRELUDE* prelude_)
+void free_deep_prelude( lua_State* L, DeepPrelude* prelude_)
 {
 	// Call 'idfunc( "delete", deep_ptr )' to make deep cleanup
 	lua_pushlightuserdata( L, prelude_->deep);
@@ -226,9 +226,9 @@ void free_deep_prelude( lua_State* L, struct DEEP_PRELUDE* prelude_)
  */
 static int deep_userdata_gc( lua_State* L)
 {
-	struct DEEP_PRELUDE** proxy = (struct DEEP_PRELUDE**) lua_touserdata( L, 1);
-	struct DEEP_PRELUDE* p = *proxy;
-	struct s_Universe* U = universe_get( L);
+	DeepPrelude** proxy = (DeepPrelude**) lua_touserdata( L, 1);
+	DeepPrelude* p = *proxy;
+	Universe* U = universe_get( L);
 	int v;
 
 	// can work without a universe if creating a deep userdata from some external C module when Lanes isn't loaded
@@ -270,9 +270,9 @@ static int deep_userdata_gc( lua_State* L)
  * used in this Lua state (metatable, registring it). Otherwise, increments the
  * reference count.
  */
-char const* push_deep_proxy( struct s_Universe* U, lua_State* L, struct DEEP_PRELUDE* prelude, enum eLookupMode mode_)
+char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, LookupMode mode_)
 {
-	struct DEEP_PRELUDE** proxy;
+	DeepPrelude** proxy;
 
 	// Check if a proxy already exists
 	push_registry_subtable_mode( L, DEEP_PROXY_CACHE_KEY, "v");                                        // DPC
@@ -297,7 +297,7 @@ char const* push_deep_proxy( struct s_Universe* U, lua_State* L, struct DEEP_PRE
 	STACK_GROW( L, 7);
 	STACK_CHECK( L);
 
-	proxy = lua_newuserdata( L, sizeof(struct DEEP_PRELUDE*));                                         // DPC proxy
+	proxy = lua_newuserdata( L, sizeof(DeepPrelude*));                                                // DPC proxy
 	ASSERT_L( proxy);
 	*proxy = prelude;
 
@@ -454,7 +454,7 @@ char const* push_deep_proxy( struct s_Universe* U, lua_State* L, struct DEEP_PRE
 int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc)
 {
 	char const* errmsg;
-	struct DEEP_PRELUDE* prelude = DEEP_MALLOC( sizeof(struct DEEP_PRELUDE));
+	DeepPrelude* prelude = DEEP_MALLOC( sizeof( DeepPrelude));
 	if( prelude == NULL)
 	{
 		return luaL_error( L, "couldn't not allocate deep prelude: out of memory");
@@ -496,7 +496,7 @@ int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc)
 */
 void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index)
 {
-	struct DEEP_PRELUDE** proxy;
+	DeepPrelude** proxy;
 
 	STACK_CHECK( L);
 	// ensure it is actually a deep userdata
@@ -505,7 +505,7 @@ void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index)
 		return NULL;    // no metatable, or wrong kind
 	}
 
-	proxy = (struct DEEP_PRELUDE**) lua_touserdata( L, index);
+	proxy = (DeepPrelude**) lua_touserdata( L, index);
 	STACK_END( L, 0);
 
 	return (*proxy)->deep;
@@ -519,7 +519,7 @@ void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index)
  *   the id function of the copied value, or NULL for non-deep userdata
  *   (not copied)
  */
-luaG_IdFunction copydeep( struct s_Universe* U, lua_State* L, lua_State* L2, int index, enum eLookupMode mode_)
+luaG_IdFunction copydeep( Universe* U, lua_State* L, lua_State* L2, int index, LookupMode mode_)
 {
 	char const* errmsg;
 	luaG_IdFunction idfunc = get_idfunc( L, index, mode_);
@@ -528,7 +528,7 @@ luaG_IdFunction copydeep( struct s_Universe* U, lua_State* L, lua_State* L2, int
 		return NULL;   // not a deep userdata
 	}
 
-	errmsg = push_deep_proxy( U, L2, *(struct DEEP_PRELUDE**) lua_touserdata( L, index), mode_);
+	errmsg = push_deep_proxy( U, L2, *(DeepPrelude**) lua_touserdata( L, index), mode_);
 	if( errmsg != NULL)
 	{
 		// raise the error in the proper state (not the keeper)
