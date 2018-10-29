@@ -1480,6 +1480,52 @@ static void push_cached_func( struct s_Universe* U, lua_State* L2, uint_t L2_cac
 	}
 }
 
+static bool_t push_cached_metatable( struct s_Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum eLookupMode mode_, char const* upName_)
+{
+	if( lua_getmetatable( L, i))                                                 // ... mt
+	{
+		uint_t const mt_id = get_mt_id( U, L, -1);    // Unique id for the metatable
+
+		STACK_CHECK( L2);
+		STACK_GROW( L2, 4);
+		// do we already know this metatable?
+		push_registry_subtable( L2, REG_MTID);                                                                   // rst
+		lua_pushinteger( L2, mt_id);                                                                             // rst id
+		lua_rawget( L2, -2);                                                                                     // rst mt?
+
+		STACK_MID( L2, 2);
+
+		if( lua_isnil( L2, -1))
+		{   // L2 did not know the metatable
+			lua_pop( L2, 1);                                                                                       // rst
+			if( inter_copy_one_( U, L2, L2_cache_i, L, lua_gettop( L), VT_METATABLE, mode_, upName_))              // rst mt
+			{
+				STACK_MID( L2, 2);
+				// mt_id -> metatable
+				lua_pushinteger( L2, mt_id);                                                                         // rst mt id
+				lua_pushvalue( L2, -2);                                                                              // rst mt id mt
+				lua_rawset( L2, -4);                                                                                 // rst mt
+
+				// metatable -> mt_id
+				lua_pushvalue( L2, -1);                                                                              // rst mt mt
+				lua_pushinteger( L2, mt_id);                                                                         // rst mt mt id
+				lua_rawset( L2, -4);                                                                                 // rst mt
+			}
+			else
+			{
+				(void) luaL_error( L, "Error copying a metatable");
+			}
+			STACK_MID( L2, 2);
+		}
+		lua_remove( L2, -2);                                                                                     // mt
+
+		lua_pop( L, 1);                                                            // ...
+		STACK_END( L2, 1);
+		return TRUE;
+	}
+	return FALSE;
+}
+
 /*
 * Copies a value from 'L' state (at index 'i') to 'L2' state. Does not remove
 * the original value.
@@ -1496,17 +1542,17 @@ static bool_t inter_copy_one_( struct s_Universe* U, lua_State* L2, uint_t L2_ca
 	bool_t ignore = FALSE;
 	int val_type = lua_type( L, i);
 	STACK_GROW( L2, 1);
-	STACK_CHECK( L2);
+	STACK_CHECK( L2);                                                            // L                          // L2
 
 	/* Skip the object if it has metatable with { __lanesignore = true } */
-	if( lua_getmetatable( L, i))                                                                  // ... mt
+	if( lua_getmetatable( L, i))                                                 // ... mt
 	{
-		lua_getfield( L, -1, "__lanesignore");                                                      // ... mt ignore?
+		lua_getfield( L, -1, "__lanesignore");                                     // ... mt ignore?
 		if( lua_isboolean( L, -1) && lua_toboolean( L, -1))
 		{
 			val_type = LUA_TNIL;
 		}
-		lua_pop( L, 2);                                                                             // ...
+		lua_pop( L, 2);                                                            // ...
 	}
 
 	/* Lets push nil to L2 if the object should be ignored */
@@ -1563,27 +1609,61 @@ static bool_t inter_copy_one_( struct s_Universe* U, lua_State* L2, uint_t L2_ca
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "USERDATA\n" INDENT_END));
 		if( !copydeep( U, L, L2, i, mode_))
 		{
-			// Not a deep full userdata
-			bool_t demote = FALSE;
-			lua_getfield( L, LUA_REGISTRYINDEX, CONFIG_REGKEY);
-			if( lua_istable( L, -1)) // should not happen, but who knows...
+			if( lua_getmetatable( L, i))                                             // ... mt?
 			{
-				lua_getfield( L, -1, "demote_full_userdata");
-				demote = lua_toboolean( L, -1);
-				lua_pop( L, 2);
+				lua_getfield( L, -1, "__lanesclone");                                  // ... mt clone?
+				if( !lua_isnil( L, -1))
+				{
+					void* const source = lua_touserdata( L, i);
+					// copy the metatable in the target state
+					if( push_cached_metatable( U, L2, L2_cache_i, L, i, mode_, upName_))                               // ... mt?
+					{
+						// retrieve cloning function
+						lua_getfield( L2, -1, "__lanesclone");                                                           // ... mt clone
+						lua_pushlightuserdata( L2, source);                                                              // ... mt clone p
+						// cloning function should create a new full userdata without a metatable
+						if( lua_pcall( L2, 1, 1, 0) == LUA_OK)                                                           // ... mt u
+						{
+							lua_insert( L2, -2);                                                                           // ... u mt
+							lua_setmetatable( L2, -2);                                                                     // ... u
+						}
+						else                                                                                             // ... mt err
+						{
+							// propagate any error to the source state
+							char const* errmsg = lua_tostring( L2, -1);
+							(void) luaL_error( L, "can't copy non-deep full userdata across lanes: %s", errmsg);
+						}
+					}
+					else
+					{
+						(void) luaL_error( L, "Error copying a metatable");
+					}
+				}
+				lua_pop( L, 2);                                                        // ...
 			}
-			else
 			{
-				lua_pop( L, 1);
-			}
-			if( demote) // attempt demotion to light userdata
-			{
-				void* lud = lua_touserdata( L, i);
-				lua_pushlightuserdata( L2, lud);
-			}
-			else // raise an error
-			{
-				(void) luaL_error( L, "can't copy non-deep full userdata across lanes");
+				// Not a deep or clonable full userdata
+				bool_t demote = FALSE;
+				lua_getfield( L, LUA_REGISTRYINDEX, CONFIG_REGKEY);
+				if( lua_istable( L, -1)) // should not happen, but who knows...
+				{
+					lua_getfield( L, -1, "demote_full_userdata");
+					demote = lua_toboolean( L, -1);
+					lua_pop( L, 2);
+				}
+				else
+				{
+					lua_pop( L, 1);
+				}
+				if( demote) // attempt demotion to light userdata
+				{
+					void* lud = lua_touserdata( L, i);
+					lua_pushlightuserdata( L2, lud);
+				}
+				else // raise an error
+				{
+					(void) luaL_error( L, "can't copy non-deep full userdata across lanes");
+				}
 			}
 		}
 		break;
@@ -1687,7 +1767,7 @@ static bool_t inter_copy_one_( struct s_Universe* U, lua_State* L2, uint_t L2_ca
 					}
 					else
 					{
-						luaL_error( L, "Unable to copy over type '%s' (in %s)", luaL_typename( L, val_i), (vt == VT_NORMAL) ? "table" : "metatable");
+						(void) luaL_error( L, "Unable to copy over type '%s' (in %s)", luaL_typename( L, val_i), (vt == VT_NORMAL) ? "table" : "metatable");
 					}
 				}
 				lua_pop( L, 1);    // pop value (next round)
@@ -1695,75 +1775,10 @@ static bool_t inter_copy_one_( struct s_Universe* U, lua_State* L2, uint_t L2_ca
 			STACK_MID( L, 0);
 			STACK_MID( L2, 1);
 
-			/* Metatables are expected to be immutable, and copied only once.
-			*/
-			if( lua_getmetatable( L, i))
+			// Metatables are expected to be immutable, and copied only once.
+			if( push_cached_metatable( U, L2, L2_cache_i, L, i, mode_, upName_))                                   // ... t mt?
 			{
-				//
-				// L [-1]: metatable
-
-				uint_t mt_id = get_mt_id( U, L, -1);    // Unique id for the metatable
-
-				STACK_GROW( L2, 4);
-
-				push_registry_subtable( L2, REG_MTID);
-				STACK_MID( L2, 2);
-				lua_pushinteger( L2, mt_id);
-				lua_rawget( L2, -2);
-				//
-				// L2 ([-3]: copied table)
-				//    [-2]: reg[REG_MTID]
-				//    [-1]: nil/metatable pre-known in L2
-
-				STACK_MID( L2, 3);
-
-				if( lua_isnil( L2, -1))
-				{   /* L2 did not know the metatable */
-					lua_pop( L2, 1);
-					STACK_MID( L2, 2);
-					ASSERT_L( lua_istable( L,-1));
-					if( inter_copy_one_( U, L2, L2_cache_i /*for function cacheing*/, L, lua_gettop( L) /*[-1]*/, VT_METATABLE, mode_, upName_))
-					{
-						//
-						// L2 ([-3]: copied table)
-						//    [-2]: reg[REG_MTID]
-						//    [-1]: metatable (copied from L)
-
-						STACK_MID( L2, 3);
-						// mt_id -> metatable
-						//
-						lua_pushinteger( L2, mt_id);
-						lua_pushvalue( L2, -2);
-						lua_rawset( L2, -4);
-
-						// metatable -> mt_id
-						//
-						lua_pushvalue( L2, -1);
-						lua_pushinteger( L2, mt_id);
-						lua_rawset( L2, -4);
-
-						STACK_MID( L2, 3);
-					}
-					else
-					{
-						luaL_error( L, "Error copying a metatable");
-					}
-					STACK_MID( L2, 3);
-				}
-				// L2 ([-3]: copied table)
-				//    [-2]: reg[REG_MTID]
-				//    [-1]: metatable (pre-known or copied from L)
-
-				lua_remove( L2, -2);   // take away 'reg[REG_MTID]'
-				//
-				// L2: ([-2]: copied table)
-				//     [-1]: metatable for that table
-
-				lua_setmetatable( L2, -2);
-
-				// L2: [-1]: copied table (with metatable set if source had it)
-
-				lua_pop( L, 1);   // remove source metatable (L, not L2!)
+				lua_setmetatable( L2, -2);                                                                           // ... t
 			}
 			STACK_END( L2, 1);
 			STACK_END( L, 0);
@@ -1773,7 +1788,7 @@ static bool_t inter_copy_one_( struct s_Universe* U, lua_State* L2, uint_t L2_ca
 		/* The following types cannot be copied */
 
 		case 10: // LuaJIT CDATA
-		case LUA_TTHREAD: 
+		case LUA_TTHREAD:
 		ret = FALSE;
 		break;
 	}
