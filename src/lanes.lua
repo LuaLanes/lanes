@@ -66,7 +66,8 @@ lanes.configure = function( settings_)
 	local pairs = assert( pairs)
 	local tostring = assert( tostring)
 	local error = assert( error)
-
+	local ffi
+	if package.loaded.jit and jit.version then ffi=require"ffi" end
 	local default_params =
 	{
 		nb_keepers = 1,
@@ -77,7 +78,7 @@ lanes.configure = function( settings_)
 		demote_full_userdata = nil,
 		verbose_errors = false,
 		-- LuaJIT provides a thread-unsafe allocator by default, so we need to protect it when used in parallel lanes
-		protect_allocator = (package.loaded.jit and jit.version) and true or false
+		protect_allocator = (package.loaded.jit and jit.version and (ffi.abi"32bit" or (ffi.abi"64bit" and ffi.abi"gc64"))) and true or false
 	}
 	local boolean_param_checker = function( val_)
 		-- non-'boolean-false' should be 'boolean-true' or nil
