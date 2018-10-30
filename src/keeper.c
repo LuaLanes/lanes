@@ -48,6 +48,7 @@
 #include "compat.h"
 #include "tools.h"
 #include "universe.h"
+#include "uniquekey.h"
 
 //###################################################################################
 // Keeper implementation
@@ -160,13 +161,14 @@ static void fifo_pop( lua_State* L, keeper_fifo* fifo_, lua_Integer count_)
 
 // in: linda_ud expected at *absolute* stack slot idx
 // out: fifos[ud]
-static void* const fifos_key = (void*) prepare_fifo_access;
+// crc64/we of string "FIFOS_KEY" generated at http://www.nitrxgen.net/hashgen/
+static DECLARE_CONST_UNIQUE_KEY( FIFOS_KEY, 0xdce50bbc351cd465);
 static void push_table( lua_State* L, int idx_)
 {
 	STACK_GROW( L, 4);
 	STACK_CHECK( L);
 	idx_ = lua_absindex( L, idx_);
-	lua_pushlightuserdata( L, fifos_key);        // ud fifos_key
+	push_unique_key( L, FIFOS_KEY);              // ud fifos_key
 	lua_rawget( L, LUA_REGISTRYINDEX);           // ud fifos
 	lua_pushvalue( L, idx_);                     // ud fifos ud
 	lua_rawget( L, -2);                          // ud fifos fifos[ud]
@@ -191,7 +193,7 @@ int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, ptrdiff_t 
 	if( KL == NULL) return 0;
 	STACK_GROW( KL, 4);
 	STACK_CHECK( KL);
-	lua_pushlightuserdata( KL, fifos_key);                      // fifos_key
+	push_unique_key( KL, FIFOS_KEY);                            // fifos_key
 	lua_rawget( KL, LUA_REGISTRYINDEX);                         // fifos
 	lua_pushlightuserdata( KL, ptr_);                           // fifos ud
 	lua_rawget( KL, -2);                                        // fifos storage
@@ -239,7 +241,7 @@ int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, ptrdiff_t 
 int keepercall_clear( lua_State* L)
 {
 	STACK_GROW( L, 3);
-	lua_pushlightuserdata( L, fifos_key);        // ud fifos_key
+	push_unique_key( L, FIFOS_KEY);              // ud fifos_key
 	lua_rawget( L, LUA_REGISTRYINDEX);           // ud fifos
 	lua_pushvalue( L, 1);                        // ud fifos ud
 	lua_pushnil( L);                             // ud fifos ud nil
@@ -704,7 +706,7 @@ void init_keepers( Universe* U, lua_State* L)
 		lua_setglobal( K, "decoda_name");                                                 //
 
 		// create the fifos table in the keeper state
-		lua_pushlightuserdata( K, fifos_key);                                             // fifo_key
+		push_unique_key( K, FIFOS_KEY);                                                   // fifo_key
 		lua_newtable( K);                                                                 // fifo_key {}
 		lua_rawset( K, LUA_REGISTRYINDEX);                                                //
 
@@ -754,13 +756,13 @@ void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, LookupMode mode_)
 		{
 			if( lua_isnil( L, i))
 			{
-				lua_pushlightuserdata( L, NIL_SENTINEL);
+				push_unique_key( L, NIL_SENTINEL);
 				lua_replace( L, i);
 			}
 		}
 		else
 		{
-			if( lua_touserdata( L, i) == NIL_SENTINEL)
+			if( equal_unique_key( L, i, NIL_SENTINEL))
 			{
 				lua_pushnil( L);
 				lua_replace( L, i);

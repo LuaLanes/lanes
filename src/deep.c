@@ -44,6 +44,7 @@ THE SOFTWARE.
 #include "deep.h"
 #include "tools.h"
 #include "universe.h"
+#include "uniquekey.h"
 
 /*-- Metatable copying --*/
 
@@ -59,19 +60,19 @@ THE SOFTWARE.
 /*
 * Does what the original 'push_registry_subtable' function did, but adds an optional mode argument to it
 */
-void push_registry_subtable_mode( lua_State* L, void* key_, const char* mode_)
+static void push_registry_subtable_mode( lua_State* L, UniqueKey key_, const char* mode_)
 {
 	STACK_GROW( L, 3);
 	STACK_CHECK( L);
 
-	lua_pushlightuserdata( L, key_);                      // key
+	push_unique_key( L, key_);                            // key
 	lua_rawget( L, LUA_REGISTRYINDEX);                    // {}|nil
 
 	if( lua_isnil( L, -1))
 	{
 		lua_pop( L, 1);                                     //
 		lua_newtable( L);                                   // {}
-		lua_pushlightuserdata( L, key_);                    // {} key
+		push_unique_key( L, key_);                          // {} key
 		lua_pushvalue( L, -2);                              // {} key {}
 
 		// _R[key_] = {}
@@ -96,7 +97,7 @@ void push_registry_subtable_mode( lua_State* L, void* key_, const char* mode_)
 * Push a registry subtable (keyed by unique 'key_') onto the stack.
 * If the subtable does not exist, it is created and chained.
 */
-void push_registry_subtable( lua_State* L, void* key_)
+void push_registry_subtable( lua_State* L, UniqueKey key_)
 {
 	push_registry_subtable_mode( L, key_, NULL);
 }
@@ -121,15 +122,14 @@ void luaG_pushdeepversion( lua_State* L) { (void) lua_pushliteral( L, "ab8743e5-
 *   metatable   ->  idfunc
 *   idfunc      ->  metatable
 */
-// crc64/we of string "DEEP_LOOKUP_KEY" generated at https://www.nitrxgen.net/hashgen/
-#define DEEP_LOOKUP_KEY ((void*)0x9fb9b4f3f633d83d)
-
+// crc64/we of string "DEEP_LOOKUP_KEY" generated at http://www.nitrxgen.net/hashgen/
+static DECLARE_CONST_UNIQUE_KEY( DEEP_LOOKUP_KEY, (void*)0x9fb9b4f3f633d83d);
 
 /*
  * The deep proxy cache is a weak valued table listing all deep UD proxies indexed by the deep UD that they are proxying
- * crc64/we of string "DEEP_PROXY_CACHE_KEY" generated at https://www.nitrxgen.net/hashgen/
+ * crc64/we of string "DEEP_PROXY_CACHE_KEY" generated at http://www.nitrxgen.net/hashgen/
 */
-#define DEEP_PROXY_CACHE_KEY ((void*)0x05773d6fc26be106)
+static DECLARE_CONST_UNIQUE_KEY( DEEP_PROXY_CACHE_KEY, (void*)0x05773d6fc26be106);
 
 /*
 * Sets up [-1]<->[-2] two-way lookups, and ensures the lookup table exists.
@@ -158,7 +158,7 @@ static void get_deep_lookup( lua_State* L)
 {
 	STACK_GROW( L, 1);
 	STACK_CHECK( L);                                         // a
-	lua_pushlightuserdata( L, DEEP_LOOKUP_KEY);              // a DLK
+	push_unique_key( L, DEEP_LOOKUP_KEY);                    // a DLK
 	lua_rawget( L, LUA_REGISTRYINDEX);                       // a {}
 
 	if( !lua_isnil( L, -1))

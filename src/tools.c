@@ -44,6 +44,7 @@ THE SOFTWARE.
 #include "universe.h"
 #include "keeper.h"
 #include "lanes.h"
+#include "uniquekey.h"
 
 // functions implemented in deep.c
 extern luaG_IdFunction copydeep( Universe* U, lua_State* L, lua_State* L2, int index, LookupMode mode_);
@@ -977,7 +978,7 @@ static bool_t lookup_table( lua_State* L2, lua_State* L, uint_t i, LookupMode mo
 static bool_t push_cached_table( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i)
 {
 	bool_t not_found_in_cache;                                                                     // L2
-	void* const p = (void*)lua_topointer( L, i);
+	DECLARE_CONST_UNIQUE_KEY( p, lua_topointer( L, i));
 
 	ASSERT_L( L2_cache_i != 0);
 	STACK_GROW( L2, 3);
@@ -986,7 +987,7 @@ static bool_t push_cached_table( lua_State* L2, uint_t L2_cache_i, lua_State* L,
 	// We don't need to use the from state ('L') in ID since the life span
 	// is only for the duration of a copy (both states are locked).
 	// push a light userdata uniquely representing the table
-	lua_pushlightuserdata( L2, p);                                                                 // ... p
+	push_unique_key( L2, p);                                                                       // ... p
 
 	//fprintf( stderr, "<< ID: %s >>\n", lua_tostring( L2, -1));
 
@@ -996,7 +997,7 @@ static bool_t push_cached_table( lua_State* L2, uint_t L2_cache_i, lua_State* L,
 	{
 		lua_pop( L2, 1);                                                                             // ...
 		lua_newtable( L2);                                                                           // ... {}
-		lua_pushlightuserdata( L2, p);                                                               // ... {} p
+		push_unique_key( L2, p);                                                                     // ... {} p
 		lua_pushvalue( L2, -2);                                                                      // ... {} p {}
 		lua_rawset( L2, L2_cache_i);                                                                 // ... {}
 	}

@@ -31,9 +31,10 @@ THE SOFTWARE.
 #include "universe.h"
 #include "compat.h"
 #include "macros_and_utils.h"
+#include "uniquekey.h"
 
-// crc64/we of string "UNIVERSE_REGKEY" generated at https://www.nitrxgen.net/hashgen/
-static void* const UNIVERSE_REGKEY = ((void*)0x9f877b2cf078f17f);
+// crc64/we of string "UNIVERSE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
+static DECLARE_UNIQUE_KEY( UNIVERSE_REGKEY, 0x9f877b2cf078f17f);
 
 // ################################################################################################
 
@@ -41,7 +42,7 @@ Universe* universe_create( lua_State* L)
 {
 	Universe* U = (Universe*) lua_newuserdata( L, sizeof(Universe));                               // universe
 	memset( U, 0, sizeof( Universe));
-	lua_pushlightuserdata( L, UNIVERSE_REGKEY);                                                    // universe UNIVERSE_REGKEY
+	push_unique_key( L, UNIVERSE_REGKEY);                                                          // universe UNIVERSE_REGKEY
 	lua_pushvalue( L, -2);                                                                         // universe UNIVERSE_REGKEY universe
 	lua_rawset( L, LUA_REGISTRYINDEX);                                                             // universe
 	return U;
@@ -52,7 +53,7 @@ Universe* universe_create( lua_State* L)
 void universe_store( lua_State* L, Universe* U)
 {
 	STACK_CHECK( L);
-	lua_pushlightuserdata( L, UNIVERSE_REGKEY);
+	push_unique_key( L, UNIVERSE_REGKEY);
 	lua_pushlightuserdata( L, U);
 	lua_rawset( L, LUA_REGISTRYINDEX);
 	STACK_END( L, 0);
@@ -65,7 +66,7 @@ Universe* universe_get( lua_State* L)
 	Universe* universe;
 	STACK_GROW( L, 2);
 	STACK_CHECK( L);
-	lua_pushlightuserdata( L, UNIVERSE_REGKEY);
+	push_unique_key( L, UNIVERSE_REGKEY);
 	lua_rawget( L, LUA_REGISTRYINDEX);
 	universe = lua_touserdata( L, -1); // NULL if nil
 	lua_pop( L, 1);
