@@ -11,7 +11,7 @@ struct s_UniqueKey
 typedef struct s_UniqueKey UniqueKey;
 
 #if defined(LUA_JITLIBNAME) && (defined(__x86_64__) || defined(_M_X64)) // building against LuaJIT headers, light userdata is restricted to 47 significant bits.
-#define MAKE_UNIQUE_KEY( p_) ((void*)(p_) & 0x7fffffffffffull)
+#define MAKE_UNIQUE_KEY( p_) ((void*)((ptrdiff_t)(p_) & 0x7fffffffffffull))
 #else // LUA_JITLIBNAME
 #define MAKE_UNIQUE_KEY( p_) ((void*) p_)
 #endif // LUA_JITLIBNAME
