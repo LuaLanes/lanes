@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 127: BGe 30-Oct-18
+   * restrict internal light userdata constants to 47 significant bits when building against LuaJIT-x64
+
 CHANGE 126: Bge 29-Oct-18
    * Add deep user data cloning support
 
