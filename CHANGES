@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 128: BGe 31-Oct-18
+   * Better default value autodetection for protect_allocator setting
+
 CHANGE 127: BGe 30-Oct-18
    * restrict internal light userdata constants to 47 significant bits when building against LuaJIT-x64
 
