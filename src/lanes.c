@@ -275,7 +275,8 @@ static DECLARE_CONST_UNIQUE_KEY( STACK_TRACE_KEY, 0x024d5411677ce879);
 * error (and maybe stack trace) parameters to the finalizer functions would
 * anyways complicate that approach.
 */
-#define FINALIZER_REG_KEY ((void*)LG_set_finalizer)
+// crc64/we of string "STACK_TRACE_KEY" generated at http://www.nitrxgen.net/hashgen/
+static DECLARE_CONST_UNIQUE_KEY( FINALIZER_REG_KEY, 0x7902972781c7e365);
 
 struct s_Linda;
 
@@ -301,11 +302,11 @@ struct s_Linda;
 * Returns: TRUE if a table was pushed
 *          FALSE if no table found, not created, and nothing pushed
 */
-static bool_t push_registry_table( lua_State* L, void* key, bool_t create)
+static bool_t push_registry_table( lua_State* L, UniqueKey key, bool_t create)
 {
 	STACK_GROW( L, 3);
 	STACK_CHECK( L);
-	lua_pushlightuserdata( L, key);                                              // key
+	push_unique_key( L, key);                                                    // key
 	lua_rawget( L, LUA_REGISTRYINDEX);                                           // t?
 
 	if( lua_isnil( L, -1))                                                       // nil?
@@ -318,7 +319,7 @@ static bool_t push_registry_table( lua_State* L, void* key, bool_t create)
 		}
 
 		lua_newtable( L);                                                          // t
-		lua_pushlightuserdata( L, key);                                            // t key
+		push_unique_key( L, key);                                                  // t key
 		lua_pushvalue( L, -2);                                                     // t key t
 		lua_rawset( L, LUA_REGISTRYINDEX);                                         // t
 	}
