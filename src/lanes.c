@@ -430,7 +430,7 @@ struct s_Linda
 };
 #define LINDA_KEEPER_HASHSEED( linda) (linda->group ? linda->group : (ptrdiff_t)linda)
 
-static void* linda_id( lua_State*, enum eDeepOp);
+static void* linda_id( lua_State*, DeepOp);
 
 static inline struct s_Linda* lua_toLinda( lua_State* L, int idx_)
 {
@@ -1126,7 +1126,7 @@ LUAG_FUNC( linda_towatch)
 * For any other strings, the ID function must not react at all. This allows
 * future extensions of the system. 
 */
-static void* linda_id( lua_State* L, enum eDeepOp op_)
+static void* linda_id( lua_State* L, DeepOp op_)
 {
 	switch( op_)
 	{

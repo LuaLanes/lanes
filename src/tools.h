@@ -25,14 +25,6 @@ void luaG_copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2);
 
 // ################################################################################################
 
-enum eLookupMode
-{
-	eLM_LaneBody, // send the lane body directly from the source to the destination lane
-	eLM_ToKeeper, // send a function from a lane to a keeper state
-	eLM_FromKeeper // send a function from a keeper state to a lane
-};
-typedef enum eLookupMode LookupMode;
-
 int luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int package_idx_, LookupMode mode_);
 
 int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupMode mode_);

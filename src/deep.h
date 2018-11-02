@@ -12,8 +12,6 @@
 // forwards
 struct s_Universe;
 typedef struct s_Universe Universe;
-enum eLookupMode;
-typedef enum eLookupMode LookupMode;
 
 #if !defined LANES_API // when deep is compiled standalone outside Lanes
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
@@ -23,6 +21,14 @@ typedef enum eLookupMode LookupMode;
 #endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 #endif // LANES_API
 
+enum eLookupMode
+{
+	eLM_LaneBody, // send the lane body directly from the source to the destination lane
+	eLM_ToKeeper, // send a function from a lane to a keeper state
+	eLM_FromKeeper // send a function from a keeper state to a lane
+};
+typedef enum eLookupMode LookupMode;
+
 enum eDeepOp
 {
 	eDO_new,
@@ -30,8 +36,9 @@ enum eDeepOp
 	eDO_metatable,
 	eDO_module,
 };
+typedef enum eDeepOp DeepOp;
 
-typedef void* (*luaG_IdFunction)( lua_State* L, enum eDeepOp op_);
+typedef void* (*luaG_IdFunction)( lua_State* L, DeepOp op_);
 
 // ################################################################################################
 
