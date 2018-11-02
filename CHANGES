@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 129: BGe 2-Nov-18
+   * Bumped version to 3.13
+   * fix error when autodetecting protect_allocator when running under LuaJIT
+
 CHANGE 128: BGe 31-Oct-18
    * Better default value autodetection for protect_allocator setting
 

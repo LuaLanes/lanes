@@ -64,13 +64,13 @@
 		<font size="-1">
 			<p>
 				<br/>
-				<i>Copyright &copy; 2007-17 Asko Kauppi, Benoit Germain. All rights reserved.</i>
+				<i>Copyright &copy; 2007-18 Asko Kauppi, Benoit Germain. All rights reserved.</i>
 				<br/>
 				Lua Lanes is published under the same <a href="http://en.wikipedia.org/wiki/MIT_License">MIT license</a> as Lua 5.1, 5.2, and 5.3.
 			</p>
 
 			<p>
-				This document was revised on 1-Aug-17, and applies to version <tt>3.12</tt>.
+				This document was revised on 2-Nov-18, and applies to version <tt>3.13</tt>.
 			</p>
 		</font>
 	</center>
@@ -324,7 +324,7 @@
 				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
 			</td>
 			<td>
-				(Since v3.5.2) If equal to <tt>true</tt>, Lanes wraps all calls to the state's allocator function inside a mutex. Useful when running Lanes with LuaJIT, whose allocator is not threadsafe.
+				(Since v3.5.2) If equal to <tt>true</tt>, Lanes wraps all calls to the state's allocator function inside a mutex. Lanes autodetects this value for LuaJIT (the guess might be wrong if <tt>"ffi"</tt> isn't loaded though).
 				Default is <tt>true</tt> when Lanes detects it is run by LuaJIT, else <tt>nil</tt>.
 			</td>
 		</tr>
