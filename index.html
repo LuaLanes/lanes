@@ -1520,7 +1520,7 @@ events to a common Linda, but... :).</font>
 <ol>
 	<li>
 		Provide an <i>identity function</i> for your userdata, in C. This function is used for creation and deletion of your deep userdata (the shared resource), and for making metatables for the state-specific proxies for accessing it. The prototype is
-		<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>	void* idfunc( lua_State* L, enum eDeepOp op_);</pre></td></tr></table>
+		<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>	void* idfunc( lua_State* L, DeepOp op_);</pre></td></tr></table>
 		<tt>op_</tt> can be one of:
 		<ul>
 			<li><tt>eDO_new</tt>: requests the creation of a new object, whose pointer is returned.</li>
