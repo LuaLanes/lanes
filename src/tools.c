@@ -140,7 +140,7 @@ void initialize_on_state_create( Universe* U, lua_State* L)
 // ################################################################################################
 
 // just like lua_xmove, args are (from, to)
-void luaG_copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2)
+static void copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2)
 {
 	STACK_GROW( L, 1);
 	// copy settings from from source to destination registry
@@ -213,11 +213,6 @@ static void open1lib( Universe* U, lua_State* L, char const* name_, size_t len_,
 				bool_t const isLanesCore = (libfunc == require_lanes_core) ? TRUE : FALSE; // don't want to create a global for "lanes.core"
 				DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening %.*s library\n" INDENT_END, (int) len_, name_));
 				STACK_CHECK( L);
-				if( isLanesCore == TRUE)
-				{
-					// copy settings from from source to destination registry
-					luaG_copy_one_time_settings( U, from_, L);
-				}
 				// open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
 				luaL_requiref( L, name_, libfunc, !isLanesCore);
 				// lanes.core doesn't declare a global, so scan it here and now
@@ -666,10 +661,14 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_newstate()\n" INDENT_END));
 	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
 
+	// copy settings (for example because it may contain a Lua on_state_create function)
+	copy_one_time_settings( U, from_, L);
+
 	// 'lua.c' stops GC during initialization so perhaps its a good idea. :)
 	lua_gc( L, LUA_GCSTOP, 0);
 
-	// Anything causes 'base' to be taken in
+		
+		// Anything causes 'base' to be taken in
 	//
 	if( libs_ != NULL)
 	{
@@ -1657,8 +1656,7 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 			ret = FALSE;
 			break;
 		}
-		/* Allow only deep userdata entities to be copied across
-		*/
+		// Allow only deep userdata entities to be copied across
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "USERDATA\n" INDENT_END));
 		if( !copydeep( U, L, L2, i, mode_))
 		{
@@ -1694,29 +1692,16 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 				}
 				lua_pop( L, 2);                                                        // ...
 			}
+
+			// Not a deep or clonable full userdata
+			if( U->demoteFullUserdata) // attempt demotion to light userdata
 			{
-				// Not a deep or clonable full userdata
-				bool_t demote = FALSE;
-				lua_getfield( L, LUA_REGISTRYINDEX, CONFIG_REGKEY);
-				if( lua_istable( L, -1)) // should not happen, but who knows...
-				{
-					lua_getfield( L, -1, "demote_full_userdata");
-					demote = lua_toboolean( L, -1);
-					lua_pop( L, 2);
-				}
-				else
-				{
-					lua_pop( L, 1);
-				}
-				if( demote) // attempt demotion to light userdata
-				{
-					void* lud = lua_touserdata( L, i);
-					lua_pushlightuserdata( L2, lud);
-				}
-				else // raise an error
-				{
-					(void) luaL_error( L, "can't copy non-deep full userdata across lanes");
-				}
+				void* lud = lua_touserdata( L, i);
+				lua_pushlightuserdata( L2, lud);
+			}
+			else // raise an error
+			{
+				(void) luaL_error( L, "can't copy non-deep full userdata across lanes");
 			}
 		}
 		break;

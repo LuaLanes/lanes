@@ -2296,12 +2296,6 @@ LUAG_FUNC( lane_new)
 				}
 				else
 				{
-					// if is it "lanes" or "lanes.core", make sure we have copied the initial settings over
-					// which might not be the case if the libs list didn't include lanes.core or "*"
-					if( strncmp( name, "lanes.core", len) == 0) // this works both both "lanes" and "lanes.core" because of len
-					{
-						luaG_copy_one_time_settings( U, L, L2);
-					}
 					lua_pushlstring( L2, name, len);                                                                                                   // require() name
 					if( lua_pcall( L2, 1, 1, 0) != LUA_OK)                                                                                             // ret/errcode
 					{
@@ -3115,6 +3109,9 @@ LUAG_FUNC( configure)
 		lua_pop( L, 1);                                                                    // settings
 		lua_getfield( L, 1, "verbose_errors");                                             // settings verbose_errors
 		U->verboseErrors = lua_toboolean( L, -1);
+		lua_pop( L, 1);                                                                    // settings
+		lua_getfield( L, 1, "demote_full_userdata");                                       // settings demote_full_userdata
+		U->demoteFullUserdata = lua_toboolean( L, -1);
 		lua_pop( L, 1);                                                                    // settings
 #if HAVE_LANE_TRACKING
 		MUTEX_INIT( &U->tracking_cs);

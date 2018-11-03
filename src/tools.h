@@ -21,7 +21,6 @@ typedef struct s_Universe Universe;
 void luaG_dump( lua_State* L );
 
 lua_State* luaG_newstate( Universe* U, lua_State* _from, char const* libs);
-void luaG_copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2);
 
 // ################################################################################################
 

@@ -32,6 +32,8 @@ struct s_Universe
 	// for verbose errors
 	bool_t verboseErrors;
 
+	bool_t demoteFullUserdata;
+
 	lua_CFunction on_state_create_func;
 
 	Keepers* keepers;
