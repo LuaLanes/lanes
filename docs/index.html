@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 2-Nov-18, and applies to version <tt>3.13</tt>.
+				This document was revised on 4-Nov-18, and applies to version <tt>3.13</tt>.
 			</p>
 		</font>
 	</center>
@@ -113,7 +113,7 @@
 
 	<ul>
 		<li>Coroutines are not passed between states.</li>
-		<li>Sharing full userdata between states needs special C side preparations (-&gt; <A HREF="#deep_userdata">deep userdata</A>).</li>
+		<li>Sharing full userdata between states needs special C side preparations (-&gt; <A HREF="#deep_userdata">deep userdata</A> and -&gt; <A HREF="#clonable_userdata">clonable userdata</A>).</li>
 		<li>Network level parallelism not included.</li>
 		<li>Multi-CPU is done with OS threads, not processes. A lane is a Lua full userdata, therefore it will exist only as long as the Lua state that created it still exists. Therefore, a lane won't continue execution after the main program's termination.</li>
 		<li>Just like independant Lua states, Lanes universes cannot communicate together.</li>
@@ -1510,6 +1510,21 @@ events to a common Linda, but... :).</font>
 	}
 </pre></td></tr></table>
 
+<h3 id="clonable_userdata">Clonable full userdata in your own apps</h3>
+<p>
+	Starting with version 3.13, a new way of passing full userdata across lanes uses a new <tt>__lanesclone</tt> metamethod. A typical implementation would look like:
+<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
+static int clonable_lanesclone( lua_State* L)
+{
+	// no need to set the metatable, the Lane copying mechanism will take care of it
+	struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
+	struct s_MyClonableUserdata* to = lua_newuserdata( L, sizeof( struct s_MyClonableUserdata));
+	memcpy( to, self, sizeof(struct s_MyClonableUserdata));
+	return 1;
+}
+</pre></td></tr></table>
+</p>
+	Of course, more complex objects may require smarter cloning behavior than a simple <tt>memcpy</tt>.
 
 <h3 id="deep_userdata">Deep userdata in your own apps</h3>
 
