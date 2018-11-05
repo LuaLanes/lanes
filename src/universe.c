@@ -28,6 +28,8 @@ THE SOFTWARE.
 ===============================================================================
 */
 
+#include <string.h>
+
 #include "universe.h"
 #include "compat.h"
 #include "macros_and_utils.h"

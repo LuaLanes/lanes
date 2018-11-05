@@ -1816,7 +1816,7 @@ int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupM
 	uint_t top_L2 = lua_gettop( L2);
 	uint_t i, j;
 	char tmpBuf[16];
-	char* pBuf = U->verboseErrors ? tmpBuf : "?";
+	char const* pBuf = U->verboseErrors ? tmpBuf : "?";
 	bool_t copyok = TRUE;
 
 	if( n > top_L)
