@@ -324,7 +324,7 @@
 				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
 			</td>
 			<td>
-				(Since v3.5.2) If equal to <tt>true</tt>, Lanes wraps all calls to the state's allocator function inside a mutex. Lanes autodetects this value for LuaJIT (the guess might be wrong if <tt>"ffi"</tt> isn't loaded though).
+				(Since v3.5.2) If equal to <tt>true</tt>, Lanes wraps all calls to the state's allocator function inside a mutex. Since v3.6.3, when left unset, Lanes attempts to autodetect this value for LuaJIT (the guess might be wrong if <tt>"ffi"</tt> isn't loaded though).
 				Default is <tt>true</tt> when Lanes detects it is run by LuaJIT, else <tt>nil</tt>.
 			</td>
 		</tr>
