@@ -47,7 +47,7 @@ THE SOFTWARE.
 #include "uniquekey.h"
 
 // functions implemented in deep.c
-extern luaG_IdFunction copydeep( Universe* U, lua_State* L, lua_State* L2, int index, LookupMode mode_);
+extern bool_t copydeep( Universe* U, lua_State* L, lua_State* L2, int index, LookupMode mode_);
 extern void push_registry_subtable( lua_State* L, void* key_);
 
 char const* const CONFIG_REGKEY = "ee932492-a654-4506-9da8-f16540bdb5d4";
@@ -1582,7 +1582,7 @@ static void inter_copy_keyvaluepair( Universe* U, lua_State* L2, uint_t L2_cache
 * Copies a value from 'L' state (at index 'i') to 'L2' state. Does not remove
 * the original value.
 *
-* NOTE: Both the states must be solely in the current OS thread's posession.
+* NOTE: Both the states must be solely in the current OS thread's possession.
 *
 * 'i' is an absolute index (no -1, ...)
 *
@@ -1648,7 +1648,7 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 		lua_pushlightuserdata( L2, lua_touserdata( L, i));
 		break;
 
-			/* The following types are not allowed as table keys */
+		/* The following types are not allowed as table keys */
 
 		case LUA_TUSERDATA:
 		if( vt == VT_KEY)
@@ -1658,8 +1658,11 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 		}
 		// Allow only deep userdata entities to be copied across
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "USERDATA\n" INDENT_END));
-		if( !copydeep( U, L, L2, i, mode_))
+		if( copydeep( U, L, L2, i, mode_))
 		{
+			break;
+		}
+
 			if( lua_getmetatable( L, i))                                             // ... mt?
 			{
 				lua_getfield( L, -1, "__lanesclone");                                  // ... mt clone?
@@ -1691,6 +1694,7 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 					}
 				}
 				lua_pop( L, 2);                                                        // ...
+				break;
 			}
 
 			// Not a deep or clonable full userdata
@@ -1703,7 +1707,6 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 			{
 				(void) luaL_error( L, "can't copy non-deep full userdata across lanes");
 			}
-		}
 		break;
 
 		case LUA_TNIL:

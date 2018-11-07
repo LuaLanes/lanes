@@ -519,13 +519,13 @@ void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index)
  *   the id function of the copied value, or NULL for non-deep userdata
  *   (not copied)
  */
-luaG_IdFunction copydeep( Universe* U, lua_State* L, lua_State* L2, int index, LookupMode mode_)
+bool_t copydeep( Universe* U, lua_State* L, lua_State* L2, int index, LookupMode mode_)
 {
 	char const* errmsg;
 	luaG_IdFunction idfunc = get_idfunc( L, index, mode_);
 	if( idfunc == NULL)
 	{
-		return NULL;   // not a deep userdata
+		return FALSE;   // not a deep userdata
 	}
 
 	errmsg = push_deep_proxy( U, L2, *(DeepPrelude**) lua_touserdata( L, index), mode_);
@@ -535,5 +535,5 @@ luaG_IdFunction copydeep( Universe* U, lua_State* L, lua_State* L2, int index, L
 		lua_State* errL = (mode_ == eLM_FromKeeper) ? L2 : L;
 		luaL_error( errL, errmsg);
 	}
-	return idfunc;
+	return TRUE;
 }
