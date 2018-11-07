@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 4-Nov-18, and applies to version <tt>3.13</tt>.
+				This document was revised on 7-Nov-18, and applies to version <tt>3.13</tt>.
 			</p>
 		</font>
 	</center>
@@ -1516,15 +1516,68 @@ events to a common Linda, but... :).</font>
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 static int clonable_lanesclone( lua_State* L)
 {
-	// no need to set the metatable, the Lane copying mechanism will take care of it
-	struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
-	struct s_MyClonableUserdata* to = lua_newuserdata( L, sizeof( struct s_MyClonableUserdata));
-	memcpy( to, self, sizeof(struct s_MyClonableUserdata));
+	switch( lua_gettop( L))
+	{
+		case 0:
+		lua_pushinteger( L, sizeof( struct s_MyClonableUserdata));
+		return 1;
+
+		case 2:
+		{
+			struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
+			struct s_MyClonableUserdata* from = lua_touserdata( L, 2);
+			*self = *from;
+			return 0;
+		}
+
+		default:
+		(void) luaL_error( L, "Lanes called clonable_lanesclone with unexpected parameters");
+	}
+	return 0;
+}
+</pre></td></tr></table>
+</p>
+
+<p>
+	Of course, more complex objects may require smarter cloning behavior than a simple <tt>memcpy</tt>. Also, the module initialisation code should make each metatable accessible from the module table itself as in:
+<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
+int luaopen_deep_test(lua_State* L)
+{
+	luaL_newlib( L, deep_module);
+
+	// preregister the metatables for the types we can instanciate so that Lanes can know about them
+	if( luaL_newmetatable( L, "clonable"))
+	{
+		luaL_setfuncs( L, clonable_mt, 0);
+		lua_pushvalue(L, -1);
+		lua_setfield(L, -2, "__index");
+	}
+	lua_setfield(L, -2, "__clonableMT"); // actual name is not important
+
+	if( luaL_newmetatable( L, "deep"))
+	{
+		luaL_setfuncs( L, deep_mt, 0);
+		lua_pushvalue(L, -1);
+		lua_setfield(L, -2, "__index");
+	}
+	lua_setfield(L, -2, "__deepMT"); // actual name is not important
+
 	return 1;
 }
 </pre></td></tr></table>
 </p>
-	Of course, more complex objects may require smarter cloning behavior than a simple <tt>memcpy</tt>.
+
+<p>
+	Then a new clonable userdata instance can just do like any non-Lanes aware userdata, as long as its metatable contains the aforementionned <tt>__lanesclone</tt> method. Note that the current implementation doesn't support uservalues on such userdata.
+<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
+int luaD_new_clonable( lua_State* L)
+{
+	lua_newuserdata( L, sizeof( struct s_MyClonableUserdata));
+	luaL_setmetatable( L, "clonable");
+	return 1;
+}
+</pre></td></tr></table>
+</p>
 
 <h3 id="deep_userdata">Deep userdata in your own apps</h3>
 

@@ -80,10 +80,7 @@ static void* deep_test_id( lua_State* L, enum eDeepOp op_)
 
 		case eDO_metatable:
 		{
-			lua_newtable( L);                          // mt
-			luaL_setfuncs( L, deep_mt, 0);             // mt
-			lua_pushvalue( L, -1);                     // mt mt
-			lua_setfield( L, -2, "__index");           // mt
+			luaL_getmetatable( L, "deep");             // mt
 			luaG_pushdeepversion( L);                  // mt version
 			return NULL;
 		}
@@ -115,6 +112,16 @@ struct s_MyClonableUserdata
 
 // ################################################################################################
 
+static int clonable_set( lua_State* L)
+{
+	struct s_MyClonableUserdata* self = (struct s_MyClonableUserdata*) lua_touserdata( L, 1);
+	lua_Integer i = lua_tointeger( L, 2);
+	self->val = i;
+	return 0;
+}
+
+// ################################################################################################
+
 static int clonable_tostring(lua_State* L)
 {
 	struct s_MyClonableUserdata* self = (struct s_MyClonableUserdata*) lua_touserdata( L, 1);
@@ -124,13 +131,34 @@ static int clonable_tostring(lua_State* L)
 
 // ################################################################################################
 
+static int clonable_gc( lua_State* L)
+{
+	struct s_MyClonableUserdata* self = (struct s_MyClonableUserdata*) lua_touserdata( L, 1);
+	return 0;
+}
+
+// ################################################################################################
+
 static int clonable_lanesclone( lua_State* L)
 {
-	// no need to set the metatable, the Lane copying mechanism will take care of it
-	struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
-	struct s_MyClonableUserdata* to = lua_newuserdata( L, sizeof( struct s_MyClonableUserdata));
-	memcpy( to, self, sizeof(struct s_MyClonableUserdata));
-	return 1;
+	switch( lua_gettop( L))
+	{
+		case 0:
+		lua_pushinteger( L, sizeof( struct s_MyClonableUserdata));
+		return 1;
+
+		case 2:
+		{
+			struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
+			struct s_MyClonableUserdata* from = lua_touserdata( L, 2);
+			*self = *from;
+			return 0;
+		}
+
+		default:
+		(void) luaL_error( L, "Lanes called clonable_lanesclone with unexpected parameters");
+	}
+	return 0;
 }
 
 // ################################################################################################
@@ -138,9 +166,9 @@ static int clonable_lanesclone( lua_State* L)
 static luaL_Reg const clonable_mt[] =
 {
 	{ "__tostring", clonable_tostring},
-	//{ "__gc", deep_gc},
+	{ "__gc", clonable_gc},
 	{ "__lanesclone", clonable_lanesclone},
-	//{ "set", deep_set},
+	{ "set", clonable_set},
 	{ NULL, NULL }
 };
 
@@ -149,15 +177,7 @@ static luaL_Reg const clonable_mt[] =
 int luaD_new_clonable( lua_State* L)
 {
 	lua_newuserdata( L, sizeof( struct s_MyClonableUserdata));
-	if( luaL_getmetatable( L, "clonable") == LUA_TNIL)      // u mt?
-	{
-		lua_pop( L, 1);                                       // u
-		lua_newtable( L);                                     // u mt
-		luaL_setfuncs( L, clonable_mt, 0);
-		lua_pushvalue(L, -1);                                 // u mt mt
-		lua_setfield(L, -2, "__index");                       // u mt
-	}
-	lua_setmetatable( L, -2);                               // u
+	luaL_setmetatable( L, "clonable");
 	return 1;
 }
 
@@ -175,6 +195,24 @@ static luaL_Reg const deep_module[] =
 
 extern int __declspec(dllexport) luaopen_deep_test(lua_State* L)
 {
-	luaL_newlib( L, deep_module);
+	luaL_newlib( L, deep_module);                           // M
+
+	// preregister the metatables for the types we can instanciate so that Lanes can know about them
+	if( luaL_newmetatable( L, "clonable"))                  // M mt
+	{
+		luaL_setfuncs( L, clonable_mt, 0);
+		lua_pushvalue(L, -1);                                 // M mt mt
+		lua_setfield(L, -2, "__index");                       // M mt
+	}
+	lua_setfield(L, -2, "__clonableMT");                    // M
+
+	if( luaL_newmetatable( L, "deep"))                      // mt
+	{
+		luaL_setfuncs( L, deep_mt, 0);
+		lua_pushvalue(L, -1);                                 // mt mt
+		lua_setfield(L, -2, "__index");                       // mt
+	}
+	lua_setfield(L, -2, "__deepMT");                    // M
+
 	return 1;
 }

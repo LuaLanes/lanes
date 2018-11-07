@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 132: BGe 7-Nov-18
+   * __lanesclone mechanism should actually work now
+
 CHANGE 131: BGe 7-Nov-18
    * Fix potential crash at application shutdown when deep userdata were created before Lanes is required
 

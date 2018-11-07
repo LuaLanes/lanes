@@ -2289,6 +2289,7 @@ LUAG_FUNC( lane_new)
 				// require the module in the target state, and populate the lookup table there too
 				size_t len;
 				char const* name = lua_tolstring( L, -1, &len);
+				DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: require '%s'\n" INDENT_END, name));
 
 				// require the module in the target lane
 				lua_getglobal( L2, "require");                                                                                                       // require()?
