@@ -1756,7 +1756,10 @@ static int selfdestruct_gc( lua_State* L)
 	// Locks for 'tools.c' inc/dec counters
 	MUTEX_FREE( &U->deep_lock);
 	MUTEX_FREE( &U->mtid_lock);
-
+	// universe is no longer available (nor necessary)
+	// we need to do this in case some deep userdata objects were created before Lanes was initialized,
+	// as potentially they will be garbage collected after Lanes at application shutdown
+	universe_store( L, NULL);
 	return 0;
 }
 

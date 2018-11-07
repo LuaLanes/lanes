@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 131: BGe 7-Nov-18
+   * Fix potential crash at application shutdown when deep userdata were created before Lanes is required
+
 CHANGE 130: BGe 2-Nov-18
    * always duplicate the config structure in new lanes even when no libraries are initialized by the generator
      (fixes an internal error trying to call on_state_create in a lane without any libs loaded)
