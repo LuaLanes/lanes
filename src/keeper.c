@@ -188,7 +188,7 @@ static void push_table( lua_State* L, int idx_)
 
 int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_)
 {
-	Keeper* const K = keeper_acquire( U->keepers, magic_);
+	Keeper* const K = which_keeper( U->keepers, magic_);
 	lua_State* const KL = K ? K->L : NULL;
 	if( KL == NULL) return 0;
 	STACK_GROW( KL, 4);
@@ -233,7 +233,6 @@ int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, ptrdiff_t 
 	STACK_END( L, 1);
 	lua_pop( KL, 1);                                            //
 	STACK_END( KL, 0);
-	keeper_release( K);
 	return 1;
 }
 
@@ -713,6 +712,14 @@ void init_keepers( Universe* U, lua_State* L)
 		STACK_END( K, 0);
 	}
 	STACK_END( L, 0);
+}
+
+// should be called only when inside a keeper_acquire/keeper_release pair (see linda_protected_call)
+Keeper* which_keeper(Keepers* keepers_, ptrdiff_t magic_)
+{
+	int const nbKeepers = keepers_->nb_keepers;
+	unsigned int i = (unsigned int)((magic_ >> KEEPER_MAGIC_SHIFT) % nbKeepers);
+	return &keepers_->keeper_array[i];
 }
 
 Keeper* keeper_acquire( Keepers* keepers_, ptrdiff_t magic_)

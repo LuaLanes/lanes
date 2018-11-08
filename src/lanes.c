@@ -453,6 +453,34 @@ static void check_key_types( lua_State* L, int start_, int end_)
 	}
 }
 
+LUAG_FUNC( linda_protected_call)
+{
+	int rc = LUA_OK;
+	struct s_Linda* linda = lua_toLinda( L, 1);
+
+	// acquire the keeper
+	Keeper* K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED(linda));
+	lua_State* KL = K ? K->L : NULL; // need to do this for 'STACK_CHECK'
+	if( KL == NULL) return 0;
+
+	// retrieve the actual function to be called and move it before the arguments
+	lua_pushvalue( L, lua_upvalueindex( 1));
+	lua_insert( L, 1);
+	// do a protected call
+	rc = lua_pcall( L, lua_gettop( L) - 1, LUA_MULTRET, 0);
+
+	// release the keeper
+	keeper_release( K);
+
+	// if there was an error, forward it
+	if( rc != LUA_OK)
+	{
+		return lua_error( L);
+	}
+	// return whatever the actual operation provided
+	return lua_gettop( L);
+}
+
 /*
 * bool= linda_send( linda_ud, [timeout_secs=-1,] [linda.null,] key_num|str|bool|lightuserdata, ... )
 *
@@ -514,7 +542,7 @@ LUAG_FUNC( linda_send)
 	{
 		bool_t try_again = TRUE;
 		Lane* const s = get_lane_from_registry( L);
-		Keeper* K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
+		Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
 		lua_State* KL = K ? K->L : NULL; // need to do this for 'STACK_CHECK'
 		if( KL == NULL) return 0;
 		STACK_CHECK( KL);
@@ -578,10 +606,8 @@ LUAG_FUNC( linda_send)
 			}
 		}
 		STACK_END( KL, 0);
-		keeper_release( K);
 	}
 
-	// must trigger error after keeper state has been released
 	if( pushed < 0)
 	{
 		return luaL_error( L, "tried to copy unsupported types");
@@ -676,7 +702,7 @@ LUAG_FUNC( linda_receive)
 	{
 		bool_t try_again = TRUE;
 		Lane* const s = get_lane_from_registry( L);
-		Keeper* K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
+		Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
 		if( K == NULL) return 0;
 		for( ;;)
 		{
@@ -735,10 +761,8 @@ LUAG_FUNC( linda_receive)
 				}
 			}
 		}
-		keeper_release( K);
 	}
 
-	// must trigger error after keeper state has been released
 	if( pushed < 0)
 	{
 		return luaL_error( L, "tried to copy unsupported types");
@@ -779,8 +803,7 @@ LUAG_FUNC( linda_set)
 	check_key_types( L, 2, 2);
 
 	{
-		Keeper* K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
-		if( K == NULL) return 0;
+		Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
 
 		if( linda->simulate_cancel == CANCEL_NONE)
 		{
@@ -813,7 +836,6 @@ LUAG_FUNC( linda_set)
 			push_unique_key( L, CANCEL_ERROR);
 			pushed = 1;
 		}
-		keeper_release( K);
 	}
 
 	// must trigger any error after keeper state has been released
@@ -835,10 +857,8 @@ LUAG_FUNC( linda_count)
 	check_key_types( L, 2, lua_gettop( L));
 
 	{
-		Keeper* K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
-		if( K == NULL) return 0;
+		Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
 		pushed = keeper_call( linda->U, K->L, KEEPER_API( count), L, linda, 2);
-		keeper_release( K);
 		if( pushed < 0)
 		{
 			return luaL_error( L, "tried to count an invalid key");
@@ -864,8 +884,7 @@ LUAG_FUNC( linda_get)
 	// make sure the key is of a valid type (throws an error if not the case)
 	check_key_types( L, 2, 2);
 	{
-		Keeper* K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
-		if( K == NULL) return 0;
+		Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
 
 		if( linda->simulate_cancel == CANCEL_NONE)
 		{
@@ -881,9 +900,7 @@ LUAG_FUNC( linda_get)
 			push_unique_key( L, CANCEL_ERROR);
 			pushed = 1;
 		}
-		keeper_release( K);
-		// must trigger error after keeper state has been released
-		// (an error can be raised if we attempt to read an unregistered function)
+		// an error can be raised if we attempt to read an unregistered function
 		if( pushed < 0)
 		{
 			return luaL_error( L, "tried to copy unsupported types");
@@ -913,8 +930,7 @@ LUAG_FUNC( linda_limit)
 	check_key_types( L, 2, 2);
 
 	{
-		Keeper* K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
-		if( K == NULL) return 0;
+		Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
 
 		if( linda->simulate_cancel == CANCEL_NONE)
 		{
@@ -932,7 +948,6 @@ LUAG_FUNC( linda_limit)
 			push_unique_key( L, CANCEL_ERROR);
 			pushed = 1;
 		}
-		keeper_release( K);
 	}
 	// propagate pushed boolean if any
 	return pushed;
@@ -948,14 +963,10 @@ LUAG_FUNC( linda_cancel)
 {
 	struct s_Linda* linda = lua_toLinda( L, 1);
 	char const* who = luaL_optstring( L, 2, "both");
-	Keeper* K;
+	Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
 
 	// make sure we got 3 arguments: the linda, a key and a limit
 	luaL_argcheck( L, lua_gettop( L) <= 2, 2, "wrong number of arguments");
-
-	// signalling must be done from inside the K locking area
-	K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
-	if( K == NULL) return 0;
 
 	linda->simulate_cancel = CANCEL_SOFT;
 	if( strcmp( who, "both") == 0) // tell everyone writers to wake up
@@ -976,14 +987,6 @@ LUAG_FUNC( linda_cancel)
 		SIGNAL_ALL( &linda->read_happened);
 	}
 	else
-	{
-		// error ...
-		linda = NULL;
-	}
-	keeper_release( K);
-
-	// ... but we must raise it outside the lock
-	if( !linda)
 	{
 		return luaL_error( L, "unknown wake hint '%s'", who);
 	}
@@ -1184,18 +1187,16 @@ static void* linda_id( lua_State* L, DeepOp op_)
 			struct s_Linda* linda = lua_touserdata( L, 1);
 			ASSERT_L( linda);
 
-			/* Clean associated structures in the keeper state.
-			*/
+			// Clean associated structures in the keeper state.
 			K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
 			if( K && K->L) // can be NULL if this happens during main state shutdown (lanes is GC'ed -> no keepers -> no need to cleanup)
 			{
+				// hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
 				keeper_call( linda->U, K->L, KEEPER_API( clear), L, linda, 0);
 			}
 			keeper_release( K);
 
-			/* There aren't any lanes waiting on these lindas, since all proxies
-			* have been gc'ed. Right?
-			*/
+			// There aren't any lanes waiting on these lindas, since all proxies have been gc'ed. Right?
 			SIGNAL_FREE( &linda->read_happened);
 			SIGNAL_FREE( &linda->write_happened);
 			free( linda);
@@ -1225,34 +1226,46 @@ static void* linda_id( lua_State* L, DeepOp op_)
 			lua_pushcfunction( L, LG_linda_concat);
 			lua_setfield( L, -2, "__concat");
 
-			// [-1]: linda metatable
+			// protected calls, to ensure associated keeper is always released even in case of error
+			// all function are the protected call wrapper, where the actual operation is provided as upvalue
+			// note that this kind of thing can break function lookup as we use the function pointer here and there
+
 			lua_pushcfunction( L, LG_linda_send);
+			lua_pushcclosure( L, LG_linda_protected_call, 1);
 			lua_setfield( L, -2, "send");
 
 			lua_pushcfunction( L, LG_linda_receive);
+			lua_pushcclosure( L, LG_linda_protected_call, 1);
 			lua_setfield( L, -2, "receive");
 
 			lua_pushcfunction( L, LG_linda_limit);
+			lua_pushcclosure( L, LG_linda_protected_call, 1);
 			lua_setfield( L, -2, "limit");
 
 			lua_pushcfunction( L, LG_linda_set);
+			lua_pushcclosure( L, LG_linda_protected_call, 1);
 			lua_setfield( L, -2, "set");
 
 			lua_pushcfunction( L, LG_linda_count);
+			lua_pushcclosure( L, LG_linda_protected_call, 1);
 			lua_setfield( L, -2, "count");
 
 			lua_pushcfunction( L, LG_linda_get);
+			lua_pushcclosure( L, LG_linda_protected_call, 1);
 			lua_setfield( L, -2, "get");
 
 			lua_pushcfunction( L, LG_linda_cancel);
+			lua_pushcclosure( L, LG_linda_protected_call, 1);
 			lua_setfield( L, -2, "cancel");
 
 			lua_pushcfunction( L, LG_linda_deep);
 			lua_setfield( L, -2, "deep");
 
 			lua_pushcfunction( L, LG_linda_dump);
+			lua_pushcclosure( L, LG_linda_protected_call, 1);
 			lua_setfield( L, -2, "dump");
 
+			// some constants
 			lua_pushliteral( L, BATCH_SENTINEL);
 			lua_setfield(L, -2, "batched");
 
@@ -2074,13 +2087,14 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void* vs)
 	// But don't register it in the lookup database because of the s_lane pointer upvalue
 	lua_pushlightuserdata( L, s);
 	lua_pushcclosure( L, LG_set_debug_threadname, 1);
-	lua_setglobal( L, "set_debug_threadname" );
+	lua_setglobal( L, "set_debug_threadname");
 
 	// Tie "cancel_test()" to the state
 	lua_pushcfunction( L, LG_cancel_test);
 	populate_func_lookup_table( L, -1, "cancel_test");
 	lua_setglobal( L, "cancel_test");
 
+	// this could be done in lane_new before the lane body function is pushed on the stack to avoid unnecessary stack slot shifting around
 #if ERROR_FULL_STACK
 	// Tie "set_error_reporting()" to the state
 	lua_pushcfunction( L, LG_set_error_reporting);
@@ -2654,7 +2668,10 @@ LUAG_FUNC( thread_join)
 	bool_t done = THREAD_ISNULL( s->thread) || THREAD_WAIT( &s->thread, wait_secs, &s->done_signal, &s->done_lock, &s->status);
 	if( !done || !L2)
 	{
-		return 0;      // timeout: pushes none, leaves 'L2' alive
+		STACK_GROW( L, 2);
+		lua_pushnil( L);
+		lua_pushliteral( L, "timeout");
+		return 2;
 	}
 
 	STACK_CHECK( L);

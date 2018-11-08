@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 133: BGe 8-Nov-18
+   * Make sure any linda operation that can raise an error won't ever leave a mutex unreleased
+   * lane:join() now returns nil, "timeout" in case of timeout
+
 CHANGE 132: BGe 7-Nov-18
    * __lanesclone mechanism should actually work now
 
