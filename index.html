@@ -855,7 +855,7 @@
 </pre></td></tr></table>
 
 <p>
-	Waits until the lane finishes, or <tt>timeout</tt> seconds have passed. Returns <tt>nil</tt> on timeout, <tt>nil,err,stack_tbl</tt> if the lane hit an error, <tt>nil, "killed"</tt> if forcefully killed (starting with v3.3.0), or the return values of the lane.
+	Waits until the lane finishes, or <tt>timeout</tt> seconds have passed. Returns <tt>nil, "timeout"</tt> on timeout (since v3.13), <tt>nil,err,stack_tbl</tt> if the lane hit an error, <tt>nil, "killed"</tt> if forcefully killed (starting with v3.3.0), or the return values of the lane.
 	Unlike in reading the results in table fashion, errors are not propagated.
 </p>
 
