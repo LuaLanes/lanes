@@ -2022,6 +2022,17 @@ LUAG_FUNC( set_thread_priority)
 	return 0;
 }
 
+LUAG_FUNC( set_thread_affinity)
+{
+	lua_Integer affinity = luaL_checkinteger( L, 1);
+	if( affinity <= 0)
+	{
+		return luaL_error( L, "invalid affinity (%d)", affinity);
+	}
+	THREAD_SET_AFFINITY( (unsigned int) affinity);
+	return 0;
+}
+
 #if USE_DEBUG_SPEW
 // can't use direct LUA_x errcode indexing because the sequence is not the same between Lua 5.1 and 5.2 :-(
 // LUA_ERRERR doesn't have the same value
@@ -2995,6 +3006,7 @@ static const struct luaL_Reg lanes_functions [] = {
     {"now_secs", LG_now_secs},
     {"wakeup_conv", LG_wakeup_conv},
     {"set_thread_priority", LG_set_thread_priority},
+    {"set_thread_affinity", LG_set_thread_affinity},
     {"nameof", luaG_nameof},
     {"register", LG_register},
     {"set_singlethreaded", LG_set_singlethreaded},

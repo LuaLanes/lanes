@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 134: BGe 3-Dec-13
+   * new API lanes.set_thread_affinity()
+   * set_debug_threadname implemented with win32 pthread
+
 CHANGE 133: BGe 8-Nov-18
    * Make sure any linda operation that can raise an error won't ever leave a mutex unreleased
    * lane:join() now returns nil, "timeout" in case of timeout

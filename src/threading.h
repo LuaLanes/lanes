@@ -255,5 +255,6 @@ void THREAD_KILL( THREAD_T* ref);
 void THREAD_SETNAME( char const* _name);
 void THREAD_MAKE_ASYNCH_CANCELLABLE();
 void THREAD_SET_PRIORITY( int prio);
+void THREAD_SET_AFFINITY( unsigned int aff);
 
 #endif // __threading_h__

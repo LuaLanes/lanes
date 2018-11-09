@@ -324,6 +324,13 @@ void THREAD_SET_PRIORITY( int prio)
 	}
 }
 
+void THREAD_SET_AFFINITY( unsigned int aff)
+{
+	if( !SetThreadAffinityMask( GetCurrentThread(), aff));
+	{
+		FAIL( "THREAD_SET_AFFINITY", GetLastError());
+	}
+}
 
 bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 {
@@ -546,6 +553,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
   // On Linux, SCHED_RR and su privileges are required..  !-(
   //
   #include <errno.h>
+  #include <sched.h>
 
 #	if (defined(__MINGW32__) || defined(__MINGW64__)) && defined pthread_attr_setschedpolicy
 #	if pthread_attr_setschedpolicy( A, S) == ENOTSUP
@@ -862,6 +870,22 @@ void THREAD_SET_PRIORITY( int prio)
 	}
 }
 
+void THREAD_SET_AFFINITY( unsigned int aff)
+{
+	cpu_set_t cpuset;
+	int bit = 0;
+	CPU_ZERO( &cpuset);
+	while( aff != 0)
+	{
+		if( aff & 1)
+		{
+			CPU_SET( bit, &cpuset);
+		}
+		++ bit;
+		aff >>= 1;
+	}
+	PT_CALL( pthread_setaffinity_np( pthread_self(), sizeof(cpu_set_t), &cpuset));
+}
 
  /*
   * Wait for a thread to finish.
@@ -959,7 +983,7 @@ bool_t THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *
 #elif defined PLATFORM_OSX
 		pthread_setname_np(_name);
 #elif defined PLATFORM_WIN32 || defined PLATFORM_POCKETPC
-		// no API in win32-pthread yet :-(
+		PT_CALL( pthread_setname_np( pthread_self(), _name));
 #endif
 	}
 #endif // THREADAPI == THREADAPI_PTHREAD

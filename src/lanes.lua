@@ -190,7 +190,7 @@ lanes.configure = function( settings_)
 	--
 	-- 'opt': .priority:  int (-3..+3) smaller is lower priority (0 = default)
 	--
-	--	      .cancelstep: bool | uint
+	--        .cancelstep: bool | uint
 	--            false: cancellation check only at pending Linda operations
 	--                   (send/receive) so no runtime performance penalty (default)
 	--            true:  adequate cancellation check (same as 100)
@@ -723,6 +723,7 @@ lanes.configure = function( settings_)
 	lanes.set_singlethreaded = core.set_singlethreaded
 	lanes.threads = core.threads or function() error "lane tracking is not available" end -- core.threads isn't registered if settings.track_lanes is false
 	lanes.set_thread_priority = core.set_thread_priority
+	lanes.set_thread_affinity = core.set_thread_affinity
 	lanes.timer = timer
 	lanes.timer_lane = timer_lane
 	lanes.timers = timers
