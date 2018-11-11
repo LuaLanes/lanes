@@ -36,8 +36,12 @@ extern char const* debugspew_indent;
 #define INDENT_BEGIN "%.*s "
 #define INDENT_END , (U ? U->debugspew_indent_depth : 0), debugspew_indent
 #define DEBUGSPEW_CODE(_code) _code
+#define DEBUGSPEW_PARAM_COMMA( param_) param_,
+#define DEBUGSPEW_COMMA_PARAM( param_) , param_
 #else // USE_DEBUG_SPEW
 #define DEBUGSPEW_CODE(_code)
+#define DEBUGSPEW_PARAM_COMMA( param_)
+#define DEBUGSPEW_COMMA_PARAM( param_)
 #endif // USE_DEBUG_SPEW
 
 #ifdef NDEBUG
@@ -56,10 +60,10 @@ extern char const* debugspew_indent;
 #define STACK_MID(L,change) \
 	do \
 	{ \
-		int a = lua_gettop( L) - _oldtop_##L; \
-		int b = (change); \
-		if( a != b) \
-			luaL_error( L, "STACK ASSERT failed (%d not %d): %s:%d", a, b, __FILE__, __LINE__ ); \
+		int stack_check_a = lua_gettop( L) - _oldtop_##L; \
+		int stack_check_b = (change); \
+		if( stack_check_a != stack_check_b) \
+			luaL_error( L, "STACK ASSERT failed (%d not %d): %s:%d", stack_check_a, stack_check_b, __FILE__, __LINE__ ); \
 	} while( 0)
 #define STACK_END(L,change)  STACK_MID(L,change); }
 

@@ -963,7 +963,6 @@ LUAG_FUNC( linda_cancel)
 {
 	struct s_Linda* linda = lua_toLinda( L, 1);
 	char const* who = luaL_optstring( L, 2, "both");
-	Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
 
 	// make sure we got 3 arguments: the linda, a key and a limit
 	luaL_argcheck( L, lua_gettop( L) <= 2, 2, "wrong number of arguments");
@@ -1255,7 +1254,6 @@ static void* linda_id( lua_State* L, DeepOp op_)
 			lua_setfield( L, -2, "get");
 
 			lua_pushcfunction( L, LG_linda_cancel);
-			lua_pushcclosure( L, LG_linda_protected_call, 1);
 			lua_setfield( L, -2, "cancel");
 
 			lua_pushcfunction( L, LG_linda_deep);
@@ -1515,6 +1513,9 @@ static cancel_result thread_cancel( lua_State* L, Lane* s, double secs, bool_t f
 				{
 					return luaL_error( L, "force-killed lane failed to terminate within %f second%s", waitkill_timeout_, waitkill_timeout_ > 1 ? "s" : "");
 				}
+#else
+				(void) waitkill_timeout_; // unused
+				(void) L; // unused
 #endif // THREADAPI == THREADAPI_PTHREAD
 				s->mstatus = KILLED;     // mark 'gc' to wait for it
 				// note that s->status value must remain to whatever it was at the time of the kill
@@ -1809,14 +1810,13 @@ LUAG_FUNC( set_singlethreaded)
 	}
 	// requires 'chudInitialize()'
 	utilBindThreadToCPU(0);     // # of CPU to run on (we cannot limit to 2..N CPUs?)
+	return 0;
 #else
 	return luaL_error( L, "Not available: compile with _UTILBINDTHREADTOCPU");
 #endif
 #else
 	return luaL_error( L, "not implemented");
 #endif
-
-	return 0;
 }
 
 
@@ -2204,7 +2204,6 @@ LUAG_FUNC( require)
 LUAG_FUNC( register)
 {
 	char const* name = luaL_checkstring( L, 1);
-	int const nargs = lua_gettop( L);
 	int const mod_type = lua_type( L, 2);
 	// ignore extra parameters, just in case
 	lua_settop( L, 2);
@@ -3179,7 +3178,7 @@ LUAG_FUNC( configure)
 	STACK_MID( L, 0);
 
 	// Serialize calls to 'require' from now on, also in the primary state
-	serialize_require( U, L);
+	serialize_require( DEBUGSPEW_PARAM_COMMA( U) L);
 
 	// Retrieve main module interface table
 	lua_pushvalue( L, lua_upvalueindex( 2));                                             // settings M

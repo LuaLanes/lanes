@@ -123,13 +123,13 @@ void luaG_pushdeepversion( lua_State* L) { (void) lua_pushliteral( L, "ab8743e5-
 *   idfunc      ->  metatable
 */
 // crc64/we of string "DEEP_LOOKUP_KEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( DEEP_LOOKUP_KEY, (void*)0x9fb9b4f3f633d83d);
+static DECLARE_CONST_UNIQUE_KEY( DEEP_LOOKUP_KEY, 0x9fb9b4f3f633d83d);
 
 /*
  * The deep proxy cache is a weak valued table listing all deep UD proxies indexed by the deep UD that they are proxying
  * crc64/we of string "DEEP_PROXY_CACHE_KEY" generated at http://www.nitrxgen.net/hashgen/
 */
-static DECLARE_CONST_UNIQUE_KEY( DEEP_PROXY_CACHE_KEY, (void*)0x05773d6fc26be106);
+static DECLARE_CONST_UNIQUE_KEY( DEEP_PROXY_CACHE_KEY, 0x05773d6fc26be106);
 
 /*
 * Sets up [-1]<->[-2] two-way lookups, and ensures the lookup table exists.
@@ -302,7 +302,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 	*proxy = prelude;
 
 	// Get/create metatable for 'idfunc' (in this state)
-	lua_pushlightuserdata( L, prelude->idfunc);                                                        // DPC proxy idfunc
+	lua_pushlightuserdata( L, (void*)(ptrdiff_t)(prelude->idfunc));                                    // DPC proxy idfunc
 	get_deep_lookup( L);                                                                               // DPC proxy metatable?
 
 	if( lua_isnil( L, -1)) // // No metatable yet.
@@ -351,16 +351,16 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 
 		// Memorize for later rounds
 		lua_pushvalue( L, -1);                                                                           // DPC proxy metatable metatable
-		lua_pushlightuserdata( L, prelude->idfunc);                                                      // DPC proxy metatable metatable idfunc
+		lua_pushlightuserdata( L, (void*)(ptrdiff_t)(prelude->idfunc));                                  // DPC proxy metatable metatable idfunc
 		set_deep_lookup( L);                                                                             // DPC proxy metatable
 
 		// 2 - cause the target state to require the module that exported the idfunc
 		// this is needed because we must make sure the shared library is still loaded as long as we hold a pointer on the idfunc
 		{
-			int oldtop = lua_gettop( L);
+			int oldtop_module = lua_gettop( L);
 			modname = (char const*) prelude->idfunc( L, eDO_module);                                       // DPC proxy metatable
 			// make sure the function pushed nothing on the stack!
-			if( lua_gettop( L) - oldtop != 0)
+			if( lua_gettop( L) - oldtop_module != 0)
 			{
 				lua_pop( L, 3);                                                                              //
 				return "Bad idfunc(eOP_module): should not push anything";

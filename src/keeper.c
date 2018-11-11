@@ -676,7 +676,7 @@ void init_keepers( Universe* U, lua_State* L)
 		luaL_requiref( K, "package", luaopen_package, 1);                                 // package
 		lua_pop( K, 1);                                                                   //
 		STACK_MID( K, 0);
-		serialize_require( U, K);
+		serialize_require( DEBUGSPEW_PARAM_COMMA( U) K);
 		STACK_MID( K, 0);
 
 		// copy package.path and package.cpath from the source state

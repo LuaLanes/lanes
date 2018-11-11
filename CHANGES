@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 135: BGe 11-Nov-18
+   * fix a bunch of compilation warnings
+
 CHANGE 134: BGe 3-Dec-13
    * new API lanes.set_thread_affinity()
    * set_debug_threadname implemented with win32 pthread
