@@ -41,7 +41,7 @@ ENDIF(CYGWIN)
 
 # Build
 INCLUDE_DIRECTORIES(src)
-ADD_LIBRARY(core MODULE src/lanes.c src/deep.c src/threading.c src/tools.c src/keeper.c src/compat.c src/universe.c)
+ADD_LIBRARY(core MODULE src/lanes.c src/deep.c src/threading.c src/tools.c src/keeper.c src/compat.c src/universe.c src/linda.c)
 
 IF(UNIX AND NOT CYGWIN)
   SET(LIBS pthread)
