@@ -17,6 +17,7 @@
 
 struct s_MyDeepUserdata
 {
+	DeepPrelude prelude; // Deep userdata MUST start with this header
 	lua_Integer val;
 };
 static void* deep_test_id( lua_State* L, enum eDeepOp op_);
@@ -67,6 +68,7 @@ static void* deep_test_id( lua_State* L, enum eDeepOp op_)
 		case eDO_new:
 		{
 			struct s_MyDeepUserdata* deep_test = (struct s_MyDeepUserdata*) malloc( sizeof(struct s_MyDeepUserdata));
+			deep_test->prelude.magic.value = DEEP_VERSION.value;
 			deep_test->val = 0;
 			return deep_test;
 		}
@@ -81,7 +83,6 @@ static void* deep_test_id( lua_State* L, enum eDeepOp op_)
 		case eDO_metatable:
 		{
 			luaL_getmetatable( L, "deep");             // mt
-			luaG_pushdeepversion( L);                  // mt version
 			return NULL;
 		}
 

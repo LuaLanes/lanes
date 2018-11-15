@@ -112,6 +112,4 @@ static inline int cancel_error( lua_State* L)
 	return lua_error( L); // doesn't return
 }
 
-
-
 #endif // __lanes_private_h__

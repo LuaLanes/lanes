@@ -733,7 +733,10 @@ static int selfdestruct_gc( lua_State* L)
 	// necessary so that calling free_deep_prelude doesn't crash because linda_id expects a linda lightuserdata at absolute slot 1
 	lua_settop( L, 0);
 	// no need to mutex-protect this as all threads in the universe are gone at that point
-	-- U->timer_deep->refcount; // should be 0 now
+	if( U->timer_deep != NULL) // test ins case some early internal error prevented Lanes from creating the deep timer
+	{
+		-- U->timer_deep->refcount; // should be 0 now
+	}
 	free_deep_prelude( L, (DeepPrelude*) U->timer_deep);
 	U->timer_deep = NULL;
 
@@ -2162,7 +2165,6 @@ LUAG_FUNC( configure)
 
 		// Proxy userdata contents is only a 'DEEP_PRELUDE*' pointer
 		U->timer_deep = *(DeepPrelude**) lua_touserdata( L, -1);
-		ASSERT_L( U->timer_deep && (U->timer_deep->refcount == 1) && U->timer_deep->deep && U->timer_deep->idfunc == linda_id);
 		// increment refcount that this linda remains alive as long as the universe is.
 		++ U->timer_deep->refcount;
 		lua_pop( L, 1);                                                                    // settings

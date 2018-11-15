@@ -46,6 +46,7 @@ THE SOFTWARE.
 */
 struct s_Linda
 {
+	DeepPrelude prelude; // Deep userdata MUST start with this header
 	SIGNAL_T read_happened;
 	SIGNAL_T write_happened;
 	Universe* U; // the universe this linda belongs to
@@ -794,6 +795,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
 			s = (struct s_Linda*) malloc( sizeof(struct s_Linda) + name_len); // terminating 0 is already included
 			if( s)
 			{
+				s->prelude.magic.value = DEEP_VERSION.value;
 				SIGNAL_INIT( &s->read_happened);
 				SIGNAL_INIT( &s->write_happened);
 				s->U = universe_get( L);
@@ -895,8 +897,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
 			push_unique_key( L, NIL_SENTINEL);
 			lua_setfield(L, -2, "null");
 
-			luaG_pushdeepversion( L);
-			STACK_END( L, 2);
+			STACK_END( L, 1);
 			return NULL;
 		}
 

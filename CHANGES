@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 137: BGe 15-Nov-18
+   * Deep userdata must embed DeepPrelude to save an allocation (also changes Deep protocol)
+
 CHANGE 136: BGe 15-Nov-18
    * split linda code in a separate file
    * rockspec for version v3.13.0

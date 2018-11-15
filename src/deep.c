@@ -105,16 +105,6 @@ void push_registry_subtable( lua_State* L, UniqueKey key_)
 
 /*---=== Deep userdata ===---*/
 
-void luaG_pushdeepversion( lua_State* L) { (void) lua_pushliteral( L, "ab8743e5-84f8-485d-9c39-008e84656188");}
-
-
-
-/* The deep portion must be allocated separately of any Lua state's; it's
-* lifespan may be longer than that of the creating state.
-*/
-#define DEEP_MALLOC malloc
-#define DEEP_FREE   free
-
 /* 
 * 'registry[REGKEY]' is a two-way lookup table for 'idfunc's and those type's
 * metatables:
@@ -211,10 +201,9 @@ static inline luaG_IdFunction get_idfunc( lua_State* L, int index, LookupMode mo
 void free_deep_prelude( lua_State* L, DeepPrelude* prelude_)
 {
 	// Call 'idfunc( "delete", deep_ptr )' to make deep cleanup
-	lua_pushlightuserdata( L, prelude_->deep);
+	lua_pushlightuserdata( L, prelude_);
 	ASSERT_L( prelude_->idfunc);
 	prelude_->idfunc( L, eDO_delete);
-	DEEP_FREE( (void*) prelude_);
 }
 
 
@@ -276,7 +265,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 
 	// Check if a proxy already exists
 	push_registry_subtable_mode( L, DEEP_PROXY_CACHE_KEY, "v");                                        // DPC
-	lua_pushlightuserdata( L, prelude->deep);                                                          // DPC deep
+	lua_pushlightuserdata( L, prelude);                                                                // DPC deep
 	lua_rawget( L, -2);                                                                                // DPC proxy
 	if ( !lua_isnil( L, -1))
 	{
@@ -313,20 +302,13 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 		// 1 - make one and register it
 		if( mode_ != eLM_ToKeeper)
 		{
-			(void) prelude->idfunc( L, eDO_metatable);                                                     // DPC proxy metatable deepversion
-			if( lua_gettop( L) - oldtop != 1 || !lua_istable( L, -2) || !lua_isstring( L, -1))
+			(void) prelude->idfunc( L, eDO_metatable);                                                     // DPC proxy metatable
+			if( lua_gettop( L) - oldtop != 0 || !lua_istable( L, -1))
 			{
 				lua_settop( L, oldtop);                                                                      // DPC proxy X
 				lua_pop( L, 3);                                                                              //
 				return "Bad idfunc(eOP_metatable): unexpected pushed value";
 			}
-			luaG_pushdeepversion( L);                                                                      // DPC proxy metatable deepversion deepversion
-			if( !lua501_equal( L, -1, -2))
-			{
-				lua_pop( L, 5);                                                                              //
-				return "Bad idfunc(eOP_metatable): mismatched deep version";
-			}
-			lua_pop( L, 2);                                                                                // DPC proxy metatable
 			// if the metatable contains a __gc, we will call it from our own
 			lua_getfield( L, -1, "__gc");                                                                  // DPC proxy metatable __gc
 		}
@@ -420,7 +402,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 	lua_setmetatable( L, -2);                                                                          // DPC proxy
 
 	// If we're here, we obviously had to create a new proxy, so cache it.
-	lua_pushlightuserdata( L, (*proxy)->deep);                                                         // DPC proxy deep
+	lua_pushlightuserdata( L, prelude);                                                                // DPC proxy deep
 	lua_pushvalue( L, -2);                                                                             // DPC proxy deep proxy
 	lua_rawset( L, -4);                                                                                // DPC proxy
 	lua_remove( L, -2);                                                                                // proxy
@@ -454,34 +436,38 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc)
 {
 	char const* errmsg;
-	DeepPrelude* prelude = DEEP_MALLOC( sizeof( DeepPrelude));
-	if( prelude == NULL)
-	{
-		return luaL_error( L, "couldn't not allocate deep prelude: out of memory");
-	}
-
-	prelude->refcount = 0; // 'push_deep_proxy' will lift it to 1
-	prelude->idfunc = idfunc;
 
 	STACK_GROW( L, 1);
 	STACK_CHECK( L);
 	{
 		int oldtop = lua_gettop( L);
-		prelude->deep = idfunc( L, eDO_new);
-		if( prelude->deep == NULL)
+		DeepPrelude* prelude = idfunc( L, eDO_new);
+		if( prelude == NULL)
 		{
 			luaL_error( L, "idfunc(eDO_new) failed to create deep userdata (out of memory)");
 		}
+		if( prelude->magic.value != DEEP_VERSION.value)
+		{
+			// just in case, don't leak the newly allocated deep userdata object
+			lua_pushlightuserdata( L, prelude);
+			idfunc( L, eDO_delete);
+			return luaL_error( L, "Bad idfunc(eDO_new): DEEP_VERSION is incorrect, rebuild your implementation with the latest deep implementation");
+		}
+		prelude->refcount = 0; // 'push_deep_proxy' will lift it to 1
+		prelude->idfunc = idfunc;
 
 		if( lua_gettop( L) - oldtop != 0)
 		{
-			luaL_error( L, "Bad idfunc(eDO_new): should not push anything on the stack");
+			// just in case, don't leak the newly allocated deep userdata object
+			lua_pushlightuserdata( L, prelude);
+			idfunc( L, eDO_delete);
+			return luaL_error( L, "Bad idfunc(eDO_new): should not push anything on the stack");
 		}
-	}
-	errmsg = push_deep_proxy( universe_get( L), L, prelude, eLM_LaneBody);  // proxy
-	if( errmsg != NULL)
-	{
-		luaL_error( L, errmsg);
+		errmsg = push_deep_proxy( universe_get( L), L, prelude, eLM_LaneBody);  // proxy
+		if( errmsg != NULL)
+		{
+			return luaL_error( L, errmsg);
+		}
 	}
 	STACK_END( L, 1);
 	return 1;
@@ -508,7 +494,7 @@ void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index)
 	proxy = (DeepPrelude**) lua_touserdata( L, index);
 	STACK_END( L, 0);
 
-	return (*proxy)->deep;
+	return *proxy;
 }
 
 

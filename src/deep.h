@@ -8,6 +8,7 @@
 
 #include "lua.h"
 #include "platform.h"
+#include "uniquekey.h"
 
 // forwards
 struct s_Universe;
@@ -42,13 +43,17 @@ typedef void* (*luaG_IdFunction)( lua_State* L, DeepOp op_);
 
 // ################################################################################################
 
-// this is pointed to by full userdata proxies, and allocated with malloc() to survive any lua_State lifetime
+// crc64/we of string "DEEP_VERSION_1" generated at http://www.nitrxgen.net/hashgen/
+static DECLARE_CONST_UNIQUE_KEY( DEEP_VERSION, 0x4f4eadf0accf6c73);
+
+// should be used as header for full userdata
 struct s_DeepPrelude
 {
-	volatile int refcount;
-	void* deep;
+	DECLARE_UNIQUE_KEY( magic); // must be filled by the Deep userdata idfunc that allocates it on eDO_new operation
 	// when stored in a keeper state, the full userdata doesn't have a metatable, so we need direct access to the idfunc
 	luaG_IdFunction idfunc;
+	// data is destroyed when refcount is 0
+	volatile int refcount;
 };
 typedef struct s_DeepPrelude DeepPrelude;
 
@@ -57,6 +62,5 @@ void free_deep_prelude( lua_State* L, DeepPrelude* prelude_);
 
 extern LANES_API int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc);
 extern LANES_API void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index);
-extern LANES_API void luaG_pushdeepversion( lua_State* L);
 
 #endif // __LANES_DEEP_H__

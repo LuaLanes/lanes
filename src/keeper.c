@@ -754,7 +754,7 @@ void keeper_release( Keeper* K)
 	if( K) MUTEX_UNLOCK( &K->keeper_cs);
 }
 
-void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, LookupMode mode_)
+void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, LookupMode const mode_)
 {
 	int i, n = lua_gettop( L);
 	for( i = val_i_; i <= n; ++ i)
