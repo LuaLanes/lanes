@@ -96,9 +96,8 @@ static inline Lane* get_lane_from_registry( lua_State* L)
 {
 	Lane* s;
 	STACK_GROW( L, 1);
-	STACK_CHECK( L);
-	push_unique_key( L, CANCEL_TEST_KEY);
-	lua_rawget( L, LUA_REGISTRYINDEX);
+	STACK_CHECK( L, 0);
+	REGISTRY_GET( L, CANCEL_TEST_KEY);
 	s = lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) / nil
 	lua_pop( L, 1);
 	STACK_END( L, 0);

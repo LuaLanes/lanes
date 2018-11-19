@@ -1,5 +1,10 @@
 CHANGES:
 
+CHANGE 138: BGe 19-Nov-18
+   * Registry access code utility macros
+   * CONFIG_REGKEY and LOOKUP_REGKEY are now lightuserdata instead of strings
+   * Stack checking debug macros improvements
+
 CHANGE 137: BGe 15-Nov-18
    * Deep userdata must embed DeepPrelude to save an allocation (also changes Deep protocol)
 

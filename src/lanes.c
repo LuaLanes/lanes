@@ -114,7 +114,7 @@ THE SOFTWARE.
 // intern the debug name in the specified lua state so that the pointer remains valid when the lane's state is closed
 static void securize_debug_threadname( lua_State* L, Lane* s)
 {
-	STACK_CHECK( L);
+	STACK_CHECK( L, 0);
 	STACK_GROW( L, 3);
 	lua_getuservalue( L, 1);
 	lua_newtable( L);
@@ -196,10 +196,9 @@ struct s_Linda;
 static bool_t push_registry_table( lua_State* L, UniqueKey key, bool_t create)
 {
 	STACK_GROW( L, 3);
-	STACK_CHECK( L);
-	push_unique_key( L, key);                                                    // key
-	lua_rawget( L, LUA_REGISTRYINDEX);                                           // t?
+	STACK_CHECK( L, 0);
 
+	REGISTRY_GET( L, key);                                                       // ?
 	if( lua_isnil( L, -1))                                                       // nil?
 	{
 		lua_pop( L, 1);                                                            //
@@ -1179,7 +1178,7 @@ LUAG_FUNC( require)
 	char const* name = lua_tostring( L, 1);
 	int const nargs = lua_gettop( L);
 	DEBUGSPEW_CODE( Universe* U = universe_get( L));
-	STACK_CHECK( L);
+	STACK_CHECK( L, 0);
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lanes.require %s BEGIN\n" INDENT_END, name));
 	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
 	lua_pushvalue( L, lua_upvalueindex(1));   // "name" require
@@ -1204,7 +1203,7 @@ LUAG_FUNC( register)
 	lua_settop( L, 2);
 	luaL_argcheck( L, (mod_type == LUA_TTABLE) || (mod_type == LUA_TFUNCTION), 2, "unexpected module type");
 	DEBUGSPEW_CODE( Universe* U = universe_get( L));
-	STACK_CHECK( L);                          // "name" mod_table
+	STACK_CHECK( L, 0);                          // "name" mod_table
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lanes.register %s BEGIN\n" INDENT_END, name));
 	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
 	populate_func_lookup_table( L, -1, name);
@@ -1265,10 +1264,10 @@ LUAG_FUNC( lane_new)
 	L2 = luaG_newstate( U, L, libs_str);                     // L                                                                              // L2
 
 	STACK_GROW( L2, nargs + 3);                                                                                                                //
-	STACK_CHECK( L2);
+	STACK_CHECK( L2, 0);
 
 	STACK_GROW( L, 3);                                       // func libs cancelstep priority globals package required gc_cb [... args ...]
-	STACK_CHECK( L);
+	STACK_CHECK( L, 0);
 
 	// give a default "Lua" name to the thread to see VM name in Decoda debugger
 	lua_pushfstring( L2, "Lane #%p", L2);                                                                                                      // "..."
@@ -1409,7 +1408,7 @@ LUAG_FUNC( lane_new)
 	}
 	STACK_END( L, -nargs);
 	ASSERT_L( lua_gettop( L) == FIXED_ARGS);
-	STACK_CHECK( L);
+	STACK_CHECK( L, 0);
 	STACK_MID( L2, 1 + nargs);
 
 	// 's' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
@@ -1463,9 +1462,7 @@ LUAG_FUNC( lane_new)
 	lua_setuservalue( L, -2);                                // func libs cancelstep priority globals package required gc_cb lane
 
 	// Store 's' in the lane's registry, for 'cancel_test()' (even if 'cs'==0 we still do cancel tests at pending send/receive).
-	push_unique_key( L2, CANCEL_TEST_KEY);                                                                                                     // func [... args ...] k
-	lua_pushlightuserdata( L2, s);                                                                                                             // func [... args ...] k s
-	lua_rawset( L2, LUA_REGISTRYINDEX);                                                                                                        // func [... args ...]
+	REGISTRY_SET( L2, CANCEL_TEST_KEY, lua_pushlightuserdata( L2, s));                                                                         // func [... args ...]
 
 	if( cancelstep_idx)
 	{
@@ -1679,7 +1676,7 @@ LUAG_FUNC( thread_join)
 		return 2;
 	}
 
-	STACK_CHECK( L);
+	STACK_CHECK( L, 0);
 	// Thread is DONE/ERROR_ST/CANCELLED; all ours now
 
 	if( s->mstatus == KILLED) // OS thread was killed if thread_cancel was forced
@@ -1961,7 +1958,7 @@ LUAG_FUNC( wakeup_conv )
         // .yday (day of the year)
         // .isdst (daylight saving on/off)
 
-  STACK_CHECK( L);
+    STACK_CHECK( L, 0);
     lua_getfield( L, 1, "year" ); year= (int)lua_tointeger(L,-1); lua_pop(L,1);
     lua_getfield( L, 1, "month" ); month= (int)lua_tointeger(L,-1); lua_pop(L,1);
     lua_getfield( L, 1, "day" ); day= (int)lua_tointeger(L,-1); lua_pop(L,1);
@@ -1975,7 +1972,7 @@ LUAG_FUNC( wakeup_conv )
     lua_getfield( L, 1, "isdst" );
     isdst= lua_isboolean(L,-1) ? lua_toboolean(L,-1) : -1;
     lua_pop(L,1);
-  STACK_END( L, 0);
+    STACK_END( L, 0);
 
     t.tm_year= year-1900;
     t.tm_mon= month-1;     // 0..11
@@ -2101,7 +2098,7 @@ LUAG_FUNC( configure)
 #endif // THREADAPI == THREADAPI_PTHREAD
 
 	STACK_GROW( L, 4);
-	STACK_CHECK( L);
+	STACK_CHECK_ABS( L, 1);                                                              // settings
 
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END, L));
 	DEBUGSPEW_CODE( if( U) ++ U->debugspew_indent_depth);
@@ -2121,7 +2118,7 @@ LUAG_FUNC( configure)
 		}
 	}
 	lua_pop( L, 1);                                                                      // settings
-	STACK_MID( L, 0);
+	STACK_MID( L, 1);
 
 	// grab or create the universe
 	if( U == NULL)
@@ -2155,13 +2152,13 @@ LUAG_FUNC( configure)
 		U->selfdestruct_first = SELFDESTRUCT_END;
 		initialize_on_state_create( U, L);
 		init_keepers( U, L);
-		STACK_MID( L, 0);
+		STACK_MID( L, 1);
 
 		// Initialize 'timer_deep'; a common Linda object shared by all states
 		lua_pushcfunction( L, LG_linda);                                                   // settings lanes.linda
 		lua_pushliteral( L, "lanes-timer");                                                // settings lanes.linda "lanes-timer"
 		lua_call( L, 1, 1);                                                                // settings linda
-		STACK_MID( L, 1);
+		STACK_MID( L, 2);
 
 		// Proxy userdata contents is only a 'DEEP_PRELUDE*' pointer
 		U->timer_deep = *(DeepPrelude**) lua_touserdata( L, -1);
@@ -2169,7 +2166,7 @@ LUAG_FUNC( configure)
 		++ U->timer_deep->refcount;
 		lua_pop( L, 1);                                                                    // settings
 	}
-	STACK_MID( L, 0);
+	STACK_MID( L, 1);
 
 	// Serialize calls to 'require' from now on, also in the primary state
 	serialize_require( DEBUGSPEW_PARAM_COMMA( U) L);
@@ -2189,7 +2186,7 @@ LUAG_FUNC( configure)
 		lua_setfield( L, -2, "threads");                                                   // settings M
 	}
 #endif // HAVE_LANE_TRACKING
-	STACK_MID( L, 1);
+	STACK_MID( L, 2);
 
 	{
 		char const* errmsg;
@@ -2200,7 +2197,7 @@ LUAG_FUNC( configure)
 		}
 		lua_setfield( L, -2, "timer_gateway");                                             // settings M
 	}
-	STACK_MID( L, 1);
+	STACK_MID( L, 2);
 
 	// prepare the metatable for threads
 	// contains keys: { __gc, __index, cached_error, cached_tostring, cancel, join, get_debug_threadname }
@@ -2244,9 +2241,10 @@ LUAG_FUNC( configure)
 	push_unique_key( L, CANCEL_ERROR);                                                   // settings M CANCEL_ERROR
 	lua_setfield( L, -2, "cancel_error");                                                // settings M
 
+	STACK_MID( L, 2); // reference stack contains only the function argument 'settings'
 	// we'll need this every time we transfer some C function from/to this state
-	lua_newtable( L);
-	lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);
+	REGISTRY_SET( L, LOOKUP_REGKEY, lua_newtable( L));
+	STACK_MID( L, 2);
 
 	// register all native functions found in that module in the transferable functions database
 	// we process it before _G because we don't want to find the module when scanning _G (this would generate longer names)
@@ -2264,11 +2262,11 @@ LUAG_FUNC( configure)
 		populate_func_lookup_table( L, -1, NULL);
 		lua_pop( L, 1);                                                                    // settings M
 	}
-	// set _R[CONFIG_REGKEY] = settings
-	lua_pushvalue( L, -2);                                                               // settings M settings
-	lua_setfield( L, LUA_REGISTRYINDEX, CONFIG_REGKEY);                                  // settings M
-	lua_pop( L, 1);                                                                      // settings
-	STACK_END( L, 0);
+	lua_pop( L, 1);                                                                        // settings
+
+	// set _R[CONFIG_REGKEY] = settings 
+	REGISTRY_SET( L, CONFIG_REGKEY, lua_pushvalue( L, -2)); // -2 because CONFIG_REGKEY is pushed before the value itself
+	STACK_END( L, 1);
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() END\n" INDENT_END, L));
 	DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 	// Return the settings table
@@ -2331,7 +2329,7 @@ int LANES_API luaopen_lanes_core( lua_State* L)
 #endif // defined PLATFORM_WIN32 && !defined NDEBUG
 
 	STACK_GROW( L, 4);
-	STACK_CHECK( L);
+	STACK_CHECK( L, 0);
 
 	// Create main module interface table
 	// we only have 1 closure, which must be called to configure Lanes
@@ -2339,7 +2337,7 @@ int LANES_API luaopen_lanes_core( lua_State* L)
 	lua_pushvalue( L, 1);                               // M "lanes.core"
 	lua_pushvalue( L, -2);                              // M "lanes.core" M
 	lua_pushcclosure( L, LG_configure, 2);              // M LG_configure()
-	lua_getfield( L, LUA_REGISTRYINDEX, CONFIG_REGKEY); // M LG_configure() settings
+	REGISTRY_GET( L, CONFIG_REGKEY);                    // M LG_configure() settings
 	if( !lua_isnil( L, -1)) // this is not the first require "lanes.core": call configure() immediately
 	{
 		lua_pushvalue( L, -1);                            // M LG_configure() settings settings
@@ -2370,7 +2368,7 @@ static int default_luaopen_lanes( lua_State* L)
 // call this instead of luaopen_lanes_core() when embedding Lua and Lanes in a custom application
 void LANES_API luaopen_lanes_embedded( lua_State* L, lua_CFunction _luaopen_lanes)
 {
-	STACK_CHECK( L);
+	STACK_CHECK( L, 0);
 	// pre-require lanes.core so that when lanes.lua calls require "lanes.core" it finds it is already loaded
 	luaL_requiref( L, "lanes.core", luaopen_lanes_core, 0);                                       // ... lanes.core
 	lua_pop( L, 1);                                                                               // ...

@@ -33,6 +33,7 @@ THE SOFTWARE.
 */
 
 #include <stdio.h>
+#include <assert.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -63,20 +64,18 @@ THE SOFTWARE.
 static void push_registry_subtable_mode( lua_State* L, UniqueKey key_, const char* mode_)
 {
 	STACK_GROW( L, 3);
-	STACK_CHECK( L);
+	STACK_CHECK( L, 0);
 
-	push_unique_key( L, key_);                            // key
-	lua_rawget( L, LUA_REGISTRYINDEX);                    // {}|nil
+	REGISTRY_GET( L, key_);                               // {}|nil
+	STACK_MID( L, 1);
 
 	if( lua_isnil( L, -1))
 	{
 		lua_pop( L, 1);                                     //
 		lua_newtable( L);                                   // {}
-		push_unique_key( L, key_);                          // {} key
-		lua_pushvalue( L, -2);                              // {} key {}
-
 		// _R[key_] = {}
-		lua_rawset( L, LUA_REGISTRYINDEX);                  // {}
+		REGISTRY_SET( L, key_, lua_pushvalue( L, -2));      // {}
+		STACK_MID( L, 1);
 
 		// Set its metatable if requested
 		if( mode_)
@@ -128,16 +127,16 @@ static DECLARE_CONST_UNIQUE_KEY( DEEP_PROXY_CACHE_KEY, 0x05773d6fc26be106);
 static void set_deep_lookup( lua_State* L)
 {
 	STACK_GROW( L, 3);
-	STACK_CHECK( L);                                         // a b
+	STACK_CHECK( L, 2);                                      // a b
 	push_registry_subtable( L, DEEP_LOOKUP_KEY);             // a b {}
-	STACK_MID( L, 1);
+	STACK_MID( L, 3);
 	lua_insert( L, -3);                                      // {} a b
 	lua_pushvalue( L, -1);                                   // {} a b b
 	lua_pushvalue( L,-3);                                    // {} a b b a
 	lua_rawset( L, -5);                                      // {} a b
 	lua_rawset( L, -3);                                      // {}
 	lua_pop( L, 1);                                          //
-	STACK_END( L, -2);
+	STACK_END( L, 0);
 }
 
 /*
@@ -147,17 +146,15 @@ static void set_deep_lookup( lua_State* L)
 static void get_deep_lookup( lua_State* L)
 {
 	STACK_GROW( L, 1);
-	STACK_CHECK( L);                                         // a
-	push_unique_key( L, DEEP_LOOKUP_KEY);                    // a DLK
-	lua_rawget( L, LUA_REGISTRYINDEX);                       // a {}
-
+	STACK_CHECK( L, 1);                                      // a
+	REGISTRY_GET( L, DEEP_LOOKUP_KEY);                       // a {}
 	if( !lua_isnil( L, -1))
 	{
 		lua_insert( L, -2);                                    // {} a
 		lua_rawget( L, -2);                                    // {} b
 	}
 	lua_remove( L, -2);                                      // a|b
-	STACK_END( L, 0);
+	STACK_END( L, 1);
 }
 
 /*
@@ -180,7 +177,7 @@ static inline luaG_IdFunction get_idfunc( lua_State* L, int index, LookupMode mo
 		// of course, we could just trust the caller, but we won't
 		luaG_IdFunction ret;
 		STACK_GROW( L, 1);
-		STACK_CHECK( L);
+		STACK_CHECK( L, 0);
 
 		if( !lua_getmetatable( L, index))       // deep ... metatable?
 		{
@@ -284,7 +281,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 	if( U) MUTEX_UNLOCK( &U->deep_lock);
 
 	STACK_GROW( L, 7);
-	STACK_CHECK( L);
+	STACK_CHECK( L, 0);
 
 	proxy = lua_newuserdata( L, sizeof(DeepPrelude*));                                                // DPC proxy
 	ASSERT_L( proxy);
@@ -318,7 +315,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 			lua_newtable( L);                                                                              // DPC proxy metatable
 			lua_pushnil( L);                                                                               // DPC proxy metatable nil
 		}
-		if (lua_isnil(L, -1))
+		if( lua_isnil( L, -1))
 		{
 			// Add our own '__gc' method
 			lua_pop( L, 1);                                                                                // DPC proxy metatable
@@ -438,9 +435,9 @@ int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc)
 	char const* errmsg;
 
 	STACK_GROW( L, 1);
-	STACK_CHECK( L);
+	STACK_CHECK( L, 0);
 	{
-		int oldtop = lua_gettop( L);
+		int const oldtop = lua_gettop( L);
 		DeepPrelude* prelude = idfunc( L, eDO_new);
 		if( prelude == NULL)
 		{
@@ -484,7 +481,7 @@ void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index)
 {
 	DeepPrelude** proxy;
 
-	STACK_CHECK( L);
+	STACK_CHECK( L, 0);
 	// ensure it is actually a deep userdata
 	if( get_idfunc( L, index, eLM_LaneBody) != idfunc)
 	{

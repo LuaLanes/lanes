@@ -18,7 +18,9 @@ typedef struct s_Universe Universe;
 #define luaG_optunsigned(L,i,d) ((uint_t) luaL_optinteger(L,i,d))
 #define luaG_tounsigned(L,i) ((uint_t) lua_tointeger(L,i))
 
-void luaG_dump( lua_State* L );
+#ifdef _DEBUG
+void luaG_dump( lua_State* L);
+#endif // _DEBUG
 
 lua_State* luaG_newstate( Universe* U, lua_State* _from, char const* libs);
 
@@ -39,7 +41,10 @@ void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, LookupMo
 
 // ################################################################################################
 
-extern char const* const CONFIG_REGKEY;
-extern char const* const LOOKUP_REGKEY;
+// crc64/we of string "CONFIG_REGKEY" generated at http://www.nitrxgen.net/hashgen/
+static DECLARE_CONST_UNIQUE_KEY( CONFIG_REGKEY, 0x31cd24894eae8624); // 'cancel_error' sentinel
+
+// crc64/we of string "LOOKUP_REGKEY" generated at http://www.nitrxgen.net/hashgen/
+static DECLARE_CONST_UNIQUE_KEY( LOOKUP_REGKEY, 0x5051ed67ee7b51a1); // 'cancel_error' sentinel
 
 #endif // __LANES_TOOLS_H__

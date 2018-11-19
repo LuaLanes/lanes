@@ -29,6 +29,7 @@ THE SOFTWARE.
 */
 
 #include <string.h>
+#include <assert.h>
 
 #include "universe.h"
 #include "compat.h"
@@ -44,9 +45,9 @@ Universe* universe_create( lua_State* L)
 {
 	Universe* U = (Universe*) lua_newuserdata( L, sizeof(Universe));                               // universe
 	memset( U, 0, sizeof( Universe));
-	push_unique_key( L, UNIVERSE_REGKEY);                                                          // universe UNIVERSE_REGKEY
-	lua_pushvalue( L, -2);                                                                         // universe UNIVERSE_REGKEY universe
-	lua_rawset( L, LUA_REGISTRYINDEX);                                                             // universe
+	STACK_CHECK( L, 1);
+	REGISTRY_SET( L, UNIVERSE_REGKEY, lua_pushvalue(L, -2));                                       // universe
+	STACK_END( L, 1);
 	return U;
 }
 
@@ -54,17 +55,8 @@ Universe* universe_create( lua_State* L)
 
 void universe_store( lua_State* L, Universe* U)
 {
-	STACK_CHECK( L);
-	push_unique_key( L, UNIVERSE_REGKEY);
-	if( NULL != U)
-	{
-		lua_pushlightuserdata( L, U);
-	}
-	else
-	{
-		lua_pushnil( L);
-	}
-	lua_rawset( L, LUA_REGISTRYINDEX);
+	STACK_CHECK( L, 0);
+	REGISTRY_SET( L, UNIVERSE_REGKEY, (NULL != U) ? lua_pushlightuserdata( L, U) : lua_pushnil( L));
 	STACK_END( L, 0);
 }
 
@@ -74,9 +66,8 @@ Universe* universe_get( lua_State* L)
 {
 	Universe* universe;
 	STACK_GROW( L, 2);
-	STACK_CHECK( L);
-	push_unique_key( L, UNIVERSE_REGKEY);
-	lua_rawget( L, LUA_REGISTRYINDEX);
+	STACK_CHECK( L, 0);
+	REGISTRY_GET( L, UNIVERSE_REGKEY);
 	universe = lua_touserdata( L, -1); // NULL if nil
 	lua_pop( L, 1);
 	STACK_END( L, 0);

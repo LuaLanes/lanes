@@ -154,6 +154,9 @@ local limited = lanes.linda()
 limited:limit( "key", 1)
 -- [[################################################
 limited:send( "key", "hello") -- saturate linda
+for k, v in pairs( limited:dump()) do
+	PRINT("limited[" .. tostring( k) .. "] = " .. tostring( v))
+end
 local wait_send = function()
 	local a,b
 	set_finalizer( function() print( "wait_send", a, b) end)
@@ -461,6 +464,9 @@ else
 	assert(c==12)
 	assert(d==nil)
 end
+
+local nameof_type, nameof_name = lanes.nameof( print)
+PRINT( "name of " .. nameof_type .. " print = '" .. nameof_name .. "'")
 
 --
 io.stderr:write "Done! :)\n"

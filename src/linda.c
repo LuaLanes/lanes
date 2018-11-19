@@ -31,6 +31,7 @@ THE SOFTWARE.
 */
 
 #include <stdlib.h>
+#include <assert.h>
 
 #include "threading.h"
 #include "compat.h"
@@ -171,7 +172,7 @@ LUAG_FUNC( linda_send)
 		Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
 		lua_State* KL = K ? K->L : NULL; // need to do this for 'STACK_CHECK'
 		if( KL == NULL) return 0;
-		STACK_CHECK( KL);
+		STACK_CHECK( KL, 0);
 		for( ;;)
 		{
 			if( s != NULL)
@@ -832,7 +833,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
 		case eDO_metatable:
 		{
 
-			STACK_CHECK( L);
+			STACK_CHECK( L, 0);
 			lua_newtable( L);
 			// metatable is its own index
 			lua_pushvalue( L, -1);
@@ -892,10 +893,10 @@ static void* linda_id( lua_State* L, DeepOp op_)
 
 			// some constants
 			lua_pushliteral( L, BATCH_SENTINEL);
-			lua_setfield(L, -2, "batched");
+			lua_setfield( L, -2, "batched");
 
 			push_unique_key( L, NIL_SENTINEL);
-			lua_setfield(L, -2, "null");
+			lua_setfield( L, -2, "null");
 
 			STACK_END( L, 1);
 			return NULL;
