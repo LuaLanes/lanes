@@ -2162,7 +2162,7 @@ LUAG_FUNC( configure)
 
 		// Proxy userdata contents is only a 'DEEP_PRELUDE*' pointer
 		U->timer_deep = *(DeepPrelude**) lua_touserdata( L, -1);
-		// increment refcount that this linda remains alive as long as the universe is.
+		// increment refcount so that this linda remains alive as long as the universe exists.
 		++ U->timer_deep->refcount;
 		lua_pop( L, 1);                                                                    // settings
 	}
@@ -2190,7 +2190,7 @@ LUAG_FUNC( configure)
 
 	{
 		char const* errmsg;
-		errmsg = push_deep_proxy( U, L, (DeepPrelude*) U->timer_deep, eLM_LaneBody);// settings M timer_deep
+		errmsg = push_deep_proxy( U, L, (DeepPrelude*) U->timer_deep, eLM_LaneBody);       // settings M timer_deep
 		if( errmsg != NULL)
 		{
 			return luaL_error( L, errmsg);
@@ -2250,6 +2250,7 @@ LUAG_FUNC( configure)
 	// we process it before _G because we don't want to find the module when scanning _G (this would generate longer names)
 	// for example in package.loaded["lanes.core"].*
 	populate_func_lookup_table( L, -1, name);
+	STACK_MID( L, 2);
 
 	// record all existing C/JIT-fast functions
 	// Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack

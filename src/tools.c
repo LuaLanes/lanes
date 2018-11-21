@@ -144,6 +144,10 @@ static void copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2)
 	STACK_GROW( L, 2);
 	STACK_CHECK( L, 0);
 	STACK_CHECK( L2, 0);
+
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "copy_one_time_settings()\n" INDENT_END));
+	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+
 	REGISTRY_GET( L, CONFIG_REGKEY);                                               // config
 	// copy settings from from source to destination registry
 	if( luaG_inter_move( U, L, L2, 1, eLM_LaneBody) < 0)                           //                           // config
@@ -154,6 +158,7 @@ static void copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2)
 	REGISTRY_SET( L2, CONFIG_REGKEY, lua_insert( L2, -2));                                                      //
 	STACK_END( L2, 0);
 	STACK_END( L, 0);
+	DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 }
 
 
@@ -331,7 +336,7 @@ static char const* luaG_pushFQN( lua_State* L, int t, int last, size_t* length)
  * if we already had an entry of type [o] = ..., replace the name if the new one is shorter
  * pops the processed object from the stack
  */
-static void update_lookup_entry( lua_State* L, int _ctx_base, int _depth)
+static void update_lookup_entry( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L, int _ctx_base, int _depth)
 {
 	// slot 1 in the stack contains the table that receives everything we found
 	int const dest = _ctx_base;
@@ -341,7 +346,8 @@ static void update_lookup_entry( lua_State* L, int _ctx_base, int _depth)
 	size_t prevNameLength, newNameLength;
 	char const* prevName;
 	DEBUGSPEW_CODE( char const *newName);
-	DEBUGSPEW_CODE( Universe* U = universe_get( L));
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "update_lookup_entry()\n" INDENT_END));
+	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
 
 	STACK_CHECK( L, 0);
 	// first, raise an error if the function is already known
@@ -401,9 +407,10 @@ static void update_lookup_entry( lua_State* L, int _ctx_base, int _depth)
 	}
 	-- _depth;
 	STACK_END( L, -1);
+	DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 }
 
-static void populate_func_lookup_table_recur( lua_State* L, int _ctx_base, int _i, int _depth)
+static void populate_func_lookup_table_recur( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L, int _ctx_base, int _i, int _depth)
 {
 	lua_Integer visit_count;
 	// slot 2 contains a table that, when concatenated, produces the fully qualified name of scanned elements in the table provided at slot _i
@@ -412,7 +419,8 @@ static void populate_func_lookup_table_recur( lua_State* L, int _ctx_base, int _
 	int const cache = _ctx_base + 2;
 	// we need to remember subtables to process them after functions encountered at the current depth (breadth-first search)
 	int const breadth_first_cache = lua_gettop( L) + 1;
-	DEBUGSPEW_CODE( Universe* U = universe_get( L));
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "populate_func_lookup_table_recur()\n" INDENT_END));
+	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
 
 	STACK_GROW( L, 6);
 	// slot _i contains a table where we search for functions (or a full userdata with a metatable)
@@ -433,6 +441,8 @@ static void populate_func_lookup_table_recur( lua_State* L, int _ctx_base, int _
 	STACK_MID( L, 0);
 	if( visit_count > 0)
 	{
+		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "already visited\n" INDENT_END));
+		DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 		return;
 	}
 
@@ -467,12 +477,12 @@ static void populate_func_lookup_table_recur( lua_State* L, int _ctx_base, int _
 			lua_pushvalue( L, -2);                                                                // ... {_i} {bfc} k {} k {}
 			lua_rawset( L, breadth_first_cache);                                                  // ... {_i} {bfc} k {}
 			// generate a name, and if we already had one name, keep whichever is the shorter
-			update_lookup_entry( L, _ctx_base, _depth);                                           // ... {_i} {bfc} k
+			update_lookup_entry( DEBUGSPEW_PARAM_COMMA( U) L, _ctx_base, _depth);                 // ... {_i} {bfc} k
 		}
 		else if( lua_isfunction( L, -1) && (luaG_getfuncsubtype( L, -1) != FST_Bytecode))       // ... {_i} {bfc} k func
 		{
 			// generate a name, and if we already had one name, keep whichever is the shorter
-			update_lookup_entry( L, _ctx_base, _depth);                                           // ... {_i} {bfc} k
+			update_lookup_entry( DEBUGSPEW_PARAM_COMMA( U) L, _ctx_base, _depth);                 // ... {_i} {bfc} k
 		}
 		else
 		{
@@ -507,7 +517,7 @@ static void populate_func_lookup_table_recur( lua_State* L, int _ctx_base, int _
 		// push table name in fqn stack (note that concatenation will crash if name is a not string!)
 		lua_pushvalue( L, -2);                                                                  // ... {_i} {bfc} k {} k
 		lua_rawseti( L, fqn, _depth);                                                           // ... {_i} {bfc} k {}
-		populate_func_lookup_table_recur( L, _ctx_base, lua_gettop( L), _depth);                // ... {_i} {bfc} k {}
+		populate_func_lookup_table_recur( DEBUGSPEW_PARAM_COMMA( U) L, _ctx_base, lua_gettop( L), _depth);
 		lua_pop( L, 1);                                                                         // ... {_i} {bfc} k
 		STACK_MID( L, 2);
 		DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
@@ -520,6 +530,7 @@ static void populate_func_lookup_table_recur( lua_State* L, int _ctx_base, int _
 	lua_pop( L, 1);                                                                           // ... {_i}
 	STACK_END( L, 0);
 	// we are done                                                                            // ... {_i} {bfc}
+	DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 }
 
 /*
@@ -535,46 +546,46 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* name_)
 	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
 	STACK_GROW( L, 3);
 	STACK_CHECK( L, 0);
-	REGISTRY_GET( L, LOOKUP_REGKEY);                                          // {}
+	REGISTRY_GET( L, LOOKUP_REGKEY);                                               // {}
 	STACK_MID( L, 1);
 	ASSERT_L( lua_istable( L, -1));
 	if( lua_type( L, in_base) == LUA_TFUNCTION) // for example when a module is a simple function
 	{
 		name_ = name_ ? name_ : "NULL";
-		lua_pushvalue( L, in_base);                                             // {} f
-		lua_pushstring( L, name_);                                              // {} f _name
-		lua_rawset( L, -3);                                                     // {}
-		lua_pushstring( L, name_);                                              // {} _name
-		lua_pushvalue( L, in_base);                                             // {} _name f
-		lua_rawset( L, -3);                                                     // {}
-		lua_pop( L, 1);                                                         //
+		lua_pushvalue( L, in_base);                                                  // {} f
+		lua_pushstring( L, name_);                                                   // {} f _name
+		lua_rawset( L, -3);                                                          // {}
+		lua_pushstring( L, name_);                                                   // {} _name
+		lua_pushvalue( L, in_base);                                                  // {} _name f
+		lua_rawset( L, -3);                                                          // {}
+		lua_pop( L, 1);                                                              //
 	}
 	else if( lua_type( L, in_base) == LUA_TTABLE)
 	{
-		lua_newtable( L);                                                       // {} {fqn}
+		lua_newtable( L);                                                            // {} {fqn}
 		if( name_)
 		{
 			STACK_MID( L, 2);
-			lua_pushstring( L, name_);                                            // {} {fqn} "name"
+			lua_pushstring( L, name_);                                                 // {} {fqn} "name"
 			// generate a name, and if we already had one name, keep whichever is the shorter
 			lua_pushvalue( L, in_base);                                           // {} {fqn} "name" t
-			update_lookup_entry( L, ctx_base, start_depth);                       // {} {fqn} "name"
+			update_lookup_entry( DEBUGSPEW_PARAM_COMMA( U) L, ctx_base, start_depth);  // {} {fqn} "name"
 			// don't forget to store the name at the bottom of the fqn stack
 			++ start_depth;
-			lua_rawseti( L, -2, start_depth);                                     // {} {fqn}
+			lua_rawseti( L, -2, start_depth);                                          // {} {fqn}
 			STACK_MID( L, 2);
 		}
 		// retrieve the cache, create it if we haven't done it yet
-		lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY_CACHE);                  // {} {fqn} {cache}?
+		lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY_CACHE);                       // {} {fqn} {cache}?
 		if( lua_isnil( L, -1))
 		{
-			lua_pop( L, 1);                                                       // {} {fqn}
-			lua_newtable( L);                                                     // {} {fqn} {cache}
-			lua_pushvalue( L, -1);                                                // {} {fqn} {cache} {cache}
-			lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY_CACHE);                // {} {fqn} {cache}
+			lua_pop( L, 1);                                                            // {} {fqn}
+			lua_newtable( L);                                                          // {} {fqn} {cache}
+			lua_pushvalue( L, -1);                                                     // {} {fqn} {cache} {cache}
+			lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY_CACHE);                     // {} {fqn} {cache}
 		}
 		// process everything we find in that table, filling in lookup data for all functions and tables we see there
-		populate_func_lookup_table_recur( L, ctx_base, in_base, start_depth);   // {...} {fqn} {cache}
+		populate_func_lookup_table_recur( DEBUGSPEW_PARAM_COMMA( U) L, ctx_base, in_base, start_depth);
 		lua_pop( L, 3);
 	}
 	else
@@ -1294,6 +1305,29 @@ enum e_vt
 };
 static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt value_type, LookupMode mode_, char const* upName_);
 
+#if USE_DEBUG_SPEW
+static char const* lua_type_names[] =
+{
+	  "LUA_TNIL"
+	, "LUA_TBOOLEAN"
+	, "LUA_TLIGHTUSERDATA"
+	, "LUA_TNUMBER"
+	, "LUA_TSTRING"
+	, "LUA_TTABLE"
+	, "LUA_TFUNCTION"
+	, "LUA_TUSERDATA"
+	, "LUA_TTHREAD"
+	, "<LUA_NUMTAGS>" // not really a type
+	, "LUA_TJITCDATA" // LuaJIT specific
+};
+static char const* vt_names[] =
+{
+	"VT_NORMAL"
+	, "VT_KEY"
+	, "VT_METATABLE"
+};
+#endif // USE_DEBUG_SPEW
+
 static void inter_copy_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
 {
 	int n, needToPush;
@@ -1618,12 +1652,17 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 	STACK_CHECK( L, 0);                                                          // L                          // L2
 	STACK_CHECK( L2, 0);                                                         // L                          // L2
 
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "inter_copy_one_()\n" INDENT_END));
+	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%s %s: " INDENT_END, lua_type_names[val_type], vt_names[vt]));
+
 	/* Skip the object if it has metatable with { __lanesignore = true } */
 	if( lua_getmetatable( L, i))                                                 // ... mt
 	{
 		lua_getfield( L, -1, "__lanesignore");                                     // ... mt ignore?
 		if( lua_isboolean( L, -1) && lua_toboolean( L, -1))
 		{
+			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "__lanesignore -> LUA_TNIL\n" INDENT_END));
 			val_type = LUA_TNIL;
 		}
 		lua_pop( L, 2);                                                            // ...
@@ -1636,7 +1675,11 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 		/* Basic types allowed both as values, and as table keys */
 
 		case LUA_TBOOLEAN:
-		lua_pushboolean( L2, lua_toboolean( L, i));
+		{
+			bool_t v = lua_toboolean( L, i);
+			DEBUGSPEW_CODE( fprintf( stderr, "%s\n", v ? "true" : "false"));
+			lua_pushboolean( L2, v);
+		}
 		break;
 
 		case LUA_TNUMBER:
@@ -1645,7 +1688,7 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 		if( lua_isinteger( L, i))
 		{
 			lua_Integer v = lua_tointeger( L, i);
-			DEBUGSPEW_CODE( if( vt == VT_KEY) fprintf( stderr, INDENT_BEGIN "KEY: " LUA_INTEGER_FMT "\n" INDENT_END, v));
+			DEBUGSPEW_CODE( fprintf( stderr, LUA_INTEGER_FMT "\n", v));
 			lua_pushinteger( L2, v);
 			break;
 		}
@@ -1653,7 +1696,7 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 #endif // defined LUA_LNUM || LUA_VERSION_NUM >= 503
 		{
 			lua_Number v = lua_tonumber( L, i);
-			DEBUGSPEW_CODE( if( vt == VT_KEY) fprintf( stderr, INDENT_BEGIN "KEY: " LUA_NUMBER_FMT "\n" INDENT_END, v));
+			DEBUGSPEW_CODE( fprintf( stderr, LUA_NUMBER_FMT "\n", v));
 			lua_pushnumber( L2, v);
 		}
 		break;
@@ -1662,13 +1705,17 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 		{
 			size_t len;
 			char const* s = lua_tolstring( L, i, &len);
-			DEBUGSPEW_CODE( if( vt == VT_KEY) fprintf( stderr, INDENT_BEGIN "KEY: '%s'\n" INDENT_END, s));
+			DEBUGSPEW_CODE( fprintf( stderr, "'%s'\n", s));
 			lua_pushlstring( L2, s, len);
 		}
 		break;
 
 		case LUA_TLIGHTUSERDATA:
-		lua_pushlightuserdata( L2, lua_touserdata( L, i));
+		{
+			void* p = lua_touserdata( L, i);
+			DEBUGSPEW_CODE( fprintf( stderr, "%p\n", p));
+			lua_pushlightuserdata( L2, p);
+		}
 		break;
 
 		/* The following types are not allowed as table keys */
@@ -1680,7 +1727,7 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 			break;
 		}
 		// Allow only deep userdata entities to be copied across
-		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "USERDATA\n" INDENT_END));
+		DEBUGSPEW_CODE( fprintf( stderr, "USERDATA\n"));
 		if( copydeep( U, L, L2, i, mode_))
 		{
 			break;
@@ -1795,7 +1842,7 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 		}
 		else
 		{
-			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "FUNCTION %s\n" INDENT_END, upName_));
+			DEBUGSPEW_CODE( fprintf( stderr, "FUNCTION %s\n", upName_));
 			DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
 			STACK_CHECK( L2, 0);
 			push_cached_func( U, L2, L2_cache_i, L, i, mode_, upName_);
@@ -1813,6 +1860,7 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 		{
 			STACK_CHECK( L, 0);
 			STACK_CHECK( L2, 0);
+			DEBUGSPEW_CODE( fprintf( stderr, "TABLE %s\n", upName_));
 
 			/*
 			 * First, let's try to see if this table is special (aka is it some table that we registered in our lookup databases during module registration?)
@@ -1871,6 +1919,8 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 		break;
 	}
 
+	DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+
 	STACK_END( L2, ret ? 1 : 0);
 	STACK_END( L, 0);
 	return ret;
@@ -1893,9 +1943,13 @@ int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupM
 	char const* pBuf = U->verboseErrors ? tmpBuf : "?";
 	bool_t copyok = TRUE;
 
+	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_inter_copy()\n" INDENT_END));
+	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+
 	if( n > top_L)
 	{
 		// requesting to copy more than is available?
+		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "nothing to copy()\n" INDENT_END));
 		return -1;
 	}
 
@@ -1920,6 +1974,8 @@ int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupM
 			break;
 		}
 	}
+
+	DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 
 	/*
 	* Remove the cache table. Persistent caching would cause i.e. multiple 
@@ -1975,7 +2031,7 @@ int luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int packa
 		char const* entries[] = { "path", "cpath", (mode_ == eLM_LaneBody) ? "preload" : NULL/*, (LUA_VERSION_NUM == 501) ? "loaders" : "searchers"*/, NULL};
 		for( i = 0; entries[i]; ++ i)
 		{
-			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%s\n" INDENT_END, entries[i]));
+			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "package.%s\n" INDENT_END, entries[i]));
 			lua_getfield( L, package_idx_, entries[i]);
 			if( lua_isnil( L, -1))
 			{

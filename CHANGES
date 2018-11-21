@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 139: BGe 21-Nov-18
+   * more DEBUGSPEW
+
 CHANGE 138: BGe 19-Nov-18
    * Registry access code utility macros
    * CONFIG_REGKEY and LOOKUP_REGKEY are now lightuserdata instead of strings
