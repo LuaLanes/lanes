@@ -154,8 +154,8 @@ static void cancel_hook( lua_State* L, lua_Debug* ar)
 
 #if ERROR_FULL_STACK
 static int lane_error( lua_State* L);
-// crc64/we of string "STACK_TRACE_KEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( STACK_TRACE_KEY, 0x024d5411677ce879);
+// crc64/we of string "STACKTRACE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
+static DECLARE_CONST_UNIQUE_KEY( STACKTRACE_REGKEY, 0x534af7d3226a429f);
 #endif // ERROR_FULL_STACK
 
 /*
@@ -166,8 +166,8 @@ static DECLARE_CONST_UNIQUE_KEY( STACK_TRACE_KEY, 0x024d5411677ce879);
 * error (and maybe stack trace) parameters to the finalizer functions would
 * anyways complicate that approach.
 */
-// crc64/we of string "STACK_TRACE_KEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( FINALIZER_REG_KEY, 0x7902972781c7e365);
+// crc64/we of string "FINALIZER_REGKEY" generated at http://www.nitrxgen.net/hashgen/
+static DECLARE_CONST_UNIQUE_KEY( FINALIZER_REGKEY, 0x188fccb8bf348e09);
 
 struct s_Linda;
 
@@ -209,9 +209,7 @@ static bool_t push_registry_table( lua_State* L, UniqueKey key, bool_t create)
 		}
 
 		lua_newtable( L);                                                          // t
-		push_unique_key( L, key);                                                  // t key
-		lua_pushvalue( L, -2);                                                     // t key t
-		lua_rawset( L, LUA_REGISTRYINDEX);                                         // t
+		REGISTRY_SET( L, key, lua_pushvalue( L, -2));
 	}
 	STACK_END( L, 1);
 	return TRUE;    // table pushed
@@ -318,7 +316,7 @@ LUAG_FUNC( set_finalizer)
 	luaL_argcheck( L, lua_isfunction( L, 1), 1, "finalizer should be a function");
 	luaL_argcheck( L, lua_gettop( L) == 1, 1, "too many arguments");
 	// Get the current finalizer table (if any)
-	push_registry_table( L, FINALIZER_REG_KEY, TRUE /*do create if none*/);      // finalizer {finalisers}
+	push_registry_table( L, FINALIZER_REGKEY, TRUE /*do create if none*/);      // finalizer {finalisers}
 	STACK_GROW( L, 2);
 	lua_pushinteger( L, lua_rawlen( L, -1) + 1);                                 // finalizer {finalisers} idx
 	lua_pushvalue( L, 1);                                                        // finalizer {finalisers} idx finalizer
@@ -349,7 +347,7 @@ static int run_finalizers( lua_State* L, int lua_rc)
 	int n;
 	int err_handler_index = 0;
 	int rc = LUA_OK;                                                                // ...
-	if( !push_registry_table( L, FINALIZER_REG_KEY, FALSE))                         // ... finalizers?
+	if( !push_registry_table( L, FINALIZER_REGKEY, FALSE))                          // ... finalizers?
 	{
 		return 0;   // no finalizers
 	}
@@ -382,7 +380,7 @@ static int run_finalizers( lua_State* L, int lua_rc)
 			args = finalizers_index - 1;
 		}
 
-		// if no error from the main body, finlizer doesn't receive any argument, else it gets the error message and optional stack trace
+		// if no error from the main body, finalizer doesn't receive any argument, else it gets the error message and optional stack trace
 		rc = lua_pcall( L, args, 0, err_handler_index);                               // ... finalizers lane_error err_msg2?
 		if( rc != LUA_OK)
 		{
@@ -832,8 +830,8 @@ LUAG_FUNC( set_singlethreaded)
 */
 #if ERROR_FULL_STACK
 
-// crc64/we of string "EXTENDED_STACK_TRACE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( EXTENDED_STACK_TRACE_REGKEY, 0x7a59821071066e49); // used as registry key
+// crc64/we of string "EXTENDED_STACKTRACE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
+static DECLARE_CONST_UNIQUE_KEY( EXTENDED_STACKTRACE_REGKEY, 0x2357c69a7c92c936); // used as registry key
 
 LUAG_FUNC( set_error_reporting)
 {
@@ -854,9 +852,7 @@ LUAG_FUNC( set_error_reporting)
 		return luaL_error( L, "unsupported error reporting model");
 	}
 done:
-	push_unique_key( L, EXTENDED_STACK_TRACE_REGKEY);
-	lua_pushboolean( L, equal);
-	lua_rawset( L, LUA_REGISTRYINDEX);
+	REGISTRY_SET( L, EXTENDED_STACKTRACE_REGKEY, lua_pushboolean( L, equal));
 	return 0;
 }
 
@@ -867,7 +863,7 @@ static int lane_error( lua_State* L)
 	bool_t extended;
 
 	// error message (any type)
-	assert( lua_gettop( L) == 1);                                                   // some_error
+	STACK_CHECK_ABS( L, 1);                                                         // some_error
 
 	// Don't do stack survey for cancelled lanes.
 	//
@@ -877,8 +873,7 @@ static int lane_error( lua_State* L)
 	}
 
 	STACK_GROW( L, 3);
-	push_unique_key( L, EXTENDED_STACK_TRACE_REGKEY);                                  // some_error estk
-	lua_rawget( L, LUA_REGISTRYINDEX);                                              // some_error basic|extended
+	REGISTRY_GET( L, EXTENDED_STACKTRACE_REGKEY);                                   // some_error basic|extended
 	extended = lua_toboolean( L, -1);
 	lua_pop( L, 1);                                                                 // some_error
 
@@ -931,12 +926,9 @@ static int lane_error( lua_State* L)
 		lua_rawseti( L, -2, (lua_Integer) n);                                         // some_error {}
 	}
 
-	push_unique_key( L, STACK_TRACE_KEY);                                           // some_error {} stk
-	lua_insert( L, -2);                                                             // some_error stk {}
-	lua_rawset( L, LUA_REGISTRYINDEX);                                              // some_error
+	REGISTRY_SET( L, STACKTRACE_REGKEY, lua_insert( L, -2));                        // some_error
 
-	assert( lua_gettop( L) == 1);
-
+	STACK_END( L, 1);
 	return 1;   // the untouched error value
 }
 #endif // ERROR_FULL_STACK
@@ -952,12 +944,12 @@ static void push_stack_trace( lua_State* L, int rc_, int stk_base_)
 		case LUA_ERRRUN: // cancellation or a runtime error
 #if ERROR_FULL_STACK // when ERROR_FULL_STACK, we installed a handler
 		{
+			STACK_CHECK( L, 0);
 			// fetch the call stack table from the registry where the handler stored it
 			STACK_GROW( L, 1);
-			push_unique_key( L, STACK_TRACE_KEY);                                    // err STACK_TRACE_KEY
 			// yields nil if no stack was generated (in case of cancellation for example)
-			lua_rawget( L, LUA_REGISTRYINDEX);                                       // err trace|nil
-			ASSERT_L( lua_gettop( L) == 1 + stk_base_);
+			REGISTRY_GET( L, STACKTRACE_REGKEY);                                       // err trace|nil
+			STACK_END( L, 1);
 
 			// For cancellation the error message is CANCEL_ERROR, and a stack trace isn't placed
 			// For other errors, the message can be whatever was thrown, and we should have a stack trace table
@@ -982,15 +974,17 @@ LUAG_FUNC( set_debug_threadname)
 	// C s_lane structure is a light userdata upvalue
 	Lane* s = lua_touserdata( L, lua_upvalueindex( 1));
 	luaL_checktype( L, -1, LUA_TSTRING);                           // "name"
+	lua_settop( L, 1);
+	STACK_CHECK_ABS( L, 1);
 	// store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...
-	push_unique_key( L, hidden_regkey);                            // "name" lud
-	lua_pushvalue( L, -2);                                         // "name" lud "name"
-	lua_rawset( L, LUA_REGISTRYINDEX);                             // "name"
+	REGISTRY_SET( L, hidden_regkey, lua_pushvalue( L, -2));
+	STACK_MID( L, 1);
 	s->debug_name = lua_tostring( L, -1);
 	// keep a direct pointer on the string
 	THREAD_SETNAME( s->debug_name);
 	// to see VM name in Decoda debugger Virtual Machine window
 	lua_setglobal( L, "decoda_name");                              //
+	STACK_END( L, 0);
 	return 0;
 }
 

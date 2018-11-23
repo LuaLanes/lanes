@@ -300,10 +300,8 @@ static lua_CFunction luaG_tocfunction( lua_State *L, int _i, FuncSubType *_out)
 	return p;
 }
 
-
-#define LOOKUP_KEY "ddea37aa-50c7-4d3f-8e0b-fb7a9d62bac5"
-#define LOOKUP_KEY_CACHE "d1059270-4976-4193-a55b-c952db5ab7cd"
-
+// crc64/we of string "LOOKUPCACHE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
+static DECLARE_CONST_UNIQUE_KEY( LOOKUPCACHE_REGKEY, 0x837a68dfc6fcb716);
 
 // inspired from tconcat() in ltablib.c
 static char const* luaG_pushFQN( lua_State* L, int t, int last, size_t* length)
@@ -576,13 +574,13 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* name_)
 			STACK_MID( L, 2);
 		}
 		// retrieve the cache, create it if we haven't done it yet
-		lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY_CACHE);                       // {} {fqn} {cache}?
+		REGISTRY_GET( L, LOOKUPCACHE_REGKEY);                                        // {} {fqn} {cache}?
 		if( lua_isnil( L, -1))
 		{
 			lua_pop( L, 1);                                                            // {} {fqn}
 			lua_newtable( L);                                                          // {} {fqn} {cache}
-			lua_pushvalue( L, -1);                                                     // {} {fqn} {cache} {cache}
-			lua_setfield( L, LUA_REGISTRYINDEX, LOOKUP_KEY_CACHE);                     // {} {fqn} {cache}
+			REGISTRY_SET( L, LOOKUPCACHE_REGKEY, lua_pushvalue( L, -2));
+			STACK_MID( L, 3);
 		}
 		// process everything we find in that table, filling in lookup data for all functions and tables we see there
 		populate_func_lookup_table_recur( DEBUGSPEW_PARAM_COMMA( U) L, ctx_base, in_base, start_depth);
