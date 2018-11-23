@@ -1617,6 +1617,12 @@ static void inter_copy_keyvaluepair( Universe* U, lua_State* L2, uint_t L2_cache
 				valPath = (char*) alloca( strlen( upName_) + 16 + 5);
 				sprintf( valPath, "%s[U:%p]", upName_, key);
 			}
+			else if( lua_type( L, key_i) == LUA_TBOOLEAN)
+			{
+				int key = lua_toboolean( L, key_i);
+				valPath = (char*) alloca( strlen( upName_) + 7);
+				sprintf( valPath, "%s[%s]", upName_, key ? "true" : "false");
+			}
 		}
 		/*
 		* Contents of metatables are copied with cache checking;
@@ -1629,7 +1635,7 @@ static void inter_copy_keyvaluepair( Universe* U, lua_State* L2, uint_t L2_cache
 		}
 		else
 		{
-			luaL_error( L, "Unable to copy over type '%s' (in %s)", luaL_typename( L, val_i), (vt == VT_NORMAL) ? "table" : "metatable");
+			luaL_error( L, "Unable to copy %s entry '%s' because of value is of type '%s'", (vt == VT_NORMAL) ? "table" : "metatable", valPath, luaL_typename( L, val_i));
 		}
 	}
 }
@@ -1740,6 +1746,7 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 			if( lua_isnil( L, -1))
 			{
 				lua_pop( L, 2);                                                      // ...
+				ret = FALSE;
 			}
 			else
 			{

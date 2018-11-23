@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 140: BGe 22-Nov-18
+   * Raise an error instead of crashing when attempting to transfer a non-deep full userdata
+
 CHANGE 139: BGe 21-Nov-18
    * more DEBUGSPEW
 
