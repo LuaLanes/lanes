@@ -1,5 +1,5 @@
 local lanes = require "lanes"
-lanes.configure()
+lanes.configure{ with_timers = false}
 
 -- Lua 5.1/5.2 compatibility
 local table_unpack = unpack or table.unpack
