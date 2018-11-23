@@ -1620,7 +1620,7 @@ static void inter_copy_keyvaluepair( Universe* U, lua_State* L2, uint_t L2_cache
 			else if( lua_type( L, key_i) == LUA_TBOOLEAN)
 			{
 				int key = lua_toboolean( L, key_i);
-				valPath = (char*) alloca( strlen( upName_) + 7);
+				valPath = (char*) alloca( strlen( upName_) + 8);
 				sprintf( valPath, "%s[%s]", upName_, key ? "true" : "false");
 			}
 		}
