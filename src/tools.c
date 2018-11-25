@@ -105,6 +105,79 @@ void luaG_dump( lua_State* L)
 }
 #endif // _DEBUG
 
+// ################################################################################################
+
+static void* protected_lua_Alloc( void *ud, void *ptr, size_t osize, size_t nsize)
+{
+	void* p;
+	ProtectedAllocator* s = (ProtectedAllocator*) ud;
+	MUTEX_LOCK( &s->lock);
+	p = s->definition.allocF( s->definition.allocUD, ptr, osize, nsize);
+	MUTEX_UNLOCK( &s->lock);
+	return p;
+}
+
+static int luaG_provide_protected_allocator( lua_State* L)
+{
+	Universe* U = universe_get( L);
+	AllocatorDefinition* def = lua_newuserdata( L, sizeof(AllocatorDefinition));
+	def->allocF = protected_lua_Alloc;
+	def->allocUD = &U->protected_allocator;
+	return 1;
+}
+
+// Do I need to disable this when compiling for LuaJIT to prevent issues?
+void initialize_allocator_function( Universe* U, lua_State* L)
+{
+	STACK_CHECK( L, 0);
+	lua_getfield( L, -1, "allocator");                    // settings allocator|nil|"protected"
+	if( !lua_isnil( L, -1))
+	{
+		// store C function pointer in an internal variable
+		U->provide_allocator = lua_tocfunction( L, -1);     // settings allocator
+		if( U->provide_allocator != NULL)
+		{
+			// make sure the function doesn't have upvalues
+			char const* upname = lua_getupvalue( L, -1, 1);   // settings allocator upval?
+			if( upname != NULL) // should be "" for C functions with upvalues if any
+			{
+				(void) luaL_error( L, "config.allocator() shouldn't have upvalues");
+			}
+			// remove this C function from the config table so that it doesn't cause problems
+			// when we transfer the config table in newly created Lua states
+			lua_pushnil( L);                                  // settings allocator nil
+			lua_setfield( L, -3, "allocator");                // settings allocator
+		}
+		else if( lua_type( L, -1) == LUA_TSTRING)
+		{
+			// initialize all we need for the protected allocator
+			MUTEX_INIT( &U->protected_allocator.lock); // the mutex
+			// and the original allocator to call from inside protection by the mutex
+			U->protected_allocator.definition.allocF = lua_getallocf( L, &U->protected_allocator.definition.allocUD);
+			// before a state is created, this function will be called to obtain the allocator
+			U->provide_allocator = luaG_provide_protected_allocator;
+
+			lua_setallocf( L, protected_lua_Alloc, &U->protected_allocator);
+		}
+	}
+	lua_pop( L, 1);                                       // settings
+	STACK_END( L, 0);
+}
+
+void cleanup_allocator_function( Universe* U, lua_State* L)
+{
+	// remove the protected allocator, if any
+	if( U->protected_allocator.definition.allocF != NULL)
+	{
+		// install the non-protected allocator
+		lua_setallocf( L, U->protected_allocator.definition.allocF, U->protected_allocator.definition.allocUD);
+		// release the mutex
+		MUTEX_FREE( &U->protected_allocator.lock);
+	}
+}
+
+// ################################################################################################
+
 void initialize_on_state_create( Universe* U, lua_State* L)
 {
 	STACK_CHECK( L, 0);
@@ -629,6 +702,31 @@ void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, LookupMo
 	}
 }
 
+lua_State* create_state( Universe* U, lua_State* from_)
+{
+	lua_State* L;
+	if( U->provide_allocator != NULL)
+	{
+		lua_pushcclosure( from_, U->provide_allocator, 0);
+		lua_call( from_, 0, 1);
+		{
+			AllocatorDefinition* def = lua_touserdata( from_, -1);
+			L = lua_newstate( def->allocF, def->allocUD);
+		}
+		lua_pop( from_, 1);
+	}
+	else
+	{
+		L = luaL_newstate();
+	}
+
+	if( L == NULL)
+	{
+		(void) luaL_error( from_, "luaG_newstate() failed while creating state; out of memory");
+	}
+	return L;
+}
+
 /*
  * Like 'luaL_openlibs()' but allows the set of libraries be selected
  *
@@ -644,16 +742,7 @@ void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, LookupMo
  */
 lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
 {
-	// re-use alloc function from the originating state
-#if PROPAGATE_ALLOCF
-	PROPAGATE_ALLOCF_PREP( from_);
-#endif // PROPAGATE_ALLOCF
-	lua_State* L = PROPAGATE_ALLOCF_ALLOC();
-
-	if( L == NULL)
-	{
-		(void) luaL_error( from_, "luaG_newstate() failed while creating state; out of memory");
-	}
+	lua_State* L = create_state( U, from_);
 
 	STACK_GROW( L, 2);
 	STACK_CHECK_ABS( L, 0);

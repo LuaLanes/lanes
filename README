@@ -123,9 +123,11 @@ LUA_CPATH.  If you are not sure how this works, try creating
 =======================
   Note about LuaJIT
 =======================
-By default LuaJIT2 provides an non-thread-safe memory allocator to improve performance.
-Of course this will break when running several Lua states concurrently.
-Don't forget to initialize Lanes with the 'protect_allocator' option (see documentation)
-if you experience random crash issues.
+It looks like LuaJIT makes some assumptions about the usage of its allocator.
+Namely, when a Lua state closes, memory allocated from its alloc function might be freed, even if said memory
+isn't actually owned by the state (for example if the allocator was used explicitly after retrieving if with lua_getallocf)
+Therefore it seems to be a bad idea, when creating a new lua_State, to propagate the allocator
+from another state, as closing the first state would invalidate all the memory used by the second one...
+The best is therefore to leave the 'allocator' configuration option unset when running LuaJIT.
 
 (end)

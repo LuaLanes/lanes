@@ -24,6 +24,24 @@ typedef struct s_Lane Lane;
 
 // ################################################################################################
 
+// everything we need to provide to lua_newstate()
+struct AllocatorDefinition_s
+{
+	lua_Alloc allocF;
+	void* allocUD;
+};
+typedef struct AllocatorDefinition_s AllocatorDefinition;
+
+// mutex-protected allocator for use with Lua states that share a non-threadsafe allocator
+struct ProtectedAllocator_s
+{
+	AllocatorDefinition definition;
+	MUTEX_T lock;
+};
+typedef struct ProtectedAllocator_s ProtectedAllocator;
+
+// ################################################################################################
+
 // everything regarding the a Lanes universe is stored in that global structure
 // held as a full userdata in the master Lua state that required it for the first time
 // don't forget to initialize all members in LG_configure()
@@ -34,7 +52,15 @@ struct s_Universe
 
 	bool_t demoteFullUserdata;
 
+	// before a state is created, this function will be called to obtain the allocator
+	lua_CFunction provide_allocator;
+
+	// after a state is created, this function will be called right after the bases libraries are loaded
 	lua_CFunction on_state_create_func;
+
+	// Initialized and used only if allocator="protected" is found in the configuration settings
+	// contains a mutex and the original allocator definition
+	ProtectedAllocator protected_allocator;
 
 	Keepers* keepers;
 

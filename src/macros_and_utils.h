@@ -12,25 +12,7 @@
 #define inline __inline
 #endif
 
- // For some reason, LuaJIT 64bits doesn't support lua_newstate()
-#ifndef PROPAGATE_ALLOCF //you should #define PROPAGATE_ALLOCF 1 for LuaJIT in GC64 mode
-#if defined(LUA_JITLIBNAME) && (defined(__x86_64__) || defined(_M_X64))
- //#pragma message( "LuaJIT 64 bits detected: don't propagate allocf")
-#define PROPAGATE_ALLOCF 0
-#else // LuaJIT x64
- //#pragma message( "PUC-Lua detected: propagate allocf")
-#define PROPAGATE_ALLOCF 1
-#endif // LuaJIT x64
-#endif // PROPAGATE_ALLOCF defined
-#if PROPAGATE_ALLOCF
-#define PROPAGATE_ALLOCF_PREP( L) void* allocUD; lua_Alloc allocF = lua_getallocf( L, &allocUD)
-#define PROPAGATE_ALLOCF_ALLOC() lua_newstate( allocF, allocUD)
-#else // PROPAGATE_ALLOCF
-#define PROPAGATE_ALLOCF_PREP( L)
-#define PROPAGATE_ALLOCF_ALLOC() luaL_newstate()
-#endif // PROPAGATE_ALLOCF
-
-#define USE_DEBUG_SPEW 0
+ #define USE_DEBUG_SPEW 0
 #if USE_DEBUG_SPEW
 extern char const* debugspew_indent;
 #define INDENT_BEGIN "%.*s "

@@ -22,6 +22,7 @@ typedef struct s_Universe Universe;
 void luaG_dump( lua_State* L);
 #endif // _DEBUG
 
+lua_State* create_state( Universe* U, lua_State* from_);
 lua_State* luaG_newstate( Universe* U, lua_State* _from, char const* libs);
 
 // ################################################################################################
@@ -36,6 +37,9 @@ int luaG_new_require( lua_State* L);
 
 void populate_func_lookup_table( lua_State* L, int _i, char const* _name);
 void serialize_require( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State *L);
+void initialize_allocator_function( Universe* U, lua_State* L);
+void cleanup_allocator_function( Universe* U, lua_State* L);
+
 void initialize_on_state_create( Universe* U, lua_State* L);
 void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, LookupMode mode_);
 

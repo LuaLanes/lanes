@@ -580,25 +580,6 @@ static bool_t selfdestruct_remove( Lane* s)
 }
 
 /*
-** mutex-protected allocator for use with Lua states that have non-threadsafe allocators (such as LuaJIT)
-*/
-struct ProtectedAllocator_s
-{
-	lua_Alloc allocF;
-	void* allocUD;
-	MUTEX_T lock;
-};
-void * protected_lua_Alloc( void *ud, void *ptr, size_t osize, size_t nsize)
-{
-	void* p;
-	struct ProtectedAllocator_s* s = (struct ProtectedAllocator_s*) ud;
-	MUTEX_LOCK( &s->lock);
-	p = s->allocF( s->allocUD, ptr, osize, nsize);
-	MUTEX_UNLOCK( &s->lock);
-	return p;
-}
-
-/*
 * Process end; cancel any still free-running threads
 */
 static int selfdestruct_gc( lua_State* L)
@@ -679,15 +660,9 @@ static int selfdestruct_gc( lua_State* L)
 
 		// If some lanes are currently cleaning after themselves, wait until they are done.
 		// They are no longer listed in the selfdestruct chain, but they still have to lua_close().
+		while( U->selfdestructing_count > 0)
 		{
-			bool_t again = TRUE;
-			do
-			{
-				MUTEX_LOCK( &U->selfdestruct_cs);
-				again = (U->selfdestructing_count > 0) ? TRUE : FALSE;
-				MUTEX_UNLOCK( &U->selfdestruct_cs);
-				YIELD();
-			} while( again);
+			YIELD();
 		}
 
 		//---
@@ -727,6 +702,13 @@ static int selfdestruct_gc( lua_State* L)
 		}
 	}
 
+	// If some lanes are currently cleaning after themselves, wait until they are done.
+	// They are no longer listed in the selfdestruct chain, but they still have to lua_close().
+	while( U->selfdestructing_count > 0)
+	{
+		YIELD();
+	}
+
 	// necessary so that calling free_deep_prelude doesn't crash because linda_id expects a linda lightuserdata at absolute slot 1
 	lua_settop( L, 0);
 	// no need to mutex-protect this as all threads in the universe are gone at that point
@@ -740,18 +722,7 @@ static int selfdestruct_gc( lua_State* L)
 	close_keepers( U, L);
 
 	// remove the protected allocator, if any
-	{
-		void* ud;
-		lua_Alloc allocF = lua_getallocf( L, &ud);
-
-		if( allocF == protected_lua_Alloc)
-		{
-			struct ProtectedAllocator_s* s = (struct ProtectedAllocator_s*) ud;
-			lua_setallocf( L, s->allocF, s->allocUD);
-			MUTEX_FREE( &s->lock);
-			s->allocF( s->allocUD, s, sizeof( struct ProtectedAllocator_s), 0);
-		}
-	}
+	cleanup_allocator_function( U, L);
 
 #if HAVE_LANE_TRACKING
 	MUTEX_FREE( &U->tracking_cs);
@@ -2097,24 +2068,6 @@ LUAG_FUNC( configure)
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END, L));
 	DEBUGSPEW_CODE( if( U) ++ U->debugspew_indent_depth);
 
-	lua_getfield( L, 1, "protect_allocator");                                            // settings protect_allocator
-	if( lua_toboolean( L, -1))
-	{
-		void* allocUD;
-		lua_Alloc allocF = lua_getallocf( L, &allocUD);
-		if( allocF != protected_lua_Alloc) // just in case
-		{
-			struct ProtectedAllocator_s* s = (struct ProtectedAllocator_s*) allocF( allocUD, NULL, 0, sizeof( struct ProtectedAllocator_s));
-			s->allocF = allocF;
-			s->allocUD = allocUD;
-			MUTEX_INIT( &s->lock);
-			lua_setallocf( L, protected_lua_Alloc, s);
-		}
-	}
-	lua_pop( L, 1);                                                                      // settings
-	STACK_MID( L, 1);
-
-	// grab or create the universe
 	if( U == NULL)
 	{
 		U = universe_create( L);                                                           // settings universe
@@ -2144,6 +2097,7 @@ LUAG_FUNC( configure)
 		MUTEX_INIT( &U->deep_lock);
 		MUTEX_INIT( &U->mtid_lock);
 		U->selfdestruct_first = SELFDESTRUCT_END;
+		initialize_allocator_function( U, L);
 		initialize_on_state_create( U, L);
 		init_keepers( U, L);
 		STACK_MID( L, 1);

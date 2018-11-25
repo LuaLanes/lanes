@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 141: BGe 25-Nov-18
+   * protect_allocator configure option is gone, long live allocator (more embedders-friendly)
+
 CHANGE 140: BGe 22-Nov-18
    * Raise an error instead of crashing when attempting to transfer a non-deep full userdata
 

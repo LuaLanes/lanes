@@ -657,7 +657,7 @@ void init_keepers( Universe* U, lua_State* L)
 	for( i = 0; i < nb_keepers; ++ i)                      // keepersUD
 	{
 		// note that we will leak K if we raise an error later
-		lua_State* K = PROPAGATE_ALLOCF_ALLOC();
+		lua_State* K = create_state( U, L);
 		if( K == NULL)
 		{
 			(void) luaL_error( L, "init_keepers() failed while creating keeper states; out of memory");

@@ -76,8 +76,7 @@ lanes.configure = function( settings_)
 		track_lanes = false,
 		demote_full_userdata = nil,
 		verbose_errors = false,
-		-- LuaJIT provides a thread-unsafe allocator by default, so we need to protect it when used in parallel lanes
-		protect_allocator = (package.loaded.jit and jit.version and package.loaded.ffi and (package.loaded.ffi.abi( "32bit") or package.loaded.ffi.abi( "gc64"))) and true or false
+		allocator = nil
 	}
 	local boolean_param_checker = function( val_)
 		-- non-'boolean-false' should be 'boolean-true' or nil
@@ -90,7 +89,10 @@ lanes.configure = function( settings_)
 			return type( val_) == "number" and val_ > 0
 		end,
 		with_timers = boolean_param_checker,
-		protect_allocator = boolean_param_checker,
+		allocator = function( val_)
+			-- can be nil, "protected", or a function
+			return val_ and (type( val_) == "function" or val_ == "protected") or true
+		end,
 		on_state_create = function( val_)
 			-- on_state_create may be nil or a function
 			return val_ and type( val_) == "function" or true

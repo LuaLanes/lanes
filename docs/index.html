@@ -324,8 +324,33 @@
 				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
 			</td>
 			<td>
+				REPLACED BY <tt>allocator="protected"</tt> AS OF VERSION v3.13.0.
 				(Since v3.5.2) If equal to <tt>true</tt>, Lanes wraps all calls to the state's allocator function inside a mutex. Since v3.6.3, when left unset, Lanes attempts to autodetect this value for LuaJIT (the guess might be wrong if <tt>"ffi"</tt> isn't loaded though).
 				Default is <tt>true</tt> when Lanes detects it is run by LuaJIT, else <tt>nil</tt>.
+			</td>
+		</tr>
+
+		<tr valign=top>
+			<td id="allocator">
+				<code>.allocator</code>
+			</td>
+			<td>
+				<tt>nil</tt>/<tt>"protected"</tt>/function
+			</td>
+			<td>
+				(Since v3.13.0)<br/>
+				If <tt>nil</tt>, Lua states are created with <tt>luaL_newstate()</tt> and use the default allocator.<br/>
+				If <tt>"protected"</tt>, The default allocator obtained from <tt>lua_getallocf()</tt> in the state that initializes Lanes is wrapped inside a critical section and used in all newly created states.<br/>
+				If a <tt>function</tt>, this function is called prior to creating the state. It should return a full userdata containing the following structure:
+				<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
+					<tr>
+						<td>
+							<pre>	struct { lua_Alloc allocF; void* allocUD;}</pre>
+						</td>
+					</tr>
+				</table>
+				The contents will be used to create the state with <tt>lua_newstate( allocF, allocUD)</tt>.
+				This option is mostly useful for embedders that want to provide different allocators to each lane, for example to have each one work in a different memory pool thus preventing the need for the allocator itself to be threadsafe.
 			</td>
 		</tr>
 
