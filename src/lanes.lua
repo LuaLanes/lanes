@@ -115,6 +115,12 @@ lanes.configure = function( settings_)
 		if type( settings_) ~= "table" then
 			error "Bad parameter #1 to lanes.configure(), should be a table"
 		end
+		-- any setting unknown to Lanes raises an error
+		for setting, _ in pairs( settings_) do
+			if not param_checkers[setting] then
+			error( "Unknown parameter '" .. setting .. "' in configure options")
+			end
+		end
 		-- any setting not present in the provided parameters takes the default value
 		for key, checker in pairs( param_checkers) do
 			local my_param = settings_[key]
