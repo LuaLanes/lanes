@@ -34,6 +34,10 @@ THE SOFTWARE.
 
 ===============================================================================
 */
+#if defined(__linux__)
+# define _GNU_SOURCE /* must be defined before any include */
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
