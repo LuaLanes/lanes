@@ -146,7 +146,7 @@ lanes.configure = function( settings_)
 		author= "Asko Kauppi <akauppi@gmail.com>, Benoit Germain <bnt.germain@gmail.com>",
 		description= "Running multiple Lua states in parallel",
 		license= "MIT/X11",
-		copyright= "Copyright (c) 2007-10, Asko Kauppi; (c) 2011-17, Benoit Germain",
+		copyright= "Copyright (c) 2007-10, Asko Kauppi; (c) 2011-18, Benoit Germain",
 		version = assert( core.version)
 	}
 

@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 142: BGe 26-Nov-18
+   * Version is available in public header
+
 CHANGE 141: BGe 25-Nov-18
    * protect_allocator configure option is gone, long live allocator (more embedders-friendly)
 
