@@ -58,6 +58,10 @@ THE SOFTWARE.
   volatile bool_t sudo;
 #endif
 
+#ifdef PLATFORM_OSX
+# include "threading_osx.h"
+#endif
+
 /* Linux with older glibc (such as Debian) don't have pthread_setname_np, but have prctl
 */
 #if defined PLATFORM_LINUX
