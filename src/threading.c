@@ -34,6 +34,12 @@ THE SOFTWARE.
 
 ===============================================================================
 */
+#include "platform.h"
+#if defined(PLATFORM_LINUX)
+# define _GNU_SOURCE /* must be defined before <sched.h> */
+# include <sched.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
