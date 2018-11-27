@@ -36,6 +36,10 @@ THE SOFTWARE.
 */
 #if defined(__linux__)
 # define _GNU_SOURCE /* must be defined before any include */
+# ifdef __ANDROID__
+#  include <android/log.h>
+#  define LOG_TAG "LuaLanes"
+# endif
 #endif
 
 #include <stdio.h>
@@ -797,7 +801,9 @@ void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, 
 		// "The specified scheduling parameters are only used if the scheduling
 		//  parameter inheritance attribute is PTHREAD_EXPLICIT_SCHED."
 		//
+#if !defined __ANDROID__ || ( defined __ANDROID__ && __ANDROID_API__ >= 28 )
 		PT_CALL( pthread_attr_setinheritsched( &a, PTHREAD_EXPLICIT_SCHED));
+#endif
 
 #ifdef _PRIO_SCOPE
 		PT_CALL( pthread_attr_setscope( &a, _PRIO_SCOPE));
@@ -892,7 +898,11 @@ void THREAD_SET_AFFINITY( unsigned int aff)
 		++ bit;
 		aff >>= 1;
 	}
+#ifdef __ANDROID__
+	PT_CALL( sched_setaffinity( pthread_self(), sizeof(cpu_set_t), &cpuset));
+#else
 	PT_CALL( pthread_setaffinity_np( pthread_self(), sizeof(cpu_set_t), &cpuset));
+#endif
 }
 
  /*
@@ -963,15 +973,23 @@ bool_t THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *
   }
 	//
   void THREAD_KILL( THREAD_T *ref ) {
+#ifdef __ANDROID__
+	  __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "Cannot kill thread!");
+#else
     pthread_cancel( *ref );
+#endif
   }
 
 	void THREAD_MAKE_ASYNCH_CANCELLABLE()
 	{
+#ifdef __ANDROID__
+	__android_log_print(ANDROID_LOG_WARN, LOG_TAG, "Cannot make thread async cancellable!");
+#else
 		// that's the default, but just in case...
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		// we want cancellation to take effect immediately if possible, instead of waiting for a cancellation point (which is the default)
 		pthread_setcanceltype( PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+#endif
 	}
 
 	void THREAD_SETNAME( char const* _name)
