@@ -347,13 +347,13 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 		}
 		if( NULL != modname) // we actually got a module name
 		{
-			// somehow, L.registry._LOADED can exist without having registered the 'package' library.
+			// L.registry._LOADED exists without having registered the 'package' library.
 			lua_getglobal( L, "require");                                                                  // DPC proxy metatable require()
 			// check that the module is already loaded (or being loaded, we are happy either way)
 			if( lua_isfunction( L, -1))
 			{
 				lua_pushstring( L, modname);                                                                 // DPC proxy metatable require() "module"
-				lua_getfield( L, LUA_REGISTRYINDEX, "_LOADED");                                              // DPC proxy metatable require() "module" _R._LOADED
+				lua_getfield( L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);                                       // DPC proxy metatable require() "module" _R._LOADED
 				if( lua_istable( L, -1))
 				{
 					bool_t alreadyloaded;
