@@ -55,7 +55,7 @@ lanes.configure = function( settings_)
 	end
 	-- Configure called so remove metatable from lanes
 	setmetatable( lanes, nil)
-	-- 
+	--
 	-- Cache globals for code that might run under sandboxing
 	--
 	local assert = assert( assert)
@@ -372,7 +372,7 @@ lanes.configure = function( settings_)
 	-- timer tables and sleep in between the timer events. All interaction with
 	-- the timer lane happens via a 'timer_gateway' Linda, which is common to
 	-- all that 'require "lanes"'.
-	-- 
+	--
 	-- Linda protocol to timer lane:
 	--
 	--  TGW_KEY: linda_h, key, [wakeup_at_secs], [repeat_secs]
@@ -403,7 +403,7 @@ lanes.configure = function( settings_)
 		local timer_body = function()
 			set_debug_threadname( "LanesTimer")
 			--
-			-- { [deep_linda_lightuserdata]= { [deep_linda_lightuserdata]=linda_h, 
+			-- { [deep_linda_lightuserdata]= { [deep_linda_lightuserdata]=linda_h,
 			--                                 [key]= { wakeup_secs [,period_secs] } [, ...] },
 			-- }
 			--
@@ -452,7 +452,7 @@ lanes.configure = function( settings_)
 					t1 = { [linda_deep] = linda}     -- proxy to use the Linda
 					collection[linda_deep] = t1
 				end
-			
+
 				if wakeup_at == nil then
 					-- Clear the timer
 					--
@@ -482,7 +482,7 @@ lanes.configure = function( settings_)
 						t2= {}
 						t1[key]= t2
 					end
-			
+
 					t2[1] = wakeup_at
 					t2[2] = period   -- can be 'nil'
 				end
@@ -507,12 +507,12 @@ lanes.configure = function( settings_)
 							local wakeup_at= t2[1]
 							local period= t2[2]     -- may be 'nil'
 
-							if wakeup_at <= now then    
+							if wakeup_at <= now then
 								local linda= t1[linda_deep]
 								assert(linda)
-			
+
 								linda:set( key, now )
-					
+
 								-- 'pairs()' allows the values to be modified (and even
 								-- removed) as far as keys are not touched
 
@@ -531,10 +531,10 @@ lanes.configure = function( settings_)
 									t2[1]= wakeup_at
 								end
 							end
-											
+
 							if wakeup_at and ((not next_wakeup) or (wakeup_at < next_wakeup)) then
 								next_wakeup= wakeup_at
-							end 
+							end
 						end
 					end -- t2 loop
 				end -- t1 loop
