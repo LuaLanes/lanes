@@ -36,7 +36,7 @@ supported_platforms= { "win32",
 }
 
 dependencies= {
-	"lua >= 5.1", -- builds with either 5.1, 5.2 and 5.3
+	"lua >= 5.1", -- builds with either 5.1, 5.2, 5.3 and 5.4
 }
 
 build = {

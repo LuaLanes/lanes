@@ -1,6 +1,6 @@
 local print = print
 
-local lanes = require "lanes".configure{ with_timers = false, protect_allocator=true}
+local lanes = require "lanes".configure{ with_timers = false, allocator="protected"}
 
 local linda = lanes.linda()
 

@@ -65,6 +65,8 @@ typedef struct
 	lua_Integer limit;
 } keeper_fifo;
 
+static int const CONTENTS_TABLE = 1;
+
 // replaces the fifo ud by its uservalue on the stack
 static keeper_fifo* prepare_fifo_access( lua_State* L, int idx_)
 {
@@ -74,7 +76,7 @@ static keeper_fifo* prepare_fifo_access( lua_State* L, int idx_)
 		idx_ = lua_absindex( L, idx_);
 		STACK_GROW( L, 1);
 		// we can replace the fifo userdata in the stack without fear of it being GCed, there are other references around
-		lua_getuservalue( L, idx_);
+		lua_getiuservalue( L, idx_, CONTENTS_TABLE);
 		lua_replace( L, idx_);
 	}
 	return fifo;
@@ -86,12 +88,13 @@ static void fifo_new( lua_State* L)
 {
 	keeper_fifo* fifo;
 	STACK_GROW( L, 2);
-	fifo = (keeper_fifo*) lua_newuserdata( L, sizeof( keeper_fifo));
+	// a fifo full userdata has one uservalue, the table that holds the actual fifo contents
+	fifo = (keeper_fifo*)lua_newuserdatauv( L, sizeof( keeper_fifo), 1);
 	fifo->first = 1;
 	fifo->count = 0;
 	fifo->limit = -1;
 	lua_newtable( L);
-	lua_setuservalue( L, -2);
+	lua_setiuservalue( L, -2, CONTENTS_TABLE);
 }
 
 // in: expect fifo ... on top of the stack
@@ -422,7 +425,7 @@ int keepercall_set( lua_State* L)
 				should_wake_writers = (fifo->limit > 0) && (fifo->count >= fifo->limit);
 				lua_remove( L, -2);                         // fifos fifo
 				lua_newtable( L);                           // fifos fifo {}
-				lua_setuservalue( L, -2);                   // fifos fifo
+				lua_setiuservalue( L, -2, CONTENTS_TABLE);  // fifos fifo
 				fifo->first = 1;
 				fifo->count = 0;
 			}
@@ -450,7 +453,7 @@ int keepercall_set( lua_State* L)
 			should_wake_writers = (fifo->limit > 0) && (fifo->count >= fifo->limit) && (count < fifo->limit);
 			// empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
 			lua_newtable( L);                             // fifos key [val [, ...]] fifo {}
-			lua_setuservalue( L, -2);                     // fifos key [val [, ...]] fifo
+			lua_setiuservalue( L, -2, CONTENTS_TABLE);    // fifos key [val [, ...]] fifo
 			fifo->first = 1;
 			fifo->count = 0;
 		}

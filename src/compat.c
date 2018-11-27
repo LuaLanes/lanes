@@ -4,6 +4,7 @@
  * ###############################################################################################
  */
 #include "compat.h"
+#include "macros_and_utils.h"
 
 /*
 ** Copied from Lua 5.2 loadlib.c
@@ -40,5 +41,37 @@ void luaL_requiref (lua_State *L, const char *modname, lua_CFunction openf, int 
 		lua_setglobal(L, modname);  /* _G[modname] = module */
 	}
 }
+#endif // LUA_VERSION_NUM
+
+#if LUA_VERSION_NUM < 504
+
+void* lua_newuserdatauv( lua_State* L, size_t sz, int nuvalue)
+{
+	ASSERT_L( nuvalue <= 1);
+	return lua_newuserdata( L, sz);
+}
+
+int lua_getiuservalue( lua_State* L, int idx, int n)
+{
+	if( n > 1)
+	{
+		lua_pushnil( L);
+		return LUA_TNONE;
+	}
+	lua_getuservalue( L, idx);
+	return lua_type( L, -1);
+}
+
+int lua_setiuservalue( lua_State* L, int idx, int n)
+{
+	if( n > 1)
+	{
+		lua_pop( L, 1);
+		return 0;
+	}
+	(void) lua_setuservalue( L, idx);
+	return 1; // I guess anything non-0 is ok
+}
+
 #endif // LUA_VERSION_NUM
 

@@ -114,7 +114,7 @@ static void securize_debug_threadname( lua_State* L, Lane* s)
 {
 	STACK_CHECK( L, 0);
 	STACK_GROW( L, 3);
-	lua_getuservalue( L, 1);
+	lua_getiuservalue( L, 1, 1);
 	lua_newtable( L);
 	// Lua 5.1 can't do 's->debug_name = lua_pushstring( L, s->debug_name);'
 	lua_pushstring( L, s->debug_name);
@@ -1376,7 +1376,8 @@ LUAG_FUNC( lane_new)
 
 	// 's' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
 	//
-	ud = lua_newuserdata( L, sizeof( Lane*));       // func libs cancelstep priority globals package required gc_cb lane
+	// a Lane full userdata needs a single uservalue
+	ud = lua_newuserdatauv( L, sizeof( Lane*), 1);           // func libs cancelstep priority globals package required gc_cb lane
 	s = *ud = (Lane*) malloc( sizeof( Lane));
 	if( s == NULL)
 	{
@@ -1422,7 +1423,7 @@ LUAG_FUNC( lane_new)
 		lua_rawset( L, -3);                                    // func libs cancelstep priority globals package required gc_cb lane uv
 	}
 
-	lua_setuservalue( L, -2);                                // func libs cancelstep priority globals package required gc_cb lane
+	lua_setiuservalue( L, -2, 1);                            // func libs cancelstep priority globals package required gc_cb lane
 
 	// Store 's' in the lane's registry, for 'cancel_test()' (even if 'cs'==0 we still do cancel tests at pending send/receive).
 	REGISTRY_SET( L2, CANCEL_TEST_KEY, lua_pushlightuserdata( L2, s));                                                                         // func [... args ...]
@@ -1461,7 +1462,7 @@ LUAG_FUNC( thread_gc)
 	Lane* s = lua_toLane( L, 1);                                        // ud
 
 	// if there a gc callback?
-	lua_getuservalue( L, 1);                                            // ud uservalue
+	lua_getiuservalue( L, 1, 1);                                        // ud uservalue
 	push_unique_key( L, GCCB_KEY);                                      // ud uservalue __gc
 	lua_rawget( L, -2);                                                 // ud uservalue gc_cb|nil
 	if( !lua_isnil( L, -1))
@@ -1724,7 +1725,7 @@ LUAG_FUNC( thread_index)
 		// first, check that we don't already have an environment that holds the requested value
 		{
 			// If key is found in the uservalue, return it
-			lua_getuservalue( L, UD);
+			lua_getiuservalue( L, UD, 1);
 			lua_pushvalue( L, KEY);
 			lua_rawget( L, USR);
 			if( !lua_isnil( L, -1))

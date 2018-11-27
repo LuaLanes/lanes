@@ -120,7 +120,7 @@ static void* protected_lua_Alloc( void *ud, void *ptr, size_t osize, size_t nsiz
 static int luaG_provide_protected_allocator( lua_State* L)
 {
 	Universe* U = universe_get( L);
-	AllocatorDefinition* def = lua_newuserdata( L, sizeof(AllocatorDefinition));
+	AllocatorDefinition* def = lua_newuserdatauv( L, sizeof(AllocatorDefinition), 0);
 	def->allocF = protected_lua_Alloc;
 	def->allocUD = &U->protected_allocator;
 	return 1;
@@ -356,7 +356,7 @@ FuncSubType luaG_getfuncsubtype( lua_State *L, int _i)
 		// the provided writer fails with code 666
 		// therefore, anytime we get 666, this means that lua_dump() attempted a dump
 		// all other cases mean this is either a C or LuaJIT-fast function
-		dumpres = lua503_dump( L, dummy_writer, NULL, 0);
+		dumpres = lua504_dump( L, dummy_writer, NULL, 0);
 		lua_pop( L, mustpush);
 		if( dumpres == 666)
 		{
@@ -1223,19 +1223,27 @@ static int discover_object_name_recur( lua_State* L, int shortest_, int depth_)
 				lua_pop( L, 1);                                   // o "r" {c} {fqn} ... {?} k U
 			}
 			STACK_MID( L, 2);
-			// search in the object's uservalue if it is a table
-			lua_getuservalue( L, -1);                           // o "r" {c} {fqn} ... {?} k U {u}
-			if( lua_istable( L, -1))
+			// search in the object's uservalues
 			{
-				++ depth_;
-				lua_pushliteral( L, "uservalue");                 // o "r" {c} {fqn} ... {?} k v {u} "uservalue"
-				lua_rawseti( L, fqn, depth_);                     // o "r" {c} {fqn} ... {?} k v {u}
-				shortest_ = discover_object_name_recur( L, shortest_, depth_);
-				lua_pushnil( L);                                  // o "r" {c} {fqn} ... {?} k v {u} nil
-				lua_rawseti( L, fqn, depth_);                     // o "r" {c} {fqn} ... {?} k v {u}
-				-- depth_;
+				int uvi = 1;
+				while( lua_getiuservalue( L, -1, uvi) != LUA_TNONE) // o "r" {c} {fqn} ... {?} k U {u}
+				{
+					if( lua_istable( L, -1)) // if it is a table, look inside
+					{
+						++ depth_;
+						lua_pushliteral( L, "uservalue");               // o "r" {c} {fqn} ... {?} k v {u} "uservalue"
+						lua_rawseti( L, fqn, depth_);                   // o "r" {c} {fqn} ... {?} k v {u}
+						shortest_ = discover_object_name_recur( L, shortest_, depth_);
+						lua_pushnil( L);                                // o "r" {c} {fqn} ... {?} k v {u} nil
+						lua_rawseti( L, fqn, depth_);                   // o "r" {c} {fqn} ... {?} k v {u}
+						-- depth_;
+					}
+					lua_pop( L, 1);                                   // o "r" {c} {fqn} ... {?} k U
+					++ uvi;
+				}
+				// when lua_getiuservalue() returned LUA_TNONE, it pushed a nil. pop it now
+				lua_pop( L, 1);                                     // o "r" {c} {fqn} ... {?} k U
 			}
-			lua_pop( L, 1);                                     // o "r" {c} {fqn} ... {?} k U
 			STACK_MID( L, 2);
 			break;
 		}
@@ -1436,7 +1444,7 @@ static void inter_copy_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_
 	// "value returned is the error code returned by the last call 
 	// to the writer" (and we only return 0)
 	// not sure this could ever fail but for memory shortage reasons
-	if( lua503_dump( L, buf_writer, &b, 0) != 0)
+	if( lua504_dump( L, buf_writer, &b, 0) != 0)
 	{
 		luaL_error( L, "internal error: function dump failed.");
 	}
@@ -1846,7 +1854,32 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 				STACK_MID( L, 3);
 				userdata_size = (size_t) lua_tointeger( L, -1);                      // ... mt __lanesclone size
 				lua_pop( L, 1);                                                      // ... mt __lanesclone
-				clone = lua_newuserdata( L2, userdata_size);                                                       // ... u
+				// we need to copy over the uservalues of the userdata as well
+				lua_pushnil( L2);                                                                                  // ... nil
+				{
+					int const clone_i = lua_gettop( L2);
+					int uvi = 0;
+					while( lua_getiuservalue( L, i, uvi + 1) != LUA_TNONE)             // ... mt __lanesclone uv
+					{
+						luaG_inter_move( U, L, L2, 1, mode_);                            // ... mt __lanesclone        // ... nil [uv]+
+						++ uvi;
+					}
+					// when lua_getiuservalue() returned LUA_TNONE, it pushed a nil. pop it now
+					lua_pop( L, 1);                                                    // ... mt __lanesclone
+						// create the clone userdata with the required number of uservalue slots
+					clone = lua_newuserdatauv( L2, userdata_size, uvi);                                              // ... nil [uv]+ u
+					lua_replace( L2, clone_i);                                                                       // ... u [uv]+
+					// assign uservalues
+					while( uvi > 0)
+					{
+						// this pops the value from the stack
+						lua_setiuservalue( L2, clone_i, uvi);                                                          // ... u [uv]+
+						-- uvi;
+					}
+					// when we are done, all uservalues are popped from the stack
+					STACK_MID( L2, 1);                                                                               // ... u
+				}
+				STACK_MID( L, 2);                                                    // ... mt __lanesclone
 				// call cloning function in source state to perform the actual memory cloning
 				lua_pushlightuserdata( L, clone);                                    // ... mt __lanesclone clone
 				lua_pushlightuserdata( L, source);                                   // ... mt __lanesclone source
@@ -1920,13 +1953,37 @@ static bool_t inter_copy_one_( Universe* U, lua_State* L2, uint_t L2_cache_i, lu
 			source = lua_touserdata( L, -1);
 			lookup_table( L2, L, i, mode_, upName_);                                 // ... u                      // ... mt
 			// __lanesclone should always exist because we woudln't be restoring data from a userdata_clone_sentinel closure to begin with
-			lua_getfield( L2, -1, "__lanesclone");                                   //                            // ... mt __lanesclone
+			lua_getfield( L2, -1, "__lanesclone");                                                                 // ... mt __lanesclone
 			lua_pushvalue( L2, -1);                                                                                // ... mt __lanesclone __lanesclone
 			// call the cloning function with 0 arguments, should return the number of bytes to allocate for the clone
 			lua_call( L2, 0, 1);                                                                                   // ... mt __lanesclone size
 			userdata_size = (size_t) lua_tointeger( L2, -1);                                                       // ... mt __lanesclone size
 			lua_pop( L2, 1);                                                                                       // ... mt __lanesclone
-			clone = lua_newuserdata( L2, userdata_size);                                                           // ... mt __lanesclone u
+			lua_pushnil( L2);                                                                                      // ... mt __lanesclone nil
+			{
+				int const clone_i = lua_gettop( L2);
+				int uvi = 0;
+				while( lua_getiuservalue( L, i, uvi + 1) != LUA_TNONE)                 // ... u uv
+				{
+					luaG_inter_move( U, L, L2, 1, mode_);                                // ... u                      // ... mt __lanesclone nil [uv]+
+					++ uvi;
+				}
+				// when lua_getiuservalue() returned LUA_TNONE, it pushed a nil. pop it now
+				lua_pop( L, 1);                                                        // ... u
+				// create the clone userdata with the required number of uservalue slots
+				clone = lua_newuserdatauv( L2, userdata_size, uvi);                                                  // ... mt __lanesclone nil [uv]+ u
+				lua_replace( L2, clone_i);                                                                           // ... mt __lanesclone u [uv]+
+				// assign uservalues
+				while( uvi > 0)
+				{
+					// this pops the value from the stack
+					lua_setiuservalue( L2, clone_i, uvi);                                                              // ... mt __lanesclone u [uv]+
+					-- uvi;
+				}
+				// when we are done, all uservalues are popped from the stack
+				STACK_MID( L2, 3);                                                                                   // ... mt __lanesclone u
+			}
+			STACK_MID( L, 1);                                                        // u
 			lua_insert( L2, -3);                                                                                   // ... u mt __lanesclone
 			lua_pushlightuserdata( L2, clone);                                                                     // ... u mt __lanesclone clone
 			lua_pushlightuserdata( L2, source);                                                                    // ... u mt __lanesclone clone source

@@ -283,7 +283,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 	STACK_GROW( L, 7);
 	STACK_CHECK( L, 0);
 
-	proxy = lua_newuserdata( L, sizeof(DeepPrelude*));                                                // DPC proxy
+	proxy = lua_newuserdatauv( L, sizeof(DeepPrelude*), 0);                                            // DPC proxy
 	ASSERT_L( proxy);
 	*proxy = prelude;
 

@@ -43,7 +43,7 @@ static DECLARE_CONST_UNIQUE_KEY( UNIVERSE_REGKEY, 0x9f877b2cf078f17f);
 
 Universe* universe_create( lua_State* L)
 {
-	Universe* U = (Universe*) lua_newuserdata( L, sizeof(Universe));                               // universe
+	Universe* U = (Universe*) lua_newuserdatauv( L, sizeof(Universe), 0);                          // universe
 	memset( U, 0, sizeof( Universe));
 	STACK_CHECK( L, 1);
 	REGISTRY_SET( L, UNIVERSE_REGKEY, lua_pushvalue(L, -2));                                       // universe
