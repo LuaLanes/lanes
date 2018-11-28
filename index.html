@@ -1553,7 +1553,7 @@ events to a common Linda, but... :).</font>
 
 <h3 id="clonable_userdata">Clonable full userdata in your own apps</h3>
 <p>
-	Starting with version 3.13, a new way of passing full userdata across lanes uses a new <tt>__lanesclone</tt> metamethod. A typical implementation would look like:
+	Starting with version 3.13.0, a new way of passing full userdata across lanes uses a new <tt>__lanesclone</tt> metamethod. A typical implementation would look like:
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 static int clonable_lanesclone( lua_State* L)
 {
@@ -1580,6 +1580,7 @@ static int clonable_lanesclone( lua_State* L)
 </p>
 
 <p>
+    <b>NOTE</b>: In the event the source userdata has uservalues, it is not necessary to create them for the clone, Lanes will handle their cloning.<br/>
 	Of course, more complex objects may require smarter cloning behavior than a simple <tt>memcpy</tt>. Also, the module initialisation code should make each metatable accessible from the module table itself as in:
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 int luaopen_deep_test(lua_State* L)
