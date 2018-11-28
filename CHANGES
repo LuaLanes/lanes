@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 144: BGe 28-Nov-18
+   * some code refacto
+
 CHANGE 143: BGe 27-Nov-18
    * Lua 5.4 support
    * __lanesclone and  lanes.nameof support userdata uservalue(s)
