@@ -24,12 +24,18 @@
     <ClCompile Include="..\src\universe.c">
       <Filter>Lanes</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\compat.c">
+      <Filter>Lanes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\deep.h">
       <Filter>Lanes</Filter>
     </ClInclude>
     <ClInclude Include="..\src\universe.h">
+      <Filter>Lanes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\compat.h">
       <Filter>Lanes</Filter>
     </ClInclude>
   </ItemGroup>

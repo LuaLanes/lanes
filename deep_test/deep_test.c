@@ -6,6 +6,7 @@
 #include "lauxlib.h"
 
 #include "deep.h"
+#include "compat.h"
 
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 #define LANES_API __declspec(dllexport)
@@ -123,6 +124,27 @@ static int clonable_set( lua_State* L)
 
 // ################################################################################################
 
+static int clonable_setuv( lua_State* L)
+{
+	struct s_MyClonableUserdata* self = (struct s_MyClonableUserdata*) lua_touserdata( L, 1);
+	int uv = (int) luaL_optinteger( L, 2, 1);
+	lua_settop( L, 3);
+	lua_pushboolean( L, lua_setiuservalue( L, 1, uv) != 0);
+	return 1;
+}
+
+// ################################################################################################
+
+static int clonable_getuv( lua_State* L)
+{
+	struct s_MyClonableUserdata* self = (struct s_MyClonableUserdata*) lua_touserdata( L, 1);
+	int uv = (int) luaL_optinteger( L, 2, 1);
+	lua_getiuservalue( L, 1, uv);
+	return 1;
+}
+
+// ################################################################################################
+
 static int clonable_tostring(lua_State* L)
 {
 	struct s_MyClonableUserdata* self = (struct s_MyClonableUserdata*) lua_touserdata( L, 1);
@@ -170,6 +192,8 @@ static luaL_Reg const clonable_mt[] =
 	{ "__gc", clonable_gc},
 	{ "__lanesclone", clonable_lanesclone},
 	{ "set", clonable_set},
+	{ "setuv", clonable_setuv},
+	{ "getuv", clonable_getuv},
 	{ NULL, NULL }
 };
 
@@ -177,7 +201,8 @@ static luaL_Reg const clonable_mt[] =
 
 int luaD_new_clonable( lua_State* L)
 {
-	lua_newuserdata( L, sizeof( struct s_MyClonableUserdata));
+	int nuv = (int) luaL_optinteger( L, 1, 1);
+	lua_newuserdatauv( L, sizeof( struct s_MyClonableUserdata), nuv);
 	luaL_setmetatable( L, "clonable");
 	return 1;
 }

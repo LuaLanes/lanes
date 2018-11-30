@@ -1907,13 +1907,14 @@ static bool_t inter_copy_function( Universe* U, lua_State* L2, uint_t L2_cache_i
 		{
 			int const clone_i = lua_gettop( L2);
 			int uvi = 0;
-			while( lua_getiuservalue( L, i, uvi + 1) != LUA_TNONE)                 // ... u uv
+			while( lua_getiuservalue( L, -1, uvi + 1) != LUA_TNONE)                // ... u uv
 			{
 				luaG_inter_move( U, L, L2, 1, mode_);                                // ... u                      // ... mt __lanesclone nil [uv]+
 				++ uvi;
 			}
-			// when lua_getiuservalue() returned LUA_TNONE, it pushed a nil. pop it now
-			lua_pop( L, 1);                                                        // ... u
+			// when lua_getiuservalue() returned LUA_TNONE, it pushed a nil. pop it now at the same time as the rest
+			lua_pop( L, 2);                                                        // ... u
+			STACK_MID( L, 0);                                                      // ...
 			// create the clone userdata with the required number of uservalue slots
 			clone = lua_newuserdatauv( L2, userdata_size, uvi);                                                  // ... mt __lanesclone nil [uv]+ u
 			lua_replace( L2, clone_i);                                                                           // ... mt __lanesclone u [uv]+
@@ -1927,13 +1928,11 @@ static bool_t inter_copy_function( Universe* U, lua_State* L2, uint_t L2_cache_i
 			// when we are done, all uservalues are popped from the stack
 			STACK_MID( L2, 3);                                                                                   // ... mt __lanesclone u
 		}
-		STACK_MID( L, 1);                                                        // u
 		lua_insert( L2, -3);                                                                                   // ... u mt __lanesclone
 		lua_pushlightuserdata( L2, clone);                                                                     // ... u mt __lanesclone clone
 		lua_pushlightuserdata( L2, source);                                                                    // ... u mt __lanesclone clone source
 		lua_call( L2, 2, 0);                                                                                   // ... u mt
 		lua_setmetatable( L2, -2);                                                                             // ... u
-		lua_pop( L, 1);                                                          // ...
 	}
 	else
 	{
