@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 145: BGe 28-Nov-18
+   * more code refacto
+   * don't test __lanesignore for POD types (-> slightly faster when trasnfering lots of data)
+
 CHANGE 144: BGe 28-Nov-18
    * some code refacto
 

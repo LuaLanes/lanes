@@ -49,7 +49,7 @@ THE SOFTWARE.
 
 // functions implemented in deep.c
 extern bool_t copydeep( Universe* U, lua_State* L, lua_State* L2, int index, LookupMode mode_);
-extern void push_registry_subtable( lua_State* L, void* key_);
+extern void push_registry_subtable( lua_State* L, UniqueKey key_);
 
 DEBUGSPEW_CODE( char const* debugspew_indent = "----+----!----+----!----+----!----+----!----+----!----+----!----+----!----+");
 
@@ -861,29 +861,27 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
 
 /*---=== Inter-state copying ===---*/
 
-#define REG_MTID ( (void*) get_mt_id )
+// crc64/we of string "REG_MTID" generated at http://www.nitrxgen.net/hashgen/
+static DECLARE_CONST_UNIQUE_KEY( REG_MTID, 0x2e68f9b4751584dc);
 
 /*
 * Get a unique ID for metatable at [i].
 */
-static uint_t get_mt_id( Universe* U, lua_State* L, int i)
+static lua_Integer get_mt_id( Universe* U, lua_State* L, int i)
 {
-	uint_t id;
+	lua_Integer id;
 
 	i = lua_absindex( L, i);
 
 	STACK_GROW( L, 3);
 
 	STACK_CHECK( L, 0);
-	push_registry_subtable( L, REG_MTID);
-	lua_pushvalue( L, i);
-	lua_rawget( L, -2);
-	//
-	// [-2]: reg[REG_MTID]
-	// [-1]: nil/uint
+	push_registry_subtable( L, REG_MTID);        // ... _R[REG_MTID]
+	lua_pushvalue( L, i);                        // ... _R[REG_MTID] {mt}
+	lua_rawget( L, -2);                          // ... _R[REG_MTID] mtk?
 
-	id = (uint_t) lua_tointeger( L, -1);    // 0 for nil
-	lua_pop( L, 1);
+	id = lua_tointeger( L, -1);    // 0 for nil
+	lua_pop( L, 1);                              // ... _R[REG_MTID]
 	STACK_MID( L, 1);
 
 	if( id == 0)
@@ -894,15 +892,15 @@ static uint_t get_mt_id( Universe* U, lua_State* L, int i)
 
 		/* Create two-way references: id_uint <-> table
 		*/
-		lua_pushvalue( L, i);
-		lua_pushinteger( L, id);
-		lua_rawset( L, -3);
+		lua_pushvalue( L, i);                      // ... _R[REG_MTID] {mt}
+		lua_pushinteger( L, id);                   // ... _R[REG_MTID] {mt} id
+		lua_rawset( L, -3);                        // ... _R[REG_MTID]
 
-		lua_pushinteger( L, id);
-		lua_pushvalue( L, i);
-		lua_rawset( L, -3);
+		lua_pushinteger( L, id);                   // ... _R[REG_MTID] id
+		lua_pushvalue( L, i);                      // ... _R[REG_MTID] id {mt}
+		lua_rawset( L, -3);                        // ... _R[REG_MTID]
 	}
-	lua_pop( L, 1);     // remove 'reg[REG_MTID]' reference
+	lua_pop( L, 1);                              // ...
 
 	STACK_END( L, 0);
 
@@ -1627,34 +1625,35 @@ static void copy_cached_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua
 
 static bool_t push_cached_metatable( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum eLookupMode mode_, char const* upName_)
 {
+	STACK_CHECK( L, 0);
 	if( lua_getmetatable( L, i))                                                 // ... mt
 	{
-		uint_t const mt_id = get_mt_id( U, L, -1);    // Unique id for the metatable
+		lua_Integer const mt_id = get_mt_id( U, L, -1);    // Unique id for the metatable
 
 		STACK_CHECK( L2, 0);
 		STACK_GROW( L2, 4);
 		// do we already know this metatable?
-		push_registry_subtable( L2, REG_MTID);                                                                   // rst
-		lua_pushinteger( L2, mt_id);                                                                             // rst id
-		lua_rawget( L2, -2);                                                                                     // rst mt?
+		push_registry_subtable( L2, REG_MTID);                                                                   // _R[REG_MTID]
+		lua_pushinteger( L2, mt_id);                                                                             // _R[REG_MTID] id
+		lua_rawget( L2, -2);                                                                                     // _R[REG_MTID] mt?
 
 		STACK_MID( L2, 2);
 
 		if( lua_isnil( L2, -1))
 		{   // L2 did not know the metatable
-			lua_pop( L2, 1);                                                                                       // rst
-			if( inter_copy_one( U, L2, L2_cache_i, L, lua_gettop( L), VT_METATABLE, mode_, upName_))               // rst mt
+			lua_pop( L2, 1);                                                                                       // _R[REG_MTID]
+			if( inter_copy_one( U, L2, L2_cache_i, L, lua_gettop( L), VT_METATABLE, mode_, upName_))               // _R[REG_MTID] mt
 			{
 				STACK_MID( L2, 2);
 				// mt_id -> metatable
-				lua_pushinteger( L2, mt_id);                                                                         // rst mt id
-				lua_pushvalue( L2, -2);                                                                              // rst mt id mt
-				lua_rawset( L2, -4);                                                                                 // rst mt
+				lua_pushinteger( L2, mt_id);                                                                         // _R[REG_MTID] mt id
+				lua_pushvalue( L2, -2);                                                                              // _R[REG_MTID] mt id mt
+				lua_rawset( L2, -4);                                                                                 // _R[REG_MTID] mt
 
 				// metatable -> mt_id
-				lua_pushvalue( L2, -1);                                                                              // rst mt mt
-				lua_pushinteger( L2, mt_id);                                                                         // rst mt mt id
-				lua_rawset( L2, -4);                                                                                 // rst mt
+				lua_pushvalue( L2, -1);                                                                              // _R[REG_MTID] mt mt
+				lua_pushinteger( L2, mt_id);                                                                         // _R[REG_MTID] mt mt id
+				lua_rawset( L2, -4);                                                                                 // _R[REG_MTID] mt
 			}
 			else
 			{
@@ -1666,8 +1665,10 @@ static bool_t push_cached_metatable( Universe* U, lua_State* L2, uint_t L2_cache
 
 		lua_pop( L, 1);                                                            // ...
 		STACK_END( L2, 1);
+		STACK_MID( L, 0);
 		return TRUE;
 	}
+	STACK_END( L, 0);
 	return FALSE;
 }
 
@@ -1735,23 +1736,14 @@ static void inter_copy_keyvaluepair( Universe* U, lua_State* L2, uint_t L2_cache
 	}
 }
 
-static bool_t inter_copy_userdata( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, LookupMode mode_, char const* upName_)
+bool_t copyclone( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, LookupMode mode_, char const* upName_)
 {
 	STACK_CHECK( L, 0);
 	STACK_CHECK( L2, 0);
-	if( vt == VT_KEY)
-	{
-		return FALSE;
-	}
-	// Allow only deep userdata entities to be copied across
-	DEBUGSPEW_CODE( fprintf( stderr, "USERDATA\n"));
-	if( copydeep( U, L, L2, i, mode_))
-	{
-		return TRUE;
-	}
 
 	if( !lua_getmetatable( L, i))                                            // ... mt?
 	{
+		STACK_MID( L, 0);
 		return FALSE;
 	}
 
@@ -1759,6 +1751,7 @@ static bool_t inter_copy_userdata( Universe* U, lua_State* L2, uint_t L2_cache_i
 	if( lua_isnil( L, -1))
 	{
 		lua_pop( L, 2);                                                        // ...
+		STACK_MID( L, 0);
 		return FALSE;
 	}
 
@@ -1823,6 +1816,8 @@ static bool_t inter_copy_userdata( Universe* U, lua_State* L2, uint_t L2_cache_i
 				ASSERT_L( lua_istable( L2, -1));
 				lua_setmetatable( L2, -2);                                                                     // ... u
 			}
+			STACK_MID( L2, 1);
+			STACK_MID( L, 0);
 			return TRUE;
 		}
 		else
@@ -1830,6 +1825,39 @@ static bool_t inter_copy_userdata( Universe* U, lua_State* L2, uint_t L2_cache_i
 			(void) luaL_error( L, "Error copying a metatable");
 		}
 	}
+
+	STACK_END( L2, 1);
+	STACK_END( L, 0);
+	return FALSE;
+}
+
+static bool_t inter_copy_userdata( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, LookupMode mode_, char const* upName_)
+{
+	STACK_CHECK( L, 0);
+	STACK_CHECK( L2, 0);
+	if( vt == VT_KEY)
+	{
+		return FALSE;
+	}
+	// Allow only deep userdata entities to be copied across
+	DEBUGSPEW_CODE( fprintf( stderr, "USERDATA\n"));
+	if( copydeep( U, L, L2, i, mode_))
+	{
+		return TRUE;
+	}
+
+	STACK_MID( L, 0);
+	STACK_MID( L2, 0);
+
+	if( copyclone( U, L2, L2_cache_i, L, i, vt, mode_, upName_))
+	{
+		STACK_MID( L, 0);
+		STACK_MID( L2, 1);
+		return TRUE;
+	}
+
+	STACK_MID( L, 0);
+	STACK_MID( L2, 0);
 
 	// Not a deep or clonable full userdata
 	if( U->demoteFullUserdata) // attempt demotion to light userdata
@@ -1841,6 +1869,7 @@ static bool_t inter_copy_userdata( Universe* U, lua_State* L2, uint_t L2_cache_i
 	{
 		(void) luaL_error( L, "can't copy non-deep full userdata across lanes");
 	}
+
 	STACK_END( L2, 1);
 	STACK_END( L, 0);
 	return TRUE;
@@ -1994,6 +2023,7 @@ static bool_t inter_copy_one( Universe* U, lua_State* L2, uint_t L2_cache_i, lua
 {
 	bool_t ret = TRUE;
 	int val_type = lua_type( L, i);
+	static int const pod_mask = (1 << LUA_TNIL) | (1 << LUA_TBOOLEAN) | (1 << LUA_TLIGHTUSERDATA) | (1 << LUA_TNUMBER) | (1 << LUA_TSTRING);
 	STACK_GROW( L2, 1);
 	STACK_CHECK( L, 0);                                                          // L                          // L2
 	STACK_CHECK( L2, 0);                                                         // L                          // L2
@@ -2002,16 +2032,19 @@ static bool_t inter_copy_one( Universe* U, lua_State* L2, uint_t L2_cache_i, lua
 	DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
 	DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%s %s: " INDENT_END, lua_type_names[val_type], vt_names[vt]));
 
-	/* Skip the object if it has metatable with { __lanesignore = true } */
-	if( lua_getmetatable( L, i))                                                 // ... mt
+	// Non-POD can be skipped if its metatable contains { __lanesignore = true }
+	if( ((1 << val_type) & pod_mask) == 0)
 	{
-		lua_getfield( L, -1, "__lanesignore");                                     // ... mt ignore?
-		if( lua_isboolean( L, -1) && lua_toboolean( L, -1))
+		if( lua_getmetatable( L, i))                                               // ... mt
 		{
-			DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "__lanesignore -> LUA_TNIL\n" INDENT_END));
-			val_type = LUA_TNIL;
+			lua_getfield( L, -1, "__lanesignore");                                   // ... mt ignore?
+			if( lua_isboolean( L, -1) && lua_toboolean( L, -1))
+			{
+				DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "__lanesignore -> LUA_TNIL\n" INDENT_END));
+				val_type = LUA_TNIL;
+			}
+			lua_pop( L, 2);                                                          // ...
 		}
-		lua_pop( L, 2);                                                            // ...
 	}
 	STACK_MID( L, 0);
 
@@ -2112,8 +2145,8 @@ static bool_t inter_copy_one( Universe* U, lua_State* L2, uint_t L2_cache_i, lua
 */
 int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupMode mode_)
 {
-	uint_t top_L = lua_gettop( L);
-	uint_t top_L2 = lua_gettop( L2);
+	uint_t top_L = lua_gettop( L);                                    // ... {}n
+	uint_t top_L2 = lua_gettop( L2);                                                               // ...
 	uint_t i, j;
 	char tmpBuf[16];
 	char const* pBuf = U->verboseErrors ? tmpBuf : "?";
@@ -2126,9 +2159,11 @@ int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupM
 	{
 		// requesting to copy more than is available?
 		DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "nothing to copy()\n" INDENT_END));
+		DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 		return -1;
 	}
 
+	STACK_CHECK( L2, 0);
 	STACK_GROW( L2, n + 1);
 
 	/*
@@ -2136,41 +2171,38 @@ int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupM
 	* function entries, avoiding the same entries to be passed on as multiple
 	* copies. ESSENTIAL i.e. for handling upvalue tables in the right manner!
 	*/
-	lua_newtable( L2);
+	lua_newtable( L2);                                                                              // ... cache
 
+	STACK_CHECK( L, 0);
 	for( i = top_L - n + 1, j = 1; i <= top_L; ++ i, ++ j)
 	{
 		if( U->verboseErrors)
 		{
 			sprintf( tmpBuf, "arg_%d", j);
 		}
-		copyok = inter_copy_one( U, L2, top_L2 + 1, L, i, VT_NORMAL, mode_, pBuf);
+		copyok = inter_copy_one( U, L2, top_L2 + 1, L, i, VT_NORMAL, mode_, pBuf);                    // ... cache {}n
 		if( !copyok)
 		{
 			break;
 		}
 	}
+	STACK_END( L, 0);
 
 	DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 
-	/*
-	* Remove the cache table. Persistent caching would cause i.e. multiple 
-	* messages passed in the same table to use the same table also in receiving
-	* end.
-	*/
-	ASSERT_L( (uint_t) lua_gettop( L) == top_L);
 	if( copyok)
 	{
+		STACK_MID( L2, n + 1);
+		// Remove the cache table. Persistent caching would cause i.e. multiple
+		// messages passed in the same table to use the same table also in receiving end.
 		lua_remove( L2, top_L2 + 1);
-		ASSERT_L( (uint_t) lua_gettop( L2) == top_L2 + n);
 		return 0;
 	}
-	else
-	{
-		// error -> pop everything from the target state stack
-		lua_settop( L2, top_L2);
-		return -2;
-	}
+
+	// error -> pop everything from the target state stack
+	lua_settop( L2, top_L2);
+	STACK_END( L2, 0);
+	return -2;
 }
 
 

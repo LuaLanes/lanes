@@ -82,7 +82,7 @@ struct s_Universe
 	MUTEX_T deep_lock;
 	MUTEX_T mtid_lock;
 
-	int last_mt_id;
+	lua_Integer last_mt_id;
 
 #if USE_DEBUG_SPEW
 	int debugspew_indent_depth;
