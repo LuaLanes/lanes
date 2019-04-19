@@ -169,20 +169,6 @@ static DECLARE_CONST_UNIQUE_KEY( FINALIZER_REGKEY, 0x188fccb8bf348e09);
 
 struct s_Linda;
 
-#if 1
-# define DEBUG_SIGNAL( msg, signal_ref ) /* */
-#else
-# define DEBUG_SIGNAL( msg, signal_ref ) \
-    { int i; unsigned char *ptr; char buf[999]; \
-      sprintf( buf, ">>> " msg ": %p\t", (signal_ref) ); \
-      ptr= (unsigned char *)signal_ref; \
-      for( i=0; i<sizeof(*signal_ref); i++ ) { \
-        sprintf( strchr(buf,'\0'), "%02x %c ", ptr[i], ptr[i] ); \
-      } \
-      fprintf( stderr, "%s\n", buf ); \
-    }
-#endif
-
 /*
 * Push a table stored in registry onto Lua stack.
 *
@@ -442,90 +428,97 @@ typedef enum
 	CR_Killed
 } cancel_result;
 
-static cancel_result thread_cancel( lua_State* L, Lane* s, double secs, bool_t force, double waitkill_timeout_)
+static cancel_result thread_cancel_soft( lua_State* L, Lane* s, bool_t wake_lindas_)
+{
+	s->cancel_request = CANCEL_SOFT;    // it's now signaled to stop
+	// negative timeout: we don't want to truly abort the lane, we just want it to react to cancel_test() on its own
+	if( wake_lindas_) // wake the thread so that execution returns from any pending linda operation if desired
+	{
+		SIGNAL_T *waiting_on = s->waiting_on;
+		if( s->status == WAITING && waiting_on != NULL)
+		{
+			SIGNAL_ALL( waiting_on);
+		}
+	}
+	// say we succeeded though
+	return CR_Cancelled;
+}
+
+static cancel_result thread_cancel_hard( lua_State* L, Lane* s, double secs_, bool_t force_, double waitkill_timeout_)
 {
 	cancel_result result;
 
-	// remember that lanes are not transferable: only one thread can cancel a lane, so no multithreading issue here
-	// We can read 's->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
-	if( s->mstatus == KILLED)
+	s->cancel_request = CANCEL_HARD;    // it's now signaled to stop
 	{
-		result = CR_Killed;
-	}
-	else if( s->status < DONE)
-	{
-		// signal the linda the wake up the thread so that it can react to the cancel query
-		// let us hope we never land here with a pointer on a linda that has been destroyed...
-		if( secs < 0.0)
+		SIGNAL_T *waiting_on = s->waiting_on;
+		if( s->status == WAITING && waiting_on != NULL)
 		{
-			s->cancel_request = CANCEL_SOFT;    // it's now signaled to stop
-			// negative timeout: we don't want to truly abort the lane, we just want it to react to cancel_test() on its own
-			if( force) // wake the thread so that execution returns from any pending linda operation if desired
-			{
-				SIGNAL_T *waiting_on = s->waiting_on;
-				if( s->status == WAITING && waiting_on != NULL)
-				{
-					SIGNAL_ALL( waiting_on);
-				}
-			}
-			// say we succeeded though
-			result = CR_Cancelled;
+			SIGNAL_ALL( waiting_on);
 		}
-		else
-		{
-			s->cancel_request = CANCEL_HARD;    // it's now signaled to stop
-			{
-				SIGNAL_T *waiting_on = s->waiting_on;
-				if( s->status == WAITING && waiting_on != NULL)
-				{
-					SIGNAL_ALL( waiting_on);
-				}
-			}
+	}
 
-			result = THREAD_WAIT( &s->thread, secs, &s->done_signal, &s->done_lock, &s->status) ? CR_Cancelled : CR_Timeout;
+	result = THREAD_WAIT( &s->thread, secs_, &s->done_signal, &s->done_lock, &s->status) ? CR_Cancelled : CR_Timeout;
 
-			if( (result == CR_Timeout) && force)
-			{
-				// Killing is asynchronous; we _will_ wait for it to be done at
-				// GC, to make sure the data structure can be released (alternative
-				// would be use of "cancellation cleanup handlers" that at least
-				// PThread seems to have).
-				//
-				THREAD_KILL( &s->thread);
+	if( (result == CR_Timeout) && force_)
+	{
+		// Killing is asynchronous; we _will_ wait for it to be done at
+		// GC, to make sure the data structure can be released (alternative
+		// would be use of "cancellation cleanup handlers" that at least
+		// PThread seems to have).
+		//
+		THREAD_KILL( &s->thread);
 #if THREADAPI == THREADAPI_PTHREAD
-				// pthread: make sure the thread is really stopped!
-				// note that this may block forever if the lane doesn't call a cancellation point and pthread doesn't honor PTHREAD_CANCEL_ASYNCHRONOUS
-				result = THREAD_WAIT( &s->thread, waitkill_timeout_, &s->done_signal, &s->done_lock, &s->status);
-				if( result == CR_Timeout)
-				{
-					return luaL_error( L, "force-killed lane failed to terminate within %f second%s", waitkill_timeout_, waitkill_timeout_ > 1 ? "s" : "");
-				}
-#else
-				(void) waitkill_timeout_; // unused
-				(void) L; // unused
-#endif // THREADAPI == THREADAPI_PTHREAD
-				s->mstatus = KILLED;     // mark 'gc' to wait for it
-				// note that s->status value must remain to whatever it was at the time of the kill
-				// because we need to know if we can lua_close() the Lua State or not.
-				result = CR_Killed;
-			}
+		// pthread: make sure the thread is really stopped!
+		// note that this may block forever if the lane doesn't call a cancellation point and pthread doesn't honor PTHREAD_CANCEL_ASYNCHRONOUS
+		result = THREAD_WAIT( &s->thread, waitkill_timeout_, &s->done_signal, &s->done_lock, &s->status);
+		if( result == CR_Timeout)
+		{
+			return luaL_error( L, "force-killed lane failed to terminate within %f second%s", waitkill_timeout_, waitkill_timeout_ > 1 ? "s" : "");
 		}
-	}
-	else
-	{
-		// say "ok" by default, including when lane is already done
-		result = CR_Cancelled;
+#else
+		(void) waitkill_timeout_; // unused
+		(void) L; // unused
+#endif // THREADAPI == THREADAPI_PTHREAD
+		s->mstatus = KILLED;     // mark 'gc' to wait for it
+		// note that s->status value must remain to whatever it was at the time of the kill
+		// because we need to know if we can lua_close() the Lua State or not.
+		result = CR_Killed;
 	}
 	return result;
 }
 
-    //
-    // Protects modifying the selfdestruct chain
+static cancel_result thread_cancel( lua_State* L, Lane* s, double secs_, bool_t force_, double waitkill_timeout_)
+{
+	// remember that lanes are not transferable: only one thread can cancel a lane, so no multithreading issue here
+	// We can read 's->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
+	if( s->mstatus == KILLED)
+	{
+		return CR_Killed;
+	}
+
+	if( s->status >= DONE)
+	{
+		// say "ok" by default, including when lane is already done
+		return CR_Cancelled;
+	}
+
+	// signal the linda the wake up the thread so that it can react to the cancel query
+	// let us hope we never land here with a pointer on a linda that has been destroyed...
+	if( secs_ < 0.0)
+	{
+		return thread_cancel_soft( L, s, force_);
+	}
+
+	return thread_cancel_hard( L, s, secs_, force_, waitkill_timeout_);
+}
+
+//
+// Protects modifying the selfdestruct chain
 
 #define SELFDESTRUCT_END ((Lane*)(-1))
-    //
-    // The chain is ended by '(Lane*)(-1)', not NULL:
-    //      'selfdestruct_first -> ... -> ... -> (-1)'
+//
+// The chain is ended by '(Lane*)(-1)', not NULL:
+//      'selfdestruct_first -> ... -> ... -> (-1)'
 
 /*
  * Add the lane to selfdestruct chain; the ones still running at the end of the

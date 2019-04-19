@@ -26,7 +26,7 @@ local function PRINT(...)
 end
 
 local gc_cb = function( name_, status_)
-	PRINT( "				---> lane '" .. name_ .. "' collected with status " .. status_)
+    PRINT( "				---> lane '" .. name_ .. "' collected with status " .. status_)
 end
 --gc_cb = nil
 
@@ -77,7 +77,7 @@ local function task( a, b, c )
 end
 
 local task_launch= lanes_gen( "", { globals={hey=true}, gc_cb = gc_cb}, task )
-	-- base stdlibs, normal priority
+    -- base stdlibs, normal priority
 
 -- 'task_launch' is a factory of multithreaded tasks, we can launch several:
 
@@ -155,12 +155,12 @@ limited:limit( "key", 1)
 -- [[################################################
 limited:send( "key", "hello") -- saturate linda
 for k, v in pairs( limited:dump()) do
-	PRINT("limited[" .. tostring( k) .. "] = " .. tostring( v))
+    PRINT("limited[" .. tostring( k) .. "] = " .. tostring( v))
 end
 local wait_send = function()
-	local a,b
-	set_finalizer( function() print( "wait_send", a, b) end)
-	a,b = limited:send( "key", "bybye") -- infinite timeout, returns only when lane is cancelled
+    local a,b
+    set_finalizer( function() print( "wait_send", a, b) end)
+    a,b = limited:send( "key", "bybye") -- infinite timeout, returns only when lane is cancelled
 end
 
 local wait_send_lane = lanes.gen( "*", wait_send)()
@@ -171,9 +171,9 @@ repeat until wait_send_lane.status == "cancelled"
 print "wait_send_lane is cancelled"
 --################################################]]
 local wait_receive = function()
-	local k, v
-	set_finalizer( function() print( "wait_receive", k, v) end)
-	k, v = limited:receive( "dummy") -- infinite timeout, returns only when lane is cancelled
+    local k, v
+    set_finalizer( function() print( "wait_receive", k, v) end)
+    k, v = limited:receive( "dummy") -- infinite timeout, returns only when lane is cancelled
 end
 
 local wait_receive_lane = lanes.gen( "*", wait_receive)()
@@ -184,9 +184,9 @@ repeat until wait_receive_lane.status == "cancelled"
 print "wait_receive_lane is cancelled"
 --################################################]]
 local wait_receive_batched = function()
-	local k, v1, v2
-	set_finalizer( function() print( "wait_receive_batched", k, v1, v2) end)
-	k, v1, v2 = limited:receive( limited.batched, "dummy", 2) -- infinite timeout, returns only when lane is cancelled
+    local k, v1, v2
+    set_finalizer( function() print( "wait_receive_batched", k, v1, v2) end)
+    k, v1, v2 = limited:receive( limited.batched, "dummy", 2) -- infinite timeout, returns only when lane is cancelled
 end
 
 local wait_receive_batched_lane = lanes.gen( "*", wait_receive_batched)()
@@ -206,7 +206,7 @@ PRINT( "\n\n", "---=== Communications ===---", "\n\n")
 local function WR(...) io.stderr:write(...) end
 
 local chunk= function( linda )
-	set_debug_threadname "chunk"
+    set_debug_threadname "chunk"
     local function receive() return linda:receive( "->" ) end
     local function send(...) linda:send( "<-", ... ) end
 
@@ -254,9 +254,9 @@ local a,b,c= RECEIVE(), RECEIVE(), RECEIVE()
 
 print( "lane status: " .. t.status)
 if t.status == "error" then
-	print( t:join())
+    print( t:join())
 else
-	WR( a..", "..b..", "..c.." received\n" )
+    WR( a..", "..b..", "..c.." received\n" )
 end
 
 assert( a==1 and b==2 and c==3 )
@@ -286,50 +286,50 @@ linda: receive( 1, "wait")
 PRINT( "\n\n", "---=== Stdlib naming ===---", "\n\n")
 
 local function dump_g( _x)
-	set_debug_threadname "dump_g"
-	assert(print)
-	print( "### dumping _G for '" .. _x .. "'")
-	for k, v in pairs( _G) do
-		print( "\t" .. k .. ": " .. type( v))
-	end
-	return true
+    set_debug_threadname "dump_g"
+    assert(print)
+    print( "### dumping _G for '" .. _x .. "'")
+    for k, v in pairs( _G) do
+        print( "\t" .. k .. ": " .. type( v))
+    end
+    return true
 end
 
 local function io_os_f( _x)
-	set_debug_threadname "io_os_f"
-	assert(print)
-	print( "### checking io and os libs existence for '" .. _x .. "'")
-	assert(io)
-	assert(os)
-	return true
+    set_debug_threadname "io_os_f"
+    assert(print)
+    print( "### checking io and os libs existence for '" .. _x .. "'")
+    assert(io)
+    assert(os)
+    return true
 end
 
 local function coro_f( _x)
-	set_debug_threadname "coro_f"
-	assert(print)
-	print( "### checking coroutine lib existence for '" .. _x .. "'")
-	assert(coroutine)
-	return true
+    set_debug_threadname "coro_f"
+    assert(print)
+    print( "### checking coroutine lib existence for '" .. _x .. "'")
+    assert(coroutine)
+    return true
 end
 
 assert.fails( function() lanes_gen( "xxx", {gc_cb = gc_cb}, io_os_f ) end )
 
 local stdlib_naming_tests =
 {
-	-- { "", dump_g},
-	-- { "coroutine", dump_g},
-	-- { "io", dump_g},
-	-- { "bit32", dump_g},
-	{ "coroutine", coro_f},
-	{ "*", io_os_f},
-	{ "io,os", io_os_f},
-	{ "io+os", io_os_f},
-	{ "io,os,base", io_os_f},
+    -- { "", dump_g},
+    -- { "coroutine", dump_g},
+    -- { "io", dump_g},
+    -- { "bit32", dump_g},
+    { "coroutine", coro_f},
+    { "*", io_os_f},
+    { "io,os", io_os_f},
+    { "io+os", io_os_f},
+    { "io,os,base", io_os_f},
 }
 
 for _, t in ipairs( stdlib_naming_tests) do
-	local f= lanes_gen( t[1], {gc_cb = gc_cb}, t[2])     -- any delimiter will do
-	assert( f(t[1])[1] )
+    local f= lanes_gen( t[1], {gc_cb = gc_cb}, t[2])     -- any delimiter will do
+    assert( f(t[1])[1] )
 end
 
 collectgarbage()
@@ -344,7 +344,7 @@ PRINT( "\n\n", "---=== Comms criss cross ===---", "\n\n")
 --
 local tc= lanes_gen( "io", {gc_cb = gc_cb},
   function( linda, ch_in, ch_out )
-		set_debug_threadname( "criss cross " .. ch_in .. " -> " .. ch_out)
+        set_debug_threadname( "criss cross " .. ch_in .. " -> " .. ch_out)
     local function STAGE(str)
         io.stderr:write( ch_in..": "..str.."\n" )
         linda:send( nil, ch_out, str )
@@ -412,7 +412,7 @@ linda:send( "down", function(linda) linda:send( "up", "ready!" ) end,
 --
 local k,s= linda:receive( 1, "up" )
 if t2.status == "error" then
-	print( "t2 error: " , t2:join())
+    print( "t2 error: " , t2:join())
 end
 PRINT(s)
 assert( s=="ready!" )
@@ -440,13 +440,13 @@ PRINT( "\n\n", "---=== :join test ===---", "\n\n")
 
 local S= lanes_gen( "table", {gc_cb = gc_cb},
   function(arg)
-		set_debug_threadname "join test lane"
-		set_finalizer( function() end)
+        set_debug_threadname "join test lane"
+        set_finalizer( function() end)
     aux= {}
     for i, v in ipairs(arg) do
-	   table.insert (aux, 1, v)
+       table.insert (aux, 1, v)
     end
-		-- unpack was renamed table.unpack in Lua 5.2: cater for both!
+        -- unpack was renamed table.unpack in Lua 5.2: cater for both!
     return (unpack or table.unpack)(aux)
 end )
 
@@ -456,13 +456,13 @@ linda:receive(0.5, "gloupti")
 print( "joining with '" .. h:get_debug_threadname() .. "'")
 local a,b,c,d= h:join()
 if h.status == "error" then
-	print( h:get_debug_threadname(), "error: " , a, b, c, d)
+    print( h:get_debug_threadname(), "error: " , a, b, c, d)
 else
-	print( h:get_debug_threadname(), a,b,c,d)
-	assert(a==14)
-	assert(b==13)
-	assert(c==12)
-	assert(d==nil)
+    print( h:get_debug_threadname(), a,b,c,d)
+    assert(a==14)
+    assert(b==13)
+    assert(c==12)
+    assert(d==nil)
 end
 
 local nameof_type, nameof_name = lanes.nameof( print)

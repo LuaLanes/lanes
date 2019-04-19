@@ -245,7 +245,7 @@ LUAG_FUNC( linda_send)
 	{
 		case CANCEL_SOFT:
 		// if user wants to soft-cancel, the call returns lanes.cancel_error
-			push_unique_key( L, CANCEL_ERROR);
+		push_unique_key( L, CANCEL_ERROR);
 		return 1;
 
 		case CANCEL_HARD:
@@ -400,7 +400,7 @@ LUAG_FUNC( linda_receive)
 	{
 		case CANCEL_SOFT:
 		// if user wants to soft-cancel, the call returns CANCEL_ERROR
-			push_unique_key( L, CANCEL_ERROR);
+		push_unique_key( L, CANCEL_ERROR);
 		return 1;
 
 		case CANCEL_HARD:
