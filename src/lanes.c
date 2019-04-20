@@ -143,6 +143,7 @@ static inline enum e_cancel_request cancel_test( lua_State* L)
 static void cancel_hook( lua_State* L, lua_Debug* ar)
 {
 	(void)ar;
+	DEBUGSPEW_CODE( fprintf( stderr, "cancel_hook\n"));
 	if( cancel_test( L) != CANCEL_NONE)
 	{
 		cancel_error( L);

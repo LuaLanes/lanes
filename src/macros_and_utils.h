@@ -12,7 +12,7 @@
 #define inline __inline
 #endif
 
- #define USE_DEBUG_SPEW 0
+#define USE_DEBUG_SPEW 0
 #if USE_DEBUG_SPEW
 extern char const* debugspew_indent;
 #define INDENT_BEGIN "%.*s "
