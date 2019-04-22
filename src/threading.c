@@ -1,6 +1,6 @@
 /*
  * THREADING.C                        Copyright (c) 2007-08, Asko Kauppi
- *                                    Copyright (C) 2009-14, Benoit Germain
+ *                                    Copyright (C) 2009-19, Benoit Germain
  *
  * Lua Lanes OS threading specific code.
  *
@@ -35,12 +35,17 @@ THE SOFTWARE.
 ===============================================================================
 */
 #if defined(__linux__)
-# define _GNU_SOURCE /* must be defined before any include */
+
+# ifndef _GNU_SOURCE // definition by the makefile can cause a redefinition error
+# define _GNU_SOURCE // must be defined before any include
+# endif // _GNU_SOURCE
+
 # ifdef __ANDROID__
 #  include <android/log.h>
 #  define LOG_TAG "LuaLanes"
-# endif
-#endif
+# endif // __ANDROID__
+
+#endif // __linux__
 
 #include <stdio.h>
 #include <stdlib.h>
