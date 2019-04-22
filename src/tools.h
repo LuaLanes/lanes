@@ -13,8 +13,6 @@ typedef struct s_Universe Universe;
 
 // ################################################################################################
 
-#define LUAG_FUNC( func_name) int LG_##func_name( lua_State* L)
-
 #define luaG_optunsigned(L,i,d) ((uint_t) luaL_optinteger(L,i,d))
 #define luaG_tounsigned(L,i) ((uint_t) lua_tointeger(L,i))
 

@@ -2,16 +2,7 @@
 #define __lanes_private_h__ 1
 
 #include "uniquekey.h"
-
-/*
- * Lane cancellation request modes
- */
-enum e_cancel_request
-{
-	CANCEL_NONE, // no pending cancel request
-	CANCEL_SOFT, // user wants the lane to cancel itself manually on cancel_test()
-	CANCEL_HARD  // user wants the lane to be interrupted (meaning code won't return from those functions) from inside linda:send/receive calls
-};
+#include "cancel.h"
 
 // NOTE: values to be changed by either thread, during execution, without
 //       locking, are marked "volatile"
@@ -86,12 +77,6 @@ typedef struct s_Lane Lane;
 //
 #define lua_toLane( L, i) (*((Lane**) luaL_checkudata( L, i, "Lane")))
 
-// crc64/we of string "CANCEL_ERROR" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY(CANCEL_ERROR, 0xe97d41626cc97577); // 'cancel_error' sentinel
-
-// crc64/we of string "CANCEL_TEST_KEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY(CANCEL_TEST_KEY, 0xe66f5960c57d133a); // used as registry key
-
 static inline Lane* get_lane_from_registry( lua_State* L)
 {
 	Lane* s;
@@ -102,13 +87,6 @@ static inline Lane* get_lane_from_registry( lua_State* L)
 	lua_pop( L, 1);
 	STACK_END( L, 0);
 	return s;
-}
-
-static inline int cancel_error( lua_State* L)
-{
-	STACK_GROW( L, 1);
-	push_unique_key( L, CANCEL_ERROR); // special error value
-	return lua_error( L); // doesn't return
 }
 
 #endif // __lanes_private_h__

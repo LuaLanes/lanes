@@ -1736,7 +1736,7 @@ static void inter_copy_keyvaluepair( Universe* U, lua_State* L2, uint_t L2_cache
 	}
 }
 
-bool_t copyclone( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, LookupMode mode_, char const* upName_)
+static bool_t copyclone( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
 {
 	STACK_CHECK( L, 0);
 	STACK_CHECK( L2, 0);
@@ -1849,7 +1849,7 @@ static bool_t inter_copy_userdata( Universe* U, lua_State* L2, uint_t L2_cache_i
 	STACK_MID( L, 0);
 	STACK_MID( L2, 0);
 
-	if( copyclone( U, L2, L2_cache_i, L, i, vt, mode_, upName_))
+	if( copyclone( U, L2, L2_cache_i, L, i, mode_, upName_))
 	{
 		STACK_MID( L, 0);
 		STACK_MID( L2, 1);

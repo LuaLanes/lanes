@@ -97,4 +97,6 @@ extern char const* debugspew_indent;
 	lua_rawget( L, LUA_REGISTRYINDEX); \
 }
 
+#define LUAG_FUNC( func_name) int LG_##func_name( lua_State* L)
+
 #endif // MACROS_AND_UTILS_H
