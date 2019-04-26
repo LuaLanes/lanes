@@ -64,13 +64,13 @@
 		<font size="-1">
 			<p>
 				<br/>
-				<i>Copyright &copy; 2007-18 Asko Kauppi, Benoit Germain. All rights reserved.</i>
+				<i>Copyright &copy; 2007-19 Asko Kauppi, Benoit Germain. All rights reserved.</i>
 				<br/>
-				Lua Lanes is published under the same <a href="http://en.wikipedia.org/wiki/MIT_License">MIT license</a> as Lua 5.1, 5.2, and 5.3.
+				Lua Lanes is published under the same <a href="http://en.wikipedia.org/wiki/MIT_License">MIT license</a> as Lua 5.1, 5.2, 5.3 and 5.4.
 			</p>
 
 			<p>
-				This document was revised on 15-Nov-18, and applies to version <tt>3.13.0</tt>.
+				This document was revised on 26-Apr-19, and applies to version <tt>3.14.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -605,16 +605,6 @@
 		</tr>
 		<tr valign=top>
 			<td>
-				<code>.cancelstep</code>
-			</td>
-			<td>integer >= 1/<tt>true</tt></td>
-			<td>
-				By default, lanes are only cancellable when they <u>enter</u> a pending <tt>:receive()</tt> or <tt>:send()</tt> call. With this option, one can set <a href="#cancelling">cancellation</a> check to occur every <tt>N</tt> Lua statements through the line hook facility. The value <tt>true</tt> uses a default value (100).
-				It is also possible to manually test for cancel requests with <tt>cancel_test()</tt>.
-			</td>
-		</tr>
-		<tr valign=top>
-			<td>
 				<code>.globals</code>
 			</td>
 			<td>table</td>
@@ -949,32 +939,37 @@
 <h2 id="cancelling">Cancelling</h2>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	bool[,reason] = lane_h:cancel( [positive_timeout_secs=0.0] [, force_kill_bool = false] [, forcekill_timeout=0.0])
-	bool[,reason] = lane_h:cancel( negative_timeout_secs [, wake_bool = false])
+	bool[,reason] = lane_h:cancel( "soft" [, timeout] [, wake_bool])
+	bool[,reason] = lane_h:cancel( "hard" [, timeout] [, force [, forcekill_timeout]])
+	bool[,reason] = lane_h:cancel( [mode, hookcount] [, timeout] [, force [, forcekill_timeout]])
 </pre></td></tr></table>
 
 <p>
 	<tt>cancel()</tt> sends a cancellation request to the lane.<br/>
-	First argument is a timeout, that defaults to 0 if not specified. (Starting with version 3.6.3) signification of the following arguments differ depending on whether the timeout is negative or not.
+	First argument is a <tt>mode</tt> can be one of <tt>"hard"</tt>, <tt>"soft"</tt>, <tt>"count"</tt>, <tt>"line"</tt>, <tt>"call"</tt>, <tt>"ret"</tt>.
+	If <tt>mode</tt> is not specified, it defaults to <tt>"hard"</tt>.
 </p>
 <p>
-	If <tt>timeout_secs</tt> is negative (aka "soft cancel"), cancellation will only cause <tt>cancel_test()</tt> to return <tt>true</tt>, so that the lane can cleanup manually (the actual value is irrelevant).
+	If <tt>mode</tt> is <tt>"soft"</tt>, cancellation will only cause <tt>cancel_test()</tt> to return <tt>true</tt>, so that the lane can cleanup manually.<br/>
 	If <tt>wake_bool</tt> is <tt>true</tt>, the lane is also signalled so that execution returns from any pending linda operation. Linda operations detecting the cancellation request return <tt>lanes.cancel_error</tt>.
 </p>
 <p>
-	If <tt>timeout_secs</tt> is positive (aka "hard cancel"), waits for the request to be processed, or a timeout to occur. Linda operations detecting the cancellation request will raise a special cancellation error (meaning they won't return in that case).
-	If <tt>force_kill_bool</tt> is <tt>true</tt>, <tt>forcekill_timeout</tt> can be set to tell how long lanes will wait for the OS thread to terminate before raising an error. Windows threads always terminate immediately, but it might not always be the case with some pthread implementations.
-	Returns <tt>true</tt> if soft cancelling, or the lane was already done (in <tt>"done"</tt>, <tt>"error"</tt> or <tt>"cancelled"</tt> status), or the cancellation was fruitful within <tt>timeout_secs</tt> timeout period.
+	If <tt>mode</tt> is <tt>"hard"</tt>, waits for the request to be processed, or a timeout to occur. Linda operations detecting the cancellation request will raise a special cancellation error (meaning they won't return in that case).<br/>
+	<tt>timeout</tt> defaults to 0 if not specified.
 </p>
-
+<p>
+	Other values of <tt>mode</tt> will asynchronously install the corresponding hook, then behave as <tt>"hard"</tt>.
+</p>
+<p>
+	If <tt>force_kill_bool</tt> is <tt>true</tt>, <tt>forcekill_timeout</tt> can be set to tell how long lanes will wait for the OS thread to terminate before raising an error. Windows threads always terminate immediately, but it might not always be the case with some pthread implementations.
+</p>
+<p>
+	Returns <tt>true, lane_h.status</tt> if lane was already done (in <tt>"done"</tt>, <tt>"error"</tt> or <tt>"cancelled"</tt> status), or the cancellation was fruitful within <tt>timeout_secs</tt> timeout period.<br/>
+	Returns <tt>false, "timeout"</tt> otherwise.
+</p>
 <p>
 	If the lane is still running after the timeout expired and <tt>force_kill</tt> is <tt>true</tt>, the OS thread running the lane is forcefully killed. This means no GC, probable OS resource leaks (thread stack, locks, DLL notifications), and should generally be the last resort.
 </p>
-
-<p>
-	Starting with v3.3.0, if <tt>cancel()</tt> returns false, it also returns either <tt>"timeout"</tt> or <tt>"killed"</tt> as second return value.
-</p>
-
 <p>
 	Cancellation is tested <u>before</u> going to sleep in <tt>receive()</tt> or <tt>send()</tt> calls and after executing <tt>cancelstep</tt> Lua statements. Starting with version 3.0-beta, a pending <tt>receive()</tt>or <tt>send()</tt> call is awakened.
 	<br/>
@@ -1732,7 +1727,9 @@ int luaD_new_clonable( lua_State* L)
 <h2 id="changes">Change log</h2>
 
 <p>
-	See CHANGES.
+	v3.14.0: lane:cancel() rework: opt.cancelstep is gone, hook is installed by lane:cancel() if requested.
+
+	For older stuff see CHANGES.
 </p>
 
 <!-- footnotes +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
