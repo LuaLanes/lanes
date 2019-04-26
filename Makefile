@@ -76,6 +76,7 @@ test:
 	$(MAKE) irayo_recursive
 	$(MAKE) irayo_closure
 	$(MAKE) basic
+	$(MAKE) cancel
 	$(MAKE) fifo
 	$(MAKE) keeper
 	$(MAKE) timer
@@ -92,6 +93,9 @@ test:
 	$(MAKE) pingpong
 
 basic: tests/basic.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+cancel: tests/cancel.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 #

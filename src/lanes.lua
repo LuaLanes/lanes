@@ -146,7 +146,7 @@ lanes.configure = function( settings_)
 		author= "Asko Kauppi <akauppi@gmail.com>, Benoit Germain <bnt.germain@gmail.com>",
 		description= "Running multiple Lua states in parallel",
 		license= "MIT/X11",
-		copyright= "Copyright (c) 2007-10, Asko Kauppi; (c) 2011-18, Benoit Germain",
+		copyright= "Copyright (c) 2007-10, Asko Kauppi; (c) 2011-19, Benoit Germain",
 		version = assert( core.version)
 	}
 
@@ -198,13 +198,6 @@ lanes.configure = function( settings_)
 	--
 	-- 'opt': .priority:  int (-3..+3) smaller is lower priority (0 = default)
 	--
-	--        .cancelstep: bool | uint
-	--            false: cancellation check only at pending Linda operations
-	--                   (send/receive) so no runtime performance penalty (default)
-	--            true:  adequate cancellation check (same as 100)
-	--            >0:    cancellation check every x Lua lines (small number= faster
-	--                   reaction but more performance overhead)
-	--
 	--        .globals:  table of globals to set for a new thread (passed by value)
 	--
 	--        .required: table of packages to require
@@ -245,10 +238,6 @@ lanes.configure = function( settings_)
 		priority = function( v_)
 			local tv = type( v_)
 			return (tv == "number") and v_ or raise_option_error( "priority", tv, v_)
-		end,
-		cancelstep = function( v_)
-			local tv = type( v_)
-			return (tv == "number") and v_ or (v_ == true) and 100 or (v_ == false) and 0 or raise_option_error( "cancelstep", tv, v_)
 		end,
 		globals = function( v_)
 			local tv = type( v_)
@@ -334,10 +323,10 @@ lanes.configure = function( settings_)
 			end
 		end
 
-		local cancelstep, priority, globals, package, required, gc_cb = opt.cancelstep, opt.priority, opt.globals, opt.package or package, opt.required, opt.gc_cb
+		local priority, globals, package, required, gc_cb = opt.priority, opt.globals, opt.package or package, opt.required, opt.gc_cb
 		return function( ...)
 			-- must pass functions args last else they will be truncated to the first one
-			return core_lane_new( func, libs, cancelstep, priority, globals, package, required, gc_cb, ...)
+			return core_lane_new( func, libs, priority, globals, package, required, gc_cb, ...)
 		end
 	end -- gen()
 

@@ -29,15 +29,24 @@ typedef enum
 	CR_Killed
 } cancel_result;
 
+typedef enum
+{
+	CO_Invalid = -2,
+	CO_Hard = -1,
+	CO_Soft = 0,
+	CO_Count = LUA_MASKCOUNT,
+	CO_Line = LUA_MASKLINE,
+	CO_Call = LUA_MASKCALL,
+	CO_Ret = LUA_MASKRET,
+} CancelOp;
+
 // crc64/we of string "CANCEL_ERROR" generated at http://www.nitrxgen.net/hashgen/
 static DECLARE_CONST_UNIQUE_KEY(CANCEL_ERROR, 0xe97d41626cc97577); // 'cancel_error' sentinel
 
 // crc64/we of string "CANCEL_TEST_KEY" generated at http://www.nitrxgen.net/hashgen/
 static DECLARE_CONST_UNIQUE_KEY(CANCEL_TEST_KEY, 0xe66f5960c57d133a); // used as registry key
 
-void cancel_hook( lua_State* L, lua_Debug* ar);
-
-cancel_result thread_cancel( lua_State* L, Lane* s, double secs_, bool_t force_, double waitkill_timeout_);
+cancel_result thread_cancel( lua_State* L, Lane* s, CancelOp op_, double secs_, bool_t force_, double waitkill_timeout_);
 
 static inline int cancel_error( lua_State* L)
 {

@@ -77,12 +77,13 @@ LUAG_FUNC( cancel_test)
 // ################################################################################################
 // ################################################################################################
 
-void cancel_hook( lua_State* L, lua_Debug* ar)
+static void cancel_hook( lua_State* L, lua_Debug* ar)
 {
 	(void)ar;
 	DEBUGSPEW_CODE( fprintf( stderr, "cancel_hook\n"));
 	if( cancel_test( L) != CANCEL_NONE)
 	{
+		lua_sethook( L, NULL, 0, 0);
 		cancel_error( L);
 	}
 }
@@ -110,10 +111,10 @@ void cancel_hook( lua_State* L, lua_Debug* ar)
 
 // ################################################################################################
 
-static cancel_result thread_cancel_soft( Lane* s, bool_t wake_lindas_)
+static cancel_result thread_cancel_soft( Lane* s, double secs_, bool_t wake_lindas_)
 {
-	s->cancel_request = CANCEL_SOFT;    // it's now signaled to stop
-																			// negative timeout: we don't want to truly abort the lane, we just want it to react to cancel_test() on its own
+	s->cancel_request = CANCEL_SOFT; // it's now signaled to stop
+	// negative timeout: we don't want to truly abort the lane, we just want it to react to cancel_test() on its own
 	if( wake_lindas_) // wake the thread so that execution returns from any pending linda operation if desired
 	{
 		SIGNAL_T *waiting_on = s->waiting_on;
@@ -122,8 +123,8 @@ static cancel_result thread_cancel_soft( Lane* s, bool_t wake_lindas_)
 			SIGNAL_ALL( waiting_on);
 		}
 	}
-	// say we succeeded though
-	return CR_Cancelled;
+
+	return THREAD_WAIT( &s->thread, secs_, &s->done_signal, &s->done_lock, &s->status) ? CR_Cancelled : CR_Timeout;
 }
 
 // ################################################################################################
@@ -163,9 +164,9 @@ static cancel_result thread_cancel_hard( lua_State* L, Lane* s, double secs_, bo
 		(void) waitkill_timeout_; // unused
 		(void) L; // unused
 #endif // THREADAPI == THREADAPI_PTHREAD
-		s->mstatus = KILLED;     // mark 'gc' to wait for it
-														 // note that s->status value must remain to whatever it was at the time of the kill
-														 // because we need to know if we can lua_close() the Lua State or not.
+		s->mstatus = KILLED; // mark 'gc' to wait for it
+		// note that s->status value must remain to whatever it was at the time of the kill
+		// because we need to know if we can lua_close() the Lua State or not.
 		result = CR_Killed;
 	}
 	return result;
@@ -173,7 +174,7 @@ static cancel_result thread_cancel_hard( lua_State* L, Lane* s, double secs_, bo
 
 // ################################################################################################
 
-cancel_result thread_cancel( lua_State* L, Lane* s, double secs_, bool_t force_, double waitkill_timeout_)
+cancel_result thread_cancel( lua_State* L, Lane* s, CancelOp op_, double secs_, bool_t force_, double waitkill_timeout_)
 {
 	// remember that lanes are not transferable: only one thread can cancel a lane, so no multithreading issue here
 	// We can read 's->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
@@ -190,9 +191,9 @@ cancel_result thread_cancel( lua_State* L, Lane* s, double secs_, bool_t force_,
 
 	// signal the linda the wake up the thread so that it can react to the cancel query
 	// let us hope we never land here with a pointer on a linda that has been destroyed...
-	if( secs_ < 0.0)
+	if( op_ == CO_Soft)
 	{
-		return thread_cancel_soft( s, force_);
+		return thread_cancel_soft( s, secs_, force_);
 	}
 
 	return thread_cancel_hard( L, s, secs_, force_, waitkill_timeout_);
@@ -201,49 +202,97 @@ cancel_result thread_cancel( lua_State* L, Lane* s, double secs_, bool_t force_,
 // ################################################################################################
 // ################################################################################################
 
-// lane_h:cancel( [timeout] [, force [, forcekill_timeout]])
+// > 0: the mask
+// = 0: soft
+// < 0: hard
+static CancelOp which_op( lua_State* L, int idx_)
+{
+	if( lua_type( L, idx_) == LUA_TSTRING)
+	{
+		CancelOp op = CO_Invalid;
+		char const* str = lua_tostring( L, idx_);
+		if( strcmp( str, "soft") == 0)
+		{
+			op = CO_Soft;
+		}
+		else if( strcmp( str, "count") == 0)
+		{
+			op = CO_Count;
+		}
+		else if( strcmp( str, "line") == 0)
+		{
+			op = CO_Line;
+		}
+		else if( strcmp( str, "call") == 0)
+		{
+			op = CO_Call;
+		}
+		else if( strcmp( str, "ret") == 0)
+		{
+			op = CO_Ret;
+		}
+		else if( strcmp( str, "hard") == 0)
+		{
+			op = CO_Hard;
+		}
+		lua_remove( L, idx_); // argument is processed, remove it
+		if( op == CO_Invalid)
+		{
+			luaL_error( L, "invalid hook option %s", str);
+		}
+		return op;
+	}
+	return CO_Hard;
+}
+// ################################################################################################
+
+// bool[,reason] = lane_h:cancel( [mode, hookcount] [, timeout] [, force [, forcekill_timeout]])
 LUAG_FUNC( thread_cancel)
 {
 	Lane* s = lua_toLane( L, 1);
 	double secs = 0.0;
-	int force_i = 2;
-	int forcekill_timeout_i = 3;
+	CancelOp op = which_op( L, 2); // this removes the op string from the stack
 
-	if( lua_isnumber( L, 2))
+	if( op > 0) // hook is requested
+	{
+		int hook_count = (int) lua_tointeger( L, 2);
+		lua_remove( L, 2); // argument is processed, remove it
+		if( hook_count < 1)
+		{
+			return luaL_error( L, "hook count cannot be < 1");
+		}
+		lua_sethook( s->L, cancel_hook, op, hook_count);
+	}
+
+	if( lua_type( L, 2) == LUA_TNUMBER)
 	{
 		secs = lua_tonumber( L, 2);
-		if( secs < 0.0 && lua_gettop( L) > 3)
+		lua_remove( L, 2); // argument is processed, remove it
+		if( secs < 0.0)
 		{
-			return luaL_error( L, "can't force_kill a soft cancel");
+			return luaL_error( L, "cancel timeout cannot be < 0");
 		}
-		// negative timeout and force flag means we want to wake linda-waiting threads
-		++ force_i;
-		++ forcekill_timeout_i;
-	}
-	else if( lua_isnil( L, 2))
-	{
-		++ force_i;
-		++ forcekill_timeout_i;
 	}
 
 	{
-		bool_t force = lua_toboolean( L, force_i);     // FALSE if nothing there
-		double forcekill_timeout = luaL_optnumber( L, forcekill_timeout_i, 0.0);
+		bool_t force = lua_toboolean( L, 2);     // FALSE if nothing there
+		double forcekill_timeout = luaL_optnumber( L, 3, 0.0);
 
-		switch( thread_cancel( L, s, secs, force, forcekill_timeout))
+		switch( thread_cancel( L, s, op, secs, force, forcekill_timeout))
 		{
-		case CR_Timeout:
+			case CR_Timeout:
 			lua_pushboolean( L, 0);
 			lua_pushstring( L, "timeout");
 			return 2;
 
-		case CR_Cancelled:
+			case CR_Cancelled:
 			lua_pushboolean( L, 1);
-			return 1;
+			push_thread_status( L, s);
+			return 2;
 
-		case CR_Killed:
-			lua_pushboolean( L, 0);
-			lua_pushstring( L, "killed");
+			case CR_Killed:
+			lua_pushboolean( L, 1);
+			push_thread_status( L, s);
 			return 2;
 		}
 	}

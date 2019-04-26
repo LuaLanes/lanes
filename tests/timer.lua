@@ -100,5 +100,5 @@ PRINT "...making sure no ticks are coming..."
 local k,v= linda:receive( 10, T1,T2 )    -- should not get any
 assert(v==nil)
 
-lanes.timer_lane:cancel()
+lanes.timer_lane:cancel() -- hard cancel, 0 timeout
 print (lanes.timer_lane[1], lanes.timer_lane[2])

@@ -89,4 +89,7 @@ static inline Lane* get_lane_from_registry( lua_State* L)
 	return s;
 }
 
+int push_thread_status( lua_State* L, Lane* s);
+
+
 #endif // __lanes_private_h__
