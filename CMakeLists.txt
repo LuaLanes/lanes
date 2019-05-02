@@ -6,11 +6,9 @@
 
 PROJECT(lanes C)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
-INCLUDE(dist.cmake)
+
 
 FIND_PACKAGE(Lua51 REQUIRED)
-FIND_PROGRAM(LUA NAMES lua5.1 lua51 lua)
-FIND_PROGRAM(LUAC NAMES luac5.1 luac51 luac)
 INCLUDE_DIRECTORIES(${LUA_INCLUDE_DIR})
 
 if(USE_PTHREAD)
@@ -27,17 +25,6 @@ IF(CYGWIN)
   ADD_DEFINITIONS(-Dpthread_yield=sched_yield)
 ENDIF(CYGWIN)
 
-#2DO - use provided bin2c
-# Embed keeper.lua in text form in C (embedding bytecode is not LuaJIT2-compatible)
-#ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/keeper.lch
-#  DEPENDS src/keeper.lua
-#    COMMAND "${LUA}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/bin2c.lua"
-#            "${CMAKE_CURRENT_SOURCE_DIR}/src/keeper.lua"
-#            "-o" "${CMAKE_CURRENT_BINARY_DIR}/keeper.lch")
-#SET_SOURCE_FILES_PROPERTIES(src/lanes.c PROPERTIES OBJECT_DEPENDS
-#  ${CMAKE_CURRENT_BINARY_DIR}/keeper.lch)
-#INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
-
 
 # Build
 INCLUDE_DIRECTORIES(src)
@@ -49,8 +36,12 @@ IF(UNIX AND NOT CYGWIN)
 ENDIF(UNIX AND NOT CYGWIN)
 
 
-
+if(WIN32)
 TARGET_LINK_LIBRARIES(core ${LUA_LIBRARY} ${LIBS})
+else(WIN32)
+TARGET_LINK_LIBRARIES(core ${LIBS})
+endif(WIN32)
+
 SET_TARGET_PROPERTIES(core PROPERTIES PREFIX "")
 
 # Install all files and documentation
