@@ -45,6 +45,12 @@ endif(WIN32)
 SET_TARGET_PROPERTIES(core PROPERTIES PREFIX "")
 
 # Install all files and documentation
+set(INSTALL_LMOD share/lua/lmod CACHE PATH "Directory to install Lua modules.")
+set(INSTALL_CMOD share/lua/cmod CACHE PATH "Directory to install Lua binary modules.")
+set(INSTALL_DATA share/${PROJECT_NAME} CACHE PATH "Directory the package can store documentation, tests or other data in.")
+set(INSTALL_DOC ${INSTALL_DATA}/doc CACHE PATH "Recommended directory to install documentation into.")
+set(INSTALL_TEST ${INSTALL_DATA}/test CACHE PATH "Recommended directory to install tests into.")
+
 INSTALL (TARGETS core DESTINATION ${INSTALL_CMOD})
 INSTALL (FILES src/lanes.lua DESTINATION ${INSTALL_LMOD})
 
