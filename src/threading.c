@@ -343,7 +343,7 @@ void THREAD_SET_PRIORITY( int prio)
 
 void THREAD_SET_AFFINITY( unsigned int aff)
 {
-	if( !SetThreadAffinityMask( GetCurrentThread(), aff));
+	if( !SetThreadAffinityMask( GetCurrentThread(), aff))
 	{
 		FAIL( "THREAD_SET_AFFINITY", GetLastError());
 	}
@@ -515,7 +515,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 	void SIGNAL_FREE( SIGNAL_T *ref )
 	{
 		// nothing to do
-		ref;
+		(void)ref;
 	}
 
 	bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu_ref, time_d abs_secs)
