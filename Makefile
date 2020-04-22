@@ -20,8 +20,8 @@ N=1000
 _TARGET_DIR=src/lanes
 TIME=time
 
-ifeq "$(findstring MINGW32,$(shell uname -s))" "MINGW32"
-  # MinGW MSYS on XP
+ifeq "$(findstring MINGW,$(shell uname -s))" "MINGW"
+  # MinGW MSYS on Windows
   #
   _SO=dll
   _LUAEXT=.exe
