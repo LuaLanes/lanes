@@ -59,6 +59,20 @@ int lua_getiuservalue( lua_State* L, int idx, int n)
 		return LUA_TNONE;
 	}
 	lua_getuservalue( L, idx);
+
+#if LUA_VERSION_NUM == 501
+	/* default environment is not a nil (see lua_getfenv) */
+	lua_getglobal(L, "package");
+	if (lua_rawequal(L, -2, -1) || lua_rawequal(L, -2, LUA_GLOBALSINDEX))
+	{
+		lua_pop(L, 2);
+		lua_pushnil( L);
+
+		return LUA_TNONE;
+	}
+	lua_pop(L, 1);	/* remove package */
+#endif
+
 	return lua_type( L, -1);
 }
 
