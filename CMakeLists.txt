@@ -11,9 +11,16 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 FIND_PACKAGE(Lua51 REQUIRED)
 INCLUDE_DIRECTORIES(${LUA_INCLUDE_DIR})
 
+# Options
+OPTION (LANES_COPYCLONE_VARIABLE_SIZE "Set to ON to use 1 + 2 args scheme in lanesclone mechanism against 0 + 2" OFF)
+IF (LANES_COPYCLONE_VARIABLE_SIZE)
+  ADD_DEFINITIONS(-DLANES_COPYCLONE_VARIABLE_SIZE)
+ENDIF ()
+
 if(USE_PTHREAD)
-ADD_DEFINITIONS(-DHAVE_WIN32_PTHREAD)
+  ADD_DEFINITIONS(-DHAVE_WIN32_PTHREAD)
 endif(USE_PTHREAD)
+
 #2DO - patch threading.c to suppot cygwin.
 # The following values are just a guess.
 # WARNING: test segfault under Cygwin
