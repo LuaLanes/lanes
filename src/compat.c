@@ -78,11 +78,16 @@ int lua_getiuservalue( lua_State* L, int idx, int n)
 
 int lua_setiuservalue( lua_State* L, int idx, int n)
 {
-	if( n > 1)
+	if( n > 1
+#if LUA_VERSION_NUM == 501
+		|| lua_type( L, -1) != LUA_TTABLE
+#endif
+		)
 	{
 		lua_pop( L, 1);
 		return 0;
 	}
+
 	(void) lua_setuservalue( L, idx);
 	return 1; // I guess anything non-0 is ok
 }
