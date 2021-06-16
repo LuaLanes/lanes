@@ -1,6 +1,6 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <!--
-    Documentation for Lua Lanes
+	Documentation for Lua Lanes
 -->
 
 <html>
@@ -85,13 +85,13 @@
 	Lua Lanes is a Lua extension library providing the possibility to run multiple Lua states in parallel. It is intended to be used for optimizing performance on multicore CPU's and to study ways to make Lua programs naturally parallel to begin with.
 </p>
 <p>
-    Lanes is included into your software by the regular <tt>require "lanes"</tt> method. No C side programming is needed; all APIs are Lua side, and most existing extension modules should work seamlessly together with the multiple lanes.
+	Lanes is included into your software by the regular <tt>require "lanes"</tt> method. No C side programming is needed; all APIs are Lua side, and most existing extension modules should work seamlessly together with the multiple lanes.
 </p>
 <p>
-  Starting with version 3.1.6, Lanes should build and run identically with either Lua 5.1 or Lua 5.2. Version 3.10.0 supports Lua 5.3.
+	Starting with version 3.1.6, Lanes should build and run identically with either Lua 5.1 or Lua 5.2. Version 3.10.0 supports Lua 5.3.
 </p>
 <p>
-    See <A HREF="comparison.html">comparison</A> of Lua Lanes with other Lua multithreading solutions.
+	See <A HREF="comparison.html">comparison</A> of Lua Lanes with other Lua multithreading solutions.
 </p>
 <p>
 	<h3>Features:</h3>
@@ -134,11 +134,11 @@
 		<li>Openwrt (15.05 and later)</li>
 		<li>Windows 2000/XP and later <font size="-1">(MinGW or Visual C++ 2005/2008)</font></li>
 <!--
-    Other OS'es here once people help test them. (and the tester's name)
+	Other OS'es here once people help test them. (and the tester's name)
 
-    Win64, BSD, Linux x64, Linux embedded, QNX, Solaris, ...
+	Win64, BSD, Linux x64, Linux embedded, QNX, Solaris, ...
 -->
-		</ul>
+	</ul>
 
 </p>
 <p>
@@ -843,7 +843,7 @@
 	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 		<tr>
 			<td>
-				<pre>	{}|nil = lanes.threads()</pre>
+				<pre>	{{name = "name", status = "status", ...}|nil = lanes.threads()</pre>
 			</td>
 		</tr>
 	</table>
@@ -851,7 +851,7 @@
 <p>
 	Only available if lane tracking feature is compiled (see <tt>HAVE_LANE_TRACKING</tt> in <tt>lanes.c</tt>) and <a href="#track_lanes"><tt>track_lanes</tt></a> is set.
 	<br/>
-	Returns a table where keys are a lane's name and values are the lane's status. Returns <tt>nil</tt> if no lane is running.
+	Returns an array table where each entry is a table containing a lane's name and status. Returns <tt>nil</tt> if no lane is running.
 </p>
 
 
@@ -891,7 +891,7 @@
 </p>
 
 <p>
-  <tt>stack_tbl</tt> is a table describing where the error was thrown.
+<tt>stack_tbl</tt> is a table describing where the error was thrown.
 	<br/>
   In <tt>"extended"</tt> mode, <tt>stack_tbl</tt> is an array of tables containing info gathered with <tt>lua_getinfo()</tt> (<tt>"source"</tt>,<tt>"currentline"</tt>,<tt>"name"</tt>,<tt>"namewhat"</tt>,<tt>"what"</tt>).
 	<br/>
@@ -1434,7 +1434,7 @@ events to a common Linda, but... :).</font>
 			</ul>
 		</li>
 		<li>Coroutines cannot be passed. A coroutine's Lua state is tied to the Lua state that created it, and there is no way the mixed C/Lua stack of a coroutine can be transfered from one Lua state to another.</li>
-        <li>Starting with version 3.10.1, if the metatable contains <tt>__lanesignore</tt>, the object is skipped and <tt>nil</tt> is transfered instead.</li>
+		<li>Starting with version 3.10.1, if the metatable contains <tt>__lanesignore</tt>, the object is skipped and <tt>nil</tt> is transfered instead.</li>
 	</ul>
 </p>
 
@@ -1575,7 +1575,7 @@ static int clonable_lanesclone( lua_State* L)
 </p>
 
 <p>
-    <b>NOTE</b>: In the event the source userdata has uservalues, it is not necessary to create them for the clone, Lanes will handle their cloning.<br/>
+	<b>NOTE</b>: In the event the source userdata has uservalues, it is not necessary to create them for the clone, Lanes will handle their cloning.<br/>
 	Of course, more complex objects may require smarter cloning behavior than a simple <tt>memcpy</tt>. Also, the module initialisation code should make each metatable accessible from the module table itself as in:
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 int luaopen_deep_test(lua_State* L)
@@ -1645,13 +1645,13 @@ int luaD_new_clonable( lua_State* L)
 </p>
 
 <p>
-    Deep userdata in transit inside keeper states (sent in a linda but not yet consumed) don't call <tt>idfunc(eDO_delete)</tt> and aren't considered by reference counting. The rationale is the following:
-    <br />
-    If some non-keeper state holds a deep userdata for some deep object, then even if the keeper collects its own deep userdata, it shouldn't be cleaned up since the refcount is not 0.
-    <br />
-    OTOH, if a keeper state holds the last deep userdata for some deep object, then no lane can do actual work with it. Deep userdata's <tt>idfunc()</tt> is never called from a keeper state.
-    <br />
-    Therefore, Lanes can just call <tt>idfunc(eDO_delete)</tt> when the last non-keeper-held deep userdata is collected, as long as it doesn't do the same in a keeper state after that, since any remaining deep userdata in keeper states now hold stale pointers.
+	Deep userdata in transit inside keeper states (sent in a linda but not yet consumed) don't call <tt>idfunc(eDO_delete)</tt> and aren't considered by reference counting. The rationale is the following:
+	<br />
+	If some non-keeper state holds a deep userdata for some deep object, then even if the keeper collects its own deep userdata, it shouldn't be cleaned up since the refcount is not 0.
+	<br />
+	OTOH, if a keeper state holds the last deep userdata for some deep object, then no lane can do actual work with it. Deep userdata's <tt>idfunc()</tt> is never called from a keeper state.
+	<br />
+	Therefore, Lanes can just call <tt>idfunc(eDO_delete)</tt> when the last non-keeper-held deep userdata is collected, as long as it doesn't do the same in a keeper state after that, since any remaining deep userdata in keeper states now hold stale pointers.
 </p>
 
 <p>

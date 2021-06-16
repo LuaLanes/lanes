@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 147: BGe 16-Jun-21
+   * changed lanes.threads() output so that several lanes with the same name don't clobber each other in the result table
+   * bumped version to 3.15 because of the API change
+
 CHANGE 146: BGe 26-Apr-19
    * lane:cancel() rework (see doc).
    * opt.cancelstep is gone, hook is installed by lane:cancel() if requested
@@ -662,15 +666,15 @@ CHANGE 6 (bug fix) AKa 15-Oct-2008:
     Added local caches of the following to src/lanes.lua (was otherwise getting
     errors at least in 'tests/irayo_recursive.lua').
 
-		local assert= assert
-		local string_gmatch= assert( string.gmatch )
-		local select= assert( select )
-		local type= assert( type )
-		local pairs= assert( pairs )
-		local tostring= assert( tostring )
-		local error= assert( error )
-		local setmetatable= assert( setmetatable )
-		local rawget= assert( rawget )
+        local assert= assert
+        local string_gmatch= assert( string.gmatch )
+        local select= assert( select )
+        local type= assert( type )
+        local pairs= assert( pairs )
+        local tostring= assert( tostring )
+        local error= assert( error )
+        local setmetatable= assert( setmetatable )
+        local rawget= assert( rawget )
 
     Thanks to Irayo for detecting and reporting this.
 
