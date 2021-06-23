@@ -35,6 +35,29 @@ static int deep_set( lua_State* L)
 
 // ################################################################################################
 
+// won't actually do anything as deep userdata don't have uservalue slots
+static int deep_setuv( lua_State* L)
+{
+	struct s_MyDeepUserdata* self = luaG_todeep( L, deep_test_id, 1);
+	int uv = (int) luaL_optinteger( L, 2, 1);
+	lua_settop( L, 3);
+	lua_pushboolean( L, lua_setiuservalue( L, 1, uv) != 0);
+	return 1;
+}
+
+// ################################################################################################
+
+// won't actually do anything as deep userdata don't have uservalue slots
+static int deep_getuv( lua_State* L)
+{
+	struct s_MyDeepUserdata* self = luaG_todeep( L, deep_test_id, 1);
+	int uv = (int) luaL_optinteger( L, 2, 1);
+	lua_getiuservalue( L, 1, uv);
+	return 1;
+}
+
+// ################################################################################################
+
 static int deep_tostring( lua_State* L)
 {
 	struct s_MyDeepUserdata* self = luaG_todeep( L, deep_test_id, 1);
@@ -57,6 +80,8 @@ static luaL_Reg const deep_mt[] =
 	{ "__tostring", deep_tostring},
 	{ "__gc", deep_gc},
 	{ "set", deep_set},
+	{ "setuv", deep_setuv},
+	{ "getuv", deep_getuv},
 	{ NULL, NULL }
 };
 
