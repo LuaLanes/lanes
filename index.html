@@ -64,13 +64,13 @@
 		<font size="-1">
 			<p>
 				<br/>
-				<i>Copyright &copy; 2007-19 Asko Kauppi, Benoit Germain. All rights reserved.</i>
+				<i>Copyright &copy; 2007-21 Asko Kauppi, Benoit Germain. All rights reserved.</i>
 				<br/>
 				Lua Lanes is published under the same <a href="http://en.wikipedia.org/wiki/MIT_License">MIT license</a> as Lua 5.1, 5.2, 5.3 and 5.4.
 			</p>
 
 			<p>
-				This document was revised on 26-Apr-19, and applies to version <tt>3.14.0</tt>.
+				This document was revised on 23-Jun-21, and applies to version <tt>3.15.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -1548,23 +1548,31 @@ events to a common Linda, but... :).</font>
 
 <h3 id="clonable_userdata">Clonable full userdata in your own apps</h3>
 <p>
-	Starting with version 3.13.0, a new way of passing full userdata across lanes uses a new <tt>__lanesclone</tt> metamethod. A typical implementation would look like:
+	Starting with version 3.13.0, a new way of passing full userdata across lanes uses a new <tt>__lanesclone</tt> metamethod.
+	When a deep userdata is cloned, Lanes calls <tt>__lanesclone</tt> twice, in the context of the source lane.</br>
+	The first call receives the original as light userdata, as in <tt>ud:__lanesclone()</tt>, and should return the amount of memory used to create the cloned full userdata.</br>
+	The second call receives the clone and original as light userdata, as in <tt>clone:__lanesclone(original)</tt>, and should perform the actual cloning.</br>
+	A typical implementation would look like:
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 static int clonable_lanesclone( lua_State* L)
 {
 	switch( lua_gettop( L))
 	{
-		case 0:
-		lua_pushinteger( L, sizeof( struct s_MyClonableUserdata));
+		case 1: // original:__lanesclone()
+		{
+			// the original (as light userdata), in case you need it to compute the size of the clone
+			struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
+			lua_pushinteger( L, sizeof( struct s_MyClonableUserdata));
+		}
 		return 1;
 
-		case 2:
+		case 2: // clone:__lanesclone(original)
 		{
 			struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
 			struct s_MyClonableUserdata* from = lua_touserdata( L, 2);
 			*self = *from;
-			return 0;
 		}
+		return 0;
 
 		default:
 		(void) luaL_error( L, "Lanes called clonable_lanesclone with unexpected parameters");
@@ -1605,7 +1613,7 @@ int luaopen_deep_test(lua_State* L)
 </p>
 
 <p>
-	Then a new clonable userdata instance can just do like any non-Lanes aware userdata, as long as its metatable contains the aforementionned <tt>__lanesclone</tt> method. Note that the current implementation doesn't support uservalues on such userdata.
+	Then a new clonable userdata instance can just do like any non-Lanes aware userdata, as long as its metatable contains the aforementionned <tt>__lanesclone</tt> method.
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 int luaD_new_clonable( lua_State* L)
 {
@@ -1746,3 +1754,4 @@ int luaD_new_clonable( lua_State* L)
 
 </body>
 </html>
+</pre></pre></pre></pre></pre></pre></pre>
