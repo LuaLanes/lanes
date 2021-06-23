@@ -1760,8 +1760,9 @@ static bool_t copyclone( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_Stat
 		void* const source = lua_touserdata( L, i);
 		void* clone = NULL;
 		lua_pushvalue( L, -1);                                                 // ... mt __lanesclone __lanesclone
-		// call the cloning function with 0 arguments, should return the number of bytes to allocate for the clone
-		lua_call( L, 0, 1);                                                    // ... mt __lanesclone size
+		// call the cloning function with 1 argument, should return the number of bytes to allocate for the clone
+		lua_pushlightuserdata( L, source);                                     // ... mt __lanesclone __lanesclone source
+		lua_call( L, 1, 1);                                                    // ... mt __lanesclone size
 		STACK_MID( L, 3);
 		userdata_size = (size_t) lua_tointeger( L, -1);                        // ... mt __lanesclone size
 		lua_pop( L, 1);                                                        // ... mt __lanesclone
@@ -1899,8 +1900,9 @@ static bool_t inter_copy_function( Universe* U, lua_State* L2, uint_t L2_cache_i
 		// __lanesclone should always exist because we wouldn't be restoring data from a userdata_clone_sentinel closure to begin with
 		lua_getfield( L2, -1, "__lanesclone");                                                                 // ... mt __lanesclone
 		lua_pushvalue( L2, -1);                                                                                // ... mt __lanesclone __lanesclone
-		// call the cloning function with 0 arguments, should return the number of bytes to allocate for the clone
-		lua_call( L2, 0, 1);                                                                                   // ... mt __lanesclone size
+		// call the cloning function with 1 argument, should return the number of bytes to allocate for the clone
+		lua_pushlightuserdata( L2, source);                                                                    // ... mt __lanesclone __lanesclone source
+		lua_call( L2, 1, 1);                                                                                   // ... mt __lanesclone size
 		userdata_size = (size_t) lua_tointeger( L2, -1);                                                       // ... mt __lanesclone size
 		lua_pop( L2, 1);                                                                                       // ... mt __lanesclone
 		lua_pushnil( L2);                                                                                      // ... mt __lanesclone nil

@@ -166,8 +166,12 @@ static int clonable_lanesclone( lua_State* L)
 {
 	switch( lua_gettop( L))
 	{
-		case 0:
-		lua_pushinteger( L, sizeof( struct s_MyClonableUserdata));
+		case 1:
+		{
+			// in case we need it to compute the amount of memory we need
+			struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
+			lua_pushinteger( L, sizeof( struct s_MyClonableUserdata));
+		}
 		return 1;
 
 		case 2:
@@ -175,8 +179,8 @@ static int clonable_lanesclone( lua_State* L)
 			struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
 			struct s_MyClonableUserdata* from = lua_touserdata( L, 2);
 			*self = *from;
-			return 0;
 		}
+		return 0;
 
 		default:
 		(void) luaL_error( L, "Lanes called clonable_lanesclone with unexpected parameters");
@@ -223,7 +227,7 @@ extern int __declspec(dllexport) luaopen_deep_test(lua_State* L)
 {
 	luaL_newlib( L, deep_module);                           // M
 
-	// preregister the metatables for the types we can instanciate so that Lanes can know about them
+	// preregister the metatables for the types we can instantiate so that Lanes can know about them
 	if( luaL_newmetatable( L, "clonable"))                  // M mt
 	{
 		luaL_setfuncs( L, clonable_mt, 0);

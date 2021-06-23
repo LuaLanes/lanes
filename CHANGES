@@ -1,7 +1,10 @@
 CHANGES:
 
+CHANGE 148: BGe 23-Jun-21
+   * __lanesclone now receives the original as light userdata the first time it is called -> BREAKS CUSTOM DEEP USERDATA API
+
 CHANGE 147: BGe 16-Jun-21
-   * changed lanes.threads() output so that several lanes with the same name don't clobber each other in the result table
+   * changed lanes.threads() output so that several lanes with the same name don't clobber each other in the result table -> BREAKS API
    * bumped version to 3.15 because of the API change
 
 CHANGE 146: BGe 26-Apr-19
