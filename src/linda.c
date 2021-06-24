@@ -933,5 +933,5 @@ LUAG_FUNC( linda)
 		luaL_checktype( L, 1, LUA_TSTRING);
 		luaL_checktype( L, 2, LUA_TNUMBER);
 	}
-	return luaG_newdeepuserdata( L, linda_id);
+	return luaG_newdeepuserdata( L, linda_id, 0);
 }

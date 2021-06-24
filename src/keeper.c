@@ -47,6 +47,7 @@
 #include "keeper.h"
 #include "compat.h"
 #include "tools.h"
+#include "state.h"
 #include "universe.h"
 #include "uniquekey.h"
 

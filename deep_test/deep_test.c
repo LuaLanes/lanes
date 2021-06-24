@@ -126,7 +126,10 @@ static void* deep_test_id( lua_State* L, enum eDeepOp op_)
 
 int luaD_new_deep( lua_State* L)
 {
-	return luaG_newdeepuserdata( L, deep_test_id);
+	int nuv = (int) luaL_optinteger( L, 1, 0);
+	// no additional parameter to luaG_newdeepuserdata!
+	lua_settop( L, 0);
+	return luaG_newdeepuserdata( L, deep_test_id, nuv);
 }
 
 // ################################################################################################

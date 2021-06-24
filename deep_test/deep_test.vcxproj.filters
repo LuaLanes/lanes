@@ -27,6 +27,9 @@
     <ClCompile Include="..\src\compat.c">
       <Filter>Lanes</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\tools.c">
+      <Filter>Lanes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\deep.h">
@@ -36,6 +39,9 @@
       <Filter>Lanes</Filter>
     </ClInclude>
     <ClInclude Include="..\src\compat.h">
+      <Filter>Lanes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\tools.h">
       <Filter>Lanes</Filter>
     </ClInclude>
   </ItemGroup>

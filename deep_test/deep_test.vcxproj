@@ -181,6 +181,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(SolutionDir)Lanes\lanes\src;$(SolutionDir)..\lualib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <PreprocessorDefinitions>_WINDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\framework\</Command>
@@ -230,12 +231,14 @@
   <ItemGroup>
     <ClCompile Include="..\src\compat.c" />
     <ClCompile Include="..\src\deep.c" />
+    <ClCompile Include="..\src\tools.c" />
     <ClCompile Include="..\src\universe.c" />
     <ClCompile Include="deep_test.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\compat.h" />
     <ClInclude Include="..\src\deep.h" />
+    <ClInclude Include="..\src\tools.h" />
     <ClInclude Include="..\src\universe.h" />
   </ItemGroup>
   <ItemGroup>

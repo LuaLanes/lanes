@@ -43,8 +43,8 @@ typedef void* (*luaG_IdFunction)( lua_State* L, DeepOp op_);
 
 // ################################################################################################
 
-// crc64/we of string "DEEP_VERSION_1" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( DEEP_VERSION, 0x4f4eadf0accf6c73);
+// fnv164 of string "DEEP_VERSION_2" generated at https://www.pelock.com/products/hash-calculator
+static DECLARE_CONST_UNIQUE_KEY( DEEP_VERSION, 0xB4B0119C10642B29);
 
 // should be used as header for full userdata
 struct s_DeepPrelude
@@ -57,10 +57,10 @@ struct s_DeepPrelude
 };
 typedef struct s_DeepPrelude DeepPrelude;
 
-char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, LookupMode mode_);
+char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, int nuv_, LookupMode mode_);
 void free_deep_prelude( lua_State* L, DeepPrelude* prelude_);
 
-extern LANES_API int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc);
+extern LANES_API int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_);
 extern LANES_API void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index);
 
 #endif // __LANES_DEEP_H__

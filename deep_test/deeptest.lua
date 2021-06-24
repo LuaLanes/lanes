@@ -23,13 +23,19 @@ end
 local performTest = function( obj_)
 	-- setup the userdata with some value and a uservalue
 	obj_:set( 666)
-	obj_:setuv( 1,  makeUserValue( obj_))
+	-- lua 5.1->5.2 support a single table uservalue
+	-- lua 5.3 supports an arbitrary type uservalue
+	obj_:setuv( 1, makeUserValue( obj_))
+	-- lua 5.4 supports multiple uservalues of arbitrary types
+	-- obj_:setuv( 2, "ENDUV")
 
 	-- read back the contents of the object
 	print( "immediate:", obj_, obj_:getuv( 1))
 
 	-- send the object in a linda, get it back out, read the contents
 	l:set( "key", obj_)
+	-- when obj_ is a deep userdata, out is the same userdata as obj_ (not another one pointing on the same deep memory block) because of an internal cache table [deep*] -> proxy)
+	-- when obj_ is a clonable userdata, we get a different clone everytime we cross a linda or lane barrier
 	local out = l:get( "key")
 	print( "out of linda:", out, out:getuv( 1))
 
@@ -46,6 +52,8 @@ local performTest = function( obj_)
 		end
 	)
 	h = g( obj_)
+	-- when obj_ is a deep userdata, from_lane is the same userdata as obj_ (not another one pointing on the same deep memory block) because of an internal cache table [deep*] -> proxy)
+	-- when obj_ is a clonable userdata, we get a different clone everytime we cross a linda or lane barrier
 	local from_lane = h[1]
 	print( "from lane:", from_lane, from_lane:getuv( 1))
 end

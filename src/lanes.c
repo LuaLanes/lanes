@@ -89,6 +89,7 @@ THE SOFTWARE.
 #include "threading.h"
 #include "compat.h"
 #include "tools.h"
+#include "state.h"
 #include "universe.h"
 #include "keeper.h"
 #include "lanes_private.h"
@@ -1930,7 +1931,7 @@ LUAG_FUNC( configure)
 
 	{
 		char const* errmsg;
-		errmsg = push_deep_proxy( U, L, (DeepPrelude*) U->timer_deep, eLM_LaneBody);       // settings M timer_deep
+		errmsg = push_deep_proxy( U, L, (DeepPrelude*) U->timer_deep, 0, eLM_LaneBody);    // settings M timer_deep
 		if( errmsg != NULL)
 		{
 			return luaL_error( L, errmsg);

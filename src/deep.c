@@ -256,7 +256,7 @@ static int deep_userdata_gc( lua_State* L)
  * used in this Lua state (metatable, registring it). Otherwise, increments the
  * reference count.
  */
-char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, LookupMode mode_)
+char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, int nuv_, LookupMode mode_)
 {
 	DeepPrelude** proxy;
 
@@ -283,7 +283,8 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 	STACK_GROW( L, 7);
 	STACK_CHECK( L, 0);
 
-	proxy = lua_newuserdatauv( L, sizeof(DeepPrelude*), 0);                                            // DPC proxy
+	// a new full userdata, fitted with the specified number of uservalue slots (always 1 for Lua < 5.4)
+	proxy = lua_newuserdatauv( L, sizeof(DeepPrelude*), nuv_);                                         // DPC proxy
 	ASSERT_L( proxy);
 	*proxy = prelude;
 
@@ -414,7 +415,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 *   proxy_ud= deep_userdata( idfunc [, ...] )
 *
 * Creates a deep userdata entry of the type defined by 'idfunc'.
-* Other parameters are passed on to the 'idfunc' "new" invocation.
+* Parameters found on the stack are left as is passed on to the 'idfunc' "new" invocation.
 *
 * 'idfunc' must fulfill the following features:
 *
@@ -430,7 +431,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, Lo
 *
 * Returns:  'proxy' userdata for accessing the deep data via 'luaG_todeep()'
 */
-int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc)
+int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_)
 {
 	char const* errmsg;
 
@@ -460,7 +461,7 @@ int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc)
 			idfunc( L, eDO_delete);
 			return luaL_error( L, "Bad idfunc(eDO_new): should not push anything on the stack");
 		}
-		errmsg = push_deep_proxy( universe_get( L), L, prelude, eLM_LaneBody);  // proxy
+		errmsg = push_deep_proxy( universe_get( L), L, prelude, nuv_, eLM_LaneBody);  // proxy
 		if( errmsg != NULL)
 		{
 			return luaL_error( L, errmsg);
@@ -506,12 +507,42 @@ bool_t copydeep( Universe* U, lua_State* L, lua_State* L2, int index, LookupMode
 {
 	char const* errmsg;
 	luaG_IdFunction idfunc = get_idfunc( L, index, mode_);
+	int nuv = 0;
+
 	if( idfunc == NULL)
 	{
 		return FALSE;   // not a deep userdata
 	}
 
-	errmsg = push_deep_proxy( U, L2, *(DeepPrelude**) lua_touserdata( L, index), mode_);
+	STACK_CHECK( L, 0);
+	STACK_CHECK( L2, 0);
+
+	// extract all uservalues of the source
+	while( lua_getiuservalue( L, index, nuv + 1) != LUA_TNONE)                           // ... u [uv]+ nil
+	{
+		++ nuv;
+	}
+	// last call returned TNONE and pushed nil, that we don't need
+	lua_pop( L, 1);                                                                      // ... u [uv]+
+	STACK_MID( L, nuv);
+
+	errmsg = push_deep_proxy( U, L2, *(DeepPrelude**) lua_touserdata( L, index), nuv, mode_);           // u
+
+	// transfer all uservalues of the source in the destination
+	{
+		int const clone_i = lua_gettop( L2);
+		luaG_inter_move( U, L, L2, nuv, mode_);                                            // ... u       // u [uv]+
+		while( nuv > 0)
+		{
+			// this pops the value from the stack
+			lua_setiuservalue( L2, clone_i, nuv);                                            // ... u       // u
+			-- nuv;
+		}
+	}
+
+	STACK_END( L2, 1);
+	STACK_END( L, 0);
+
 	if( errmsg != NULL)
 	{
 		// raise the error in the proper state (not the keeper)
