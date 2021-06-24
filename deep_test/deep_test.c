@@ -61,7 +61,7 @@ static int deep_getuv( lua_State* L)
 static int deep_tostring( lua_State* L)
 {
 	struct s_MyDeepUserdata* self = luaG_todeep( L, deep_test_id, 1);
-	lua_pushfstring( L, "deep(%d)", self->val);
+	lua_pushfstring( L, "%p:deep(%d)", lua_topointer( L, 1), self->val);
 	return 1;
 }
 
@@ -173,7 +173,7 @@ static int clonable_getuv( lua_State* L)
 static int clonable_tostring(lua_State* L)
 {
 	struct s_MyClonableUserdata* self = (struct s_MyClonableUserdata*) lua_touserdata( L, 1);
-	lua_pushfstring( L, "clonable(%d)", self->val);
+	lua_pushfstring( L, "%p:clonable(%d)", lua_topointer( L, 1), self->val);
 	return 1;
 }
 

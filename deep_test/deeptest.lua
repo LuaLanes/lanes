@@ -4,14 +4,26 @@ local l = lanes.linda "my linda"
 -- we will transfer userdata created by this module, so we need to make Lanes aware of it
 local dt = lanes.require "deep_test"
 
-local test_deep = false
+local test_deep = true
 local test_clonable = false
-local test_clonable_as_upvalue = true
+local test_uvtype = "string"
 
-local performTest = function( obj_, uservalue_)
+local makeUserValue = function( obj_)
+	if test_uvtype == "string" then
+		return "some uservalue"
+	elseif test_uvtype == "function" then
+		-- a function that pull the userdata as upvalue
+		local f = function()
+			print( obj_)
+		end
+		return f
+	end
+end
+
+local performTest = function( obj_)
 	-- setup the userdata with some value and a uservalue
 	obj_:set( 666)
-	obj_:setuv( 1, uservalue_)
+	obj_:setuv( 1,  makeUserValue( obj_))
 
 	-- read back the contents of the object
 	print( "immediate:", obj_, obj_:getuv( 1))
@@ -39,19 +51,9 @@ local performTest = function( obj_, uservalue_)
 end
 
 if test_deep then
-	performTest( dt.new_deep(), "some uservalue")
+	performTest( dt.new_deep())
 end
 
 if test_clonable then
-	performTest( dt.new_clonable(), "my uservalue")
-end
-
-if test_clonable_as_upvalue then
-	local clonable = dt.new_clonable()
-	-- pull clonable as upvalue in a function
-	local f = function()
-		print( clonable)
-	end
-	-- set function as uservalue of clonable (thus, clonable is referenced as upvalue in its function uservalue)
-	performTest( clonable, f)
+	performTest( dt.new_clonable())
 end
