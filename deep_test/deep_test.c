@@ -16,6 +16,7 @@
 
 // ################################################################################################
 
+// a lanes-deep userdata. needs DeepPrelude and luaG_newdeepuserdata from Lanes code.
 struct s_MyDeepUserdata
 {
 	DeepPrelude prelude; // Deep userdata MUST start with this header
@@ -190,6 +191,7 @@ static int clonable_gc( lua_State* L)
 
 // ################################################################################################
 
+// this is all we need to make a userdata lanes-clonable. no dependency on Lanes code.
 static int clonable_lanesclone( lua_State* L)
 {
 	switch( lua_gettop( L))

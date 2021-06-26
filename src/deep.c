@@ -49,59 +49,6 @@ THE SOFTWARE.
 
 /*-- Metatable copying --*/
 
-/*
- * 'reg[ REG_MT_KNOWN ]'= {
- *      [ table ]= id_uint,
- *          ...
- *      [ id_uint ]= table,
- *          ...
- * }
- */
-
-/*
-* Does what the original 'push_registry_subtable' function did, but adds an optional mode argument to it
-*/
-static void push_registry_subtable_mode( lua_State* L, UniqueKey key_, const char* mode_)
-{
-	STACK_GROW( L, 3);
-	STACK_CHECK( L, 0);
-
-	REGISTRY_GET( L, key_);                               // {}|nil
-	STACK_MID( L, 1);
-
-	if( lua_isnil( L, -1))
-	{
-		lua_pop( L, 1);                                     //
-		lua_newtable( L);                                   // {}
-		// _R[key_] = {}
-		REGISTRY_SET( L, key_, lua_pushvalue( L, -2));      // {}
-		STACK_MID( L, 1);
-
-		// Set its metatable if requested
-		if( mode_)
-		{
-			lua_newtable( L);                                 // {} mt
-			lua_pushliteral( L, "__mode");                    // {} mt "__mode"
-			lua_pushstring( L, mode_);                        // {} mt "__mode" mode
-			lua_rawset( L, -3);                               // {} mt
-			lua_setmetatable( L, -2);                         // {}
-		}
-	}
-	STACK_END( L, 1);
-	ASSERT_L( lua_istable( L, -1));
-}
-
-
-/*
-* Push a registry subtable (keyed by unique 'key_') onto the stack.
-* If the subtable does not exist, it is created and chained.
-*/
-void push_registry_subtable( lua_State* L, UniqueKey key_)
-{
-	push_registry_subtable_mode( L, key_, NULL);
-}
-
-
 /*---=== Deep userdata ===---*/
 
 /* 
@@ -503,10 +450,10 @@ void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index)
  *   the id function of the copied value, or NULL for non-deep userdata
  *   (not copied)
  */
-bool_t copydeep( Universe* U, lua_State* L, lua_State* L2, int index, LookupMode mode_)
+bool_t copydeep( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
 {
 	char const* errmsg;
-	luaG_IdFunction idfunc = get_idfunc( L, index, mode_);
+	luaG_IdFunction idfunc = get_idfunc( L, i, mode_);
 	int nuv = 0;
 
 	if( idfunc == NULL)
@@ -518,24 +465,25 @@ bool_t copydeep( Universe* U, lua_State* L, lua_State* L2, int index, LookupMode
 	STACK_CHECK( L2, 0);
 
 	// extract all uservalues of the source
-	while( lua_getiuservalue( L, index, nuv + 1) != LUA_TNONE)                           // ... u [uv]+ nil
+	while( lua_getiuservalue( L, i, nuv + 1) != LUA_TNONE)                               // ... u [uv]* nil
 	{
 		++ nuv;
 	}
 	// last call returned TNONE and pushed nil, that we don't need
-	lua_pop( L, 1);                                                                      // ... u [uv]+
+	lua_pop( L, 1);                                                                      // ... u [uv]*
 	STACK_MID( L, nuv);
 
-	errmsg = push_deep_proxy( U, L2, *(DeepPrelude**) lua_touserdata( L, index), nuv, mode_);           // u
+	errmsg = push_deep_proxy( U, L2, *(DeepPrelude**) lua_touserdata( L, i), nuv, mode_);               // u
 
 	// transfer all uservalues of the source in the destination
 	{
 		int const clone_i = lua_gettop( L2);
-		luaG_inter_move( U, L, L2, nuv, mode_);                                            // ... u       // u [uv]+
-		while( nuv > 0)
+		while( nuv)
 		{
+			inter_copy_one( U, L2, L2_cache_i, L,  lua_absindex( L, -1), VT_NORMAL, mode_, upName_);        // u uv
+			lua_pop( L, 1);                                                                  // ... u [uv]*
 			// this pops the value from the stack
-			lua_setiuservalue( L2, clone_i, nuv);                                            // ... u       // u
+			lua_setiuservalue( L2, clone_i, nuv);                                                           // u
 			-- nuv;
 		}
 	}

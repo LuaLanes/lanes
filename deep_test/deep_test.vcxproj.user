@@ -12,4 +12,10 @@
     <LocalDebuggerCommandArguments>-i deeptest.lua</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>D:\Boulot\anubis\Lua\bindings\Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'">
+    <LocalDebuggerCommand>D:\Boulot\anubis\Lua\framework\lua53.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments>-i -- deeptest.lua</LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>D:\Boulot\anubis\Lua\bindings\Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
 </Project>
