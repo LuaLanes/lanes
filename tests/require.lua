@@ -7,7 +7,7 @@ lanes = require "lanes"
 lanes.configure{with_timers = false}
 
 local function a_lane()
-		print "IN A LANE"
+    print "IN A LANE"
     -- To require 'math' we still actually need to have it initialized for
     -- the lane.
     --
@@ -16,7 +16,7 @@ local function a_lane()
     assert( math.sqrt(4)==2 )
 
     assert( lanes==nil )
-    local lanes = require "lanes".configure{with_timers = false}
+    local lanes = require "lanes"
     assert( lanes and lanes.gen )
 
     local h= lanes.gen( function() return 42 end ) ()

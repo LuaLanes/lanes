@@ -28,7 +28,9 @@ local function lane()
 
     f:write( "Test file that should get removed." )
 
-    io.stderr:write( "File "..FN.." created\n" )    
+    io.stderr:write( "File "..FN.." created\n" )
+    -- don't forget to close the file immediately, else we won't be able to delete it until f is collected
+    f:close()
 
     if which==0 then
         print "you loose"

@@ -36,7 +36,7 @@ local receiver2 = receiver_gen('another message')
 
 -- a function to pause and log the execution for debugging
 local function logf(s, f, ...)
-    os.execute('sleep 1')
+    linda:receive(1, "dummy") -- wait 1s
     PRINT_FMT( "*** %s", s )
     f(...)
 end
