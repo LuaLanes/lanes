@@ -5,8 +5,8 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-#include "deep.h"
-#include "compat.h"
+#include "lanes/src/deep.h"
+#include "lanes/src/compat.h"
 
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 #define LANES_API __declspec(dllexport)
