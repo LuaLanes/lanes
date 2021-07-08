@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 149: BGe 8-Jul-21
+   * bumped version to 3.15.1
+   * fix function transfer with lua_dump for Lua 5.4 failing for functions big enough to necessitate a buffer reallocation
+
 CHANGE 148: BGe 23-Jun-21
    * __lanesclone now receives the original as light userdata the first time it is called -> BREAKS CUSTOM DEEP USERDATA API
 

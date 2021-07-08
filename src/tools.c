@@ -297,7 +297,8 @@ static char const* luaG_pushFQN( lua_State* L, int t, int last, size_t* length)
 	int i = 1;
 	luaL_Buffer b;
 	STACK_CHECK( L, 0);
-	luaL_buffinit( L, &b);
+	// Lua 5.4 pushes &b as light userdata on the stack. be aware of it...
+	luaL_buffinit( L, &b);                            // ... {} ... &b?
 	for( ; i < last; ++ i)
 	{
 		lua_rawgeti( L, t, i);
@@ -309,7 +310,8 @@ static char const* luaG_pushFQN( lua_State* L, int t, int last, size_t* length)
 		lua_rawgeti( L, t, i);
 		luaL_addvalue( &b);
 	}
-	luaL_pushresult( &b);
+	// &b is popped at that point (-> replaced by the result)
+	luaL_pushresult( &b);                             // ... {} ... "<result>"
 	STACK_END( L, 1);
 	return lua_tolstring( L, -1, length);
 }
@@ -630,14 +632,6 @@ static lua_Integer get_mt_id( Universe* U, lua_State* L, int i)
 
 	return id;
 }
-
-
-static int buf_writer( lua_State *L, const void* b, size_t n, void* B ) {
-  (void)L;
-  luaL_addlstring((luaL_Buffer*) B, (const char *)b, n);
-  return 0;
-}
-
 
 // function sentinel used to transfer native functions from/to keeper states
 static int func_lookup_sentinel( lua_State* L)
@@ -1138,13 +1132,31 @@ static char const* vt_names[] =
 };
 #endif // USE_DEBUG_SPEW
 
+// Lua 5.4.3 style of dumping (see lstrlib.c)
+// we have to do it that way because we can't unbalance the stack between buffer operations
+// namely, this means we can't push a function on top of the stack *after* we initialize the buffer!
+// luckily, this also works with earlier Lua versions
+static int buf_writer( lua_State* L, void const* b, size_t size, void* ud)
+{
+    luaL_Buffer* B = (luaL_Buffer*) ud;
+    if( !B->L)
+    {
+        luaL_buffinit( L, B);
+    }
+    luaL_addlstring( B, (char const*) b, size);
+    return 0;
+}
+
 static void copy_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
 {
 	int n, needToPush;
-	luaL_Buffer b;
+	luaL_Buffer B;
+	B.L = NULL;
+
 	ASSERT_L( L2_cache_i != 0);                                                       // ... {cache} ... p
 	STACK_GROW( L, 2);
 	STACK_CHECK( L, 0);
+
 
 	// 'lua_dump()' needs the function at top of stack
 	// if already on top of the stack, no need to push again
@@ -1154,18 +1166,18 @@ static void copy_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State*
 		lua_pushvalue( L, i);                                // ... f
 	}
 
-	luaL_buffinit( L, &b);
 	//
 	// "value returned is the error code returned by the last call 
 	// to the writer" (and we only return 0)
 	// not sure this could ever fail but for memory shortage reasons
-	if( lua504_dump( L, buf_writer, &b, 0) != 0)
+	// last parameter is Lua 5.4-specific (no stripping)
+	if( lua504_dump( L, buf_writer, &B, 0) != 0)
 	{
 		luaL_error( L, "internal error: function dump failed.");
 	}
 
 	// pushes dumped string on 'L'
-	luaL_pushresult( &b);                                  // ... f b
+	luaL_pushresult( &B);                                  // ... f b
 
 	// if not pushed, no need to pop
 	if( needToPush)
