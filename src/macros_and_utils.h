@@ -60,7 +60,7 @@ extern char const* debugspew_indent;
 		int const L##_oldtop = 0
 
 #define STACK_MID( L, change) \
-		do \
+		do if( change != LUA_MULTRET) \
 		{ \
 			int stack_check_a = lua_gettop( L) - L##_oldtop; \
 			int stack_check_b = (change); \

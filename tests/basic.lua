@@ -7,8 +7,12 @@
 --      - ...
 --
 
-local lanes = require "lanes".configure{ with_timers = false}
-require "assert"    -- assert.fails()
+local require_lanes_result_1, require_lanes_result_2 = require "lanes".configure{ with_timers = false}
+print( "require_lanes_result:", require_lanes_result_1, require_lanes_result_2)
+local lanes = require_lanes_result_1
+
+local require_assert_result_1, require_assert_result_2 = require "assert"    -- assert.fails()
+print( "require_assert_result:", require_assert_result_1, require_assert_result_2)
 
 local lanes_gen=    assert( lanes.gen )
 local lanes_linda=  assert( lanes.linda )
