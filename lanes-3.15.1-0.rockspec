@@ -58,7 +58,19 @@ build = {
 	{
 		["lanes.core"] =
 		{
-			sources = { "src/compat.c", "src/deep.c", "src/lanes.c", "src/linda.c", "src/keeper.c", "src/tools.c", "src/state.c", "src/threading.c", "src/universe.c"},
+			sources =
+			{
+				"src/cancel.c",
+				"src/compat.c",
+				"src/deep.c",
+				"src/keeper.c",
+				"src/lanes.c",
+				"src/linda.c",
+				"src/tools.c",
+				"src/state.c",
+				"src/threading.c",
+				"src/universe.c"
+			},
 			incdirs = { "src"},
 		},
 		lanes = "src/lanes.lua"
