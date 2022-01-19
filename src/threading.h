@@ -147,7 +147,7 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
     // for some reason win32-pthread doesn't have pthread_yield(), but sched_yield()
     #define YIELD() sched_yield()
   #else
-    #define YIELD() pthread_yield()
+    #define YIELD() sched_yield()
   #endif
 	#define THREAD_CALLCONV
 #endif //THREADAPI == THREADAPI_PTHREAD
