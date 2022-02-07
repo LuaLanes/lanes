@@ -249,7 +249,7 @@ void initialize_on_state_create( Universe* U, lua_State* L)
 lua_State* create_state( Universe* U, lua_State* from_)
 {
     lua_State* L;
-    if( U->provide_allocator != NULL)
+    if( U->provide_allocator != NULL) // we have a function we can call to obtain an allocator
     {
         lua_pushcclosure( from_, U->provide_allocator, 0);
         lua_call( from_, 0, 1);
@@ -261,7 +261,8 @@ lua_State* create_state( Universe* U, lua_State* from_)
     }
     else
     {
-        L = luaL_newstate();
+        // reuse the allocator provided when the master state was created
+        L = lua_newstate( U->protected_allocator.definition.allocF, U->protected_allocator.definition.allocUD);
     }
 
     if( L == NULL)
