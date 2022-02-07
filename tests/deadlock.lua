@@ -4,6 +4,8 @@
 local lanes = require('lanes').configure()
 local linda = lanes.linda "deadlock_linda"
 
+print "let's begin"
+
 local do_extra_stuff = true
 
 if do_extra_stuff then
