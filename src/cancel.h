@@ -17,27 +17,27 @@ typedef struct s_Lane Lane; // forward
  */
 enum e_cancel_request
 {
-	CANCEL_NONE, // no pending cancel request
-	CANCEL_SOFT, // user wants the lane to cancel itself manually on cancel_test()
-	CANCEL_HARD  // user wants the lane to be interrupted (meaning code won't return from those functions) from inside linda:send/receive calls
+    CANCEL_NONE, // no pending cancel request
+    CANCEL_SOFT, // user wants the lane to cancel itself manually on cancel_test()
+    CANCEL_HARD  // user wants the lane to be interrupted (meaning code won't return from those functions) from inside linda:send/receive calls
 };
 
 typedef enum
 {
-	CR_Timeout,
-	CR_Cancelled,
-	CR_Killed
+    CR_Timeout,
+    CR_Cancelled,
+    CR_Killed
 } cancel_result;
 
 typedef enum
 {
-	CO_Invalid = -2,
-	CO_Hard = -1,
-	CO_Soft = 0,
-	CO_Count = LUA_MASKCOUNT,
-	CO_Line = LUA_MASKLINE,
-	CO_Call = LUA_MASKCALL,
-	CO_Ret = LUA_MASKRET,
+    CO_Invalid = -2,
+    CO_Hard = -1,
+    CO_Soft = 0,
+    CO_Count = LUA_MASKCOUNT,
+    CO_Line = LUA_MASKLINE,
+    CO_Call = LUA_MASKCALL,
+    CO_Ret = LUA_MASKRET,
 } CancelOp;
 
 // crc64/we of string "CANCEL_ERROR" generated at http://www.nitrxgen.net/hashgen/
@@ -50,9 +50,9 @@ cancel_result thread_cancel( lua_State* L, Lane* s, CancelOp op_, double secs_, 
 
 static inline int cancel_error( lua_State* L)
 {
-	STACK_GROW( L, 1);
-	push_unique_key( L, CANCEL_ERROR); // special error value
-	return lua_error( L); // doesn't return
+    STACK_GROW( L, 1);
+    push_unique_key( L, CANCEL_ERROR); // special error value
+    return lua_error( L); // doesn't return
 }
 
 // ################################################################################################

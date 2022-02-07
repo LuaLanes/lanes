@@ -66,41 +66,41 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   // needed for use with the SIGNAL system.
   //
 
-	#if _WIN32_WINNT < 0x0600 // CONDITION_VARIABLE aren't available, use a signal
+    #if _WIN32_WINNT < 0x0600 // CONDITION_VARIABLE aren't available, use a signal
 
-	typedef struct
-	{
-		CRITICAL_SECTION    signalCS;
-		CRITICAL_SECTION    countCS;
-		HANDLE      waitEvent;
-		HANDLE      waitDoneEvent;
-		LONG        waitersCount;
-	} SIGNAL_T;
+    typedef struct
+    {
+        CRITICAL_SECTION    signalCS;
+        CRITICAL_SECTION    countCS;
+        HANDLE      waitEvent;
+        HANDLE      waitDoneEvent;
+        LONG        waitersCount;
+    } SIGNAL_T;
 
 
-	#define MUTEX_T HANDLE
-	void MUTEX_INIT( MUTEX_T* ref);
-	void MUTEX_FREE( MUTEX_T* ref);
-	void MUTEX_LOCK( MUTEX_T* ref);
-	void MUTEX_UNLOCK( MUTEX_T* ref);
+    #define MUTEX_T HANDLE
+    void MUTEX_INIT( MUTEX_T* ref);
+    void MUTEX_FREE( MUTEX_T* ref);
+    void MUTEX_LOCK( MUTEX_T* ref);
+    void MUTEX_UNLOCK( MUTEX_T* ref);
 
-	#else // CONDITION_VARIABLE are available, use them
+    #else // CONDITION_VARIABLE are available, use them
 
-	#define SIGNAL_T CONDITION_VARIABLE
-	#define MUTEX_T CRITICAL_SECTION
-	#define MUTEX_INIT( ref) InitializeCriticalSection( ref)
-	#define MUTEX_FREE( ref) DeleteCriticalSection( ref)
-	#define MUTEX_LOCK( ref) EnterCriticalSection( ref)
-	#define MUTEX_UNLOCK( ref) LeaveCriticalSection( ref)
+    #define SIGNAL_T CONDITION_VARIABLE
+    #define MUTEX_T CRITICAL_SECTION
+    #define MUTEX_INIT( ref) InitializeCriticalSection( ref)
+    #define MUTEX_FREE( ref) DeleteCriticalSection( ref)
+    #define MUTEX_LOCK( ref) EnterCriticalSection( ref)
+    #define MUTEX_UNLOCK( ref) LeaveCriticalSection( ref)
 
-	#endif // CONDITION_VARIABLE are available
+    #endif // CONDITION_VARIABLE are available
 
   #define MUTEX_RECURSIVE_INIT(ref)  MUTEX_INIT(ref)  /* always recursive in Win32 */
 
   typedef unsigned int THREAD_RETURN_T;
 
   #define YIELD() Sleep(0)
-	#define THREAD_CALLCONV __stdcall
+    #define THREAD_CALLCONV __stdcall
 #else // THREADAPI == THREADAPI_PTHREAD
   // PThread (Linux, OS X, ...)
 
@@ -143,13 +143,10 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   //
   #if defined( PLATFORM_OSX)
     #define YIELD() pthread_yield_np()
-#elif defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC) || defined(__ANDROID__) || defined(__NetBSD__) // no PTHREAD for PLATFORM_XBOX
-    // for some reason win32-pthread doesn't have pthread_yield(), but sched_yield()
-    #define YIELD() sched_yield()
   #else
     #define YIELD() sched_yield()
   #endif
-	#define THREAD_CALLCONV
+    #define THREAD_CALLCONV
 #endif //THREADAPI == THREADAPI_PTHREAD
 
 void SIGNAL_INIT( SIGNAL_T *ref );
@@ -174,9 +171,9 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 
 #if THREADAPI == THREADAPI_WINDOWS
 
-	typedef HANDLE THREAD_T;
+    typedef HANDLE THREAD_T;
 #	define THREAD_ISNULL( _h) (_h == 0)
-	void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (__stdcall *func)( void*), void* data, int prio /* -3..+3 */);
+    void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (__stdcall *func)( void*), void* data, int prio /* -3..+3 */);
 
 #	define THREAD_PRIO_MIN (-3)
 #	define THREAD_PRIO_MAX (+3)
@@ -186,9 +183,9 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 
 #else // THREADAPI == THREADAPI_PTHREAD
 
-	/* Platforms that have a timed 'pthread_join()' can get away with a simpler
-	 * implementation. Others will use a condition variable.
-	 */
+    /* Platforms that have a timed 'pthread_join()' can get away with a simpler
+     * implementation. Others will use a condition variable.
+     */
 #	if defined __WINPTHREADS_VERSION
 //#		define USE_PTHREAD_TIMEDJOIN
 #	endif // __WINPTHREADS_VERSION
@@ -202,13 +199,13 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 #  endif
 # endif
 
-	typedef pthread_t THREAD_T;
+    typedef pthread_t THREAD_T;
 #	define THREAD_ISNULL( _h) 0 // pthread_t may be a structure: never 'null' by itself
 
-	void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, int prio /* -3..+3 */);
+    void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, int prio /* -3..+3 */);
 
 #	if defined(PLATFORM_LINUX)
-		extern volatile bool_t sudo;
+        extern volatile bool_t sudo;
 #		ifdef LINUX_SCHED_RR
 #			define THREAD_PRIO_MIN (sudo ? -3 : 0)
 #		else

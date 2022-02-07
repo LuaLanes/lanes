@@ -24,18 +24,18 @@ typedef struct s_Universe Universe;
 
 enum eLookupMode
 {
-	eLM_LaneBody, // send the lane body directly from the source to the destination lane
-	eLM_ToKeeper, // send a function from a lane to a keeper state
-	eLM_FromKeeper // send a function from a keeper state to a lane
+    eLM_LaneBody, // send the lane body directly from the source to the destination lane
+    eLM_ToKeeper, // send a function from a lane to a keeper state
+    eLM_FromKeeper // send a function from a keeper state to a lane
 };
 typedef enum eLookupMode LookupMode;
 
 enum eDeepOp
 {
-	eDO_new,
-	eDO_delete,
-	eDO_metatable,
-	eDO_module,
+    eDO_new,
+    eDO_delete,
+    eDO_metatable,
+    eDO_module,
 };
 typedef enum eDeepOp DeepOp;
 
@@ -49,11 +49,11 @@ static DECLARE_CONST_UNIQUE_KEY( DEEP_VERSION, 0xB4B0119C10642B29);
 // should be used as header for full userdata
 struct s_DeepPrelude
 {
-	DECLARE_UNIQUE_KEY( magic); // must be filled by the Deep userdata idfunc that allocates it on eDO_new operation
-	// when stored in a keeper state, the full userdata doesn't have a metatable, so we need direct access to the idfunc
-	luaG_IdFunction idfunc;
-	// data is destroyed when refcount is 0
-	volatile int refcount;
+    DECLARE_UNIQUE_KEY( magic); // must be filled by the Deep userdata idfunc that allocates it on eDO_new operation
+    // when stored in a keeper state, the full userdata doesn't have a metatable, so we need direct access to the idfunc
+    luaG_IdFunction idfunc;
+    // data is destroyed when refcount is 0
+    volatile int refcount;
 };
 typedef struct s_DeepPrelude DeepPrelude;
 

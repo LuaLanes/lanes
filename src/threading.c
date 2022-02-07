@@ -104,16 +104,16 @@ THE SOFTWARE.
 static void FAIL( char const* funcname, int rc)
 {
 #if defined( PLATFORM_XBOX)
-	fprintf( stderr, "%s() failed! (%d)\n", funcname, rc );
+    fprintf( stderr, "%s() failed! (%d)\n", funcname, rc );
 #else // PLATFORM_XBOX
-	char buf[256];
-	FormatMessageA( FORMAT_MESSAGE_FROM_SYSTEM, NULL, rc, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 256, NULL);
-	fprintf( stderr, "%s() failed! [GetLastError() -> %d] '%s'", funcname, rc, buf);
+    char buf[256];
+    FormatMessageA( FORMAT_MESSAGE_FROM_SYSTEM, NULL, rc, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 256, NULL);
+    fprintf( stderr, "%s() failed! [GetLastError() -> %d] '%s'", funcname, rc, buf);
 #endif // PLATFORM_XBOX
 #ifdef _MSC_VER
-	__debugbreak(); // give a chance to the debugger!
+    __debugbreak(); // give a chance to the debugger!
 #endif // _MSC_VER
-	abort();
+    abort();
 }
 #endif // win32 build
 
@@ -278,14 +278,14 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
      if (!CloseHandle(*ref)) FAIL( "CloseHandle (mutex)", GetLastError() );
      *ref= NULL;
   }
-	void MUTEX_LOCK( MUTEX_T *ref )
-	{
-		DWORD rc = WaitForSingleObject( *ref, INFINITE);
-		// ERROR_WAIT_NO_CHILDREN means a thread was killed (lane terminated because of error raised during a linda transfer for example) while having grabbed this mutex
-		// this is not a big problem as we will grab it just the same, so ignore this particular error
-		if( rc != 0 && rc != ERROR_WAIT_NO_CHILDREN)
-			FAIL( "WaitForSingleObject", (rc == WAIT_FAILED) ? GetLastError() : rc);
-	}
+    void MUTEX_LOCK( MUTEX_T *ref )
+    {
+        DWORD rc = WaitForSingleObject( *ref, INFINITE);
+        // ERROR_WAIT_NO_CHILDREN means a thread was killed (lane terminated because of error raised during a linda transfer for example) while having grabbed this mutex
+        // this is not a big problem as we will grab it just the same, so ignore this particular error
+        if( rc != 0 && rc != ERROR_WAIT_NO_CHILDREN)
+            FAIL( "WaitForSingleObject", (rc == WAIT_FAILED) ? GetLastError() : rc);
+    }
   void MUTEX_UNLOCK( MUTEX_T *ref ) {
     if (!ReleaseMutex(*ref))
         FAIL( "ReleaseMutex", GetLastError() );
@@ -294,13 +294,13 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
 
 static int const gs_prio_remap[] =
 {
-	THREAD_PRIORITY_IDLE,
-	THREAD_PRIORITY_LOWEST,
-	THREAD_PRIORITY_BELOW_NORMAL,
-	THREAD_PRIORITY_NORMAL,
-	THREAD_PRIORITY_ABOVE_NORMAL,
-	THREAD_PRIORITY_HIGHEST,
-	THREAD_PRIORITY_TIME_CRITICAL
+    THREAD_PRIORITY_IDLE,
+    THREAD_PRIORITY_LOWEST,
+    THREAD_PRIORITY_BELOW_NORMAL,
+    THREAD_PRIORITY_NORMAL,
+    THREAD_PRIORITY_ABOVE_NORMAL,
+    THREAD_PRIORITY_HIGHEST,
+    THREAD_PRIORITY_TIME_CRITICAL
 };
 
 /* MSDN: "If you would like to use the CRT in ThreadProc, use the
@@ -310,43 +310,43 @@ MSDN: "you can create at most 2028 threads"
 // Note: Visual C++ requires '__stdcall' where it is
 void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (__stdcall *func)( void*), void* data, int prio /* -3..+3 */)
 {
-	HANDLE h = (HANDLE) _beginthreadex( NULL, // security
-		_THREAD_STACK_SIZE,
-		func,
-		data,
-		0,    // flags (0/CREATE_SUSPENDED)
-		NULL  // thread id (not used)
-	);
+    HANDLE h = (HANDLE) _beginthreadex( NULL, // security
+        _THREAD_STACK_SIZE,
+        func,
+        data,
+        0,    // flags (0/CREATE_SUSPENDED)
+        NULL  // thread id (not used)
+    );
 
-	if( h == NULL) // _beginthreadex returns 0L on failure instead of -1L (like _beginthread)
-	{
-		FAIL( "CreateThread", GetLastError());
-	}
+    if( h == NULL) // _beginthreadex returns 0L on failure instead of -1L (like _beginthread)
+    {
+        FAIL( "CreateThread", GetLastError());
+    }
 
-	if (!SetThreadPriority( h, gs_prio_remap[prio + 3]))
-	{
-		FAIL( "SetThreadPriority", GetLastError());
-	}
+    if (!SetThreadPriority( h, gs_prio_remap[prio + 3]))
+    {
+        FAIL( "SetThreadPriority", GetLastError());
+    }
 
-	*ref = h;
+    *ref = h;
 }
 
 
 void THREAD_SET_PRIORITY( int prio)
 {
-	// prio range [-3,+3] was checked by the caller
-	if (!SetThreadPriority( GetCurrentThread(), gs_prio_remap[prio + 3]))
-	{
-		FAIL( "THREAD_SET_PRIORITY", GetLastError());
-	}
+    // prio range [-3,+3] was checked by the caller
+    if (!SetThreadPriority( GetCurrentThread(), gs_prio_remap[prio + 3]))
+    {
+        FAIL( "THREAD_SET_PRIORITY", GetLastError());
+    }
 }
 
 void THREAD_SET_AFFINITY( unsigned int aff)
 {
-	if( !SetThreadAffinityMask( GetCurrentThread(), aff))
-	{
-		FAIL( "THREAD_SET_AFFINITY", GetLastError());
-	}
+    if( !SetThreadAffinityMask( GetCurrentThread(), aff))
+    {
+        FAIL( "THREAD_SET_AFFINITY", GetLastError());
+    }
 }
 
 bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
@@ -366,200 +366,200 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
     return TRUE;
   }
   //
-	void THREAD_KILL( THREAD_T *ref )
-	{
-		// nonexistent on Xbox360, simply disable until a better solution is found
-		#if !defined( PLATFORM_XBOX)
-		// in theory no-one should call this as it is very dangerous (memory and mutex leaks, no notification of DLLs, etc.)
-		if (!TerminateThread( *ref, 0 )) FAIL("TerminateThread", GetLastError());
-		#endif // PLATFORM_XBOX
-		*ref= NULL;
-	}
+    void THREAD_KILL( THREAD_T *ref )
+    {
+        // nonexistent on Xbox360, simply disable until a better solution is found
+        #if !defined( PLATFORM_XBOX)
+        // in theory no-one should call this as it is very dangerous (memory and mutex leaks, no notification of DLLs, etc.)
+        if (!TerminateThread( *ref, 0 )) FAIL("TerminateThread", GetLastError());
+        #endif // PLATFORM_XBOX
+        *ref= NULL;
+    }
 
-	void THREAD_MAKE_ASYNCH_CANCELLABLE() {} // nothing to do for windows threads, we can cancel them anytime we want
+    void THREAD_MAKE_ASYNCH_CANCELLABLE() {} // nothing to do for windows threads, we can cancel them anytime we want
 
 #if !defined __GNUC__
-	//see http://msdn.microsoft.com/en-us/library/xcb2z8hs.aspx
-	#define MS_VC_EXCEPTION 0x406D1388
-	#pragma pack(push,8)
-		typedef struct tagTHREADNAME_INFO
-		{
-			DWORD dwType; // Must be 0x1000.
-			LPCSTR szName; // Pointer to name (in user addr space).
-			DWORD dwThreadID; // Thread ID (-1=caller thread).
-			DWORD dwFlags; // Reserved for future use, must be zero.
-		} THREADNAME_INFO;
-	#pragma pack(pop)
+    //see http://msdn.microsoft.com/en-us/library/xcb2z8hs.aspx
+    #define MS_VC_EXCEPTION 0x406D1388
+    #pragma pack(push,8)
+        typedef struct tagTHREADNAME_INFO
+        {
+            DWORD dwType; // Must be 0x1000.
+            LPCSTR szName; // Pointer to name (in user addr space).
+            DWORD dwThreadID; // Thread ID (-1=caller thread).
+            DWORD dwFlags; // Reserved for future use, must be zero.
+        } THREADNAME_INFO;
+    #pragma pack(pop)
 #endif // !__GNUC__
 
-	void THREAD_SETNAME( char const* _name)
-	{
+    void THREAD_SETNAME( char const* _name)
+    {
 #if !defined __GNUC__
-		THREADNAME_INFO info;
-		info.dwType = 0x1000;
-		info.szName = _name;
-		info.dwThreadID = GetCurrentThreadId();
-		info.dwFlags = 0;
+        THREADNAME_INFO info;
+        info.dwType = 0x1000;
+        info.szName = _name;
+        info.dwThreadID = GetCurrentThreadId();
+        info.dwFlags = 0;
 
-		__try
-		{
-			RaiseException( MS_VC_EXCEPTION, 0, sizeof(info)/sizeof(ULONG_PTR), (ULONG_PTR*)&info );
-		}
-		__except(EXCEPTION_EXECUTE_HANDLER)
-		{
-		}
+        __try
+        {
+            RaiseException( MS_VC_EXCEPTION, 0, sizeof(info)/sizeof(ULONG_PTR), (ULONG_PTR*)&info );
+        }
+        __except(EXCEPTION_EXECUTE_HANDLER)
+        {
+        }
 #endif // !__GNUC__
-	}
+    }
 
 #if _WIN32_WINNT < 0x0600 // CONDITION_VARIABLE aren't available
 
-	void SIGNAL_INIT( SIGNAL_T* ref)
-	{
-		InitializeCriticalSection( &ref->signalCS);
-		InitializeCriticalSection( &ref->countCS);
-		if( 0 == (ref->waitEvent = CreateEvent( 0, TRUE, FALSE, 0)))     // manual-reset
-			FAIL( "CreateEvent", GetLastError());
-		if( 0 == (ref->waitDoneEvent = CreateEvent( 0, FALSE, FALSE, 0)))    // auto-reset
-			FAIL( "CreateEvent", GetLastError());
-		ref->waitersCount = 0;
-	}
+    void SIGNAL_INIT( SIGNAL_T* ref)
+    {
+        InitializeCriticalSection( &ref->signalCS);
+        InitializeCriticalSection( &ref->countCS);
+        if( 0 == (ref->waitEvent = CreateEvent( 0, TRUE, FALSE, 0)))     // manual-reset
+            FAIL( "CreateEvent", GetLastError());
+        if( 0 == (ref->waitDoneEvent = CreateEvent( 0, FALSE, FALSE, 0)))    // auto-reset
+            FAIL( "CreateEvent", GetLastError());
+        ref->waitersCount = 0;
+    }
 
-	void SIGNAL_FREE( SIGNAL_T* ref)
-	{
-		CloseHandle( ref->waitDoneEvent);
-		CloseHandle( ref->waitEvent);
-		DeleteCriticalSection( &ref->countCS);
-		DeleteCriticalSection( &ref->signalCS);
-	}
+    void SIGNAL_FREE( SIGNAL_T* ref)
+    {
+        CloseHandle( ref->waitDoneEvent);
+        CloseHandle( ref->waitEvent);
+        DeleteCriticalSection( &ref->countCS);
+        DeleteCriticalSection( &ref->signalCS);
+    }
 
-	bool_t SIGNAL_WAIT( SIGNAL_T* ref, MUTEX_T* mu_ref, time_d abs_secs)
-	{
-		DWORD errc;
-		DWORD ms;
+    bool_t SIGNAL_WAIT( SIGNAL_T* ref, MUTEX_T* mu_ref, time_d abs_secs)
+    {
+        DWORD errc;
+        DWORD ms;
 
-		if( abs_secs < 0.0)
-			ms = INFINITE;
-		else if( abs_secs == 0.0)
-			ms = 0;
-		else 
-		{
-			time_d msd = (abs_secs - now_secs()) * 1000.0 + 0.5;
-			// If the time already passed, still try once (ms==0). A short timeout
-			// may have turned negative or 0 because of the two time samples done.
-			ms = msd <= 0.0 ? 0 : (DWORD)msd;
-		}
+        if( abs_secs < 0.0)
+            ms = INFINITE;
+        else if( abs_secs == 0.0)
+            ms = 0;
+        else 
+        {
+            time_d msd = (abs_secs - now_secs()) * 1000.0 + 0.5;
+            // If the time already passed, still try once (ms==0). A short timeout
+            // may have turned negative or 0 because of the two time samples done.
+            ms = msd <= 0.0 ? 0 : (DWORD)msd;
+        }
 
-		EnterCriticalSection( &ref->signalCS);
-		EnterCriticalSection( &ref->countCS);
-		++ ref->waitersCount;
-		LeaveCriticalSection( &ref->countCS);
-		LeaveCriticalSection( &ref->signalCS);
+        EnterCriticalSection( &ref->signalCS);
+        EnterCriticalSection( &ref->countCS);
+        ++ ref->waitersCount;
+        LeaveCriticalSection( &ref->countCS);
+        LeaveCriticalSection( &ref->signalCS);
 
-		errc = SignalObjectAndWait( *mu_ref, ref->waitEvent, ms, FALSE);
+        errc = SignalObjectAndWait( *mu_ref, ref->waitEvent, ms, FALSE);
 
-		EnterCriticalSection( &ref->countCS);
-		if( 0 == -- ref->waitersCount)
-		{
-			// we're the last one leaving...
-			ResetEvent( ref->waitEvent);
-			SetEvent( ref->waitDoneEvent);
-		}
-		LeaveCriticalSection( &ref->countCS);
-		MUTEX_LOCK( mu_ref);
+        EnterCriticalSection( &ref->countCS);
+        if( 0 == -- ref->waitersCount)
+        {
+            // we're the last one leaving...
+            ResetEvent( ref->waitEvent);
+            SetEvent( ref->waitDoneEvent);
+        }
+        LeaveCriticalSection( &ref->countCS);
+        MUTEX_LOCK( mu_ref);
 
-		switch( errc)
-		{
-			case WAIT_TIMEOUT:
-			return FALSE;
-			case WAIT_OBJECT_0:
-			return TRUE;
-		}
+        switch( errc)
+        {
+            case WAIT_TIMEOUT:
+            return FALSE;
+            case WAIT_OBJECT_0:
+            return TRUE;
+        }
 
-		FAIL( "SignalObjectAndWait", GetLastError());
-		return FALSE;
-	}
+        FAIL( "SignalObjectAndWait", GetLastError());
+        return FALSE;
+    }
 
-	void SIGNAL_ALL( SIGNAL_T* ref)
-	{
-		DWORD errc = WAIT_OBJECT_0;
+    void SIGNAL_ALL( SIGNAL_T* ref)
+    {
+        DWORD errc = WAIT_OBJECT_0;
 
-		EnterCriticalSection( &ref->signalCS);
-		EnterCriticalSection( &ref->countCS);
+        EnterCriticalSection( &ref->signalCS);
+        EnterCriticalSection( &ref->countCS);
 
-		if( ref->waitersCount > 0)
-		{
-			ResetEvent( ref->waitDoneEvent);
-			SetEvent( ref->waitEvent);
-			LeaveCriticalSection( &ref->countCS);
-			errc = WaitForSingleObject( ref->waitDoneEvent, INFINITE);
-		}
-		else
-		{
-			LeaveCriticalSection( &ref->countCS);
-		}
+        if( ref->waitersCount > 0)
+        {
+            ResetEvent( ref->waitDoneEvent);
+            SetEvent( ref->waitEvent);
+            LeaveCriticalSection( &ref->countCS);
+            errc = WaitForSingleObject( ref->waitDoneEvent, INFINITE);
+        }
+        else
+        {
+            LeaveCriticalSection( &ref->countCS);
+        }
 
-		LeaveCriticalSection( &ref->signalCS);
+        LeaveCriticalSection( &ref->signalCS);
 
-		if( WAIT_OBJECT_0 != errc)
-			FAIL( "WaitForSingleObject", GetLastError());
-	}
+        if( WAIT_OBJECT_0 != errc)
+            FAIL( "WaitForSingleObject", GetLastError());
+    }
 
 #else // CONDITION_VARIABLE are available, use them
 
-	//
-	void SIGNAL_INIT( SIGNAL_T *ref )
-	{
-		InitializeConditionVariable( ref);
-	}
+    //
+    void SIGNAL_INIT( SIGNAL_T *ref )
+    {
+        InitializeConditionVariable( ref);
+    }
 
-	void SIGNAL_FREE( SIGNAL_T *ref )
-	{
-		// nothing to do
-		(void)ref;
-	}
+    void SIGNAL_FREE( SIGNAL_T *ref )
+    {
+        // nothing to do
+        (void)ref;
+    }
 
-	bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu_ref, time_d abs_secs)
-	{
-		long ms;
+    bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu_ref, time_d abs_secs)
+    {
+        long ms;
 
-		if( abs_secs < 0.0)
-			ms = INFINITE;
-		else if( abs_secs == 0.0)
-			ms = 0;
-		else
-		{
-			ms = (long) ((abs_secs - now_secs())*1000.0 + 0.5);
+        if( abs_secs < 0.0)
+            ms = INFINITE;
+        else if( abs_secs == 0.0)
+            ms = 0;
+        else
+        {
+            ms = (long) ((abs_secs - now_secs())*1000.0 + 0.5);
 
-			// If the time already passed, still try once (ms==0). A short timeout
-			// may have turned negative or 0 because of the two time samples done.
-			//
-			if( ms < 0)
-				ms = 0;
-		}
+            // If the time already passed, still try once (ms==0). A short timeout
+            // may have turned negative or 0 because of the two time samples done.
+            //
+            if( ms < 0)
+                ms = 0;
+        }
 
-		if( !SleepConditionVariableCS( ref, mu_ref, ms))
-		{
-			if( GetLastError() == ERROR_TIMEOUT)
-			{
-				return FALSE;
-			}
-			else
-			{
-				FAIL( "SleepConditionVariableCS", GetLastError());
-			}
-		}
-		return TRUE;
-	}
+        if( !SleepConditionVariableCS( ref, mu_ref, ms))
+        {
+            if( GetLastError() == ERROR_TIMEOUT)
+            {
+                return FALSE;
+            }
+            else
+            {
+                FAIL( "SleepConditionVariableCS", GetLastError());
+            }
+        }
+        return TRUE;
+    }
 
-	void SIGNAL_ONE( SIGNAL_T *ref )
-	{
-		WakeConditionVariable( ref);
-	}
+    void SIGNAL_ONE( SIGNAL_T *ref )
+    {
+        WakeConditionVariable( ref);
+    }
 
-	void SIGNAL_ALL( SIGNAL_T *ref )
-	{
-		WakeAllConditionVariable( ref);
-	}
+    void SIGNAL_ALL( SIGNAL_T *ref )
+    {
+        WakeAllConditionVariable( ref);
+    }
 
 #endif // CONDITION_VARIABLE are available
 
@@ -574,20 +574,20 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 
 #	if (defined(__MINGW32__) || defined(__MINGW64__)) && defined pthread_attr_setschedpolicy
 #	if pthread_attr_setschedpolicy( A, S) == ENOTSUP
-	// from the mingw-w64 team:
-	// Well, we support pthread_setschedparam by which you can specify
-	// threading-policy. Nevertheless, yes we lack this function. In
-	// general its implementation is pretty much trivial, as on Win32 target
-	// just SCHED_OTHER can be supported.
-	#undef pthread_attr_setschedpolicy
-	static int pthread_attr_setschedpolicy( pthread_attr_t* attr, int policy)
-	{
-		if( policy != SCHED_OTHER)
-		{
-			return ENOTSUP;
-		}
-		return 0;
-	}
+    // from the mingw-w64 team:
+    // Well, we support pthread_setschedparam by which you can specify
+    // threading-policy. Nevertheless, yes we lack this function. In
+    // general its implementation is pretty much trivial, as on Win32 target
+    // just SCHED_OTHER can be supported.
+    #undef pthread_attr_setschedpolicy
+    static int pthread_attr_setschedpolicy( pthread_attr_t* attr, int policy)
+    {
+        if( policy != SCHED_OTHER)
+        {
+            return ENOTSUP;
+        }
+        return 0;
+    }
 #	endif // pthread_attr_setschedpolicy()
 #	endif // defined(__MINGW32__) || defined(__MINGW64__)
 
@@ -646,94 +646,94 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 // array of 7 thread priority values, hand-tuned by platform so that we offer a uniform [-3,+3] public priority range
 static int const gs_prio_remap[] =
 {
-	// NB: PThreads priority handling is about as twisty as one can get it
-	//     (and then some). DON*T TRUST ANYTHING YOU READ ON THE NET!!!
+    // NB: PThreads priority handling is about as twisty as one can get it
+    //     (and then some). DON*T TRUST ANYTHING YOU READ ON THE NET!!!
 
-	//---
-	// "Select the scheduling policy for the thread: one of SCHED_OTHER 
-	// (regular, non-real-time scheduling), SCHED_RR (real-time, 
-	// round-robin) or SCHED_FIFO (real-time, first-in first-out)."
-	//
-	// "Using the RR policy ensures that all threads having the same
-	// priority level will be scheduled equally, regardless of their activity."
-	//
-	// "For SCHED_FIFO and SCHED_RR, the only required member of the
-	// sched_param structure is the priority sched_priority. For SCHED_OTHER,
-	// the affected scheduling parameters are implementation-defined."
-	//
-	// "The priority of a thread is specified as a delta which is added to 
-	// the priority of the process."
-	//
-	// ".. priority is an integer value, in the range from 1 to 127. 
-	//  1 is the least-favored priority, 127 is the most-favored."
-	//
-	// "Priority level 0 cannot be used: it is reserved for the system."
-	//
-	// "When you use specify a priority of -99 in a call to 
-	// pthread_setschedparam(), the priority of the target thread is 
-	// lowered to the lowest possible value."
-	//
-	// ...
+    //---
+    // "Select the scheduling policy for the thread: one of SCHED_OTHER 
+    // (regular, non-real-time scheduling), SCHED_RR (real-time, 
+    // round-robin) or SCHED_FIFO (real-time, first-in first-out)."
+    //
+    // "Using the RR policy ensures that all threads having the same
+    // priority level will be scheduled equally, regardless of their activity."
+    //
+    // "For SCHED_FIFO and SCHED_RR, the only required member of the
+    // sched_param structure is the priority sched_priority. For SCHED_OTHER,
+    // the affected scheduling parameters are implementation-defined."
+    //
+    // "The priority of a thread is specified as a delta which is added to 
+    // the priority of the process."
+    //
+    // ".. priority is an integer value, in the range from 1 to 127. 
+    //  1 is the least-favored priority, 127 is the most-favored."
+    //
+    // "Priority level 0 cannot be used: it is reserved for the system."
+    //
+    // "When you use specify a priority of -99 in a call to 
+    // pthread_setschedparam(), the priority of the target thread is 
+    // lowered to the lowest possible value."
+    //
+    // ...
 
-	// ** CONCLUSION **
-	//
-	// PThread priorities are _hugely_ system specific, and we need at
-	// least OS specific settings. Hopefully, Linuxes and OS X versions
-	// are uniform enough, among each other...
-	//
+    // ** CONCLUSION **
+    //
+    // PThread priorities are _hugely_ system specific, and we need at
+    // least OS specific settings. Hopefully, Linuxes and OS X versions
+    // are uniform enough, among each other...
+    //
 #	if defined PLATFORM_OSX
-		// AK 10-Apr-07 (OS X PowerPC 10.4.9):
-		//
-		// With SCHED_RR, 26 seems to be the "normal" priority, where setting
-		// it does not seem to affect the order of threads processed.
-		//
-		// With SCHED_OTHER, the range 25..32 is normal (maybe the same 26,
-		// but the difference is not so clear with OTHER).
-		//
-		// 'sched_get_priority_min()' and '..max()' give 15, 47 as the 
-		// priority limits. This could imply, user mode applications won't
-		// be able to use values outside of that range.
-		//
+        // AK 10-Apr-07 (OS X PowerPC 10.4.9):
+        //
+        // With SCHED_RR, 26 seems to be the "normal" priority, where setting
+        // it does not seem to affect the order of threads processed.
+        //
+        // With SCHED_OTHER, the range 25..32 is normal (maybe the same 26,
+        // but the difference is not so clear with OTHER).
+        //
+        // 'sched_get_priority_min()' and '..max()' give 15, 47 as the 
+        // priority limits. This could imply, user mode applications won't
+        // be able to use values outside of that range.
+        //
 #			define _PRIO_MODE SCHED_OTHER
 
-	// OS X 10.4.9 (PowerPC) gives ENOTSUP for process scope
-			//#define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
+    // OS X 10.4.9 (PowerPC) gives ENOTSUP for process scope
+            //#define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
 
 #			define _PRIO_HI  32    // seems to work (_carefully_ picked!)
 #			define _PRIO_0   26    // detected
 #			define _PRIO_LO   1    // seems to work (tested)
 
 #		elif defined PLATFORM_LINUX
-			// (based on Ubuntu Linux 2.6.15 kernel)
-			//
-			// SCHED_OTHER is the default policy, but does not allow for priorities.
-			// SCHED_RR allows priorities, all of which (1..99) are higher than
-			// a thread with SCHED_OTHER policy.
-			//
-			// <http://kerneltrap.org/node/6080>
-			// <http://en.wikipedia.org/wiki/Native_POSIX_Thread_Library>
-			// <http://www.net.in.tum.de/~gregor/docs/pthread-scheduling.html>
-			//
-			// Manuals suggest checking #ifdef _POSIX_THREAD_PRIORITY_SCHEDULING,
-			// but even Ubuntu does not seem to define it.
-			//
+            // (based on Ubuntu Linux 2.6.15 kernel)
+            //
+            // SCHED_OTHER is the default policy, but does not allow for priorities.
+            // SCHED_RR allows priorities, all of which (1..99) are higher than
+            // a thread with SCHED_OTHER policy.
+            //
+            // <http://kerneltrap.org/node/6080>
+            // <http://en.wikipedia.org/wiki/Native_POSIX_Thread_Library>
+            // <http://www.net.in.tum.de/~gregor/docs/pthread-scheduling.html>
+            //
+            // Manuals suggest checking #ifdef _POSIX_THREAD_PRIORITY_SCHEDULING,
+            // but even Ubuntu does not seem to define it.
+            //
 #			define _PRIO_MODE SCHED_RR
 
-			// NTLP 2.5: only system scope allowed (being the basic reason why
-			//           root privileges are required..)
-			//#define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
+            // NTLP 2.5: only system scope allowed (being the basic reason why
+            //           root privileges are required..)
+            //#define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
 
 #			define _PRIO_HI 99
 #			define _PRIO_0  50
 #			define _PRIO_LO 1
 
 #		elif defined(PLATFORM_BSD)
-			//
-			// <http://www.net.in.tum.de/~gregor/docs/pthread-scheduling.html>
-			//
-			// "When control over the thread scheduling is desired, then FreeBSD
-			//  with the libpthread implementation is by far the best choice .."
-			//
+            //
+            // <http://www.net.in.tum.de/~gregor/docs/pthread-scheduling.html>
+            //
+            // "When control over the thread scheduling is desired, then FreeBSD
+            //  with the libpthread implementation is by far the best choice .."
+            //
 #			define _PRIO_MODE SCHED_OTHER
 #			define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
 #			define _PRIO_HI 31
@@ -741,16 +741,16 @@ static int const gs_prio_remap[] =
 #			define _PRIO_LO 1
 
 #		elif defined(PLATFORM_CYGWIN)
-			//
-			// TBD: Find right values for Cygwin
-			//
+            //
+            // TBD: Find right values for Cygwin
+            //
 #		elif defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
-			// any other value not supported by win32-pthread as of version 2.9.1
+            // any other value not supported by win32-pthread as of version 2.9.1
 #			define _PRIO_MODE SCHED_OTHER
 
-			// PTHREAD_SCOPE_PROCESS not supported by win32-pthread as of version 2.9.1
-			//#define _PRIO_SCOPE PTHREAD_SCOPE_SYSTEM // but do we need this at all to start with?
-			THREAD_PRIORITY_IDLE, THREAD_PRIORITY_LOWEST, THREAD_PRIORITY_BELOW_NORMAL, THREAD_PRIORITY_NORMAL, THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_HIGHEST, THREAD_PRIORITY_TIME_CRITICAL
+            // PTHREAD_SCOPE_PROCESS not supported by win32-pthread as of version 2.9.1
+            //#define _PRIO_SCOPE PTHREAD_SCOPE_SYSTEM // but do we need this at all to start with?
+            THREAD_PRIORITY_IDLE, THREAD_PRIORITY_LOWEST, THREAD_PRIORITY_BELOW_NORMAL, THREAD_PRIORITY_NORMAL, THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_HIGHEST, THREAD_PRIORITY_TIME_CRITICAL
 
 #		else
 #			error "Unknown OS: not implemented!"
@@ -760,163 +760,163 @@ static int const gs_prio_remap[] =
 #	define _PRIO_AN (_PRIO_0 + ((_PRIO_HI-_PRIO_0)/2))
 #	define _PRIO_BN (_PRIO_LO + ((_PRIO_0-_PRIO_LO)/2))
 
-	_PRIO_LO, _PRIO_LO, _PRIO_BN, _PRIO_0, _PRIO_AN, _PRIO_HI, _PRIO_HI
+    _PRIO_LO, _PRIO_LO, _PRIO_BN, _PRIO_0, _PRIO_AN, _PRIO_HI, _PRIO_HI
 #endif // _PRIO_0
 };
 
 void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, int prio /* -3..+3 */)
 {
-	pthread_attr_t a;
-	bool_t const normal =
+    pthread_attr_t a;
+    bool_t const normal =
 #if defined(PLATFORM_LINUX) && defined(LINUX_SCHED_RR)
-	!sudo; // with sudo, even normal thread must use SCHED_RR
+    !sudo; // with sudo, even normal thread must use SCHED_RR
 #else
-	(prio == 0);
+    (prio == 0);
 #endif
 
-	PT_CALL( pthread_attr_init( &a));
+    PT_CALL( pthread_attr_init( &a));
 
 #ifndef PTHREAD_TIMEDJOIN
-	// We create a NON-JOINABLE thread. This is mainly due to the lack of
-	// 'pthread_timedjoin()', but does offer other benefits (s.a. earlier 
-	// freeing of the thread's resources).
-	//
-	PT_CALL( pthread_attr_setdetachstate( &a, PTHREAD_CREATE_DETACHED));
+    // We create a NON-JOINABLE thread. This is mainly due to the lack of
+    // 'pthread_timedjoin()', but does offer other benefits (s.a. earlier 
+    // freeing of the thread's resources).
+    //
+    PT_CALL( pthread_attr_setdetachstate( &a, PTHREAD_CREATE_DETACHED));
 #endif // PTHREAD_TIMEDJOIN
 
-	// Use this to find a system's default stack size (DEBUG)
+    // Use this to find a system's default stack size (DEBUG)
 #if 0
-	{
-		size_t n;
-		pthread_attr_getstacksize( &a, &n);
-		fprintf( stderr, "Getstack: %u\n", (unsigned int)n);
-	}
-	//  524288 on OS X
-	// 2097152 on Linux x86 (Ubuntu 7.04)
-	// 1048576 on FreeBSD 6.2 SMP i386
+    {
+        size_t n;
+        pthread_attr_getstacksize( &a, &n);
+        fprintf( stderr, "Getstack: %u\n", (unsigned int)n);
+    }
+    //  524288 on OS X
+    // 2097152 on Linux x86 (Ubuntu 7.04)
+    // 1048576 on FreeBSD 6.2 SMP i386
 #endif // 0
 
 #if defined _THREAD_STACK_SIZE && _THREAD_STACK_SIZE > 0
-	PT_CALL( pthread_attr_setstacksize( &a, _THREAD_STACK_SIZE));
+    PT_CALL( pthread_attr_setstacksize( &a, _THREAD_STACK_SIZE));
 #endif
 
-	if( !normal)
-	{
-		struct sched_param sp;
-		// "The specified scheduling parameters are only used if the scheduling
-		//  parameter inheritance attribute is PTHREAD_EXPLICIT_SCHED."
-		//
+    if( !normal)
+    {
+        struct sched_param sp;
+        // "The specified scheduling parameters are only used if the scheduling
+        //  parameter inheritance attribute is PTHREAD_EXPLICIT_SCHED."
+        //
 #if !defined __ANDROID__ || ( defined __ANDROID__ && __ANDROID_API__ >= 28 )
-		PT_CALL( pthread_attr_setinheritsched( &a, PTHREAD_EXPLICIT_SCHED));
+        PT_CALL( pthread_attr_setinheritsched( &a, PTHREAD_EXPLICIT_SCHED));
 #endif
 
 #ifdef _PRIO_SCOPE
-		PT_CALL( pthread_attr_setscope( &a, _PRIO_SCOPE));
+        PT_CALL( pthread_attr_setscope( &a, _PRIO_SCOPE));
 #endif // _PRIO_SCOPE
 
-		PT_CALL( pthread_attr_setschedpolicy( &a, _PRIO_MODE));
+        PT_CALL( pthread_attr_setschedpolicy( &a, _PRIO_MODE));
 
-		// prio range [-3,+3] was checked by the caller
-		sp.sched_priority = gs_prio_remap[ prio + 3];
-		PT_CALL( pthread_attr_setschedparam( &a, &sp));
-	}
+        // prio range [-3,+3] was checked by the caller
+        sp.sched_priority = gs_prio_remap[ prio + 3];
+        PT_CALL( pthread_attr_setschedparam( &a, &sp));
+    }
 
-	//---
-	// Seems on OS X, _POSIX_THREAD_THREADS_MAX is some kind of system
-	// thread limit (not userland thread). Actual limit for us is way higher.
-	// PTHREAD_THREADS_MAX is not defined (even though man page refers to it!)
-	//
+    //---
+    // Seems on OS X, _POSIX_THREAD_THREADS_MAX is some kind of system
+    // thread limit (not userland thread). Actual limit for us is way higher.
+    // PTHREAD_THREADS_MAX is not defined (even though man page refers to it!)
+    //
 # ifndef THREAD_CREATE_RETRIES_MAX
-	// Don't bother with retries; a failure is a failure
-	//
-	{ 
-		int rc = pthread_create( ref, &a, func, data);
-		if( rc) _PT_FAIL( rc, "pthread_create()", __FILE__, __LINE__ - 1);
-	}
+    // Don't bother with retries; a failure is a failure
+    //
+    { 
+        int rc = pthread_create( ref, &a, func, data);
+        if( rc) _PT_FAIL( rc, "pthread_create()", __FILE__, __LINE__ - 1);
+    }
 # else
 #		error "This code deprecated"
-		/*
-		// Wait slightly if thread creation has exchausted the system
-		//
-		{ uint_t retries;
-		for( retries=0; retries<THREAD_CREATE_RETRIES_MAX; retries++ ) {
+        /*
+        // Wait slightly if thread creation has exchausted the system
+        //
+        { uint_t retries;
+        for( retries=0; retries<THREAD_CREATE_RETRIES_MAX; retries++ ) {
 
-		int rc= pthread_create( ref, &a, func, data );
-		//
-		// OS X / Linux:
-		//    EAGAIN: ".. lacked the necessary resources to create
-		//             another thread, or the system-imposed limit on the
-		//             total number of threads in a process 
-		//             [PTHREAD_THREADS_MAX] would be exceeded."
-		//    EINVAL: attr is invalid
-		// Linux:
-		//    EPERM: no rights for given parameters or scheduling (no sudo)
-		//    ENOMEM: (known to fail with this code, too - not listed in man)
+        int rc= pthread_create( ref, &a, func, data );
+        //
+        // OS X / Linux:
+        //    EAGAIN: ".. lacked the necessary resources to create
+        //             another thread, or the system-imposed limit on the
+        //             total number of threads in a process 
+        //             [PTHREAD_THREADS_MAX] would be exceeded."
+        //    EINVAL: attr is invalid
+        // Linux:
+        //    EPERM: no rights for given parameters or scheduling (no sudo)
+        //    ENOMEM: (known to fail with this code, too - not listed in man)
 
-		if (rc==0) break;   // ok!
+        if (rc==0) break;   // ok!
 
-		// In practise, exhaustion seems to be coming from memory, not a
-		// maximum number of threads. Keep tuning... ;)
-		//
-		if (rc==EAGAIN) {
-		//fprintf( stderr, "Looping (retries=%d) ", retries );    // DEBUG
+        // In practise, exhaustion seems to be coming from memory, not a
+        // maximum number of threads. Keep tuning... ;)
+        //
+        if (rc==EAGAIN) {
+        //fprintf( stderr, "Looping (retries=%d) ", retries );    // DEBUG
 
-		// Try again, later.
+        // Try again, later.
 
-		Yield();
-		} else {
-		_PT_FAIL( rc, "pthread_create()", __FILE__, __LINE__ );
-		}
-		}
-		}
-		*/
+        Yield();
+        } else {
+        _PT_FAIL( rc, "pthread_create()", __FILE__, __LINE__ );
+        }
+        }
+        }
+        */
 # endif
 
-	PT_CALL( pthread_attr_destroy( &a));
+    PT_CALL( pthread_attr_destroy( &a));
 }
 
 
 void THREAD_SET_PRIORITY( int prio)
 {
 #if defined PLATFORM_LINUX && defined LINUX_SCHED_RR
-	if( sudo) // only root-privileged process can change priorities
+    if( sudo) // only root-privileged process can change priorities
 #endif // defined PLATFORM_LINUX && defined LINUX_SCHED_RR
-	{
-		struct sched_param sp;
-		// prio range [-3,+3] was checked by the caller
-		sp.sched_priority = gs_prio_remap[ prio + 3];
-		PT_CALL( pthread_setschedparam( pthread_self(), _PRIO_MODE, &sp));
-	}
+    {
+        struct sched_param sp;
+        // prio range [-3,+3] was checked by the caller
+        sp.sched_priority = gs_prio_remap[ prio + 3];
+        PT_CALL( pthread_setschedparam( pthread_self(), _PRIO_MODE, &sp));
+    }
 }
 
 void THREAD_SET_AFFINITY( unsigned int aff)
 {
-	int bit = 0;
+    int bit = 0;
 #ifdef __NetBSD__
-	cpuset_t *cpuset = cpuset_create();
-	if( cpuset == NULL)
-		_PT_FAIL( errno, "cpuset_create", __FILE__, __LINE__-2 );
+    cpuset_t *cpuset = cpuset_create();
+    if( cpuset == NULL)
+        _PT_FAIL( errno, "cpuset_create", __FILE__, __LINE__-2 );
 #define CPU_SET(b, s) cpuset_set(b, *(s))
 #else
-	cpu_set_t cpuset;
-	CPU_ZERO( &cpuset);
+    cpu_set_t cpuset;
+    CPU_ZERO( &cpuset);
 #endif
-	while( aff != 0)
-	{
-		if( aff & 1)
-		{
-			CPU_SET( bit, &cpuset);
-		}
-		++ bit;
-		aff >>= 1;
-	}
+    while( aff != 0)
+    {
+        if( aff & 1)
+        {
+            CPU_SET( bit, &cpuset);
+        }
+        ++ bit;
+        aff >>= 1;
+    }
 #ifdef __ANDROID__
-	PT_CALL( sched_setaffinity( pthread_self(), sizeof(cpu_set_t), &cpuset));
+    PT_CALL( sched_setaffinity( pthread_self(), sizeof(cpu_set_t), &cpuset));
 #elif defined(__NetBSD__)
-	PT_CALL( pthread_setaffinity_np( pthread_self(), cpuset_size(cpuset), cpuset));
-	cpuset_destroy( cpuset);
+    PT_CALL( pthread_setaffinity_np( pthread_self(), cpuset_size(cpuset), cpuset));
+    cpuset_destroy( cpuset);
 #else
-	PT_CALL( pthread_setaffinity_np( pthread_self(), sizeof(cpu_set_t), &cpuset));
+    PT_CALL( pthread_setaffinity_np( pthread_self(), sizeof(cpu_set_t), &cpuset));
 #endif
 }
 
@@ -986,47 +986,47 @@ bool_t THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
     return done;
   }
-	//
+    //
   void THREAD_KILL( THREAD_T *ref ) {
 #ifdef __ANDROID__
-	  __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "Cannot kill thread!");
+      __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "Cannot kill thread!");
 #else
     pthread_cancel( *ref );
 #endif
   }
 
-	void THREAD_MAKE_ASYNCH_CANCELLABLE()
-	{
+    void THREAD_MAKE_ASYNCH_CANCELLABLE()
+    {
 #ifdef __ANDROID__
-	__android_log_print(ANDROID_LOG_WARN, LOG_TAG, "Cannot make thread async cancellable!");
+    __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "Cannot make thread async cancellable!");
 #else
-		// that's the default, but just in case...
-		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-		// we want cancellation to take effect immediately if possible, instead of waiting for a cancellation point (which is the default)
-		pthread_setcanceltype( PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+        // that's the default, but just in case...
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+        // we want cancellation to take effect immediately if possible, instead of waiting for a cancellation point (which is the default)
+        pthread_setcanceltype( PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 #endif
-	}
+    }
 
-	void THREAD_SETNAME( char const* _name)
-	{
-		// exact API to set the thread name is platform-dependant
-		// if you need to fix the build, or if you know how to fill a hole, tell me (bnt.germain@gmail.com) so that I can submit the fix in github.
+    void THREAD_SETNAME( char const* _name)
+    {
+        // exact API to set the thread name is platform-dependant
+        // if you need to fix the build, or if you know how to fill a hole, tell me (bnt.germain@gmail.com) so that I can submit the fix in github.
 #if defined PLATFORM_BSD && !defined __NetBSD__
-		pthread_set_name_np( pthread_self(), _name);
+        pthread_set_name_np( pthread_self(), _name);
 #elif defined PLATFORM_BSD && defined __NetBSD__
-		pthread_setname_np( pthread_self(), "%s", (void *)_name);
+        pthread_setname_np( pthread_self(), "%s", (void *)_name);
 #elif defined PLATFORM_LINUX
-	#if LINUX_USE_PTHREAD_SETNAME_NP
-		pthread_setname_np( pthread_self(), _name);
-	#else // LINUX_USE_PTHREAD_SETNAME_NP
-		 prctl(PR_SET_NAME, _name, 0, 0, 0);
-	#endif // LINUX_USE_PTHREAD_SETNAME_NP
+    #if LINUX_USE_PTHREAD_SETNAME_NP
+        pthread_setname_np( pthread_self(), _name);
+    #else // LINUX_USE_PTHREAD_SETNAME_NP
+         prctl(PR_SET_NAME, _name, 0, 0, 0);
+    #endif // LINUX_USE_PTHREAD_SETNAME_NP
 #elif defined PLATFORM_QNX || defined PLATFORM_CYGWIN
-		pthread_setname_np( pthread_self(), _name);
+        pthread_setname_np( pthread_self(), _name);
 #elif defined PLATFORM_OSX
-		pthread_setname_np(_name);
+        pthread_setname_np(_name);
 #elif defined PLATFORM_WIN32 || defined PLATFORM_POCKETPC
-		PT_CALL( pthread_setname_np( pthread_self(), _name));
+        PT_CALL( pthread_setname_np( pthread_self(), _name));
 #endif
-	}
+    }
 #endif // THREADAPI == THREADAPI_PTHREAD

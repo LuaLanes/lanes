@@ -6,7 +6,7 @@
 // Lua light userdata can hold a pointer.
 struct s_UniqueKey
 {
-	void* value;
+    void* value;
 };
 typedef struct s_UniqueKey UniqueKey;
 

@@ -27,9 +27,9 @@ void push_registry_subtable( lua_State* L, UniqueKey key_);
 
 enum e_vt
 {
-	VT_NORMAL,
-	VT_KEY,
-	VT_METATABLE
+    VT_NORMAL,
+    VT_KEY,
+    VT_METATABLE
 };
 bool_t inter_copy_one( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, LookupMode mode_, char const* upName_);
 
