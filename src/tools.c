@@ -174,11 +174,12 @@ static int luaG_provide_protected_allocator( lua_State* L)
     return 1;
 }
 
+// called once at the creation of the universe (therefore L is the master Lua state everything originates from)
 // Do I need to disable this when compiling for LuaJIT to prevent issues?
 void initialize_allocator_function( Universe* U, lua_State* L)
 {
     STACK_CHECK( L, 0);
-    lua_getfield( L, -1, "allocator");                    // settings allocator|nil|"protected"
+    lua_getfield( L, -1, "allocator");                      // settings allocator|nil|"protected"
     if( !lua_isnil( L, -1))
     {
         // store C function pointer in an internal variable
@@ -186,17 +187,17 @@ void initialize_allocator_function( Universe* U, lua_State* L)
         if( U->provide_allocator != NULL)
         {
             // make sure the function doesn't have upvalues
-            char const* upname = lua_getupvalue( L, -1, 1);   // settings allocator upval?
+            char const* upname = lua_getupvalue( L, -1, 1); // settings allocator upval?
             if( upname != NULL) // should be "" for C functions with upvalues if any
             {
                 (void) luaL_error( L, "config.allocator() shouldn't have upvalues");
             }
             // remove this C function from the config table so that it doesn't cause problems
             // when we transfer the config table in newly created Lua states
-            lua_pushnil( L);                                  // settings allocator nil
-            lua_setfield( L, -3, "allocator");                // settings allocator
+            lua_pushnil( L);                                // settings allocator nil
+            lua_setfield( L, -3, "allocator");              // settings allocator
         }
-        else if( lua_type( L, -1) == LUA_TSTRING)
+        else if( lua_type( L, -1) == LUA_TSTRING) // should be "protected"
         {
             // initialize all we need for the protected allocator
             MUTEX_INIT( &U->protected_allocator.lock); // the mutex
@@ -208,7 +209,14 @@ void initialize_allocator_function( Universe* U, lua_State* L)
             lua_setallocf( L, protected_lua_Alloc, &U->protected_allocator);
         }
     }
-    lua_pop( L, 1);                                       // settings
+    else
+    {
+        // initialize the mutex even if we are not going to use it, because cleanup_allocator_function will deinitialize it
+        MUTEX_INIT( &U->protected_allocator.lock);
+        // just grab whatever allocator was provided to lua_newstate
+        U->protected_allocator.definition.allocF = lua_getallocf( L, &U->protected_allocator.definition.allocUD);
+    }
+    lua_pop( L, 1);                                         // settings
     STACK_END( L, 0);
 }
 

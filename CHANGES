@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 151: BGe 7-Feb-22
+   * Lanes no longer relies on malloc/free for internal allocations, but uses the primary alloc function from the master Lua state
+
 CHANGE 150: BGe 22-Sep-21
    * fix require() wrapper to return all values returned by original require()
 

@@ -238,6 +238,7 @@ static bool_t tracking_remove( Lane* s)
 
 static void lane_cleanup( Lane* s)
 {
+    AllocatorDefinition* const allocD = &s->U->protected_allocator.definition;
     // Clean up after a (finished) thread
     //
 #if THREADWAIT_METHOD == THREADWAIT_CONDVAR
@@ -253,7 +254,7 @@ static void lane_cleanup( Lane* s)
     }
 #endif // HAVE_LANE_TRACKING
 
-    free( s);
+    allocD->allocF(allocD->allocUD, s, sizeof(Lane), 0);
 }
 
 /*
@@ -457,9 +458,9 @@ static int selfdestruct_gc( lua_State* L)
                 // if we failed, and we know the thread is waiting on a linda
                 if( cancelled == FALSE && s->status == WAITING && s->waiting_on != NULL)
                 {
-                    // signal the linda the wake up the thread so that it can react to the cancel query
+                    // signal the linda to wake up the thread so that it can react to the cancel query
                     // let us hope we never land here with a pointer on a linda that has been destroyed...
-                    SIGNAL_T *waiting_on = s->waiting_on;
+                    SIGNAL_T* waiting_on = s->waiting_on;
                     //s->waiting_on = NULL; // useful, or not?
                     SIGNAL_ALL( waiting_on);
                 }
@@ -1053,6 +1054,7 @@ LUAG_FUNC( lane_new)
 #define FIXED_ARGS 7
     int const nargs = lua_gettop(L) - FIXED_ARGS;
     Universe* U = universe_get( L);
+    AllocatorDefinition* const allocD = &U->protected_allocator.definition;
     ASSERT_L( nargs >= 0);
 
     // public Lanes API accepts a generic range -3/+3
@@ -1222,7 +1224,7 @@ LUAG_FUNC( lane_new)
     //
     // a Lane full userdata needs a single uservalue
     ud = lua_newuserdatauv( L, sizeof( Lane*), 1);           // func libs priority globals package required gc_cb lane
-    s = *ud = (Lane*) malloc( sizeof( Lane));
+    s = *ud = (Lane*) allocD->allocF( allocD->allocUD, NULL, 0, sizeof(Lane));
     if( s == NULL)
     {
         return luaL_error( L, "could not create lane: out of memory");
@@ -1856,7 +1858,7 @@ LUAG_FUNC( configure)
 #endif // THREADAPI == THREADAPI_PTHREAD
 
     STACK_GROW( L, 4);
-    STACK_CHECK_ABS( L, 1);                                                              // settings
+    STACK_CHECK_ABS( L, 1);                                                                // settings
 
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END, L));
     DEBUGSPEW_CODE( if( U) ++ U->debugspew_indent_depth);
@@ -1913,10 +1915,10 @@ LUAG_FUNC( configure)
     serialize_require( DEBUGSPEW_PARAM_COMMA( U) L);
 
     // Retrieve main module interface table
-    lua_pushvalue( L, lua_upvalueindex( 2));                                             // settings M
+    lua_pushvalue( L, lua_upvalueindex( 2));                                               // settings M
     // remove configure() (this function) from the module interface
-    lua_pushnil( L);                                                                     // settings M nil
-    lua_setfield( L, -2, "configure");                                                   // settings M
+    lua_pushnil( L);                                                                       // settings M nil
+    lua_setfield( L, -2, "configure");                                                     // settings M
     // add functions to the module's table
     luaG_registerlibfuncs( L, lanes_functions);
 #if HAVE_LANE_TRACKING
@@ -1943,7 +1945,7 @@ LUAG_FUNC( configure)
     // prepare the metatable for threads
     // contains keys: { __gc, __index, cached_error, cached_tostring, cancel, join, get_debug_threadname }
     //
-    if( luaL_newmetatable( L, "Lane"))                                                   // settings M mt
+    if( luaL_newmetatable( L, "Lane"))                                                     // settings M mt
     {
         lua_pushcfunction( L, LG_thread_gc);                                               // settings M mt LG_thread_gc
         lua_setfield( L, -2, "__gc");                                                      // settings M mt
@@ -1965,25 +1967,25 @@ LUAG_FUNC( configure)
         lua_setfield( L, -2, "__metatable");                                               // settings M mt
     }
 
-    lua_pushcclosure( L, LG_lane_new, 1);                                                // settings M lane_new
-    lua_setfield( L, -2, "lane_new");                                                    // settings M
+    lua_pushcclosure( L, LG_lane_new, 1);                                                  // settings M lane_new
+    lua_setfield( L, -2, "lane_new");                                                      // settings M
 
     // we can't register 'lanes.require' normally because we want to create an upvalued closure
-    lua_getglobal( L, "require");                                                        // settings M require
-    lua_pushcclosure( L, LG_require, 1);                                                 // settings M lanes.require
-    lua_setfield( L, -2, "require");                                                     // settings M
+    lua_getglobal( L, "require");                                                          // settings M require
+    lua_pushcclosure( L, LG_require, 1);                                                   // settings M lanes.require
+    lua_setfield( L, -2, "require");                                                       // settings M
 
     lua_pushfstring(
         L, "%d.%d.%d"
         , LANES_VERSION_MAJOR, LANES_VERSION_MINOR, LANES_VERSION_PATCH
-    );                                                                                   // settings M VERSION
-    lua_setfield( L, -2, "version");                                                     // settings M
+    );                                                                                     // settings M VERSION
+    lua_setfield( L, -2, "version");                                                       // settings M
 
-    lua_pushinteger(L, THREAD_PRIO_MAX);                                                 // settings M THREAD_PRIO_MAX
-    lua_setfield( L, -2, "max_prio");                                                    // settings M
+    lua_pushinteger(L, THREAD_PRIO_MAX);                                                   // settings M THREAD_PRIO_MAX
+    lua_setfield( L, -2, "max_prio");                                                      // settings M
 
-    push_unique_key( L, CANCEL_ERROR);                                                   // settings M CANCEL_ERROR
-    lua_setfield( L, -2, "cancel_error");                                                // settings M
+    push_unique_key( L, CANCEL_ERROR);                                                     // settings M CANCEL_ERROR
+    lua_setfield( L, -2, "cancel_error");                                                  // settings M
 
     STACK_MID( L, 2); // reference stack contains only the function argument 'settings'
     // we'll need this every time we transfer some C function from/to this state

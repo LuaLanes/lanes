@@ -42,7 +42,7 @@ typedef struct ProtectedAllocator_s ProtectedAllocator;
 
 // ################################################################################################
 
-// everything regarding the a Lanes universe is stored in that global structure
+// everything regarding the Lanes universe is stored in that global structure
 // held as a full userdata in the master Lua state that required it for the first time
 // don't forget to initialize all members in LG_configure()
 struct s_Universe
@@ -58,7 +58,7 @@ struct s_Universe
     // after a state is created, this function will be called right after the bases libraries are loaded
     lua_CFunction on_state_create_func;
 
-    // Initialized and used only if allocator="protected" is found in the configuration settings
+    // if allocator="protected" is found in the configuration settings, a wrapper allocator will protect all allocator calls with a mutex
     // contains a mutex and the original allocator definition
     ProtectedAllocator protected_allocator;
 

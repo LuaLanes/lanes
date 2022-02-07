@@ -758,6 +758,9 @@ LUAG_FUNC( linda_towatch)
 */
 static void* linda_id( lua_State* L, DeepOp op_)
 {
+    Universe* const U = universe_get(L);
+    AllocatorDefinition* const allocD = &U->protected_allocator.definition;
+
     switch( op_)
     {
         case eDO_new:
@@ -794,7 +797,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             * One can use any memory allocation scheme.
             * just don't use L's allocF because we don't know which state will get the honor of GCing the linda
             */
-            s = (struct s_Linda*) malloc( sizeof(struct s_Linda) + name_len); // terminating 0 is already included
+            s = (struct s_Linda*) allocD->allocF( allocD->allocUD, NULL, 0, sizeof(struct s_Linda) + name_len); // terminating 0 is already included
             if( s)
             {
                 s->prelude.magic.value = DEEP_VERSION.value;
@@ -827,7 +830,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             // There aren't any lanes waiting on these lindas, since all proxies have been gc'ed. Right?
             SIGNAL_FREE( &linda->read_happened);
             SIGNAL_FREE( &linda->write_happened);
-            free( linda);
+            allocD->allocF( allocD->allocUD, linda, sizeof(struct s_Linda) + strlen(linda->name), 0);
             return NULL;
         }
 
