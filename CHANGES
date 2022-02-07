@@ -1,6 +1,7 @@
 CHANGES:
 
 CHANGE 151: BGe 7-Feb-22
+   * bumped version to 3.15.2
    * Lanes no longer relies on malloc/free for internal allocations, but uses the primary alloc function from the master Lua state
 
 CHANGE 150: BGe 22-Sep-21
