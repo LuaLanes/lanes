@@ -1,5 +1,6 @@
 #include <malloc.h>
 #include <memory.h>
+#include <assert.h>
 
 #include "lua.h"
 #include "lualib.h"
@@ -196,18 +197,12 @@ static int clonable_lanesclone( lua_State* L)
 {
 	switch( lua_gettop( L))
 	{
-		case 1:
-		{
-			// in case we need it to compute the amount of memory we need
-			struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
-			lua_pushinteger( L, sizeof( struct s_MyClonableUserdata));
-		}
-		return 1;
-
-		case 2:
+		case 3:
 		{
 			struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
 			struct s_MyClonableUserdata* from = lua_touserdata( L, 2);
+			size_t len = lua_tointeger( L, 3);
+			assert( len == sizeof(struct s_MyClonableUserdata));
 			*self = *from;
 		}
 		return 0;

@@ -6,7 +6,8 @@ local dt = lanes.require "deep_test"
 
 local test_deep = true
 local test_clonable = true
-local test_uvtype = "function"
+local test_uvtype = "string"
+local nupvals = _VERSION == "Lua 5.4" and 2 or 1
 
 local makeUserValue = function( obj_)
 	if test_uvtype == "string" then
@@ -21,14 +22,17 @@ local makeUserValue = function( obj_)
 end
 
 local printDeep = function( prefix_, obj_, t_)
-	local uservalue = obj_:getuv( 1)
-	print( prefix_)
-	print ( obj_, uservalue, type( uservalue) == "function" and uservalue() or "")
+	print( prefix_, obj_)
+	for uvi = 1, nupvals do
+		local uservalue = obj_:getuv( 1)
+		print ( "uv #" .. uvi, uservalue, type( uservalue) == "function" and uservalue() or "")
+	end
 	if t_ then
 		for k, v in pairs( t_) do
 			print( k, v)
 		end
 	end
+	print()
 end
 
 local performTest = function( obj_)
@@ -38,12 +42,14 @@ local performTest = function( obj_)
 	-- lua 5.3 supports an arbitrary type uservalue
 	obj_:setuv( 1, makeUserValue( obj_))
 	-- lua 5.4 supports multiple uservalues of arbitrary types
-	-- obj_:setuv( 2, "ENDUV")
+	if nupvals > 1 then
+		obj_:setuv( 2, "ENDUV")
+	end
 
 	local t =
 	{
 		["key"] = obj_,
-		-- [obj_] = "val"
+		[obj_] = "val" -- this one won't transfer because we don't support full uservalue as keys
 	}
 
 	-- read back the contents of the object
@@ -76,11 +82,13 @@ local performTest = function( obj_)
 end
 
 if test_deep then
+	print "================================================================"
 	print "DEEP"
-	performTest( dt.new_deep())
+	performTest( dt.new_deep(nupvals))
 end
 
 if test_clonable then
+	print "================================================================"
 	print "CLONABLE"
-	performTest( dt.new_clonable())
+	performTest( dt.new_clonable(nupvals))
 end

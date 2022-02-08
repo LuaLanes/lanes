@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 8-Feb-22, and applies to version <tt>3.15.2</tt>.
+				This document was revised on 8-Feb-22, and applies to version <tt>3.16.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -1550,27 +1550,20 @@ events to a common Linda, but... :).</font>
 <h3 id="clonable_userdata">Clonable full userdata in your own apps</h3>
 <p>
 	Starting with version 3.13.0, a new way of passing full userdata across lanes uses a new <tt>__lanesclone</tt> metamethod.
-	When a deep userdata is cloned, Lanes calls <tt>__lanesclone</tt> twice, in the context of the source lane.</br>
-	The first call receives the original as light userdata, as in <tt>ud:__lanesclone()</tt>, and should return the amount of memory used to create the cloned full userdata.</br>
-	The second call receives the clone and original as light userdata, as in <tt>clone:__lanesclone(original)</tt>, and should perform the actual cloning.</br>
-	A typical implementation would look like:
+	When a deep userdata is cloned, Lanes calls <tt>__lanesclone</tt> once, in the context of the source lane.</br>
+	The call receives the clone and original as light userdata, plus the actual userdata size, as in <tt>clone:__lanesclone(original,size)</tt>, and should perform the actual cloning.</br>
+	A typical implementation would look like (BEWARE, THIS CHANGED WITH VERSION 3.16.0):
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 static int clonable_lanesclone( lua_State* L)
 {
 	switch( lua_gettop( L))
 	{
-		case 1: // original:__lanesclone()
-		{
-			// the original (as light userdata), in case you need it to compute the size of the clone
-			struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
-			lua_pushinteger( L, sizeof( struct s_MyClonableUserdata));
-		}
-		return 1;
-
-		case 2: // clone:__lanesclone(original)
+		case 3:
 		{
 			struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
 			struct s_MyClonableUserdata* from = lua_touserdata( L, 2);
+			size_t len = lua_tointeger( L, 3);
+			assert( len == sizeof(struct s_MyClonableUserdata));
 			*self = *from;
 		}
 		return 0;
@@ -1736,9 +1729,7 @@ int luaD_new_clonable( lua_State* L)
 <h2 id="changes">Change log</h2>
 
 <p>
-	v3.14.0: lane:cancel() rework: opt.cancelstep is gone, hook is installed by lane:cancel() if requested.
-
-	For older stuff see CHANGES.
+	See CHANGES.
 </p>
 
 <!-- footnotes +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
@@ -1755,4 +1746,3 @@ int luaD_new_clonable( lua_State* L)
 
 </body>
 </html>
-</pre></pre></pre></pre></pre></pre></pre>
