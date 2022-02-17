@@ -129,31 +129,31 @@ static int require_lanes_core( lua_State* L)
 static const luaL_Reg libs[] =
 {
     { LUA_LOADLIBNAME, luaopen_package},
-{ LUA_TABLIBNAME, luaopen_table},
-{ LUA_STRLIBNAME, luaopen_string},
-{ LUA_MATHLIBNAME, luaopen_math},
+    { LUA_TABLIBNAME, luaopen_table},
+    { LUA_STRLIBNAME, luaopen_string},
+    { LUA_MATHLIBNAME, luaopen_math},
 #ifndef PLATFORM_XBOX // no os/io libs on xbox
-{ LUA_OSLIBNAME, luaopen_os},
-{ LUA_IOLIBNAME, luaopen_io},
+    { LUA_OSLIBNAME, luaopen_os},
+    { LUA_IOLIBNAME, luaopen_io},
 #endif // PLATFORM_XBOX
 #if LUA_VERSION_NUM >= 503
-{ LUA_UTF8LIBNAME, luaopen_utf8},
+   { LUA_UTF8LIBNAME, luaopen_utf8},
 #endif
 #if LUA_VERSION_NUM >= 502
 #ifdef luaopen_bit32
-{ LUA_BITLIBNAME, luaopen_bit32},
+    { LUA_BITLIBNAME, luaopen_bit32},
 #endif
-{ LUA_COLIBNAME, luaopen_coroutine}, // Lua 5.2: coroutine is no longer a part of base!
+    { LUA_COLIBNAME, luaopen_coroutine}, // Lua 5.2: coroutine is no longer a part of base!
 #else // LUA_VERSION_NUM
-{ LUA_COLIBNAME, NULL},              // Lua 5.1: part of base package
+    { LUA_COLIBNAME, NULL},              // Lua 5.1: part of base package
 #endif // LUA_VERSION_NUM
-{ LUA_DBLIBNAME, luaopen_debug},
-#if defined LUA_JITLIBNAME // building against LuaJIT headers, add some LuaJIT-specific libs
+    { LUA_DBLIBNAME, luaopen_debug},
+#if LUAJIT_FLAVOR != 0 // building against LuaJIT headers, add some LuaJIT-specific libs
 //#pragma message( "supporting JIT base libs")
-{ LUA_BITLIBNAME, luaopen_bit},
-{ LUA_JITLIBNAME, luaopen_jit},
-{ LUA_FFILIBNAME, luaopen_ffi},
-#endif // LUA_JITLIBNAME
+    { LUA_BITLIBNAME, luaopen_bit},
+    { LUA_JITLIBNAME, luaopen_jit},
+    { LUA_FFILIBNAME, luaopen_ffi},
+#endif // LUAJIT_FLAVOR
 
 { LUA_DBLIBNAME, luaopen_debug},
 { "lanes.core", require_lanes_core}, // So that we can open it like any base library (possible since we have access to the init function)
@@ -249,6 +249,10 @@ void initialize_on_state_create( Universe* U, lua_State* L)
 lua_State* create_state( Universe* U, lua_State* from_)
 {
     lua_State* L;
+#if LUAJIT_FLAVOR == 64
+    // for some reason, LuaJIT 64 bits does not support creating a state with lua_newstate...
+    L = luaL_newstate();
+#else // LUAJIT_FLAVOR == 64
     if( U->provide_allocator != NULL) // we have a function we can call to obtain an allocator
     {
         lua_pushcclosure( from_, U->provide_allocator, 0);
@@ -264,6 +268,7 @@ lua_State* create_state( Universe* U, lua_State* from_)
         // reuse the allocator provided when the master state was created
         L = lua_newstate( U->protected_allocator.definition.allocF, U->protected_allocator.definition.allocUD);
     }
+#endif // LUAJIT_FLAVOR == 64
 
     if( L == NULL)
     {

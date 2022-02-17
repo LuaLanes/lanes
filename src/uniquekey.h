@@ -1,7 +1,7 @@
 #if !defined __LANES_UNIQUEKEY_H__
 #define __LANES_UNIQUEKEY_H__ 1
 
-#include "lualib.h"
+#include "macros_and_utils.h"
 
 // Lua light userdata can hold a pointer.
 struct s_UniqueKey
@@ -10,11 +10,11 @@ struct s_UniqueKey
 };
 typedef struct s_UniqueKey UniqueKey;
 
-#if defined(LUA_JITLIBNAME) && (defined(__x86_64__) || defined(_M_X64) || defined(__LP64__)) // building against LuaJIT headers, light userdata is restricted to 47 significant bits.
+#if LUAJIT_FLAVOR == 64 // building against LuaJIT headers for 64 bits, light userdata is restricted to 47 significant bits, because LuaJIT uses the other bits for internal optimizations
 #define MAKE_UNIQUE_KEY( p_) ((void*)((ptrdiff_t)(p_) & 0x7fffffffffffull))
-#else // LUA_JITLIBNAME
+#else // LUAJIT_FLAVOR
 #define MAKE_UNIQUE_KEY( p_) ((void*)(ptrdiff_t)(p_))
-#endif // LUA_JITLIBNAME
+#endif // LUAJIT_FLAVOR
 
 #define DECLARE_UNIQUE_KEY( name_) UniqueKey name_
 #define DECLARE_CONST_UNIQUE_KEY( name_, p_) UniqueKey const name_ = { MAKE_UNIQUE_KEY( p_)}

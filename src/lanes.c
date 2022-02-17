@@ -238,7 +238,6 @@ static bool_t tracking_remove( Lane* s)
 
 static void lane_cleanup( Lane* s)
 {
-    AllocatorDefinition* const allocD = &s->U->protected_allocator.definition;
     // Clean up after a (finished) thread
     //
 #if THREADWAIT_METHOD == THREADWAIT_CONDVAR
@@ -254,7 +253,15 @@ static void lane_cleanup( Lane* s)
     }
 #endif // HAVE_LANE_TRACKING
 
-    allocD->allocF(allocD->allocUD, s, sizeof(Lane), 0);
+    // don't hijack the state allocator when running LuaJIT because it looks like LuaJIT does not expect it and might invalidate the memory unexpectedly
+#if LUAJIT_FLAVOR == 0
+    {
+        AllocatorDefinition* const allocD = &s->U->protected_allocator.definition;
+        allocD->allocF(allocD->allocUD, s, sizeof(Lane), 0);
+    }
+#else // LUAJIT_FLAVOR
+    free(s);
+#endif // LUAJIT_FLAVOR
 }
 
 /*
@@ -1054,7 +1061,6 @@ LUAG_FUNC( lane_new)
 #define FIXED_ARGS 7
     int const nargs = lua_gettop(L) - FIXED_ARGS;
     Universe* U = universe_get( L);
-    AllocatorDefinition* const allocD = &U->protected_allocator.definition;
     ASSERT_L( nargs >= 0);
 
     // public Lanes API accepts a generic range -3/+3
@@ -1224,7 +1230,15 @@ LUAG_FUNC( lane_new)
     //
     // a Lane full userdata needs a single uservalue
     ud = lua_newuserdatauv( L, sizeof( Lane*), 1);           // func libs priority globals package required gc_cb lane
-    s = *ud = (Lane*) allocD->allocF( allocD->allocUD, NULL, 0, sizeof(Lane));
+    // don't hijack the state allocator when running LuaJIT because it looks like LuaJIT does not expect it and might invalidate the memory unexpectedly
+#if LUAJIT_FLAVOR == 0
+    {
+        AllocatorDefinition* const allocD = &U->protected_allocator.definition;
+        s = *ud = (Lane*)allocD->allocF(allocD->allocUD, NULL, 0, sizeof(Lane));
+    }
+#else // LUAJIT_FLAVOR
+    s = *ud = (Lane*) malloc(sizeof(Lane));
+#endif // LUAJIT_FLAVOR
     if( s == NULL)
     {
         return luaL_error( L, "could not create lane: out of memory");

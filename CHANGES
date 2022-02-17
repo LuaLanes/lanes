@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 153: BGe 17-Feb-22
+   * NEVER use allocator obtained from lua_getallocf to allocate stuff manually when compiling for LuaJIT
+
 CHANGE 152: BGe 7-Feb-22
    * bumped version to 3.16.0
    * __lanesclone is now called only once with 3 parameters dest, source, size -> BREAKS CUSTOM DEEP USERDATA API

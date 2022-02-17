@@ -99,4 +99,14 @@ extern char const* debugspew_indent;
 
 #define LUAG_FUNC( func_name) int LG_##func_name( lua_State* L)
 
+#if defined(LUA_JITLIBNAME)
+#if (defined(__x86_64__) || defined(_M_X64) || defined(__LP64__))
+#define LUAJIT_FLAVOR 64
+#else // 64 bits
+#define LUAJIT_FLAVOR 32
+#endif // 64 bits
+#else // LUA_JITLIBNAME
+#define LUAJIT_FLAVOR 0
+#endif // LUA_JITLIBNAME
+
 #endif // MACROS_AND_UTILS_H
