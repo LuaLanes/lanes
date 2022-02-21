@@ -611,9 +611,15 @@ void close_keepers( Universe* U, lua_State* L)
         }
         // free the keeper bookkeeping structure
         {
-            void* allocUD;
-            lua_Alloc allocF = lua_getallocf( L, &allocUD);
-            allocF( allocUD, U->keepers, sizeof( Keepers) + (nbKeepers - 1) * sizeof( Keeper), 0);
+            // don't hijack the state allocator when running LuaJIT because it looks like LuaJIT does not expect it and might invalidate the memory unexpectedly
+#if LUAJIT_FLAVOR == 0
+            {
+                AllocatorDefinition* const allocD = &U->protected_allocator.definition;
+                allocD->allocF( allocUD, U->keepers, sizeof( Keepers) + (nbKeepers - 1) * sizeof( Keeper), 0);
+            }
+#else // LUAJIT_FLAVOR
+            free(U->keepers);
+#endif // LUAJIT_FLAVOR
             U->keepers = NULL;
         }
     }
@@ -634,8 +640,6 @@ void init_keepers( Universe* U, lua_State* L)
 {
     int i;
     int nb_keepers;
-    void* allocUD;
-    lua_Alloc allocF = lua_getallocf( L, &allocUD);
 
     STACK_CHECK( L, 0);                                    // L                            K
     lua_getfield( L, 1, "nb_keepers");                     // nb_keepers
@@ -649,7 +653,15 @@ void init_keepers( Universe* U, lua_State* L)
     // Keepers contains an array of 1 s_Keeper, adjust for the actual number of keeper states
     {
         size_t const bytes = sizeof( Keepers) + (nb_keepers - 1) * sizeof( Keeper);
-        U->keepers = (Keepers*) allocF( allocUD, NULL, 0, bytes);
+        // don't hijack the state allocator when running LuaJIT because it looks like LuaJIT does not expect it and might invalidate the memory unexpectedly
+#if LUAJIT_FLAVOR == 0
+        {
+            AllocatorDefinition* const allocD = &U->protected_allocator.definition;
+            U->keepers = (Keepers*) allocD->allocF( allocUD, NULL, 0, bytes);
+        }
+#else // LUAJIT_FLAVOR
+        U->keepers = (Keepers*)malloc(bytes);
+#endif // LUAJIT_FLAVOR
         if( U->keepers == NULL)
         {
             (void) luaL_error( L, "init_keepers() failed while creating keeper array; out of memory");
