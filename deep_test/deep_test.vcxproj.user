@@ -12,6 +12,12 @@
     <LocalDebuggerCommandArguments>-i</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>D:\Boulot\anubis\Lua\bindings\Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT 2.1.0-beta3|x64'">
+    <LocalDebuggerCommand>$(SolutionDir)..\LuaJIT-2.1.0-beta3\bin\$(Platform)\luajit.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments>-i</LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">
     <LocalDebuggerCommand>D:\Boulot\anubis\Lua\framework\lua54.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
@@ -29,5 +35,11 @@
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerCommandArguments>-i -- deeptest.lua</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>D:\Boulot\anubis\Lua\bindings\Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT 2.1.0-beta3|Win32'">
+    <LocalDebuggerCommand>$(SolutionDir)..\LuaJIT-2.1.0-beta3\bin\$(Platform)\luajit.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments>-i</LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
 </Project>
