@@ -109,4 +109,7 @@ extern char const* debugspew_indent;
 #define LUAJIT_FLAVOR 0
 #endif // LUA_JITLIBNAME
 
+// after all, it looks like we can use the state allocator for our own usage when running LuaJIT, as long as we mutex-protect it
+#define USE_LUA_STATE_ALLOCATOR 1 // (LUAJIT_FLAVOR==0)
+
 #endif // MACROS_AND_UTILS_H

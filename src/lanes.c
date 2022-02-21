@@ -254,14 +254,14 @@ static void lane_cleanup( Lane* s)
 #endif // HAVE_LANE_TRACKING
 
     // don't hijack the state allocator when running LuaJIT because it looks like LuaJIT does not expect it and might invalidate the memory unexpectedly
-#if LUAJIT_FLAVOR == 0
+#if USE_LUA_STATE_ALLOCATOR
     {
         AllocatorDefinition* const allocD = &s->U->protected_allocator.definition;
         allocD->allocF(allocD->allocUD, s, sizeof(Lane), 0);
     }
-#else // LUAJIT_FLAVOR
+#else // USE_LUA_STATE_ALLOCATOR
     free(s);
-#endif // LUAJIT_FLAVOR
+#endif // USE_LUA_STATE_ALLOCATOR
 }
 
 /*
@@ -1231,14 +1231,14 @@ LUAG_FUNC( lane_new)
     // a Lane full userdata needs a single uservalue
     ud = lua_newuserdatauv( L, sizeof( Lane*), 1);           // func libs priority globals package required gc_cb lane
     // don't hijack the state allocator when running LuaJIT because it looks like LuaJIT does not expect it and might invalidate the memory unexpectedly
-#if LUAJIT_FLAVOR == 0
+#if USE_LUA_STATE_ALLOCATOR
     {
         AllocatorDefinition* const allocD = &U->protected_allocator.definition;
         s = *ud = (Lane*)allocD->allocF(allocD->allocUD, NULL, 0, sizeof(Lane));
     }
-#else // LUAJIT_FLAVOR
+#else // USE_LUA_STATE_ALLOCATOR
     s = *ud = (Lane*) malloc(sizeof(Lane));
-#endif // LUAJIT_FLAVOR
+#endif // USE_LUA_STATE_ALLOCATOR
     if( s == NULL)
     {
         return luaL_error( L, "could not create lane: out of memory");
