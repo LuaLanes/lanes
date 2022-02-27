@@ -29,7 +29,7 @@ local printDeep = function( prefix_, obj_, t_)
 	end
 	if t_ then
 		for k, v in pairs( t_) do
-			print( k, v)
+			print( "t["..tostring(k).."]", v)
 		end
 	end
 	print()
@@ -72,6 +72,8 @@ local performTest = function( obj_)
 			printDeep( "in lane, as arguments:", arg_, t_)
 			-- read contents inside lane: obj_ and t by upvalue
 			printDeep( "in lane, as upvalues:", obj_, t)
+			-- read contents inside lane: in linda
+			printDeep( "in lane, from linda:", l:get("key", 2))
 			return arg_, t_
 		end
 	)
