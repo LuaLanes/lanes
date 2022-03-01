@@ -1674,10 +1674,10 @@ static bool_t inter_copy_function( Universe* U, lua_State* L2, uint_t L2_cache_i
 
         // this function has 2 upvalues: the fqn of its metatable, and the userdata itself
         lookup_table( L2, L, source_i_, mode_, upName_);                                                         // ... mt
-        // originally 'i' slot was the proxy closure, but from now on it indexes the actual userdata we extracted from it
+        // originally 'source_i_' slot was the proxy closure, but from now on it indexes the actual userdata we extracted from it
         source_i_ = lua_gettop( L);
         source = lua_touserdata( L, -1);
-        // call the cloning function with 1 argument, should return the number of bytes to allocate for the clone
+        // get the number of bytes to allocate for the clone
         userdata_size = (size_t) lua_rawlen( L, -1);
         {
             // extract uservalues (don't transfer them yet)
@@ -1713,12 +1713,12 @@ static bool_t inter_copy_function( Universe* U, lua_State* L2, uint_t L2_cache_i
         // perform the custom cloning part
         lua_insert( L2, -2);                                                                                     // ... u mt
         // __lanesclone should always exist because we wouldn't be restoring data from a userdata_clone_sentinel closure to begin with
-        lua_getfield(L2, -2, "__lanesclone");                                                                    // ... u mt __lanesclone
+        lua_getfield(L2, -1, "__lanesclone");                                                                    // ... u mt __lanesclone
         lua_remove( L2, -2);                                                                                     // ... u __lanesclone
         lua_pushlightuserdata( L2, clone);                                                                       // ... u __lanesclone clone
         lua_pushlightuserdata( L2, source);                                                                      // ... u __lanesclone clone source
         lua_pushinteger( L2, userdata_size);                                                                     // ... u __lanesclone clone source size
-        // clone:__lanesclone(source, size)
+        // clone:__lanesclone(dest, source, size)
         lua_call( L2, 3, 0);                                                                                     // ... u
     }
     else // regular function
