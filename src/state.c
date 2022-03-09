@@ -41,6 +41,7 @@ THE SOFTWARE.
 #endif // __APPLE__
 
 #include "compat.h"
+#include "macros_and_utils.h"
 #include "universe.h"
 #include "tools.h"
 #include "lanes.h"
@@ -148,12 +149,12 @@ static const luaL_Reg libs[] =
     { LUA_COLIBNAME, NULL},              // Lua 5.1: part of base package
 #endif // LUA_VERSION_NUM
     { LUA_DBLIBNAME, luaopen_debug},
-#if LUAJIT_FLAVOR != 0 // building against LuaJIT headers, add some LuaJIT-specific libs
+#if LUAJIT_FLAVOR() != 0 // building against LuaJIT headers, add some LuaJIT-specific libs
 //#pragma message( "supporting JIT base libs")
     { LUA_BITLIBNAME, luaopen_bit},
     { LUA_JITLIBNAME, luaopen_jit},
     { LUA_FFILIBNAME, luaopen_ffi},
-#endif // LUAJIT_FLAVOR
+#endif // LUAJIT_FLAVOR()
 
 { LUA_DBLIBNAME, luaopen_debug},
 { "lanes.core", require_lanes_core}, // So that we can open it like any base library (possible since we have access to the init function)
@@ -249,10 +250,10 @@ void initialize_on_state_create( Universe* U, lua_State* L)
 lua_State* create_state( Universe* U, lua_State* from_)
 {
     lua_State* L;
-#if LUAJIT_FLAVOR == 64
+#if LUAJIT_FLAVOR() == 64
     // for some reason, LuaJIT 64 bits does not support creating a state with lua_newstate...
     L = luaL_newstate();
-#else // LUAJIT_FLAVOR == 64
+#else // LUAJIT_FLAVOR() == 64
     if( U->provide_allocator != NULL) // we have a function we can call to obtain an allocator
     {
         lua_pushcclosure( from_, U->provide_allocator, 0);
@@ -268,7 +269,7 @@ lua_State* create_state( Universe* U, lua_State* from_)
         // reuse the allocator provided when the master state was created
         L = lua_newstate( U->protected_allocator.definition.allocF, U->protected_allocator.definition.allocUD);
     }
-#endif // LUAJIT_FLAVOR == 64
+#endif // LUAJIT_FLAVOR() == 64
 
     if( L == NULL)
     {
@@ -418,7 +419,7 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
     lua_pushglobaltable( L); // Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
     populate_func_lookup_table( L, -1, NULL);
 
-#if 0 && USE_DEBUG_SPEW
+#if 0 && USE_DEBUG_SPEW()
     // dump the lookup database contents
     lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);                       // {}
     lua_pushnil( L);                                                          // {} nil
@@ -432,7 +433,7 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
         lua_pop( L, 1);                                                         // {} k
     }
     lua_pop( L, 1);                                                           // {}
-#endif // USE_DEBUG_SPEW
+#endif // USE_DEBUG_SPEW()
 
     lua_pop( L, 1);
     STACK_END( L, 0);

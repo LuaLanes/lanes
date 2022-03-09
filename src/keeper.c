@@ -612,14 +612,14 @@ void close_keepers( Universe* U, lua_State* L)
         // free the keeper bookkeeping structure
         {
             // don't hijack the state allocator when running LuaJIT because it looks like LuaJIT does not expect it and might invalidate the memory unexpectedly
-#if USE_LUA_STATE_ALLOCATOR
+#if USE_LUA_STATE_ALLOCATOR()
             {
                 AllocatorDefinition* const allocD = &U->protected_allocator.definition;
                 allocD->allocF( allocD->allocUD, U->keepers, sizeof( Keepers) + (nbKeepers - 1) * sizeof( Keeper), 0);
             }
-#else // USE_LUA_STATE_ALLOCATOR
+#else // USE_LUA_STATE_ALLOCATOR()
             free(U->keepers);
-#endif // USE_LUA_STATE_ALLOCATOR
+#endif // USE_LUA_STATE_ALLOCATOR()
             U->keepers = NULL;
         }
     }
@@ -654,14 +654,14 @@ void init_keepers( Universe* U, lua_State* L)
     {
         size_t const bytes = sizeof( Keepers) + (nb_keepers - 1) * sizeof( Keeper);
         // don't hijack the state allocator when running LuaJIT because it looks like LuaJIT does not expect it and might invalidate the memory unexpectedly
-#if USE_LUA_STATE_ALLOCATOR
+#if USE_LUA_STATE_ALLOCATOR()
         {
             AllocatorDefinition* const allocD = &U->protected_allocator.definition;
             U->keepers = (Keepers*) allocD->allocF( allocD->allocUD, NULL, 0, bytes);
         }
-#else // USE_LUA_STATE_ALLOCATOR
+#else // USE_LUA_STATE_ALLOCATOR()
         U->keepers = (Keepers*)malloc(bytes);
-#endif // USE_LUA_STATE_ALLOCATOR
+#endif // USE_LUA_STATE_ALLOCATOR()
         if( U->keepers == NULL)
         {
             (void) luaL_error( L, "init_keepers() failed while creating keeper array; out of memory");

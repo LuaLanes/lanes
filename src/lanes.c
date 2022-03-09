@@ -174,7 +174,7 @@ static bool_t push_registry_table( lua_State* L, UniqueKey key, bool_t create)
     return TRUE;    // table pushed
 }
 
-#if HAVE_LANE_TRACKING
+#if HAVE_LANE_TRACKING()
 
 // The chain is ended by '(Lane*)(-1)', not NULL:
 // 'tracking_first -> ... -> ... -> (-1)'
@@ -231,7 +231,7 @@ static bool_t tracking_remove( Lane* s)
     return found;
 }
 
-#endif // HAVE_LANE_TRACKING
+#endif // HAVE_LANE_TRACKING()
 
 //---
 // low-level cleanup
@@ -245,23 +245,23 @@ static void lane_cleanup( Lane* s)
     MUTEX_FREE( &s->done_lock);
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 
-#if HAVE_LANE_TRACKING
+#if HAVE_LANE_TRACKING()
     if( s->U->tracking_first != NULL)
     {
         // Lane was cleaned up, no need to handle at process termination
         tracking_remove( s);
     }
-#endif // HAVE_LANE_TRACKING
+#endif // HAVE_LANE_TRACKING()
 
     // don't hijack the state allocator when running LuaJIT because it looks like LuaJIT does not expect it and might invalidate the memory unexpectedly
-#if USE_LUA_STATE_ALLOCATOR
+#if USE_LUA_STATE_ALLOCATOR()
     {
         AllocatorDefinition* const allocD = &s->U->protected_allocator.definition;
         allocD->allocF(allocD->allocUD, s, sizeof(Lane), 0);
     }
-#else // USE_LUA_STATE_ALLOCATOR
+#else // USE_LUA_STATE_ALLOCATOR()
     free(s);
-#endif // USE_LUA_STATE_ALLOCATOR
+#endif // USE_LUA_STATE_ALLOCATOR()
 }
 
 /*
@@ -589,9 +589,9 @@ static int selfdestruct_gc( lua_State* L)
     // remove the protected allocator, if any
     cleanup_allocator_function( U, L);
 
-#if HAVE_LANE_TRACKING
+#if HAVE_LANE_TRACKING()
     MUTEX_FREE( &U->tracking_cs);
-#endif // HAVE_LANE_TRACKING
+#endif // HAVE_LANE_TRACKING()
     // Linked chains handling
     MUTEX_FREE( &U->selfdestruct_cs);
     MUTEX_FREE( &U->require_cs);
@@ -844,7 +844,7 @@ LUAG_FUNC( set_thread_affinity)
     return 0;
 }
 
-#if USE_DEBUG_SPEW
+#if USE_DEBUG_SPEW()
 // can't use direct LUA_x errcode indexing because the sequence is not the same between Lua 5.1 and 5.2 :-(
 // LUA_ERRERR doesn't have the same value
 struct errcode_name
@@ -875,7 +875,7 @@ static char const* get_errcode_name( int _code)
     }
     return "<NULL>";
 }
-#endif // USE_DEBUG_SPEW
+#endif // USE_DEBUG_SPEW()
 
 #if THREADWAIT_METHOD == THREADWAIT_CONDVAR // implies THREADAPI == THREADAPI_PTHREAD
 static void thread_cleanup_handler( void* opaque)
@@ -1231,14 +1231,14 @@ LUAG_FUNC( lane_new)
     // a Lane full userdata needs a single uservalue
     ud = lua_newuserdatauv( L, sizeof( Lane*), 1);           // func libs priority globals package required gc_cb lane
     // don't hijack the state allocator when running LuaJIT because it looks like LuaJIT does not expect it and might invalidate the memory unexpectedly
-#if USE_LUA_STATE_ALLOCATOR
+#if USE_LUA_STATE_ALLOCATOR()
     {
         AllocatorDefinition* const allocD = &U->protected_allocator.definition;
         s = *ud = (Lane*)allocD->allocF(allocD->allocUD, NULL, 0, sizeof(Lane));
     }
-#else // USE_LUA_STATE_ALLOCATOR
+#else // USE_LUA_STATE_ALLOCATOR()
     s = *ud = (Lane*) malloc(sizeof(Lane));
-#endif // USE_LUA_STATE_ALLOCATOR
+#endif // USE_LUA_STATE_ALLOCATOR()
     if( s == NULL)
     {
         return luaL_error( L, "could not create lane: out of memory");
@@ -1257,13 +1257,13 @@ LUAG_FUNC( lane_new)
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
     s->mstatus = NORMAL;
     s->selfdestruct_next = NULL;
-#if HAVE_LANE_TRACKING
+#if HAVE_LANE_TRACKING()
     s->tracking_next = NULL;
     if( s->U->tracking_first)
     {
         tracking_add( s);
     }
-#endif // HAVE_LANE_TRACKING
+#endif // HAVE_LANE_TRACKING()
 
     // Set metatable for the userdata
     //
@@ -1662,7 +1662,7 @@ LUAG_FUNC( thread_index)
     return 0;
 }
 
-#if HAVE_LANE_TRACKING
+#if HAVE_LANE_TRACKING()
 //---
 // threads() -> {}|nil
 //
@@ -1695,7 +1695,7 @@ LUAG_FUNC( threads)
   MUTEX_UNLOCK( &U->tracking_cs);
   return lua_gettop( L) - top; // 0 or 1
 }
-#endif // HAVE_LANE_TRACKING
+#endif // HAVE_LANE_TRACKING()
 
 /*
  * ###############################################################################################
@@ -1893,12 +1893,12 @@ LUAG_FUNC( configure)
         lua_getfield( L, 1, "demote_full_userdata");                                       // settings demote_full_userdata
         U->demoteFullUserdata = lua_toboolean( L, -1);
         lua_pop( L, 1);                                                                    // settings
-#if HAVE_LANE_TRACKING
+#if HAVE_LANE_TRACKING()
         MUTEX_INIT( &U->tracking_cs);
         lua_getfield( L, 1, "track_lanes");                                                // settings track_lanes
         U->tracking_first = lua_toboolean( L, -1) ? TRACKING_END : NULL;
         lua_pop( L, 1);                                                                    // settings
-#endif // HAVE_LANE_TRACKING
+#endif // HAVE_LANE_TRACKING()
         // Linked chains handling
         MUTEX_INIT( &U->selfdestruct_cs);
         MUTEX_RECURSIVE_INIT( &U->require_cs);
@@ -1935,14 +1935,14 @@ LUAG_FUNC( configure)
     lua_setfield( L, -2, "configure");                                                     // settings M
     // add functions to the module's table
     luaG_registerlibfuncs( L, lanes_functions);
-#if HAVE_LANE_TRACKING
+#if HAVE_LANE_TRACKING()
     // register core.threads() only if settings say it should be available
     if( U->tracking_first != NULL)
     {
         lua_pushcfunction( L, LG_threads);                                                 // settings M LG_threads()
         lua_setfield( L, -2, "threads");                                                   // settings M
     }
-#endif // HAVE_LANE_TRACKING
+#endif // HAVE_LANE_TRACKING()
     STACK_MID( L, 2);
 
     {

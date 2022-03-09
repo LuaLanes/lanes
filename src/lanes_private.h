@@ -3,6 +3,7 @@
 
 #include "uniquekey.h"
 #include "cancel.h"
+#include "universe.h"
 
 // NOTE: values to be changed by either thread, during execution, without
 //       locking, are marked "volatile"
@@ -63,9 +64,9 @@ struct s_Lane
     //    is still running
     // S: cleans up after itself if non-NULL at lane exit
 
-#if HAVE_LANE_TRACKING
+#if HAVE_LANE_TRACKING()
     struct s_Lane* volatile tracking_next;
-#endif // HAVE_LANE_TRACKING
+#endif // HAVE_LANE_TRACKING()
     //
     // For tracking only
 };

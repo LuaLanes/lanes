@@ -6,6 +6,7 @@
 
 #include "lua.h"
 #include "threading.h"
+#include "macros_and_utils.h"
 
 // forwards
 struct s_DeepPrelude;
@@ -20,7 +21,7 @@ typedef struct s_Lane Lane;
 /*
 * Do we want to activate full lane tracking feature? (EXPERIMENTAL)
 */
-#define HAVE_LANE_TRACKING 1
+#define HAVE_LANE_TRACKING() 1
 
 // ################################################################################################
 
@@ -68,10 +69,10 @@ struct s_Universe
     // used for timers (each lane will get a proxy to this)
     volatile DeepPrelude* timer_deep;  // = NULL
 
-#if HAVE_LANE_TRACKING
+#if HAVE_LANE_TRACKING()
     MUTEX_T tracking_cs;
     Lane* volatile tracking_first; // will change to TRACKING_END if we want to activate tracking
-#endif // HAVE_LANE_TRACKING
+#endif // HAVE_LANE_TRACKING()
 
     MUTEX_T selfdestruct_cs;
 
@@ -84,9 +85,9 @@ struct s_Universe
 
     lua_Integer last_mt_id;
 
-#if USE_DEBUG_SPEW
+#if USE_DEBUG_SPEW()
     int debugspew_indent_depth;
-#endif // USE_DEBUG_SPEW
+#endif // USE_DEBUG_SPEW()
 
     Lane* volatile selfdestruct_first;
     // After a lane has removed itself from the chain, it still performs some processing.

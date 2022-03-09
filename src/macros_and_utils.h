@@ -12,19 +12,19 @@
 #define inline __inline
 #endif
 
-#define USE_DEBUG_SPEW 0
-#if USE_DEBUG_SPEW
+#define USE_DEBUG_SPEW() 0
+#if USE_DEBUG_SPEW()
 extern char const* debugspew_indent;
 #define INDENT_BEGIN "%.*s "
 #define INDENT_END , (U ? U->debugspew_indent_depth : 0), debugspew_indent
 #define DEBUGSPEW_CODE(_code) _code
 #define DEBUGSPEW_PARAM_COMMA( param_) param_,
 #define DEBUGSPEW_COMMA_PARAM( param_) , param_
-#else // USE_DEBUG_SPEW
+#else // USE_DEBUG_SPEW()
 #define DEBUGSPEW_CODE(_code)
 #define DEBUGSPEW_PARAM_COMMA( param_)
 #define DEBUGSPEW_COMMA_PARAM( param_)
-#endif // USE_DEBUG_SPEW
+#endif // USE_DEBUG_SPEW()
 
 #ifdef NDEBUG
 
@@ -99,17 +99,7 @@ extern char const* debugspew_indent;
 
 #define LUAG_FUNC( func_name) int LG_##func_name( lua_State* L)
 
-#if defined(LUA_JITLIBNAME)
-#if (defined(__x86_64__) || defined(_M_X64) || defined(__LP64__))
-#define LUAJIT_FLAVOR 64
-#else // 64 bits
-#define LUAJIT_FLAVOR 32
-#endif // 64 bits
-#else // LUA_JITLIBNAME
-#define LUAJIT_FLAVOR 0
-#endif // LUA_JITLIBNAME
-
 // after all, it looks like we can use the state allocator for our own usage when running LuaJIT, as long as we mutex-protect it
-#define USE_LUA_STATE_ALLOCATOR 1 // (LUAJIT_FLAVOR==0)
+#define USE_LUA_STATE_ALLOCATOR() 1 // (LUAJIT_FLAVOR()==0)
 
 #endif // MACROS_AND_UTILS_H

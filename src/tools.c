@@ -1117,7 +1117,7 @@ static void lookup_native_func( lua_State* L2, lua_State* L, uint_t i, LookupMod
  * L2 has the cache key for this function at the top of the stack
 */
 
-#if USE_DEBUG_SPEW
+#if USE_DEBUG_SPEW()
 static char const* lua_type_names[] =
 {
       "LUA_TNIL"
@@ -1138,7 +1138,7 @@ static char const* vt_names[] =
     , "VT_KEY"
     , "VT_METATABLE"
 };
-#endif // USE_DEBUG_SPEW
+#endif // USE_DEBUG_SPEW()
 
 // Lua 5.4.3 style of dumping (see lstrlib.c)
 // we have to do it that way because we can't unbalance the stack between buffer operations
