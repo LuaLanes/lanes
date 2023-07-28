@@ -1,5 +1,11 @@
 CHANGES:
 
+CHANGE 155: BGe 28-Jul-23
+   * tweaks to linux thread priority management: do nothing if not super-user. if super-user, do nothing if nothing is provided (instead of trying to force a prio when LINUX_SCHED_RR is defined).
+
+CHANGE 154: eligovision 1-Mar-22
+   * Fix 3-parametrized __lanesclone
+
 CHANGE 153: BGe 17-Feb-22
    * NEVER use allocator obtained from lua_getallocf to allocate stuff manually when compiling for LuaJIT
 

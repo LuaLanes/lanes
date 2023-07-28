@@ -323,9 +323,12 @@ void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (__stdcall *func)( void*), vo
         FAIL( "CreateThread", GetLastError());
     }
 
-    if (!SetThreadPriority( h, gs_prio_remap[prio + 3]))
+    if (prio != THREAD_PRIO_DEFAULT)
     {
-        FAIL( "SetThreadPriority", GetLastError());
+        if (!SetThreadPriority( h, gs_prio_remap[prio + 3]))
+        {
+            FAIL( "SetThreadPriority", GetLastError());
+        }
     }
 
     *ref = h;
@@ -681,7 +684,7 @@ static int const gs_prio_remap[] =
     // least OS specific settings. Hopefully, Linuxes and OS X versions
     // are uniform enough, among each other...
     //
-#	if defined PLATFORM_OSX
+#   if defined PLATFORM_OSX
         // AK 10-Apr-07 (OS X PowerPC 10.4.9):
         //
         // With SCHED_RR, 26 seems to be the "normal" priority, where setting
@@ -694,85 +697,92 @@ static int const gs_prio_remap[] =
         // priority limits. This could imply, user mode applications won't
         // be able to use values outside of that range.
         //
-#			define _PRIO_MODE SCHED_OTHER
+#       define _PRIO_MODE SCHED_OTHER
 
-    // OS X 10.4.9 (PowerPC) gives ENOTSUP for process scope
-            //#define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
+        // OS X 10.4.9 (PowerPC) gives ENOTSUP for process scope
+        //#define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
 
-#			define _PRIO_HI  32    // seems to work (_carefully_ picked!)
-#			define _PRIO_0   26    // detected
-#			define _PRIO_LO   1    // seems to work (tested)
+#       define _PRIO_HI  32    // seems to work (_carefully_ picked!)
+#       define _PRIO_0   26    // detected
+#       define _PRIO_LO   1    // seems to work (tested)
 
-#		elif defined PLATFORM_LINUX
-            // (based on Ubuntu Linux 2.6.15 kernel)
-            //
-            // SCHED_OTHER is the default policy, but does not allow for priorities.
-            // SCHED_RR allows priorities, all of which (1..99) are higher than
-            // a thread with SCHED_OTHER policy.
-            //
-            // <http://kerneltrap.org/node/6080>
-            // <http://en.wikipedia.org/wiki/Native_POSIX_Thread_Library>
-            // <http://www.net.in.tum.de/~gregor/docs/pthread-scheduling.html>
-            //
-            // Manuals suggest checking #ifdef _POSIX_THREAD_PRIORITY_SCHEDULING,
-            // but even Ubuntu does not seem to define it.
-            //
-#			define _PRIO_MODE SCHED_RR
+#   elif defined PLATFORM_LINUX
+        // (based on Ubuntu Linux 2.6.15 kernel)
+        //
+        // SCHED_OTHER is the default policy, but does not allow for priorities.
+        // SCHED_RR allows priorities, all of which (1..99) are higher than
+        // a thread with SCHED_OTHER policy.
+        //
+        // <http://kerneltrap.org/node/6080>
+        // <http://en.wikipedia.org/wiki/Native_POSIX_Thread_Library>
+        // <http://www.net.in.tum.de/~gregor/docs/pthread-scheduling.html>
+        //
+        // Manuals suggest checking #ifdef _POSIX_THREAD_PRIORITY_SCHEDULING,
+        // but even Ubuntu does not seem to define it.
+        //
+#       define _PRIO_MODE SCHED_RR
 
-            // NTLP 2.5: only system scope allowed (being the basic reason why
-            //           root privileges are required..)
-            //#define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
+        // NTLP 2.5: only system scope allowed (being the basic reason why
+        //           root privileges are required..)
+        //#define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
 
-#			define _PRIO_HI 99
-#			define _PRIO_0  50
-#			define _PRIO_LO 1
+#       define _PRIO_HI 99
+#       define _PRIO_0  50
+#       define _PRIO_LO 1
 
-#		elif defined(PLATFORM_BSD)
-            //
-            // <http://www.net.in.tum.de/~gregor/docs/pthread-scheduling.html>
-            //
-            // "When control over the thread scheduling is desired, then FreeBSD
-            //  with the libpthread implementation is by far the best choice .."
-            //
-#			define _PRIO_MODE SCHED_OTHER
-#			define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
-#			define _PRIO_HI 31
-#			define _PRIO_0  15
-#			define _PRIO_LO 1
+#   elif defined(PLATFORM_BSD)
+        //
+        // <http://www.net.in.tum.de/~gregor/docs/pthread-scheduling.html>
+        //
+        // "When control over the thread scheduling is desired, then FreeBSD
+        //  with the libpthread implementation is by far the best choice .."
+        //
+#       define _PRIO_MODE SCHED_OTHER
+#       define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
+#       define _PRIO_HI 31
+#       define _PRIO_0  15
+#       define _PRIO_LO 1
 
-#		elif defined(PLATFORM_CYGWIN)
-            //
-            // TBD: Find right values for Cygwin
-            //
-#		elif defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
-            // any other value not supported by win32-pthread as of version 2.9.1
-#			define _PRIO_MODE SCHED_OTHER
+#   elif defined(PLATFORM_CYGWIN)
+        //
+        // TBD: Find right values for Cygwin
+        //
+#   elif defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)
+        // any other value not supported by win32-pthread as of version 2.9.1
+#           define _PRIO_MODE SCHED_OTHER
 
-            // PTHREAD_SCOPE_PROCESS not supported by win32-pthread as of version 2.9.1
-            //#define _PRIO_SCOPE PTHREAD_SCOPE_SYSTEM // but do we need this at all to start with?
-            THREAD_PRIORITY_IDLE, THREAD_PRIORITY_LOWEST, THREAD_PRIORITY_BELOW_NORMAL, THREAD_PRIORITY_NORMAL, THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_HIGHEST, THREAD_PRIORITY_TIME_CRITICAL
+        // PTHREAD_SCOPE_PROCESS not supported by win32-pthread as of version 2.9.1
+        //#define _PRIO_SCOPE PTHREAD_SCOPE_SYSTEM // but do we need this at all to start with?
+        THREAD_PRIORITY_IDLE, THREAD_PRIORITY_LOWEST, THREAD_PRIORITY_BELOW_NORMAL, THREAD_PRIORITY_NORMAL, THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_HIGHEST, THREAD_PRIORITY_TIME_CRITICAL
 
-#		else
-#			error "Unknown OS: not implemented!"
-#		endif
+#   else
+#       error "Unknown OS: not implemented!"
+#   endif
 
 #if defined _PRIO_0
-#	define _PRIO_AN (_PRIO_0 + ((_PRIO_HI-_PRIO_0)/2))
-#	define _PRIO_BN (_PRIO_LO + ((_PRIO_0-_PRIO_LO)/2))
+#   define _PRIO_AN (_PRIO_0 + ((_PRIO_HI-_PRIO_0)/2))
+#   define _PRIO_BN (_PRIO_LO + ((_PRIO_0-_PRIO_LO)/2))
 
     _PRIO_LO, _PRIO_LO, _PRIO_BN, _PRIO_0, _PRIO_AN, _PRIO_HI, _PRIO_HI
 #endif // _PRIO_0
 };
 
+static int select_prio(int prio /* -3..+3 */)
+{
+    if (prio == THREAD_PRIO_DEFAULT)
+        prio = 0;
+    // prio range [-3,+3] was checked by the caller
+    return gs_prio_remap[prio + 3];
+}
+
 void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, int prio /* -3..+3 */)
 {
     pthread_attr_t a;
-    bool_t const normal =
+    bool_t const change_priority =
 #if defined(PLATFORM_LINUX) && defined(LINUX_SCHED_RR)
-    !sudo; // with sudo, even normal thread must use SCHED_RR
-#else
-    (prio == 0);
+    sudo && // with sudo, even normal thread must use SCHED_RR
 #endif
+    (prio != THREAD_PRIO_DEFAULT);
 
     PT_CALL( pthread_attr_init( &a));
 
@@ -800,7 +810,7 @@ void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, 
     PT_CALL( pthread_attr_setstacksize( &a, _THREAD_STACK_SIZE));
 #endif
 
-    if( !normal)
+    if (change_priority)
     {
         struct sched_param sp;
         // "The specified scheduling parameters are only used if the scheduling
@@ -816,8 +826,7 @@ void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, 
 
         PT_CALL( pthread_attr_setschedpolicy( &a, _PRIO_MODE));
 
-        // prio range [-3,+3] was checked by the caller
-        sp.sched_priority = gs_prio_remap[ prio + 3];
+        sp.sched_priority = select_prio(prio);
         PT_CALL( pthread_attr_setschedparam( &a, &sp));
     }
 
