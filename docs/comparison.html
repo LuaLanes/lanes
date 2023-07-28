@@ -64,8 +64,8 @@ Sample:
   end
 
   local h1= lanes.gen("base", calculate)(1,2,3)
-  local h2= lanes.new("base", calculate)(10,20,30)
-  local h3= lanes.new("base", calculate)(100,200,300)
+  local h2= lanes.gen("base", calculate)(10,20,30)
+  local h3= lanes.gen("base", calculate)(100,200,300)
 
   print( h1[1], h2[1], h3[1] )     -- pends for the results, or propagates error
 <<
