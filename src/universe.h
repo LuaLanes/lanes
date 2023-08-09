@@ -63,6 +63,8 @@ struct s_Universe
     // contains a mutex and the original allocator definition
     ProtectedAllocator protected_allocator;
 
+    AllocatorDefinition internal_allocator;
+
     Keepers* keepers;
 
     // Initialized by 'init_once_LOCKED()': the deep userdata Linda object

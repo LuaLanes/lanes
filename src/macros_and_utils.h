@@ -99,7 +99,4 @@ extern char const* debugspew_indent;
 
 #define LUAG_FUNC( func_name) int LG_##func_name( lua_State* L)
 
-// after all, it looks like we can use the state allocator for our own usage when running LuaJIT, as long as we mutex-protect it
-#define USE_LUA_STATE_ALLOCATOR() 1 // (LUAJIT_FLAVOR()==0)
-
 #endif // MACROS_AND_UTILS_H

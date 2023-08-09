@@ -155,6 +155,20 @@ void luaG_dump( lua_State* L)
 
 // ################################################################################################
 
+static void* libc_lua_Alloc(void* ud, void* ptr, size_t osize, size_t nsize)
+{
+    (void)ud; (void)osize;  /* not used */
+    if (nsize == 0)
+    {
+        free(ptr);
+        return NULL;
+    }
+    else
+    {
+        return realloc(ptr, nsize);
+    }
+}
+
 static void* protected_lua_Alloc( void *ud, void *ptr, size_t osize, size_t nsize)
 {
     void* p;
@@ -215,6 +229,22 @@ void initialize_allocator_function( Universe* U, lua_State* L)
         MUTEX_INIT( &U->protected_allocator.lock);
         // just grab whatever allocator was provided to lua_newstate
         U->protected_allocator.definition.allocF = lua_getallocf( L, &U->protected_allocator.definition.allocUD);
+    }
+    lua_pop( L, 1);                                         // settings
+    STACK_MID(L, 0);
+
+    lua_getfield( L, -1, "internal_allocator");             // settings "libc"|"allocator"
+    {
+        char const* allocator = lua_tostring( L, -1);
+        if (stricmp(allocator, "libc") == 0)
+        {
+            U->internal_allocator.allocF = libc_lua_Alloc;
+            U->internal_allocator.allocUD = NULL;
+        }
+        else
+        {
+            U->internal_allocator = U->protected_allocator.definition;
+        }
     }
     lua_pop( L, 1);                                         // settings
     STACK_END( L, 0);
@@ -1337,17 +1367,17 @@ static void copy_cached_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua
 
         if( lua_isnil( L2, -1)) // function is unknown
         {
-            lua_pop( L2, 1);                                            // ... {cache} ... p
+            lua_pop( L2, 1);                                          // ... {cache} ... p
 
             // Set to 'true' for the duration of creation; need to find self-references
             // via upvalues
             //
             // pushes a copy of the func, stores a reference in the cache
-            copy_func( U, L2, L2_cache_i, L, i, mode_, upName_);        // ... {cache} ... function
+            copy_func( U, L2, L2_cache_i, L, i, mode_, upName_);      // ... {cache} ... function
         }
         else // found function in the cache
         {
-            lua_remove( L2, -2);                                        // ... {cache} ... function
+            lua_remove( L2, -2);                                      // ... {cache} ... function
         }
         STACK_END( L2, 1);
         ASSERT_L( lua_isfunction( L2, -1));
@@ -1725,9 +1755,7 @@ static bool_t inter_copy_function( Universe* U, lua_State* L2, uint_t L2_cache_i
     {
         DEBUGSPEW_CODE( fprintf( stderr, "FUNCTION %s\n", upName_));
         DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
-        STACK_CHECK( L2, 0);
         copy_cached_func( U, L2, L2_cache_i, L, source_i_, mode_, upName_);                                      // ... f
-        STACK_END( L2, 1);
         DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
     }
     STACK_END( L2, 1);

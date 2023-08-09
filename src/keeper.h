@@ -27,7 +27,7 @@ struct s_Keepers
 typedef struct s_Keepers Keepers;
 
 void init_keepers( Universe* U, lua_State* L);
-void close_keepers( Universe* U, lua_State* L);
+void close_keepers( Universe* U);
 
 Keeper* which_keeper( Keepers* keepers_, ptrdiff_t magic_);
 Keeper* keeper_acquire( Keepers* keepers_, ptrdiff_t magic_);

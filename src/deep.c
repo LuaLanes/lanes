@@ -389,7 +389,7 @@ int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_)
         DeepPrelude* prelude = idfunc( L, eDO_new);
         if( prelude == NULL)
         {
-            luaL_error( L, "idfunc(eDO_new) failed to create deep userdata (out of memory)");
+            return luaL_error( L, "idfunc(eDO_new) failed to create deep userdata (out of memory)");
         }
         if( prelude->magic.value != DEEP_VERSION.value)
         {

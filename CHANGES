@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 156: BGe 9-Aug-23
+   * new configuration option .internal_allocator to help LuaJIT users.
+   * internal version bumped to 3.16.1
+
 CHANGE 155: BGe 28-Jul-23
    * tweaks to linux thread priority management: do nothing if not super-user. if super-user, do nothing if nothing is provided (instead of trying to force a prio when LINUX_SCHED_RR is defined).
 

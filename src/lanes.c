@@ -253,15 +253,10 @@ static void lane_cleanup( Lane* s)
     }
 #endif // HAVE_LANE_TRACKING()
 
-    // don't hijack the state allocator when running LuaJIT because it looks like LuaJIT does not expect it and might invalidate the memory unexpectedly
-#if USE_LUA_STATE_ALLOCATOR()
     {
-        AllocatorDefinition* const allocD = &s->U->protected_allocator.definition;
+        AllocatorDefinition* const allocD = &s->U->internal_allocator;
         allocD->allocF(allocD->allocUD, s, sizeof(Lane), 0);
     }
-#else // USE_LUA_STATE_ALLOCATOR()
-    free(s);
-#endif // USE_LUA_STATE_ALLOCATOR()
 }
 
 /*
@@ -584,7 +579,7 @@ static int selfdestruct_gc( lua_State* L)
         U->timer_deep = NULL;
     }
 
-    close_keepers( U, L);
+    close_keepers( U);
 
     // remove the protected allocator, if any
     cleanup_allocator_function( U, L);
@@ -1231,15 +1226,10 @@ LUAG_FUNC( lane_new)
     //
     // a Lane full userdata needs a single uservalue
     ud = lua_newuserdatauv( L, sizeof( Lane*), 1);           // func libs priority globals package required gc_cb lane
-    // don't hijack the state allocator when running LuaJIT because it looks like LuaJIT does not expect it and might invalidate the memory unexpectedly
-#if USE_LUA_STATE_ALLOCATOR()
     {
-        AllocatorDefinition* const allocD = &U->protected_allocator.definition;
+        AllocatorDefinition* const allocD = &U->internal_allocator;
         s = *ud = (Lane*)allocD->allocF(allocD->allocUD, NULL, 0, sizeof(Lane));
     }
-#else // USE_LUA_STATE_ALLOCATOR()
-    s = *ud = (Lane*) malloc(sizeof(Lane));
-#endif // USE_LUA_STATE_ALLOCATOR()
     if( s == NULL)
     {
         return luaL_error( L, "could not create lane: out of memory");
