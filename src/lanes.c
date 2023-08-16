@@ -255,7 +255,7 @@ static void lane_cleanup( Lane* s)
 
     {
         AllocatorDefinition* const allocD = &s->U->internal_allocator;
-        allocD->allocF(allocD->allocUD, s, sizeof(Lane), 0);
+        (void) allocD->allocF(allocD->allocUD, s, sizeof(Lane), 0);
     }
 }
 
@@ -1225,10 +1225,10 @@ LUAG_FUNC( lane_new)
     // 's' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
     //
     // a Lane full userdata needs a single uservalue
-    ud = lua_newuserdatauv( L, sizeof( Lane*), 1);           // func libs priority globals package required gc_cb lane
+    ud = lua_newuserdatauv( L, sizeof( Lane*), 1);                   // func libs priority globals package required gc_cb lane
     {
         AllocatorDefinition* const allocD = &U->internal_allocator;
-        s = *ud = (Lane*)allocD->allocF(allocD->allocUD, NULL, 0, sizeof(Lane));
+        s = *ud = (Lane*) allocD->allocF(allocD->allocUD, NULL, 0, sizeof(Lane));
     }
     if( s == NULL)
     {

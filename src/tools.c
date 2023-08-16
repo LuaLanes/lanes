@@ -155,6 +155,7 @@ void luaG_dump( lua_State* L)
 
 // ################################################################################################
 
+// same as PUC-Lua l_alloc
 static void* libc_lua_Alloc(void* ud, void* ptr, size_t osize, size_t nsize)
 {
     (void)ud; (void)osize;  /* not used */
@@ -182,7 +183,7 @@ static void* protected_lua_Alloc( void *ud, void *ptr, size_t osize, size_t nsiz
 static int luaG_provide_protected_allocator( lua_State* L)
 {
     Universe* U = universe_get( L);
-    AllocatorDefinition* def = lua_newuserdatauv( L, sizeof(AllocatorDefinition), 0);
+    AllocatorDefinition* const def = lua_newuserdatauv( L, sizeof(AllocatorDefinition), 0);
     def->allocF = protected_lua_Alloc;
     def->allocUD = &U->protected_allocator;
     return 1;
@@ -236,7 +237,7 @@ void initialize_allocator_function( Universe* U, lua_State* L)
     lua_getfield( L, -1, "internal_allocator");             // settings "libc"|"allocator"
     {
         char const* allocator = lua_tostring( L, -1);
-        if (stricmp(allocator, "libc") == 0)
+        if (strcmp(allocator, "libc") == 0)
         {
             U->internal_allocator.allocF = libc_lua_Alloc;
             U->internal_allocator.allocUD = NULL;

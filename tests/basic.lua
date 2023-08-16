@@ -7,7 +7,7 @@
 --      - ...
 --
 
-local require_lanes_result_1, require_lanes_result_2 = require "lanes".configure{ with_timers = false}
+local require_lanes_result_1, require_lanes_result_2 = require "lanes".configure{ with_timers = false, internal_allocator = "libc"}
 print( "require_lanes_result:", require_lanes_result_1, require_lanes_result_2)
 local lanes = require_lanes_result_1
 

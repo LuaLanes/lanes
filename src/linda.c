@@ -797,8 +797,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             {
                 Universe* const U = universe_get(L);
                 AllocatorDefinition* const allocD = &U->internal_allocator;
-
-                s = (struct s_Linda*)allocD->allocF(allocD->allocUD, NULL, 0, sizeof(struct s_Linda) + name_len); // terminating 0 is already included
+                s = (struct s_Linda*) allocD->allocF(allocD->allocUD, NULL, 0, sizeof(struct s_Linda) + name_len); // terminating 0 is already included
             }
             if( s)
             {
@@ -835,8 +834,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             {
                 Universe* const U = universe_get(L);
                 AllocatorDefinition* const allocD = &U->internal_allocator;
-
-                allocD->allocF(allocD->allocUD, linda, sizeof(struct s_Linda) + strlen(linda->name), 0);
+                (void) allocD->allocF(allocD->allocUD, linda, sizeof(struct s_Linda) + strlen(linda->name), 0);
             }
             return NULL;
         }

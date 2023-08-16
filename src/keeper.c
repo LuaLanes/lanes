@@ -612,7 +612,7 @@ void close_keepers( Universe* U)
         // free the keeper bookkeeping structure
         {
             AllocatorDefinition* const allocD = &U->internal_allocator;
-            allocD->allocF( allocD->allocUD, U->keepers, sizeof( Keepers) + (nbKeepers - 1) * sizeof( Keeper), 0);
+            (void) allocD->allocF( allocD->allocUD, U->keepers, sizeof( Keepers) + (nbKeepers - 1) * sizeof( Keeper), 0);
             U->keepers = NULL;
         }
     }
