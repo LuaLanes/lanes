@@ -779,8 +779,8 @@ void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, 
 {
     pthread_attr_t a;
     bool_t const change_priority =
-#if defined(PLATFORM_LINUX) && defined(LINUX_SCHED_RR)
-    sudo && // with sudo, even normal thread must use SCHED_RR
+#ifdef PLATFORM_LINUX
+    sudo && // only root-privileged process can change priorities
 #endif
     (prio != THREAD_PRIO_DEFAULT);
 
@@ -887,9 +887,9 @@ void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, 
 
 void THREAD_SET_PRIORITY( int prio)
 {
-#if defined PLATFORM_LINUX && defined LINUX_SCHED_RR
+#ifdef PLATFORM_LINUX
     if( sudo) // only root-privileged process can change priorities
-#endif // defined PLATFORM_LINUX && defined LINUX_SCHED_RR
+#endif // PLATFORM_LINUX
     {
         struct sched_param sp;
         // prio range [-3,+3] was checked by the caller
