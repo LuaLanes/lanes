@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 157: Mitalie 17-Aug-23
+   * Prevent crash on linux as non-root
+   * internal version bumped to 3.16.2
+
 CHANGE 156: BGe 9-Aug-23
    * new configuration option .internal_allocator to help LuaJIT users.
    * internal version bumped to 3.16.1
