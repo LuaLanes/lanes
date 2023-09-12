@@ -237,7 +237,7 @@ void initialize_allocator_function( Universe* U, lua_State* L)
     lua_getfield( L, -1, "internal_allocator");             // settings "libc"|"allocator"
     {
         char const* allocator = lua_tostring( L, -1);
-        if (strcmp(allocator, "libc") == 0)
+        if (allocator && strcmp(allocator, "libc") == 0)
         {
             U->internal_allocator.allocF = libc_lua_Alloc;
             U->internal_allocator.allocUD = NULL;
