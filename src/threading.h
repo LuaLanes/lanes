@@ -113,7 +113,11 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   #include <pthread.h>
 
   #ifdef PLATFORM_LINUX
-  # define _MUTEX_RECURSIVE PTHREAD_MUTEX_RECURSIVE_NP
+    #if defined(__GLIBC__)
+      # define _MUTEX_RECURSIVE PTHREAD_MUTEX_RECURSIVE_NP
+    #else
+      # define _MUTEX_RECURSIVE PTHREAD_MUTEX_RECURSIVE
+    #endif
   #else
     /* OS X, ... */
   # define _MUTEX_RECURSIVE PTHREAD_MUTEX_RECURSIVE
