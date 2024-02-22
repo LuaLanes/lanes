@@ -7,11 +7,11 @@
 
 package = "Lanes"
 
-version = "3.16.2-0"
+version = "3.16.3-0"
 
 source= {
 	url= "git+https://github.com/LuaLanes/lanes.git",
-	branch= "v3.16.2"
+	branch= "v3.16.3"
 }
 
 description = {
@@ -36,7 +36,7 @@ supported_platforms= { "win32",
 }
 
 dependencies= {
-	"lua >= 5.1", -- builds with either 5.1, 5.2, 5.3 and 5.4
+	"lua >= 5.1", -- builds with either 5.1/LuaJIT, 5.2, 5.3 and 5.4
 }
 
 build = {

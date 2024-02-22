@@ -2083,6 +2083,17 @@ int LANES_API luaopen_lanes_core( lua_State* L)
     STACK_GROW( L, 4);
     STACK_CHECK( L, 0);
 
+    // Prevent PUC-Lua/LuaJIT mismatch. Hopefully this works for MoonJIT too
+    lua_getglobal( L, "jit");                           // {jit?}
+#if LUAJIT_FLAVOR() == 0
+    if (!lua_isnil( L, -1))
+        return luaL_error( L, "Lanes is built for PUC-Lua, don't run from LuaJIT");
+#else
+    if (lua_isnil( L, -1))
+        return luaL_error( L, "Lanes is built for LuaJIT, don't run from PUC-Lua");
+#endif
+    lua_pop( L, 1);                                     //
+
     // Create main module interface table
     // we only have 1 closure, which must be called to configure Lanes
     lua_newtable( L);                                   // M
@@ -2092,15 +2103,15 @@ int LANES_API luaopen_lanes_core( lua_State* L)
     REGISTRY_GET( L, CONFIG_REGKEY);                    // M LG_configure() settings
     if( !lua_isnil( L, -1)) // this is not the first require "lanes.core": call configure() immediately
     {
-        lua_pushvalue( L, -1);                            // M LG_configure() settings settings
-        lua_setfield( L, -4, "settings");                 // M LG_configure() settings
-        lua_call( L, 1, 0);                               // M
+        lua_pushvalue( L, -1);                          // M LG_configure() settings settings
+        lua_setfield( L, -4, "settings");               // M LG_configure() settings
+        lua_call( L, 1, 0);                             // M
     }
     else
     {
         // will do nothing on first invocation, as we haven't stored settings in the registry yet
-        lua_setfield( L, -3, "settings");                 // M LG_configure()
-        lua_setfield( L, -2, "configure");                // M
+        lua_setfield( L, -3, "settings");               // M LG_configure()
+        lua_setfield( L, -2, "configure");              // M
     }
 
     STACK_END( L, 1);

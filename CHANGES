@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 158: BGe 22-Feb-24
+   * naive luajit detection in PUC-Lua-based builds to detect mismatches (don't run )
+   * internal version bumped to 3.16.3
+
 CHANGE 157: Mitalie 17-Aug-23
    * Prevent crash on linux as non-root
    * internal version bumped to 3.16.2
