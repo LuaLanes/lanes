@@ -1,7 +1,7 @@
 CHANGES:
 
 CHANGE 158: BGe 22-Feb-24
-   * naive luajit detection in PUC-Lua-based builds to detect mismatches (don't run )
+   * naive luajit detection in PUC-Lua-based builds, and vice-versa to detect mismatches
    * internal version bumped to 3.16.3
 
 CHANGE 157: Mitalie 17-Aug-23
