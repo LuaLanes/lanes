@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 22-Feb-24, and applies to version <tt>3.16.3</tt>.
+				This document was revised on 23-Feb-24, and applies to version <tt>3.16.3</tt>.
 			</p>
 		</font>
 	</center>
@@ -503,100 +503,151 @@
 			<td>no standard libraries (default)</td>
 		</tr>
 		<tr>
-			<td/>
-				<td><tt>"base"</tt> or <tt>""</tt>
+			<td />
+			<td>
+				<tt>"base"</tt> or <tt>""</tt>
 			</td>
-			<td/>
+			<td />
 			<td>
 				root level names, <tt>print</tt>, <tt>assert</tt>, <tt>unpack</tt> etc.
 			</td>
 		</tr>
 		<tr>
-			<td/>
+			<td />
+			<td>
+				<tt>"bit"</tt>
+			</td>
+			<td />
+			<td>
+				<tt>bit.*</tt> namespace (LuaJIT)
+			</td>
+		</tr>
+		<tr>
+			<td />
+			<td>
+				<tt>"bit32"</tt>
+			</td>
+			<td />
+			<td>
+				<tt>bit32.*</tt> namespace (Lua 5.1 and 5.2)
+			</td>
+		</tr>
+		<tr>
+			<td />
 			<td>
 				<tt>"coroutine"</tt>
 			</td>
-			<td/>
+			<td />
 			<td>
 				<tt>coroutine.*</tt> namespace (part of base in Lua 5.1 and 5.2)
 			</td>
 		</tr>
 		<tr>
-			<td/>
+			<td />
 			<td>
 				<tt>"debug"</tt>
 			</td>
-			<td/>
+			<td />
 			<td>
 				<tt>debug.*</tt> namespace
 			</td>
 		</tr>
 		<tr>
-			<td/>
+			<td />
+			<td>
+				<tt>"ffi"</tt>
+			</td>
+			<td />
+			<td>
+				<tt>ffi.*</tt> namespace (LuaJIT)
+			</td>
+		</tr>
+		<tr>
+			<td />
 			<td>
 				<tt>"io"</tt>
 			</td>
-			<td/>
+			<td />
 			<td>
 				<tt>io.*</tt> namespace
 			</td>
 		</tr>
 		<tr>
-			<td/>
+			<td />
+			<td>
+				<tt>"jit"</tt>
+			</td>
+			<td />
+			<td>
+				<tt>jit.*</tt> namespace (LuaJIT)
+			</td>
+		</tr>
+		<tr>
+			<td />
 			<td>
 				<tt>"math"</tt>
 			</td>
-			<td/>
+			<td />
 			<td>
 				<tt>math.*</tt> namespace
 			</td>
 		</tr>
 		<tr>
-			<td/>
+			<td />
 			<td>
 				<tt>"os"</tt>
 			</td>
-			<td/>
+			<td />
 			<td>
 				<tt>os.*</tt> namespace
 			</td>
 		</tr>
 		<tr>
-			<td/>
+			<td />
 			<td>
 				<tt>"package"</tt>
 			</td>
-			<td/>
+			<td />
 			<td>
 				<tt>package.*</tt> namespace and <tt>require</tt>
 			</td>
 		</tr>
 		<tr>
-			<td/>
+			<td />
 			<td>
 				<tt>"string"</tt>
 			</td>
-			<td/>
+			<td />
 			<td>
 				<tt>string.*</tt> namespace
 			</td>
 		</tr>
 		<tr>
-			<td/>
+			<td />
 			<td>
 				<tt>"table"</tt>
 			</td>
-			<td/>
+			<td />
 			<td>
 				<tt>table.*</tt> namespace
 			</td>
 		</tr>
 		<tr>
-			<td/>
+			<td />
+			<td>
+				<tt>"utf8"</tt>
+			</td>
+			<td />
+			<td>
+				<tt>utf8.*</tt> namespace (Lua 5.3 and above)
+			</td>
+		</tr>
+		<tr>
+			<td />
 			<td>
 				<tt>"*"</tt>
 			</td>
-			<td/>
+			<td />
 			<td>
 				All standard libraries (including those specific to LuaJIT and not listed above), as well as <tt>lanes.core</tt>. This must be used alone.
 			</td>
