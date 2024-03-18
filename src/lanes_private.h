@@ -1,9 +1,14 @@
-#if !defined __lanes_private_h__
-#define __lanes_private_h__ 1
+#pragma once
 
 #include "uniquekey.h"
 #include "cancel.h"
 #include "universe.h"
+
+enum ThreadStatus
+{
+    NORMAL,         // normal master side state
+    KILLED          // issued an OS kill
+};
 
 // NOTE: values to be changed by either thread, during execution, without
 //       locking, are marked "volatile"
@@ -49,11 +54,7 @@ struct s_Lane
     // lane status changes to DONE/ERROR_ST/CANCELLED.
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 
-    volatile enum
-    {
-        NORMAL,         // normal master side state
-        KILLED          // issued an OS kill
-    } mstatus;
+    volatile enum ThreadStatus mstatus;
     //
     // M: sets to NORMAL, if issued a kill changes to KILLED
     // S: not used
@@ -84,13 +85,10 @@ static inline Lane* get_lane_from_registry( lua_State* L)
     STACK_GROW( L, 1);
     STACK_CHECK( L, 0);
     REGISTRY_GET( L, CANCEL_TEST_KEY);
-    s = lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) / nil
+    s = (Lane*) lua_touserdata( L, -1);     // lightuserdata (true 's_lane' pointer) / nil
     lua_pop( L, 1);
     STACK_END( L, 0);
     return s;
 }
 
 int push_thread_status( lua_State* L, Lane* s);
-
-
-#endif // __lanes_private_h__

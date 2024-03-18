@@ -1,9 +1,14 @@
-#if !defined( __LANES_CANCEL_H__)
-#define __LANES_CANCEL_H__ 1
+#pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
+#ifdef __cplusplus
+}
+#endif // __cplusplus
 
 #include "uniquekey.h"
 #include "macros_and_utils.h"
@@ -62,5 +67,3 @@ LUAG_FUNC( cancel_test);
 LUAG_FUNC( thread_cancel);
 
 // ################################################################################################
-
-#endif // __LANES_CANCEL_H__

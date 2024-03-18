@@ -790,7 +790,7 @@ LUAG_FUNC( set_debug_threadname)
 {
     DECLARE_CONST_UNIQUE_KEY( hidden_regkey, LG_set_debug_threadname);
     // C s_lane structure is a light userdata upvalue
-    Lane* s = lua_touserdata( L, lua_upvalueindex( 1));
+    Lane* s = (Lane*) lua_touserdata( L, lua_upvalueindex( 1));
     luaL_checktype( L, -1, LUA_TSTRING);                           // "name"
     lua_settop( L, 1);
     STACK_CHECK_ABS( L, 1);
@@ -1225,7 +1225,7 @@ LUAG_FUNC( lane_new)
     // 's' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
     //
     // a Lane full userdata needs a single uservalue
-    ud = lua_newuserdatauv( L, sizeof( Lane*), 1);                   // func libs priority globals package required gc_cb lane
+    ud = (Lane**) lua_newuserdatauv( L, sizeof( Lane*), 1);          // func libs priority globals package required gc_cb lane
     {
         AllocatorDefinition* const allocD = &U->internal_allocator;
         s = *ud = (Lane*) allocD->allocF(allocD->allocUD, NULL, 0, sizeof(Lane));
@@ -2074,7 +2074,7 @@ static void EnableCrashingOnCrashes( void)
 }
 #endif // PLATFORM_WIN32
 
-int LANES_API luaopen_lanes_core( lua_State* L)
+LANES_API int luaopen_lanes_core( lua_State* L)
 {
 #if defined PLATFORM_WIN32 && !defined NDEBUG
     EnableCrashingOnCrashes();
@@ -2129,7 +2129,7 @@ static int default_luaopen_lanes( lua_State* L)
 }
 
 // call this instead of luaopen_lanes_core() when embedding Lua and Lanes in a custom application
-void LANES_API luaopen_lanes_embedded( lua_State* L, lua_CFunction _luaopen_lanes)
+LANES_API void luaopen_lanes_embedded( lua_State* L, lua_CFunction _luaopen_lanes)
 {
     STACK_CHECK( L, 0);
     // pre-require lanes.core so that when lanes.lua calls require "lanes.core" it finds it is already loaded

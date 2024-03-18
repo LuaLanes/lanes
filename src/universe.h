@@ -1,10 +1,13 @@
-/*
-* UNIVERSE.H
-*/
-#ifndef UNIVERSE_H
-#define UNIVERSE_H
+#pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
 #include "lua.h"
+#ifdef __cplusplus
+}
+#endif // __cplusplus
+
 #include "threading.h"
 #include "macros_and_utils.h"
 
@@ -101,5 +104,3 @@ typedef struct s_Universe Universe;
 Universe* universe_get( lua_State* L);
 Universe* universe_create( lua_State* L);
 void universe_store( lua_State* L, Universe* U);
-
-#endif // UNIVERSE_H

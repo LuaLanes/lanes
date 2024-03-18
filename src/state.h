@@ -1,7 +1,5 @@
-#ifndef __LANES_STATE_H__
-#define __LANES_STATE_H__
+#pragma once
 
-//#include "lauxlib.h"
 #include "threading.h"
 #include "deep.h"
 
@@ -18,5 +16,3 @@ lua_State* luaG_newstate( Universe* U, lua_State* _from, char const* libs);
 
 void initialize_on_state_create( Universe* U, lua_State* L);
 void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, LookupMode mode_);
-
-#endif // __LANES_STATE_H__

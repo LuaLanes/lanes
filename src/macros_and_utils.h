@@ -1,11 +1,13 @@
-/*
- * MACROS_AND_UTILS.H
- */
-#ifndef MACROS_AND_UTILS_H
-#define MACROS_AND_UTILS_H
+#pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
 #include "lua.h"
 #include "lualib.h"
+#ifdef __cplusplus
+}
+#endif // __cplusplus
 
  // M$ compiler doesn't support 'inline' keyword in C files...
 #if defined( _MSC_VER)
@@ -98,5 +100,3 @@ extern char const* debugspew_indent;
 }
 
 #define LUAG_FUNC( func_name) int LG_##func_name( lua_State* L)
-
-#endif // MACROS_AND_UTILS_H

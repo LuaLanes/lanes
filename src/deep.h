@@ -1,26 +1,24 @@
-#ifndef __LANES_DEEP_H__
-#define __LANES_DEEP_H__ 1
+#pragma once
 
 /*
  * public 'deep' API to be used by external modules if they want to implement Lanes-aware userdata
  * said modules will have to link against lanes (it is not really possible to separate the 'deep userdata' implementation from the rest of Lanes)
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
 #include "lua.h"
-#include "platform.h"
+#ifdef __cplusplus
+}
+#endif // __cplusplus
+
+#include "lanesconf.h"
 #include "uniquekey.h"
 
 // forwards
 struct s_Universe;
 typedef struct s_Universe Universe;
-
-#if !defined LANES_API // when deep is compiled standalone outside Lanes
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
-#define LANES_API __declspec(dllexport)
-#else
-#define LANES_API
-#endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
-#endif // LANES_API
 
 enum eLookupMode
 {
@@ -60,7 +58,5 @@ typedef struct s_DeepPrelude DeepPrelude;
 char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, int nuv_, LookupMode mode_);
 void free_deep_prelude( lua_State* L, DeepPrelude* prelude_);
 
-extern LANES_API int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_);
-extern LANES_API void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index);
-
-#endif // __LANES_DEEP_H__
+LANES_API int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_);
+LANES_API void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index);

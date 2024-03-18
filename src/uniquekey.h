@@ -1,5 +1,4 @@
-#if !defined __LANES_UNIQUEKEY_H__
-#define __LANES_UNIQUEKEY_H__ 1
+#pragma once
 
 #include "compat.h"
 
@@ -21,5 +20,3 @@ typedef struct s_UniqueKey UniqueKey;
 
 #define push_unique_key( L, key_) lua_pushlightuserdata( L, key_.value)
 #define equal_unique_key( L, i, key_) (lua_touserdata( L, i) == key_.value)
-
-#endif // __LANES_UNIQUEKEY_H__

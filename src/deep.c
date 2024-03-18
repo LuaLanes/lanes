@@ -97,8 +97,8 @@ static void get_deep_lookup( lua_State* L)
     REGISTRY_GET( L, DEEP_LOOKUP_KEY);                       // a {}
     if( !lua_isnil( L, -1))
     {
-        lua_insert( L, -2);                                    // {} a
-        lua_rawget( L, -2);                                    // {} b
+        lua_insert( L, -2);                                  // {} a
+        lua_rawget( L, -2);                                  // {} b
     }
     lua_remove( L, -2);                                      // a|b
     STACK_END( L, 1);
@@ -173,7 +173,7 @@ static int deep_userdata_gc( lua_State* L)
     if( v == 0)
     {
         // retrieve wrapped __gc
-        lua_pushvalue( L, lua_upvalueindex( 1));                            // self __gc?
+        lua_pushvalue( L, lua_upvalueindex( 1));                              // self __gc?
         if( !lua_isnil( L, -1))
         {
             lua_insert( L, -2);                                               // __gc self
@@ -213,12 +213,12 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
     lua_rawget( L, -2);                                                                                // DPC proxy
     if ( !lua_isnil( L, -1))
     {
-        lua_remove( L, -2);                                                                              // proxy
+        lua_remove( L, -2);                                                                            // proxy
         return NULL;
     }
     else
     {
-        lua_pop( L, 1);                                                                                  // DPC
+        lua_pop( L, 1);                                                                                // DPC
     }
 
     // can work without a universe if creating a deep userdata from some external C module when Lanes isn't loaded
@@ -231,7 +231,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
     STACK_CHECK( L, 0);
 
     // a new full userdata, fitted with the specified number of uservalue slots (always 1 for Lua < 5.4)
-    proxy = lua_newuserdatauv( L, sizeof(DeepPrelude*), nuv_);                                         // DPC proxy
+    proxy = (DeepPrelude**) lua_newuserdatauv( L, sizeof(DeepPrelude*), nuv_);                         // DPC proxy
     ASSERT_L( proxy);
     *proxy = prelude;
 
@@ -242,101 +242,101 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
     if( lua_isnil( L, -1)) // // No metatable yet.
     {
         char const* modname;
-        int oldtop = lua_gettop( L);                                                                     // DPC proxy nil
-        lua_pop( L, 1);                                                                                  // DPC proxy
+        int oldtop = lua_gettop( L);                                                                   // DPC proxy nil
+        lua_pop( L, 1);                                                                                // DPC proxy
         // 1 - make one and register it
         if( mode_ != eLM_ToKeeper)
         {
-            (void) prelude->idfunc( L, eDO_metatable);                                                     // DPC proxy metatable
+            (void) prelude->idfunc( L, eDO_metatable);                                                 // DPC proxy metatable
             if( lua_gettop( L) - oldtop != 0 || !lua_istable( L, -1))
             {
-                lua_settop( L, oldtop);                                                                      // DPC proxy X
-                lua_pop( L, 3);                                                                              //
+                lua_settop( L, oldtop);                                                                // DPC proxy X
+                lua_pop( L, 3);                                                                        //
                 return "Bad idfunc(eOP_metatable): unexpected pushed value";
             }
             // if the metatable contains a __gc, we will call it from our own
-            lua_getfield( L, -1, "__gc");                                                                  // DPC proxy metatable __gc
+            lua_getfield( L, -1, "__gc");                                                              // DPC proxy metatable __gc
         }
         else
         {
             // keepers need a minimal metatable that only contains our own __gc
-            lua_newtable( L);                                                                              // DPC proxy metatable
-            lua_pushnil( L);                                                                               // DPC proxy metatable nil
+            lua_newtable( L);                                                                          // DPC proxy metatable
+            lua_pushnil( L);                                                                           // DPC proxy metatable nil
         }
         if( lua_isnil( L, -1))
         {
             // Add our own '__gc' method
-            lua_pop( L, 1);                                                                                // DPC proxy metatable
-            lua_pushcfunction( L, deep_userdata_gc);                                                       // DPC proxy metatable deep_userdata_gc
+            lua_pop( L, 1);                                                                            // DPC proxy metatable
+            lua_pushcfunction( L, deep_userdata_gc);                                                   // DPC proxy metatable deep_userdata_gc
         }
         else
         {
             // Add our own '__gc' method wrapping the original
-            lua_pushcclosure( L, deep_userdata_gc, 1);                                                     // DPC proxy metatable deep_userdata_gc
+            lua_pushcclosure( L, deep_userdata_gc, 1);                                                 // DPC proxy metatable deep_userdata_gc
         }
-        lua_setfield( L, -2, "__gc");                                                                    // DPC proxy metatable
+        lua_setfield( L, -2, "__gc");                                                                  // DPC proxy metatable
 
         // Memorize for later rounds
-        lua_pushvalue( L, -1);                                                                           // DPC proxy metatable metatable
-        lua_pushlightuserdata( L, (void*)(ptrdiff_t)(prelude->idfunc));                                  // DPC proxy metatable metatable idfunc
-        set_deep_lookup( L);                                                                             // DPC proxy metatable
+        lua_pushvalue( L, -1);                                                                         // DPC proxy metatable metatable
+        lua_pushlightuserdata( L, (void*)(ptrdiff_t)(prelude->idfunc));                                // DPC proxy metatable metatable idfunc
+        set_deep_lookup( L);                                                                           // DPC proxy metatable
 
         // 2 - cause the target state to require the module that exported the idfunc
         // this is needed because we must make sure the shared library is still loaded as long as we hold a pointer on the idfunc
         {
             int oldtop_module = lua_gettop( L);
-            modname = (char const*) prelude->idfunc( L, eDO_module);                                       // DPC proxy metatable
+            modname = (char const*) prelude->idfunc( L, eDO_module);                                   // DPC proxy metatable
             // make sure the function pushed nothing on the stack!
             if( lua_gettop( L) - oldtop_module != 0)
             {
-                lua_pop( L, 3);                                                                              //
+                lua_pop( L, 3);                                                                        //
                 return "Bad idfunc(eOP_module): should not push anything";
             }
         }
         if( NULL != modname) // we actually got a module name
         {
             // L.registry._LOADED exists without having registered the 'package' library.
-            lua_getglobal( L, "require");                                                                  // DPC proxy metatable require()
+            lua_getglobal( L, "require");                                                              // DPC proxy metatable require()
             // check that the module is already loaded (or being loaded, we are happy either way)
             if( lua_isfunction( L, -1))
             {
-                lua_pushstring( L, modname);                                                                 // DPC proxy metatable require() "module"
-                lua_getfield( L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);                                       // DPC proxy metatable require() "module" _R._LOADED
+                lua_pushstring( L, modname);                                                           // DPC proxy metatable require() "module"
+                lua_getfield( L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);                                 // DPC proxy metatable require() "module" _R._LOADED
                 if( lua_istable( L, -1))
                 {
                     bool_t alreadyloaded;
-                    lua_pushvalue( L, -2);                                                                     // DPC proxy metatable require() "module" _R._LOADED "module"
-                    lua_rawget( L, -2);                                                                        // DPC proxy metatable require() "module" _R._LOADED module
+                    lua_pushvalue( L, -2);                                                             // DPC proxy metatable require() "module" _R._LOADED "module"
+                    lua_rawget( L, -2);                                                                // DPC proxy metatable require() "module" _R._LOADED module
                     alreadyloaded = lua_toboolean( L, -1);
                     if( !alreadyloaded) // not loaded
                     {
                         int require_result;
-                        lua_pop( L, 2);                                                                          // DPC proxy metatable require() "module"
+                        lua_pop( L, 2);                                                                // DPC proxy metatable require() "module"
                         // require "modname"
-                        require_result = lua_pcall( L, 1, 0, 0);                                                 // DPC proxy metatable error?
+                        require_result = lua_pcall( L, 1, 0, 0);                                       // DPC proxy metatable error?
                         if( require_result != LUA_OK)
                         {
                             // failed, return the error message
                             lua_pushfstring( L, "error while requiring '%s' identified by idfunc(eOP_module): ", modname);
-                            lua_insert( L, -2);                                                                    // DPC proxy metatable prefix error
-                            lua_concat( L, 2);                                                                     // DPC proxy metatable error
+                            lua_insert( L, -2);                                                        // DPC proxy metatable prefix error
+                            lua_concat( L, 2);                                                         // DPC proxy metatable error
                             return lua_tostring( L, -1);
                         }
                     }
                     else // already loaded, we are happy
                     {
-                        lua_pop( L, 4);                                                                          // DPC proxy metatable
+                        lua_pop( L, 4);                                                                // DPC proxy metatable
                     }
                 }
                 else // no L.registry._LOADED; can this ever happen?
                 {
-                    lua_pop( L, 6);                                                                            //
+                    lua_pop( L, 6);                                                                    //
                     return "unexpected error while requiring a module identified by idfunc(eOP_module)";
                 }
             }
             else // a module name, but no require() function :-(
             {
-                lua_pop( L, 4);                                                                              //
+                lua_pop( L, 4);                                                                        //
                 return "lanes receiving deep userdata should register the 'package' library";
             }
         }
@@ -386,7 +386,7 @@ int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_)
     STACK_CHECK( L, 0);
     {
         int const oldtop = lua_gettop( L);
-        DeepPrelude* prelude = idfunc( L, eDO_new);
+        DeepPrelude* prelude = (DeepPrelude*) idfunc( L, eDO_new);
         if( prelude == NULL)
         {
             return luaL_error( L, "idfunc(eDO_new) failed to create deep userdata (out of memory)");
@@ -473,7 +473,7 @@ bool_t copydeep( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, ui
     lua_pop( L, 1);                                                                      // ... u [uv]*
     STACK_MID( L, nuv);
 
-    errmsg = push_deep_proxy( U, L2, *(DeepPrelude**) lua_touserdata( L, i), nuv, mode_);               // u
+    errmsg = push_deep_proxy( U, L2, *(DeepPrelude**) lua_touserdata( L, i), nuv, mode_);                   // u
 
     // transfer all uservalues of the source in the destination
     {
@@ -481,7 +481,7 @@ bool_t copydeep( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, ui
         while( nuv)
         {
             inter_copy_one( U, L2, L2_cache_i, L,  lua_absindex( L, -1), VT_NORMAL, mode_, upName_);        // u uv
-            lua_pop( L, 1);                                                                  // ... u [uv]*
+            lua_pop( L, 1);                                                              // ... u [uv]*
             // this pops the value from the stack
             lua_setiuservalue( L2, clone_i, nuv);                                                           // u
             -- nuv;

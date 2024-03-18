@@ -1,9 +1,14 @@
-#if !defined( __COMPAT_H__)
-#define __COMPAT_H__ 1
+#pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
 #include "lua.h"
 #include "lualib.h"
 #include "lauxlib.h"
+#ifdef __cplusplus
+}
+#endif // __cplusplus
 
 // try to detect if we are building against LuaJIT or MoonJIT
 #if defined(LUA_JITLIBNAME)
@@ -92,5 +97,3 @@ int lua_setiuservalue( lua_State* L, int idx, int n);
 #define luaL_optint(L,n,d) ((int)luaL_optinteger(L, (n), (d)))
 
 #endif // LUA_VERSION_NUM == 504
-
-#endif // __COMPAT_H__

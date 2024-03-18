@@ -1,8 +1,4 @@
-/*
-* THREADING.H
-*/
-#ifndef __threading_h__
-#define __threading_h__ 1
+#pragma once
 
 /*
  * win32-pthread:
@@ -261,5 +257,3 @@ void THREAD_SETNAME( char const* _name);
 void THREAD_MAKE_ASYNCH_CANCELLABLE();
 void THREAD_SET_PRIORITY( int prio);
 void THREAD_SET_AFFINITY( unsigned int aff);
-
-#endif // __threading_h__

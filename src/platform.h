@@ -1,5 +1,4 @@
-#ifndef __LANES_PLATFORM_H__
-#define __LANES_PLATFORM_H__ 1
+#pragma once
 
 #ifdef _WIN32_WCE
   #define PLATFORM_POCKETPC
@@ -20,5 +19,3 @@
 #else
   #error "Unknown platform!"
 #endif
-
-#endif // __LANES_PLATFORM_H__

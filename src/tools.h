@@ -1,7 +1,5 @@
-#ifndef __LANES_TOOLS_H__
-#define __LANES_TOOLS_H__
+#pragma once
 
-//#include "lauxlib.h"
 #include "threading.h"
 #include "deep.h"
 
@@ -53,5 +51,3 @@ static DECLARE_CONST_UNIQUE_KEY( CONFIG_REGKEY, 0x31cd24894eae8624); // 'cancel_
 
 // crc64/we of string "LOOKUP_REGKEY" generated at http://www.nitrxgen.net/hashgen/
 static DECLARE_CONST_UNIQUE_KEY( LOOKUP_REGKEY, 0x5051ed67ee7b51a1); // 'cancel_error' sentinel
-
-#endif // __LANES_TOOLS_H__

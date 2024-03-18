@@ -259,7 +259,7 @@ lua_State* create_state( Universe* U, lua_State* from_)
         lua_pushcclosure( from_, U->provide_allocator, 0);
         lua_call( from_, 0, 1);
         {
-            AllocatorDefinition* const def = lua_touserdata( from_, -1);
+            AllocatorDefinition* const def = (AllocatorDefinition*) lua_touserdata( from_, -1);
             L = lua_newstate( def->allocF, def->allocUD);
         }
         lua_pop( from_, 1);

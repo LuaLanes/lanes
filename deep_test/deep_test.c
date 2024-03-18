@@ -9,12 +9,6 @@
 #include "lanes/src/deep.h"
 #include "lanes/src/compat.h"
 
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
-#define LANES_API __declspec(dllexport)
-#else
-#define LANES_API
-#endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
-
 // ################################################################################################
 
 // a lanes-deep userdata. needs DeepPrelude and luaG_newdeepuserdata from Lanes code.
@@ -248,7 +242,7 @@ static luaL_Reg const deep_module[] =
 
 // ################################################################################################
 
-extern int __declspec(dllexport) luaopen_deep_test(lua_State* L)
+LANES_API int luaopen_deep_test(lua_State* L)
 {
 	luaL_newlib( L, deep_module);                           // M
 
@@ -256,18 +250,18 @@ extern int __declspec(dllexport) luaopen_deep_test(lua_State* L)
 	if( luaL_newmetatable( L, "clonable"))                  // M mt
 	{
 		luaL_setfuncs( L, clonable_mt, 0);
-		lua_pushvalue(L, -1);                                 // M mt mt
-		lua_setfield(L, -2, "__index");                       // M mt
+		lua_pushvalue(L, -1);                               // M mt mt
+		lua_setfield(L, -2, "__index");                     // M mt
 	}
 	lua_setfield(L, -2, "__clonableMT");                    // M
 
 	if( luaL_newmetatable( L, "deep"))                      // mt
 	{
 		luaL_setfuncs( L, deep_mt, 0);
-		lua_pushvalue(L, -1);                                 // mt mt
-		lua_setfield(L, -2, "__index");                       // mt
+		lua_pushvalue(L, -1);                               // mt mt
+		lua_setfield(L, -2, "__index");                     // mt
 	}
-	lua_setfield(L, -2, "__deepMT");                    // M
+	lua_setfield(L, -2, "__deepMT");                        // M
 
 	return 1;
 }

@@ -183,7 +183,7 @@ static void* protected_lua_Alloc( void *ud, void *ptr, size_t osize, size_t nsiz
 static int luaG_provide_protected_allocator( lua_State* L)
 {
     Universe* U = universe_get( L);
-    AllocatorDefinition* const def = lua_newuserdatauv( L, sizeof(AllocatorDefinition), 0);
+    AllocatorDefinition* const def = (AllocatorDefinition*) lua_newuserdatauv( L, sizeof(AllocatorDefinition), 0);
     def->allocF = protected_lua_Alloc;
     def->allocUD = &U->protected_allocator;
     return 1;

@@ -1,7 +1,13 @@
-#if !defined( __keeper_h__)
-#define __keeper_h__ 1
+#pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
 #include "lua.h"
+#ifdef __cplusplus
+}
+#endif // __cplusplus
+
 #include "threading.h"
 #include "uniquekey.h"
 
@@ -53,5 +59,3 @@ int keepercall_set( lua_State* L);
 int keepercall_count( lua_State* L);
 
 int keeper_call( Universe* U, lua_State* K, keeper_api_t _func, lua_State* L, void* linda, uint_t starting_index);
-
-#endif // __keeper_h__
