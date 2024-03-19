@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 159: BGe 19-Mar-24
+   * fix small internal issue with when hitting timeout on thread kill during thread_cancel() in pthread implementation
+
 CHANGE 158: BGe 22-Feb-24
    * naive luajit detection in PUC-Lua-based builds, and vice-versa to detect mismatches
    * internal version bumped to 3.16.3

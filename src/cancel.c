@@ -156,10 +156,10 @@ static cancel_result thread_cancel_hard( lua_State* L, Lane* s, double secs_, bo
 #if THREADAPI == THREADAPI_PTHREAD
         // pthread: make sure the thread is really stopped!
         // note that this may block forever if the lane doesn't call a cancellation point and pthread doesn't honor PTHREAD_CANCEL_ASYNCHRONOUS
-        result = THREAD_WAIT( &s->thread, waitkill_timeout_, &s->done_signal, &s->done_lock, &s->status);
+        result = THREAD_WAIT( &s->thread, waitkill_timeout_, &s->done_signal, &s->done_lock, &s->status) ? CR_Killed : CR_Timeout;
         if( result == CR_Timeout)
         {
-            return luaL_error( L, "force-killed lane failed to terminate within %f second%s", waitkill_timeout_, waitkill_timeout_ > 1 ? "s" : "");
+            (void) luaL_error( L, "force-killed lane failed to terminate within %f second%s", waitkill_timeout_, waitkill_timeout_ > 1 ? "s" : "");
         }
 #else
         (void) waitkill_timeout_; // unused
