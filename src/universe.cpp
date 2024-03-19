@@ -56,7 +56,7 @@ Universe* universe_create( lua_State* L)
 void universe_store( lua_State* L, Universe* U)
 {
     STACK_CHECK( L, 0);
-    REGISTRY_SET( L, UNIVERSE_REGKEY, (NULL != U) ? lua_pushlightuserdata( L, U) : lua_pushnil( L));
+    REGISTRY_SET( L, UNIVERSE_REGKEY, (nullptr != U) ? lua_pushlightuserdata( L, U) : lua_pushnil( L));
     STACK_END( L, 0);
 }
 

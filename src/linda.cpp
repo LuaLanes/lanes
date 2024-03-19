@@ -63,7 +63,7 @@ static void* linda_id( lua_State*, DeepOp);
 static inline struct s_Linda* lua_toLinda( lua_State* L, int idx_)
 {
     struct s_Linda* linda = (struct s_Linda*) luaG_todeep( L, linda_id, idx_);
-    luaL_argcheck( L, linda != NULL, idx_, "expecting a linda object");
+    luaL_argcheck( L, linda != nullptr, idx_, "expecting a linda object");
     return linda;
 }
 
@@ -88,8 +88,8 @@ LUAG_FUNC( linda_protected_call)
 
     // acquire the keeper
     Keeper* K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED(linda));
-    lua_State* KL = K ? K->L : NULL; // need to do this for 'STACK_CHECK'
-    if( KL == NULL) return 0;
+    lua_State* KL = K ? K->L : nullptr; // need to do this for 'STACK_CHECK'
+    if( KL == nullptr) return 0;
 
     // retrieve the actual function to be called and move it before the arguments
     lua_pushvalue( L, lua_upvalueindex( 1));
@@ -171,12 +171,12 @@ LUAG_FUNC( linda_send)
         bool_t try_again = TRUE;
         Lane* const s = get_lane_from_registry( L);
         Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
-        lua_State* KL = K ? K->L : NULL; // need to do this for 'STACK_CHECK'
-        if( KL == NULL) return 0;
+        lua_State* KL = K ? K->L : nullptr; // need to do this for 'STACK_CHECK'
+        if( KL == nullptr) return 0;
         STACK_CHECK( KL, 0);
         for( ;;)
         {
-            if( s != NULL)
+            if( s != nullptr)
             {
                 cancel = s->cancel_request;
             }
@@ -215,20 +215,20 @@ LUAG_FUNC( linda_send)
             // storage limit hit, wait until timeout or signalled that we should try again
             {
                 enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
-                if( s != NULL)
+                if( s != nullptr)
                 {
                     // change status of lane to "waiting"
                     prev_status = s->status; // RUNNING, most likely
                     ASSERT_L( prev_status == RUNNING); // but check, just in case
                     s->status = WAITING;
-                    ASSERT_L( s->waiting_on == NULL);
+                    ASSERT_L( s->waiting_on == nullptr);
                     s->waiting_on = &linda->read_happened;
                 }
                 // could not send because no room: wait until some data was read before trying again, or until timeout is reached
                 try_again = SIGNAL_WAIT( &linda->read_happened, &K->keeper_cs, timeout);
-                if( s != NULL)
+                if( s != nullptr)
                 {
-                    s->waiting_on = NULL;
+                    s->waiting_on = nullptr;
                     s->status = prev_status;
                 }
             }
@@ -331,10 +331,10 @@ LUAG_FUNC( linda_receive)
         bool_t try_again = TRUE;
         Lane* const s = get_lane_from_registry( L);
         Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
-        if( K == NULL) return 0;
+        if( K == nullptr) return 0;
         for( ;;)
         {
-            if( s != NULL)
+            if( s != nullptr)
             {
                 cancel = s->cancel_request;
             }
@@ -371,20 +371,20 @@ LUAG_FUNC( linda_receive)
             // nothing received, wait until timeout or signalled that we should try again
             {
                 enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
-                if( s != NULL)
+                if( s != nullptr)
                 {
                     // change status of lane to "waiting"
                     prev_status = s->status; // RUNNING, most likely
                     ASSERT_L( prev_status == RUNNING); // but check, just in case
                     s->status = WAITING;
-                    ASSERT_L( s->waiting_on == NULL);
+                    ASSERT_L( s->waiting_on == nullptr);
                     s->waiting_on = &linda->write_happened;
                 }
                 // not enough data to read: wakeup when data was sent, or when timeout is reached
                 try_again = SIGNAL_WAIT( &linda->write_happened, &K->keeper_cs, timeout);
-                if( s != NULL)
+                if( s != nullptr)
                 {
-                    s->waiting_on = NULL;
+                    s->waiting_on = nullptr;
                     s->status = prev_status;
                 }
             }
@@ -654,7 +654,7 @@ static int linda_tostring( lua_State* L, int idx_, bool_t opt_)
     {
         luaL_argcheck( L, linda, idx_, "expecting a linda object");
     }
-    if( linda != NULL)
+    if( linda != nullptr)
     {
         char text[128];
         int len;
@@ -764,7 +764,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
         {
             struct s_Linda* s;
             size_t name_len = 0;
-            char const* linda_name = NULL;
+            char const* linda_name = nullptr;
             unsigned long linda_group = 0;
             // should have a string and/or a number of the stack as parameters (name and group)
             switch( lua_gettop( L))
@@ -797,7 +797,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             {
                 Universe* const U = universe_get(L);
                 AllocatorDefinition* const allocD = &U->internal_allocator;
-                s = (struct s_Linda*) allocD->allocF(allocD->allocUD, NULL, 0, sizeof(struct s_Linda) + name_len); // terminating 0 is already included
+                s = (struct s_Linda*) allocD->allocF(allocD->allocUD, nullptr, 0, sizeof(struct s_Linda) + name_len); // terminating 0 is already included
             }
             if( s)
             {
@@ -821,7 +821,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
 
             // Clean associated structures in the keeper state.
             K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
-            if( K && K->L) // can be NULL if this happens during main state shutdown (lanes is GC'ed -> no keepers -> no need to cleanup)
+            if( K && K->L) // can be nullptr if this happens during main state shutdown (lanes is GC'ed -> no keepers -> no need to cleanup)
             {
                 // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
                 keeper_call( linda->U, K->L, KEEPER_API( clear), L, linda, 0);
@@ -836,7 +836,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
                 AllocatorDefinition* const allocD = &U->internal_allocator;
                 (void) allocD->allocF(allocD->allocUD, linda, sizeof(struct s_Linda) + strlen(linda->name), 0);
             }
-            return NULL;
+            return nullptr;
         }
 
         case eDO_metatable:
@@ -908,7 +908,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             lua_setfield( L, -2, "null");
 
             STACK_END( L, 1);
-            return NULL;
+            return nullptr;
         }
 
         case eDO_module:
@@ -917,7 +917,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
         // in other words, forever.
         default:
         {
-            return NULL;
+            return nullptr;
         }
     }
 }

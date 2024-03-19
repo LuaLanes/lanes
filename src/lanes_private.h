@@ -35,7 +35,7 @@ struct s_Lane
 
     SIGNAL_T* volatile waiting_on;
     //
-    // When status is WAITING, points on the linda's signal the thread waits on, else NULL
+    // When status is WAITING, points on the linda's signal the thread waits on, else nullptr
 
     volatile enum e_cancel_request cancel_request;
     //
@@ -61,9 +61,9 @@ struct s_Lane
 
     struct s_Lane* volatile selfdestruct_next;
     //
-    // M: sets to non-NULL if facing lane handle '__gc' cycle but the lane
+    // M: sets to non-nullptr if facing lane handle '__gc' cycle but the lane
     //    is still running
-    // S: cleans up after itself if non-NULL at lane exit
+    // S: cleans up after itself if non-nullptr at lane exit
 
 #if HAVE_LANE_TRACKING()
     struct s_Lane* volatile tracking_next;

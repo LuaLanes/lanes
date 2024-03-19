@@ -72,7 +72,7 @@ static int const CONTENTS_TABLE = 1;
 static keeper_fifo* prepare_fifo_access( lua_State* L, int idx_)
 {
     keeper_fifo* fifo = (keeper_fifo*) lua_touserdata( L, idx_);
-    if( fifo != NULL)
+    if( fifo != nullptr)
     {
         idx_ = lua_absindex( L, idx_);
         STACK_GROW( L, 1);
@@ -192,8 +192,8 @@ static void push_table( lua_State* L, int idx_)
 int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_)
 {
     Keeper* const K = which_keeper( U->keepers, magic_);
-    lua_State* const KL = K ? K->L : NULL;
-    if( KL == NULL) return 0;
+    lua_State* const KL = K ? K->L : nullptr;
+    if( KL == nullptr) return 0;
     STACK_GROW( KL, 4);
     STACK_CHECK( KL, 0);
     REGISTRY_GET( KL, FIFOS_KEY);                               // fifos
@@ -303,7 +303,7 @@ int keepercall_receive( lua_State* L)
         lua_pushvalue( L, i);                      // fifos keys key[i]
         lua_rawget( L, 1);                         // fifos keys fifo
         fifo = prepare_fifo_access( L, -1);        // fifos keys fifo
-        if( fifo != NULL && fifo->count > 0)
+        if( fifo != nullptr && fifo->count > 0)
         {
             fifo_pop( L, fifo, 1);                   // fifos keys val
             if( !lua_isnil( L, -1))
@@ -341,7 +341,7 @@ int keepercall_receive_batched( lua_State* L)
         lua_rawget( L, 2);                                    // key fifos fifo
         lua_remove( L, 2);                                    // key fifo
         fifo = prepare_fifo_access( L, 2);                    // key fifo
-        if( fifo != NULL && fifo->count >= min_count)
+        if( fifo != nullptr && fifo->count >= min_count)
         {
             fifo_pop( L, fifo, __min( max_count, fifo->count)); // key ...
         }
@@ -369,7 +369,7 @@ int keepercall_limit( lua_State* L)
     lua_pushvalue( L, -1);                             // fifos key key
     lua_rawget( L, -3);                                // fifos key fifo|nil
     fifo = (keeper_fifo*) lua_touserdata( L, -1);
-    if( fifo ==  NULL)
+    if( fifo == nullptr)
     {                                                  // fifos key nil
         lua_pop( L, 1);                                  // fifos key
         fifo_new( L);                                    // fifos key fifo
@@ -412,7 +412,7 @@ int keepercall_set( lua_State* L)
         lua_rawget( L, 1);                              // fifos key fifo|nil
         // empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
         fifo = (keeper_fifo*) lua_touserdata( L, -1);
-        if( fifo != NULL) // might be NULL if we set a nonexistent key to nil
+        if( fifo != nullptr) // might be NULL if we set a nonexistent key to nil
         {                                               // fifos key fifo
             if( fifo->limit < 0) // fifo limit value is the default (unlimited): we can totally remove it
             {
@@ -439,7 +439,7 @@ int keepercall_set( lua_State* L)
         lua_pushvalue( L, 2);                           // fifos key [val [, ...]] key
         lua_rawget( L, 1);                              // fifos key [val [, ...]] fifo|nil
         fifo = (keeper_fifo*) lua_touserdata( L, -1);
-        if( fifo == NULL) // can be NULL if we store a value at a new key
+        if( fifo == nullptr) // can be nullptr if we store a value at a new key
         {                                               // fifos key [val [, ...]] nil
             // no need to wake writers in that case, because a writer can't wait on an inexistent key
             lua_pop( L, 1);                               // fifos key [val [, ...]]
@@ -481,7 +481,7 @@ int keepercall_get( lua_State* L)
     lua_replace( L, 1);                               // fifos key
     lua_rawget( L, 1);                                // fifos fifo
     fifo = prepare_fifo_access( L, -1);               // fifos fifo
-    if( fifo != NULL && fifo->count > 0)
+    if( fifo != nullptr && fifo->count > 0)
     {
         lua_remove( L, 1);                              // fifo
         count = __min( count, fifo->count);
@@ -548,7 +548,7 @@ int keepercall_count( lua_State* L)
             lua_rawget( L, 2);                               // out fifos keys fifo|nil
             fifo = prepare_fifo_access( L, -1);              // out fifos keys fifo|nil
             lua_pop( L, 1);                                  // out fifos keys
-            if( fifo != NULL) // the key is known
+            if( fifo != nullptr) // the key is known
             {
                 lua_pushinteger( L, fifo->count);              // out fifos keys count
                 lua_rawset( L, 1);                             // out fifos keys
@@ -582,7 +582,7 @@ int keepercall_count( lua_State* L)
 // called as __gc for the keepers array userdata
 void close_keepers( Universe* U)
 {
-    if( U->keepers != NULL)
+    if( U->keepers != nullptr)
     {
         int i;
         int nbKeepers = U->keepers->nb_keepers;
@@ -594,8 +594,8 @@ void close_keepers( Universe* U)
         for( i = 0; i < nbKeepers; ++ i)
         {
             lua_State* K = U->keepers->keeper_array[i].L;
-            U->keepers->keeper_array[i].L = NULL;
-            if( K != NULL)
+            U->keepers->keeper_array[i].L = nullptr;
+            if( K != nullptr)
             {
                 lua_close( K);
             }
@@ -613,7 +613,7 @@ void close_keepers( Universe* U)
         {
             AllocatorDefinition* const allocD = &U->internal_allocator;
             (void) allocD->allocF( allocD->allocUD, U->keepers, sizeof( Keepers) + (nbKeepers - 1) * sizeof( Keeper), 0);
-            U->keepers = NULL;
+            U->keepers = nullptr;
         }
     }
 }
@@ -648,9 +648,9 @@ void init_keepers( Universe* U, lua_State* L)
         size_t const bytes = sizeof( Keepers) + (nb_keepers - 1) * sizeof( Keeper);
         {
             AllocatorDefinition* const allocD = &U->internal_allocator;
-            U->keepers = (Keepers*) allocD->allocF( allocD->allocUD, NULL, 0, bytes);
+            U->keepers = (Keepers*) allocD->allocF( allocD->allocUD, nullptr, 0, bytes);
         }
-        if( U->keepers == NULL)
+        if( U->keepers == nullptr)
         {
             (void) luaL_error( L, "init_keepers() failed while creating keeper array; out of memory");
             return;
@@ -662,7 +662,7 @@ void init_keepers( Universe* U, lua_State* L)
     {
         // note that we will leak K if we raise an error later
         lua_State* K = create_state( U, L);
-        if( K == NULL)
+        if( K == nullptr)
         {
             (void) luaL_error( L, "init_keepers() failed while creating keeper states; out of memory");
             return;
@@ -734,7 +734,7 @@ Keeper* keeper_acquire( Keepers* keepers_, ptrdiff_t magic_)
     // can be 0 if this happens during main state shutdown (lanes is being GC'ed -> no keepers)
     if( nbKeepers == 0)
     {
-        return NULL;
+        return nullptr;
     }
     else
     {

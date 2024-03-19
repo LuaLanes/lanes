@@ -176,7 +176,7 @@ static bool_t push_registry_table( lua_State* L, UniqueKey key, bool_t create)
 
 #if HAVE_LANE_TRACKING()
 
-// The chain is ended by '(Lane*)(-1)', not NULL:
+// The chain is ended by '(Lane*)(-1)', not nullptr:
 // 'tracking_first -> ... -> ... -> (-1)'
 #define TRACKING_END ((Lane *)(-1))
 
@@ -189,7 +189,7 @@ static void tracking_add( Lane* s)
 
     MUTEX_LOCK( &s->U->tracking_cs);
     {
-        assert( s->tracking_next == NULL);
+        assert( s->tracking_next == nullptr);
 
         s->tracking_next = s->U->tracking_first;
         s->U->tracking_first = s;
@@ -209,7 +209,7 @@ static bool_t tracking_remove( Lane* s)
         // still (at process exit they will remove us from chain and then
         // cancel/kill).
         //
-        if( s->tracking_next != NULL)
+        if( s->tracking_next != nullptr)
         {
             Lane** ref = (Lane**) &s->U->tracking_first;
 
@@ -218,7 +218,7 @@ static bool_t tracking_remove( Lane* s)
                 if( *ref == s)
                 {
                     *ref = s->tracking_next;
-                    s->tracking_next = NULL;
+                    s->tracking_next = nullptr;
                     found = TRUE;
                     break;
                 }
@@ -246,7 +246,7 @@ static void lane_cleanup( Lane* s)
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 
 #if HAVE_LANE_TRACKING()
-    if( s->U->tracking_first != NULL)
+    if( s->U->tracking_first != nullptr)
     {
         // Lane was cleaned up, no need to handle at process termination
         tracking_remove( s);
@@ -386,7 +386,7 @@ static int run_finalizers( lua_State* L, int lua_rc)
 
 #define SELFDESTRUCT_END ((Lane*)(-1))
 //
-// The chain is ended by '(Lane*)(-1)', not NULL:
+// The chain is ended by '(Lane*)(-1)', not nullptr:
 //      'selfdestruct_first -> ... -> ... -> (-1)'
 
 /*
@@ -396,7 +396,7 @@ static int run_finalizers( lua_State* L, int lua_rc)
 static void selfdestruct_add( Lane* s)
 {
     MUTEX_LOCK( &s->U->selfdestruct_cs);
-    assert( s->selfdestruct_next == NULL);
+    assert( s->selfdestruct_next == nullptr);
 
     s->selfdestruct_next = s->U->selfdestruct_first;
     s->U->selfdestruct_first= s;
@@ -415,7 +415,7 @@ static bool_t selfdestruct_remove( Lane* s)
         // still (at process exit they will remove us from chain and then
         // cancel/kill).
         //
-        if( s->selfdestruct_next != NULL)
+        if( s->selfdestruct_next != nullptr)
         {
             Lane** ref = (Lane**) &s->U->selfdestruct_first;
 
@@ -424,7 +424,7 @@ static bool_t selfdestruct_remove( Lane* s)
                 if( *ref == s)
                 {
                     *ref = s->selfdestruct_next;
-                    s->selfdestruct_next = NULL;
+                    s->selfdestruct_next = nullptr;
                     // the terminal shutdown should wait until the lane is done with its lua_close()
                     ++ s->U->selfdestructing_count;
                     found = TRUE;
@@ -458,12 +458,12 @@ static int selfdestruct_gc( lua_State* L)
                 // attempt a regular unforced hard cancel with a small timeout
                 bool_t cancelled = THREAD_ISNULL( s->thread) || thread_cancel( L, s, CO_Hard, 0.0001, FALSE, 0.0);
                 // if we failed, and we know the thread is waiting on a linda
-                if( cancelled == FALSE && s->status == WAITING && s->waiting_on != NULL)
+                if( cancelled == FALSE && s->status == WAITING && s->waiting_on != nullptr)
                 {
                     // signal the linda to wake up the thread so that it can react to the cancel query
                     // let us hope we never land here with a pointer on a linda that has been destroyed...
                     SIGNAL_T* waiting_on = s->waiting_on;
-                    //s->waiting_on = NULL; // useful, or not?
+                    //s->waiting_on = nullptr; // useful, or not?
                     SIGNAL_ALL( waiting_on);
                 }
                 s = s->selfdestruct_next;
@@ -540,8 +540,8 @@ static int selfdestruct_gc( lua_State* L)
                 while( s != SELFDESTRUCT_END)
                 {
                     Lane* next_s = s->selfdestruct_next;
-                    s->selfdestruct_next = NULL;     // detach from selfdestruct chain
-                    if( !THREAD_ISNULL( s->thread)) // can be NULL if previous 'soft' termination succeeded
+                    s->selfdestruct_next = nullptr;     // detach from selfdestruct chain
+                    if( !THREAD_ISNULL( s->thread)) // can be nullptr if previous 'soft' termination succeeded
                     {
                         THREAD_KILL( &s->thread);
 #if THREADAPI == THREADAPI_PTHREAD
@@ -572,11 +572,11 @@ static int selfdestruct_gc( lua_State* L)
     // necessary so that calling free_deep_prelude doesn't crash because linda_id expects a linda lightuserdata at absolute slot 1
     lua_settop( L, 0);
     // no need to mutex-protect this as all threads in the universe are gone at that point
-    if( U->timer_deep != NULL) // test ins case some early internal error prevented Lanes from creating the deep timer
+    if( U->timer_deep != nullptr) // test ins case some early internal error prevented Lanes from creating the deep timer
     {
         -- U->timer_deep->refcount; // should be 0 now
         free_deep_prelude( L, (DeepPrelude*) U->timer_deep);
-        U->timer_deep = NULL;
+        U->timer_deep = nullptr;
     }
 
     close_keepers( U);
@@ -596,7 +596,7 @@ static int selfdestruct_gc( lua_State* L)
     // universe is no longer available (nor necessary)
     // we need to do this in case some deep userdata objects were created before Lanes was initialized,
     // as potentially they will be garbage collected after Lanes at application shutdown
-    universe_store( L, NULL);
+    universe_store( L, nullptr);
     return 0;
 }
 
@@ -868,7 +868,7 @@ static char const* get_errcode_name( int _code)
             return s_errcodes[i].name;
         }
     }
-    return "<NULL>";
+    return "<nullptr>";
 }
 #endif // USE_DEBUG_SPEW()
 
@@ -943,7 +943,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void* vs)
         // the finalizer generated an error, and left its own error message [and stack trace] on the stack
         rc = rc2;    // we're overruling the earlier script error or normal return
     }
-    s->waiting_on = NULL; // just in case
+    s->waiting_on = nullptr; // just in case
     if( selfdestruct_remove( s)) // check and remove (under lock!)
     {
         // We're a free-running thread and no-one's there to clean us up.
@@ -1228,9 +1228,9 @@ LUAG_FUNC( lane_new)
     ud = (Lane**) lua_newuserdatauv( L, sizeof( Lane*), 1);          // func libs priority globals package required gc_cb lane
     {
         AllocatorDefinition* const allocD = &U->internal_allocator;
-        s = *ud = (Lane*) allocD->allocF(allocD->allocUD, NULL, 0, sizeof(Lane));
+        s = *ud = (Lane*) allocD->allocF(allocD->allocUD, nullptr, 0, sizeof(Lane));
     }
-    if( s == NULL)
+    if( s == nullptr)
     {
         return luaL_error( L, "could not create lane: out of memory");
     }
@@ -1238,7 +1238,7 @@ LUAG_FUNC( lane_new)
     s->L = L2;
     s->U = U;
     s->status = PENDING;
-    s->waiting_on = NULL;
+    s->waiting_on = nullptr;
     s->debug_name = "<unnamed>";
     s->cancel_request = CANCEL_NONE;
 
@@ -1247,9 +1247,9 @@ LUAG_FUNC( lane_new)
     SIGNAL_INIT( &s->done_signal);
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
     s->mstatus = NORMAL;
-    s->selfdestruct_next = NULL;
+    s->selfdestruct_next = nullptr;
 #if HAVE_LANE_TRACKING()
-    s->tracking_next = NULL;
+    s->tracking_next = nullptr;
     if( s->U->tracking_first)
     {
         tracking_add( s);
@@ -1399,7 +1399,7 @@ static char const * thread_status_string( Lane* s)
         (st == WAITING) ? "waiting" :
         (st == DONE) ? "done" :
         (st == ERROR_ST) ? "error" :
-        (st == CANCELLED) ? "cancelled" : NULL;
+        (st == CANCELLED) ? "cancelled" : nullptr;
     return str;
 }
 
@@ -1767,7 +1767,7 @@ static const struct luaL_Reg lanes_functions [] = {
     {"nameof", luaG_nameof},
     {"register", LG_register},
     {"set_singlethreaded", LG_set_singlethreaded},
-    {NULL, NULL}
+    {nullptr, nullptr}
 };
 
 /*
@@ -1820,7 +1820,7 @@ static volatile long s_initCount = 0;
 LUAG_FUNC( configure)
 {
     Universe* U = universe_get( L);
-    bool_t const from_master_state = (U == NULL);
+    bool_t const from_master_state = (U == nullptr);
     char const* name = luaL_checkstring( L, lua_upvalueindex( 1));
     _ASSERT_L( L, lua_type( L, 1) == LUA_TTABLE);
 
@@ -1868,7 +1868,7 @@ LUAG_FUNC( configure)
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END, L));
     DEBUGSPEW_CODE( if( U) ++ U->debugspew_indent_depth);
 
-    if( U == NULL)
+    if( U == nullptr)
     {
         U = universe_create( L);                                                           // settings universe
         DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
@@ -1887,7 +1887,7 @@ LUAG_FUNC( configure)
 #if HAVE_LANE_TRACKING()
         MUTEX_INIT( &U->tracking_cs);
         lua_getfield( L, 1, "track_lanes");                                                // settings track_lanes
-        U->tracking_first = lua_toboolean( L, -1) ? TRACKING_END : NULL;
+        U->tracking_first = lua_toboolean( L, -1) ? TRACKING_END : nullptr;
         lua_pop( L, 1);                                                                    // settings
 #endif // HAVE_LANE_TRACKING()
         // Linked chains handling
@@ -1928,7 +1928,7 @@ LUAG_FUNC( configure)
     luaG_registerlibfuncs( L, lanes_functions);
 #if HAVE_LANE_TRACKING()
     // register core.threads() only if settings say it should be available
-    if( U->tracking_first != NULL)
+    if( U->tracking_first != nullptr)
     {
         lua_pushcfunction( L, LG_threads);                                                 // settings M LG_threads()
         lua_setfield( L, -2, "threads");                                                   // settings M
@@ -1939,7 +1939,7 @@ LUAG_FUNC( configure)
     {
         char const* errmsg;
         errmsg = push_deep_proxy( U, L, (DeepPrelude*) U->timer_deep, 0, eLM_LaneBody);    // settings M timer_deep
-        if( errmsg != NULL)
+        if( errmsg != nullptr)
         {
             return luaL_error( L, errmsg);
         }
@@ -2011,7 +2011,7 @@ LUAG_FUNC( configure)
         // because we will do it after on_state_create() is called,
         // and we don't want to skip _G because of caching in case globals are created then
         lua_pushglobaltable( L);                                                           // settings M _G
-        populate_func_lookup_table( L, -1, NULL);
+        populate_func_lookup_table( L, -1, nullptr);
         lua_pop( L, 1);                                                                    // settings M
     }
     lua_pop( L, 1);                                                                        // settings

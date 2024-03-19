@@ -84,7 +84,7 @@ static void cancel_hook( lua_State* L, lua_Debug* ar)
     DEBUGSPEW_CODE( fprintf( stderr, "cancel_hook\n"));
     if( cancel_test( L) != CANCEL_NONE)
     {
-        lua_sethook( L, NULL, 0, 0);
+        lua_sethook( L, nullptr, 0, 0);
         cancel_error( L);
     }
 }
@@ -119,7 +119,7 @@ static cancel_result thread_cancel_soft( Lane* s, double secs_, bool_t wake_lind
     if( wake_lindas_) // wake the thread so that execution returns from any pending linda operation if desired
     {
         SIGNAL_T *waiting_on = s->waiting_on;
-        if( s->status == WAITING && waiting_on != NULL)
+        if( s->status == WAITING && waiting_on != nullptr)
         {
             SIGNAL_ALL( waiting_on);
         }
@@ -137,7 +137,7 @@ static cancel_result thread_cancel_hard( lua_State* L, Lane* s, double secs_, bo
     s->cancel_request = CANCEL_HARD;    // it's now signaled to stop
     {
         SIGNAL_T *waiting_on = s->waiting_on;
-        if( s->status == WAITING && waiting_on != NULL)
+        if( s->status == WAITING && waiting_on != nullptr)
         {
             SIGNAL_ALL( waiting_on);
         }
