@@ -130,8 +130,8 @@ goto ERR_NOLUA
 @REM
 @set FLAGS=/O2 /LD
 
-cl %WARN% %FLAGS% /I "%LUA51%\include" /Felanes\core.dll src\*.c "%LUA_LIB%\lua5.1.lib"
-@REM cl %WARN% %FLAGS% /I "%LUA51%\include" /Felanes\core.dll src\*.c "%LUA_LIB%\lua5.1.lib" /link /NODEFAULTLIB:libcmt
+cl %WARN% %FLAGS% /I "%LUA51%\include" /Felanes\core.dll src\*.cpp "%LUA_LIB%\lua5.1.lib"
+@REM cl %WARN% %FLAGS% /I "%LUA51%\include" /Felanes\core.dll src\*.cpp "%LUA_LIB%\lua5.1.lib" /link /NODEFAULTLIB:libcmt
 
 @del lanes\core.lib
 @del lanes\core.exp

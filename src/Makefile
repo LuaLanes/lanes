@@ -119,7 +119,7 @@ MODULE_DIR=$(MODULE)
 #---
 all: $(MODULE)/core.$(_SO)
 
-%.o: %.c *.h Makefile
+%.o: %.cpp *.h Makefile
 
 # Note: Don't put $(LUA_LIBS) ahead of $^; MSYS will not like that (I think)
 #

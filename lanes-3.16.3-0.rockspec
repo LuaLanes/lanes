@@ -60,16 +60,16 @@ build = {
 		{
 			sources =
 			{
-				"src/cancel.c",
-				"src/compat.c",
-				"src/deep.c",
-				"src/keeper.c",
-				"src/lanes.c",
-				"src/linda.c",
-				"src/tools.c",
-				"src/state.c",
-				"src/threading.c",
-				"src/universe.c"
+				"src/cancel.cpp",
+				"src/compat.cpp",
+				"src/deep.cpp",
+				"src/keeper.cpp",
+				"src/lanes.cpp",
+				"src/linda.cpp",
+				"src/tools.cpp",
+				"src/state.cpp",
+				"src/threading.cpp",
+				"src/universe.cpp"
 			},
 			incdirs = { "src"},
 		},

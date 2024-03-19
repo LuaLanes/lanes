@@ -42,7 +42,7 @@ _PREFIX=LUA_CPATH="./src/?.$(_SO)" LUA_PATH="./src/?.lua;./tests/?.lua"
 #---
 all: $(_TARGET_SO)
 
-$(_TARGET_SO): src/*.lua src/*.c src/*.h
+$(_TARGET_SO): src/*.lua src/*.cpp src/*.h
 	cd src && $(MAKE) LUA=$(LUA)
 
 clean:
