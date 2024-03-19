@@ -9,11 +9,6 @@ extern "C" {
 }
 #endif // __cplusplus
 
- // M$ compiler doesn't support 'inline' keyword in C files...
-#if defined( _MSC_VER)
-#define inline __inline
-#endif
-
 #define USE_DEBUG_SPEW() 0
 #if USE_DEBUG_SPEW()
 extern char const* debugspew_indent;
