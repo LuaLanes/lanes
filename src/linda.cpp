@@ -53,7 +53,7 @@ struct s_Linda
     SIGNAL_T write_happened;
     Universe* U; // the universe this linda belongs to
     ptrdiff_t group; // a group to control keeper allocation between lindas
-    enum e_cancel_request simulate_cancel;
+    CancelRequest simulate_cancel;
     char name[1];
 };
 #define LINDA_KEEPER_HASHSEED( linda) (linda->group ? linda->group : (ptrdiff_t)linda)
@@ -122,7 +122,7 @@ LUAG_FUNC( linda_send)
 {
     struct s_Linda* linda = lua_toLinda( L, 1);
     bool ret{ false };
-    enum e_cancel_request cancel = CANCEL_NONE;
+    CancelRequest cancel{ CancelRequest::None };
     int pushed;
     time_d timeout = -1.0;
     int key_i = 2; // index of first key, if timeout not there
@@ -178,9 +178,9 @@ LUAG_FUNC( linda_send)
             {
                 cancel = s->cancel_request;
             }
-            cancel = (cancel != CANCEL_NONE) ? cancel : linda->simulate_cancel;
+            cancel = (cancel != CancelRequest::None) ? cancel : linda->simulate_cancel;
             // if user wants to cancel, or looped because of a timeout, the call returns without sending anything
-            if( !try_again || cancel != CANCEL_NONE)
+            if (!try_again || cancel != CancelRequest::None)
             {
                 pushed = 0;
                 break;
@@ -241,12 +241,12 @@ LUAG_FUNC( linda_send)
 
     switch( cancel)
     {
-        case CANCEL_SOFT:
+        case CancelRequest::Soft:
         // if user wants to soft-cancel, the call returns lanes.cancel_error
         CANCEL_ERROR.push(L);
         return 1;
 
-        case CANCEL_HARD:
+        case CancelRequest::Hard:
         // raise an error interrupting execution only in case of hard cancel
         return cancel_error( L); // raises an error and doesn't return
 
@@ -273,7 +273,7 @@ LUAG_FUNC( linda_receive)
 {
     struct s_Linda* linda = lua_toLinda( L, 1);
     int pushed, expected_pushed_min, expected_pushed_max;
-    enum e_cancel_request cancel = CANCEL_NONE;
+    CancelRequest cancel{ CancelRequest::None };
     keeper_api_t keeper_receive;
     
     time_d timeout = -1.0;
@@ -335,9 +335,9 @@ LUAG_FUNC( linda_receive)
             {
                 cancel = s->cancel_request;
             }
-            cancel = (cancel != CANCEL_NONE) ? cancel : linda->simulate_cancel;
+            cancel = (cancel != CancelRequest::None) ? cancel : linda->simulate_cancel;
             // if user wants to cancel, or looped because of a timeout, the call returns without sending anything
-            if( !try_again || cancel != CANCEL_NONE)
+            if (!try_again || cancel != CancelRequest::None)
             {
                 pushed = 0;
                 break;
@@ -395,12 +395,12 @@ LUAG_FUNC( linda_receive)
 
     switch( cancel)
     {
-        case CANCEL_SOFT:
+        case CancelRequest::Soft:
         // if user wants to soft-cancel, the call returns CANCEL_ERROR
         CANCEL_ERROR.push(L);
         return 1;
 
-        case CANCEL_HARD:
+        case CancelRequest::Hard:
         // raise an error interrupting execution only in case of hard cancel
         return cancel_error( L); // raises an error and doesn't return
 
@@ -430,7 +430,7 @@ LUAG_FUNC( linda_set)
     {
         Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
 
-        if( linda->simulate_cancel == CANCEL_NONE)
+        if (linda->simulate_cancel == CancelRequest::None)
         {
             if( has_value)
             {
@@ -511,7 +511,7 @@ LUAG_FUNC( linda_get)
     {
         Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
 
-        if( linda->simulate_cancel == CANCEL_NONE)
+        if (linda->simulate_cancel == CancelRequest::None)
         {
             pushed = keeper_call( linda->U, K->L, KEEPER_API( get), L, linda, 2);
             if( pushed > 0)
@@ -557,7 +557,7 @@ LUAG_FUNC( linda_limit)
     {
         Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
 
-        if( linda->simulate_cancel == CANCEL_NONE)
+        if (linda->simulate_cancel == CancelRequest::None)
         {
             pushed = keeper_call( linda->U, K->L, KEEPER_API( limit), L, linda, 2);
             ASSERT_L( pushed == 0 || pushed == 1); // no error, optional boolean value saying if we should wake blocked writer threads
@@ -592,7 +592,7 @@ LUAG_FUNC( linda_cancel)
     // make sure we got 3 arguments: the linda, a key and a limit
     luaL_argcheck( L, lua_gettop( L) <= 2, 2, "wrong number of arguments");
 
-    linda->simulate_cancel = CANCEL_SOFT;
+    linda->simulate_cancel = CancelRequest::Soft;
     if( strcmp( who, "both") == 0) // tell everyone writers to wake up
     {
         SIGNAL_ALL( &linda->write_happened);
@@ -600,7 +600,7 @@ LUAG_FUNC( linda_cancel)
     }
     else if( strcmp( who, "none") == 0) // reset flag
     {
-        linda->simulate_cancel = CANCEL_NONE;
+        linda->simulate_cancel = CancelRequest::None;
     }
     else if( strcmp( who, "read") == 0) // tell blocked readers to wake up
     {
@@ -802,7 +802,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
                 SIGNAL_INIT( &s->read_happened);
                 SIGNAL_INIT( &s->write_happened);
                 s->U = universe_get( L);
-                s->simulate_cancel = CANCEL_NONE;
+                s->simulate_cancel = CancelRequest::None;
                 s->group = linda_group << KEEPER_MAGIC_SHIFT;
                 s->name[0] = 0;
                 memcpy( s->name, linda_name, name_len ? name_len + 1 : 0);

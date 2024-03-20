@@ -456,7 +456,7 @@ static int selfdestruct_gc( lua_State* L)
             while( s != SELFDESTRUCT_END)
             {
                 // attempt a regular unforced hard cancel with a small timeout
-                bool const cancelled = THREAD_ISNULL( s->thread) || thread_cancel( L, s, CO_Hard, 0.0001, false, 0.0);
+                bool const cancelled = THREAD_ISNULL( s->thread) || thread_cancel( L, s, CO_Hard, 0.0001, false, 0.0) != CancelResult::Timeout;
                 // if we failed, and we know the thread is waiting on a linda
                 if( cancelled == false && s->status == WAITING && s->waiting_on != nullptr)
                 {
@@ -501,7 +501,7 @@ static int selfdestruct_gc( lua_State* L)
                         Lane* s = U->selfdestruct_first;
                         while( s != SELFDESTRUCT_END)
                         {
-                            if( s->cancel_request == CANCEL_HARD)
+                            if (s->cancel_request == CancelRequest::Hard)
                                 ++ n;
                             s = s->selfdestruct_next;
                         }
@@ -1239,13 +1239,13 @@ LUAG_FUNC( lane_new)
     s->status = PENDING;
     s->waiting_on = nullptr;
     s->debug_name = "<unnamed>";
-    s->cancel_request = CANCEL_NONE;
+    s->cancel_request = CancelRequest::None;
 
 #if THREADWAIT_METHOD == THREADWAIT_CONDVAR
     MUTEX_INIT( &s->done_lock);
     SIGNAL_INIT( &s->done_signal);
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-    s->mstatus = NORMAL;
+    s->mstatus = ThreadStatus::Normal;
     s->selfdestruct_next = nullptr;
 #if HAVE_LANE_TRACKING()
     s->tracking_next = nullptr;
@@ -1322,8 +1322,8 @@ LUAG_FUNC( thread_gc)
     }
 
     // We can read 's->status' without locks, but not wait for it
-    // test KILLED state first, as it doesn't need to enter the selfdestruct chain
-    if( s->mstatus == KILLED)
+    // test Killed state first, as it doesn't need to enter the selfdestruct chain
+    if (s->mstatus == ThreadStatus::Killed)
     {
         // Make sure a kill has proceeded, before cleaning up the data structure.
         //
@@ -1392,7 +1392,7 @@ static char const * thread_status_string( Lane* s)
 {
     enum e_status st = s->status;    // read just once (volatile)
     char const* str =
-        (s->mstatus == KILLED) ? "killed" : // new to v3.3.0!
+        (s->mstatus == ThreadStatus::Killed) ? "killed" : // new to v3.3.0!
         (st == PENDING) ? "pending" :
         (st == RUNNING) ? "running" :    // like in 'co.status()'
         (st == WAITING) ? "waiting" :
@@ -1438,7 +1438,7 @@ LUAG_FUNC( thread_join)
     STACK_CHECK( L, 0);
     // Thread is DONE/ERROR_ST/CANCELLED; all ours now
 
-    if( s->mstatus == KILLED) // OS thread was killed if thread_cancel was forced
+    if (s->mstatus == ThreadStatus::Killed) // OS thread was killed if thread_cancel was forced
     {
         // in that case, even if the thread was killed while DONE/ERROR_ST/CANCELLED, ignore regular return values
         STACK_GROW( L, 2);
@@ -1548,7 +1548,7 @@ LUAG_FUNC( thread_index)
                 switch( s->status)
                 {
                     default:
-                    if( s->mstatus != KILLED)
+                    if (s->mstatus != ThreadStatus::Killed)
                     {
                         // this is an internal error, we probably never get here
                         lua_settop( L, 0);

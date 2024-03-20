@@ -4,10 +4,10 @@
 #include "cancel.h"
 #include "universe.h"
 
-enum ThreadStatus
+enum class ThreadStatus
 {
-    NORMAL,         // normal master side state
-    KILLED          // issued an OS kill
+    Normal, // normal master side state
+    Killed  // issued an OS kill
 };
 
 // NOTE: values to be changed by either thread, during execution, without
@@ -37,7 +37,7 @@ struct Lane
     //
     // When status is WAITING, points on the linda's signal the thread waits on, else nullptr
 
-    volatile enum e_cancel_request cancel_request;
+    volatile CancelRequest cancel_request;
     //
     // M: sets to false, flags true for cancel request
     // S: reads to see if cancel is requested
@@ -54,9 +54,9 @@ struct Lane
     // lane status changes to DONE/ERROR_ST/CANCELLED.
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 
-    volatile enum ThreadStatus mstatus;
+    volatile ThreadStatus mstatus;
     //
-    // M: sets to NORMAL, if issued a kill changes to KILLED
+    // M: sets to Normal, if issued a kill changes to Killed
     // S: not used
 
     Lane* volatile selfdestruct_next;
