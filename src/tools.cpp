@@ -328,7 +328,7 @@ static lua_CFunction luaG_tocfunction( lua_State *L, int _i, FuncSubType *_out)
 }
 
 // crc64/we of string "LOOKUPCACHE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( LOOKUPCACHE_REGKEY, 0x837a68dfc6fcb716);
+static constexpr UniqueKey LOOKUPCACHE_REGKEY{ 0x837a68dfc6fcb716ull };
 
 // inspired from tconcat() in ltablib.c
 static char const* luaG_pushFQN( lua_State* L, int t, int last, size_t* length)
@@ -627,7 +627,7 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* name_)
 /*---=== Inter-state copying ===---*/
 
 // crc64/we of string "REG_MTID" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( REG_MTID, 0x2e68f9b4751584dc);
+static constexpr UniqueKey REG_MTID{ 0x2e68f9b4751584dcull };
 
 /*
 * Get a unique ID for metatable at [i].
@@ -845,7 +845,7 @@ static bool lookup_table( lua_State* L2, lua_State* L, uint_t i, LookupMode mode
 static bool push_cached_table( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i)
 {
     bool not_found_in_cache;                                                                         // L2
-    DECLARE_CONST_UNIQUE_KEY( p, lua_topointer( L, i));
+    void const* p{ lua_topointer(L, i) };
 
     ASSERT_L( L2_cache_i != 0);
     STACK_GROW( L2, 3);
@@ -854,7 +854,7 @@ static bool push_cached_table( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
     // We don't need to use the from state ('L') in ID since the life span
     // is only for the duration of a copy (both states are locked).
     // push a light userdata uniquely representing the table
-    push_unique_key( L2, p);                                                                         // ... p
+    lua_pushlightuserdata(L2, const_cast<void*>(p));                                                 // ... p
 
     //fprintf( stderr, "<< ID: %s >>\n", lua_tostring( L2, -1));
 
@@ -864,7 +864,7 @@ static bool push_cached_table( lua_State* L2, uint_t L2_cache_i, lua_State* L, u
     {
         lua_pop( L2, 1);                                                                             // ...
         lua_newtable( L2);                                                                           // ... {}
-        push_unique_key( L2, p);                                                                     // ... {} p
+        lua_pushlightuserdata(L2, const_cast<void*>(p));                                             // ... {} p
         lua_pushvalue( L2, -2);                                                                      // ... {} p {}
         lua_rawset( L2, L2_cache_i);                                                                 // ... {}
     }
@@ -1508,7 +1508,7 @@ static void inter_copy_keyvaluepair( Universe* U, lua_State* L2, uint_t L2_cache
 * The clone cache is a weak valued table listing all clones, indexed by their userdatapointer
 * fnv164 of string "CLONABLES_CACHE_KEY" generated at https://www.pelock.com/products/hash-calculator
 */
-static DECLARE_CONST_UNIQUE_KEY( CLONABLES_CACHE_KEY, 0xD04EE018B3DEE8F5);
+static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
 
 static bool copyclone( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t source_i_, LookupMode mode_, char const* upName_)
 {

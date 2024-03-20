@@ -12,8 +12,7 @@ extern "C" {
 #include "macros_and_utils.h"
 
 // forwards
-struct s_DeepPrelude;
-typedef struct s_DeepPrelude DeepPrelude;
+struct DeepPrelude;
 struct s_Keepers;
 typedef struct s_Keepers Keepers;
 struct s_Lane;

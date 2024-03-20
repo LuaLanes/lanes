@@ -166,7 +166,7 @@ static void fifo_pop( lua_State* L, keeper_fifo* fifo_, lua_Integer count_)
 // in: linda_ud expected at *absolute* stack slot idx
 // out: fifos[ud]
 // crc64/we of string "FIFOS_KEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( FIFOS_KEY, 0xdce50bbc351cd465);
+static constexpr UniqueKey FIFOS_KEY{ 0xdce50bbc351cd465ull };
 static void push_table( lua_State* L, int idx_)
 {
     STACK_GROW( L, 4);
@@ -769,13 +769,13 @@ void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, LookupMode const mod
         {
             if( lua_isnil( L, i))
             {
-                push_unique_key( L, NIL_SENTINEL);
+                NIL_SENTINEL.push(L);
                 lua_replace( L, i);
             }
         }
         else
         {
-            if( equal_unique_key( L, i, NIL_SENTINEL))
+            if (NIL_SENTINEL.equals(L, i))
             {
                 lua_pushnil( L);
                 lua_replace( L, i);

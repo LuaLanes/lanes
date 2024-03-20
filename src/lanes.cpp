@@ -128,7 +128,7 @@ static void securize_debug_threadname( lua_State* L, Lane* s)
 #if ERROR_FULL_STACK
 static int lane_error( lua_State* L);
 // crc64/we of string "STACKTRACE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( STACKTRACE_REGKEY, 0x534af7d3226a429f);
+static constexpr UniqueKey STACKTRACE_REGKEY{ 0x534af7d3226a429full };
 #endif // ERROR_FULL_STACK
 
 /*
@@ -140,7 +140,7 @@ static DECLARE_CONST_UNIQUE_KEY( STACKTRACE_REGKEY, 0x534af7d3226a429f);
 * anyways complicate that approach.
 */
 // crc64/we of string "FINALIZER_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( FINALIZER_REGKEY, 0x188fccb8bf348e09);
+static constexpr UniqueKey FINALIZER_REGKEY{ 0x188fccb8bf348e09ull };
 
 struct s_Linda;
 
@@ -649,7 +649,7 @@ LUAG_FUNC( set_singlethreaded)
 #if ERROR_FULL_STACK
 
 // crc64/we of string "EXTENDED_STACKTRACE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( EXTENDED_STACKTRACE_REGKEY, 0x2357c69a7c92c936); // used as registry key
+static constexpr UniqueKey EXTENDED_STACKTRACE_REGKEY{ 0x2357c69a7c92c936ull }; // used as registry key
 
 LUAG_FUNC( set_error_reporting)
 {
@@ -683,7 +683,7 @@ static int lane_error( lua_State* L)
 
     // Don't do stack survey for cancelled lanes.
     //
-    if( equal_unique_key( L, 1, CANCEL_ERROR))
+    if (CANCEL_ERROR.equals(L, 1))
     {
         return 1;   // just pass on
     }
@@ -769,7 +769,7 @@ static void push_stack_trace( lua_State* L, int rc_, int stk_base_)
 
             // For cancellation the error message is CANCEL_ERROR, and a stack trace isn't placed
             // For other errors, the message can be whatever was thrown, and we should have a stack trace table
-            ASSERT_L( lua_type( L, 1 + stk_base_) == (equal_unique_key( L, stk_base_, CANCEL_ERROR) ? LUA_TNIL : LUA_TTABLE));
+            ASSERT_L(lua_type(L, 1 + stk_base_) == (CANCEL_ERROR.equals(L, stk_base_) ? LUA_TNIL : LUA_TTABLE));
             // Just leaving the stack trace table on the stack is enough to get it through to the master.
             break;
         }
@@ -779,14 +779,15 @@ static void push_stack_trace( lua_State* L, int rc_, int stk_base_)
         case LUA_ERRERR: // error while running the error handler (if any, for example an out-of-memory condition)
         default:
         // we should have a single value which is either a string (the error message) or CANCEL_ERROR
-        ASSERT_L( (lua_gettop( L) == stk_base_) && ((lua_type( L, stk_base_) == LUA_TSTRING) || equal_unique_key( L, stk_base_, CANCEL_ERROR)));
+        ASSERT_L((lua_gettop(L) == stk_base_) && ((lua_type(L, stk_base_) == LUA_TSTRING) || CANCEL_ERROR.equals(L, stk_base_)));
         break;
     }
 }
 
 LUAG_FUNC( set_debug_threadname)
 {
-    DECLARE_CONST_UNIQUE_KEY( hidden_regkey, LG_set_debug_threadname);
+    // fnv164 of string "debug_threadname" generated at https://www.pelock.com/products/hash-calculator
+    constexpr UniqueKey hidden_regkey{ 0x79C0669AAAE04440ull };
     // C s_lane structure is a light userdata upvalue
     Lane* s = (Lane*) lua_touserdata( L, lua_upvalueindex( 1));
     luaL_checktype( L, -1, LUA_TSTRING);                           // "name"
@@ -959,7 +960,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void* vs)
     {
         // leave results (1..top) or error message + stack trace (1..2) on the stack - master will copy them
 
-        enum e_status st = (rc == 0) ? DONE : equal_unique_key( L, 1, CANCEL_ERROR) ? CANCELLED : ERROR_ST;
+        enum e_status st = (rc == 0) ? DONE : CANCEL_ERROR.equals(L, 1) ? CANCELLED : ERROR_ST;
 
         // Posix no PTHREAD_TIMEDJOIN:
         // 'done_lock' protects the -> DONE|ERROR_ST|CANCELLED state change
@@ -1024,7 +1025,7 @@ LUAG_FUNC( register)
 }
 
 // crc64/we of string "GCCB_KEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( GCCB_KEY, 0xcfb1f046ef074e88);
+static constexpr UniqueKey GCCB_KEY{ 0xcfb1f046ef074e88ull };
 
 //---
 // lane_ud = lane_new( function
@@ -1267,7 +1268,7 @@ LUAG_FUNC( lane_new)
     // Store the gc_cb callback in the uservalue
     if( gc_cb_idx > 0)
     {
-        push_unique_key( L, GCCB_KEY);                               // func libs priority globals package required gc_cb lane uv k
+        GCCB_KEY.push(L);                                            // func libs priority globals package required gc_cb lane uv k
         lua_pushvalue( L, gc_cb_idx);                                // func libs priority globals package required gc_cb lane uv k gc_cb
         lua_rawset( L, -3);                                          // func libs priority globals package required gc_cb lane uv
     }
@@ -1307,7 +1308,7 @@ LUAG_FUNC( thread_gc)
 
     // if there a gc callback?
     lua_getiuservalue( L, 1, 1);                                        // ud uservalue
-    push_unique_key( L, GCCB_KEY);                                      // ud uservalue __gc
+    GCCB_KEY.push(L);                                                   // ud uservalue __gc
     lua_rawget( L, -2);                                                 // ud uservalue gc_cb|nil
     if( !lua_isnil( L, -1))
     {
@@ -1986,7 +1987,7 @@ LUAG_FUNC( configure)
     lua_pushinteger(L, THREAD_PRIO_MAX);                                                   // settings M THREAD_PRIO_MAX
     lua_setfield( L, -2, "max_prio");                                                      // settings M
 
-    push_unique_key( L, CANCEL_ERROR);                                                     // settings M CANCEL_ERROR
+    CANCEL_ERROR.push(L);                                                                  // settings M CANCEL_ERROR
     lua_setfield( L, -2, "cancel_error");                                                  // settings M
 
     STACK_MID( L, 2); // reference stack contains only the function argument 'settings'

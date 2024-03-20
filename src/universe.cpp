@@ -37,7 +37,7 @@ THE SOFTWARE.
 #include "uniquekey.h"
 
 // crc64/we of string "UNIVERSE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( UNIVERSE_REGKEY, 0x9f877b2cf078f17f);
+static constexpr UniqueKey UNIVERSE_REGKEY{ 0x9f877b2cf078f17full };
 
 // ################################################################################################
 

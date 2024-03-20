@@ -137,7 +137,7 @@ LUAG_FUNC( linda_send)
         ++ key_i;
     }
 
-    bool const as_nil_sentinel{ equal_unique_key(L, key_i, NIL_SENTINEL) };// if not nullptr, send() will silently send a single nil if nothing is provided
+    bool const as_nil_sentinel{ NIL_SENTINEL.equals(L, key_i) }; // if not nullptr, send() will silently send a single nil if nothing is provided
     if( as_nil_sentinel)
     {
         // the real key to send data to is after the NIL_SENTINEL marker
@@ -155,7 +155,7 @@ LUAG_FUNC( linda_send)
         if( as_nil_sentinel)
         {
             // send a single nil if nothing is provided
-            push_unique_key( L, NIL_SENTINEL);
+            NIL_SENTINEL.push(L);
         }
         else
         {
@@ -243,7 +243,7 @@ LUAG_FUNC( linda_send)
     {
         case CANCEL_SOFT:
         // if user wants to soft-cancel, the call returns lanes.cancel_error
-        push_unique_key( L, CANCEL_ERROR);
+        CANCEL_ERROR.push(L);
         return 1;
 
         case CANCEL_HARD:
@@ -397,7 +397,7 @@ LUAG_FUNC( linda_receive)
     {
         case CANCEL_SOFT:
         // if user wants to soft-cancel, the call returns CANCEL_ERROR
-        push_unique_key( L, CANCEL_ERROR);
+        CANCEL_ERROR.push(L);
         return 1;
 
         case CANCEL_HARD:
@@ -458,7 +458,7 @@ LUAG_FUNC( linda_set)
         else // linda is cancelled
         {
             // do nothing and return lanes.cancel_error
-            push_unique_key( L, CANCEL_ERROR);
+            CANCEL_ERROR.push(L);
             pushed = 1;
         }
     }
@@ -522,7 +522,7 @@ LUAG_FUNC( linda_get)
         else // linda is cancelled
         {
             // do nothing and return lanes.cancel_error
-            push_unique_key( L, CANCEL_ERROR);
+            CANCEL_ERROR.push(L);
             pushed = 1;
         }
         // an error can be raised if we attempt to read an unregistered function
@@ -570,7 +570,7 @@ LUAG_FUNC( linda_limit)
         else // linda is cancelled
         {
             // do nothing and return lanes.cancel_error
-            push_unique_key( L, CANCEL_ERROR);
+            CANCEL_ERROR.push(L);
             pushed = 1;
         }
     }
@@ -798,7 +798,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             }
             if( s)
             {
-                s->prelude.magic.value = DEEP_VERSION.value;
+                s->prelude.DeepPrelude::DeepPrelude();
                 SIGNAL_INIT( &s->read_happened);
                 SIGNAL_INIT( &s->write_happened);
                 s->U = universe_get( L);
@@ -901,7 +901,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             lua_pushliteral( L, BATCH_SENTINEL);
             lua_setfield( L, -2, "batched");
 
-            push_unique_key( L, NIL_SENTINEL);
+            NIL_SENTINEL.push(L);
             lua_setfield( L, -2, "null");
 
             STACK_END( L, 1);

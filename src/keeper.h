@@ -43,7 +43,7 @@ void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, LookupMode const mod
 int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_);
 
 // crc64/we of string "NIL_SENTINEL" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( NIL_SENTINEL, 0x7eaafa003a1d11a1);
+static constexpr UniqueKey NIL_SENTINEL{ 0x7eaafa003a1d11a1ull };
 
 typedef lua_CFunction keeper_api_t;
 #define KEEPER_API( _op) keepercall_ ## _op

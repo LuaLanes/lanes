@@ -83,14 +83,14 @@ extern char const* debugspew_indent;
 // non-string keyed registry access
 #define REGISTRY_SET( L, key_, value_) \
 { \
-    push_unique_key( L, key_); \
+    key_.push(L); \
     value_; \
     lua_rawset( L, LUA_REGISTRYINDEX); \
 }
 
 #define REGISTRY_GET( L, key_) \
 { \
-    push_unique_key( L, key_); \
+    key_.push(L); \
     lua_rawget( L, LUA_REGISTRYINDEX); \
 }
 

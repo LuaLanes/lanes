@@ -59,13 +59,13 @@ THE SOFTWARE.
 *   idfunc      ->  metatable
 */
 // crc64/we of string "DEEP_LOOKUP_KEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( DEEP_LOOKUP_KEY, 0x9fb9b4f3f633d83d);
+static constexpr UniqueKey DEEP_LOOKUP_KEY{ 0x9fb9b4f3f633d83dull };
 
 /*
  * The deep proxy cache is a weak valued table listing all deep UD proxies indexed by the deep UD that they are proxying
  * crc64/we of string "DEEP_PROXY_CACHE_KEY" generated at http://www.nitrxgen.net/hashgen/
 */
-static DECLARE_CONST_UNIQUE_KEY( DEEP_PROXY_CACHE_KEY, 0x05773d6fc26be106);
+static constexpr UniqueKey DEEP_PROXY_CACHE_KEY{ 0x05773d6fc26be106ull };
 
 /*
 * Sets up [-1]<->[-2] two-way lookups, and ensures the lookup table exists.
@@ -390,7 +390,7 @@ int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_)
         {
             return luaL_error( L, "idfunc(eDO_new) failed to create deep userdata (out of memory)");
         }
-        if( prelude->magic.value != DEEP_VERSION.value)
+        if( prelude->magic != DEEP_VERSION)
         {
             // just in case, don't leak the newly allocated deep userdata object
             lua_pushlightuserdata( L, prelude);

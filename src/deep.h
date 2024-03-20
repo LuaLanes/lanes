@@ -42,18 +42,17 @@ typedef void* (*luaG_IdFunction)( lua_State* L, DeepOp op_);
 // ################################################################################################
 
 // fnv164 of string "DEEP_VERSION_2" generated at https://www.pelock.com/products/hash-calculator
-static DECLARE_CONST_UNIQUE_KEY( DEEP_VERSION, 0xB4B0119C10642B29);
+static constexpr UniqueKey DEEP_VERSION{ 0xB4B0119C10642B29ull };
 
 // should be used as header for full userdata
-struct s_DeepPrelude
+struct DeepPrelude
 {
-    DECLARE_UNIQUE_KEY( magic); // must be filled by the Deep userdata idfunc that allocates it on eDO_new operation
+    UniqueKey const magic{ DEEP_VERSION };
     // when stored in a keeper state, the full userdata doesn't have a metatable, so we need direct access to the idfunc
-    luaG_IdFunction idfunc;
+    luaG_IdFunction idfunc { nullptr };
     // data is destroyed when refcount is 0
-    volatile int refcount;
+    volatile int refcount{ 0 };
 };
-typedef struct s_DeepPrelude DeepPrelude;
 
 char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, int nuv_, LookupMode mode_);
 void free_deep_prelude( lua_State* L, DeepPrelude* prelude_);

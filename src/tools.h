@@ -47,7 +47,7 @@ void cleanup_allocator_function( Universe* U, lua_State* L);
 // ################################################################################################
 
 // crc64/we of string "CONFIG_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( CONFIG_REGKEY, 0x31cd24894eae8624); // 'cancel_error' sentinel
+static constexpr UniqueKey CONFIG_REGKEY{ 0x31cd24894eae8624ull }; // registry key to access the configuration
 
 // crc64/we of string "LOOKUP_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static DECLARE_CONST_UNIQUE_KEY( LOOKUP_REGKEY, 0x5051ed67ee7b51a1); // 'cancel_error' sentinel
+static constexpr UniqueKey LOOKUP_REGKEY{ 0x5051ed67ee7b51a1ull }; // registry key to access the lookup database
