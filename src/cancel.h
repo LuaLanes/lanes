@@ -51,7 +51,7 @@ static DECLARE_CONST_UNIQUE_KEY(CANCEL_ERROR, 0xe97d41626cc97577); // 'cancel_er
 // crc64/we of string "CANCEL_TEST_KEY" generated at http://www.nitrxgen.net/hashgen/
 static DECLARE_CONST_UNIQUE_KEY(CANCEL_TEST_KEY, 0xe66f5960c57d133a); // used as registry key
 
-cancel_result thread_cancel( lua_State* L, Lane* s, CancelOp op_, double secs_, bool_t force_, double waitkill_timeout_);
+cancel_result thread_cancel( lua_State* L, Lane* s, CancelOp op_, double secs_, bool force_, double waitkill_timeout_);
 
 static inline int cancel_error( lua_State* L)
 {

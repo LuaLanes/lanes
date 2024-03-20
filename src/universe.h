@@ -52,9 +52,9 @@ typedef struct ProtectedAllocator_s ProtectedAllocator;
 struct s_Universe
 {
     // for verbose errors
-    bool_t verboseErrors;
+    bool verboseErrors;
 
-    bool_t demoteFullUserdata;
+    bool demoteFullUserdata;
 
     // before a state is created, this function will be called to obtain the allocator
     lua_CFunction provide_allocator;

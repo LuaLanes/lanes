@@ -68,7 +68,7 @@ THE SOFTWARE.
 /* Linux needs to check, whether it's been run as root
 */
 #ifdef PLATFORM_LINUX
-  volatile bool_t sudo;
+  volatile bool sudo;
 #endif
 
 #ifdef PLATFORM_OSX
@@ -271,12 +271,12 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
 #if _WIN32_WINNT < 0x0600 // CONDITION_VARIABLE aren't available
   //
   void MUTEX_INIT( MUTEX_T *ref ) {
-     *ref= CreateMutex( NULL /*security attr*/, FALSE /*not locked*/, NULL );
+     *ref= CreateMutex( nullptr /*security attr*/, false /*not locked*/, nullptr );
      if (!ref) FAIL( "CreateMutex", GetLastError() );
   }
   void MUTEX_FREE( MUTEX_T *ref ) {
      if (!CloseHandle(*ref)) FAIL( "CloseHandle (mutex)", GetLastError() );
-     *ref= NULL;
+     *ref= nullptr;
   }
     void MUTEX_LOCK( MUTEX_T *ref )
     {
@@ -352,7 +352,7 @@ void THREAD_SET_AFFINITY( unsigned int aff)
     }
 }
 
-bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
+bool THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 {
     DWORD ms = (secs<0.0) ? INFINITE : (DWORD)((secs*1000.0)+0.5);
 
@@ -363,10 +363,10 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
         // WAIT_TIMEOUT
         // WAIT_FAILED      more info via GetLastError()
 
-    if (rc == WAIT_TIMEOUT) return FALSE;
+    if (rc == WAIT_TIMEOUT) return false;
     if( rc !=0) FAIL( "WaitForSingleObject", rc==WAIT_FAILED ? GetLastError() : rc);
     *ref= NULL;     // thread no longer usable
-    return TRUE;
+    return true;
   }
   //
     void THREAD_KILL( THREAD_T *ref )
@@ -420,9 +420,9 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
     {
         InitializeCriticalSection( &ref->signalCS);
         InitializeCriticalSection( &ref->countCS);
-        if( 0 == (ref->waitEvent = CreateEvent( 0, TRUE, FALSE, 0)))     // manual-reset
+        if( 0 == (ref->waitEvent = CreateEvent( 0, true, false, 0)))     // manual-reset
             FAIL( "CreateEvent", GetLastError());
-        if( 0 == (ref->waitDoneEvent = CreateEvent( 0, FALSE, FALSE, 0)))    // auto-reset
+        if( 0 == (ref->waitDoneEvent = CreateEvent( 0, false, false, 0)))    // auto-reset
             FAIL( "CreateEvent", GetLastError());
         ref->waitersCount = 0;
     }
@@ -435,7 +435,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
         DeleteCriticalSection( &ref->signalCS);
     }
 
-    bool_t SIGNAL_WAIT( SIGNAL_T* ref, MUTEX_T* mu_ref, time_d abs_secs)
+    bool SIGNAL_WAIT( SIGNAL_T* ref, MUTEX_T* mu_ref, time_d abs_secs)
     {
         DWORD errc;
         DWORD ms;
@@ -458,7 +458,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
         LeaveCriticalSection( &ref->countCS);
         LeaveCriticalSection( &ref->signalCS);
 
-        errc = SignalObjectAndWait( *mu_ref, ref->waitEvent, ms, FALSE);
+        errc = SignalObjectAndWait( *mu_ref, ref->waitEvent, ms, false);
 
         EnterCriticalSection( &ref->countCS);
         if( 0 == -- ref->waitersCount)
@@ -473,13 +473,13 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
         switch( errc)
         {
             case WAIT_TIMEOUT:
-            return FALSE;
+            return false;
             case WAIT_OBJECT_0:
-            return TRUE;
+            return true;
         }
 
         FAIL( "SignalObjectAndWait", GetLastError());
-        return FALSE;
+        return false;
     }
 
     void SIGNAL_ALL( SIGNAL_T* ref)
@@ -521,7 +521,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
         (void)ref;
     }
 
-    bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu_ref, time_d abs_secs)
+    bool SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu_ref, time_d abs_secs)
     {
         long ms;
 
@@ -544,14 +544,14 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
         {
             if( GetLastError() == ERROR_TIMEOUT)
             {
-                return FALSE;
+                return false;
             }
             else
             {
                 FAIL( "SleepConditionVariableCS", GetLastError());
             }
         }
-        return TRUE;
+        return true;
     }
 
     void SIGNAL_ONE( SIGNAL_T *ref )
@@ -620,7 +620,7 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
   * a timed out sleep. A Linda with some other key read, or just because
   * PThread cond vars can wake up unwantedly.
   */
-  bool_t SIGNAL_WAIT( SIGNAL_T *ref, pthread_mutex_t *mu, time_d abs_secs ) {
+  bool SIGNAL_WAIT( SIGNAL_T *ref, pthread_mutex_t *mu, time_d abs_secs ) {
     if (abs_secs<0.0) {
         PT_CALL( pthread_cond_wait( ref, mu ) );  // infinite
     } else {
@@ -632,10 +632,10 @@ bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 
         rc= pthread_cond_timedwait( ref, mu, &ts );
 
-        if (rc==ETIMEDOUT) return FALSE;
+        if (rc==ETIMEDOUT) return false;
         if (rc) { _PT_FAIL( rc, "pthread_cond_timedwait()", __FILE__, __LINE__ ); }
     }
-    return TRUE;
+    return true;
   }
   //
   void SIGNAL_ONE( SIGNAL_T *ref ) {
@@ -778,7 +778,7 @@ static int select_prio(int prio /* -3..+3 */)
 void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, int prio /* -3..+3 */)
 {
     pthread_attr_t a;
-    bool_t const change_priority =
+    bool const change_priority =
 #ifdef PLATFORM_LINUX
     sudo && // only root-privileged process can change priorities
 #endif
@@ -935,13 +935,13 @@ void THREAD_SET_AFFINITY( unsigned int aff)
   * 'mu_ref' is a lock we should use for the waiting; initially unlocked.
   * Same lock as passed to THREAD_EXIT.
   *
-  * Returns TRUE for successful wait, FALSE for timed out
+  * Returns true for successful wait, false for timed out
   */
-bool_t THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *mu_ref, volatile enum e_status *st_ref)
+bool THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *mu_ref, volatile enum e_status *st_ref)
 {
     struct timespec ts_store;
     const struct timespec *timeout= NULL;
-    bool_t done;
+    bool done;
 
     // Do timeout counting before the locks
     //
@@ -960,7 +960,7 @@ bool_t THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *
     */
     if (!timeout) {
         PT_CALL( pthread_join( *ref, NULL /*ignore exit value*/ ));
-        done= TRUE;
+        done = true;
     } else {
         int rc= PTHREAD_TIMEDJOIN( *ref, NULL, timeout );
         if ((rc!=0) && (rc!=ETIMEDOUT)) {

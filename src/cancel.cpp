@@ -50,7 +50,7 @@ THE SOFTWARE.
 * Called by cancellation hooks and/or pending Linda operations (because then
 * the check won't affect performance).
 *
-* Returns TRUE if any locks are to be exited, and 'cancel_error()' called,
+* Returns CANCEL_SOFT/HARD if any locks are to be exited, and 'cancel_error()' called,
 * to make execution of the lane end.
 */
 static inline enum e_cancel_request cancel_test( lua_State* L)
@@ -112,7 +112,7 @@ static void cancel_hook( lua_State* L, lua_Debug* ar)
 
 // ################################################################################################
 
-static cancel_result thread_cancel_soft( Lane* s, double secs_, bool_t wake_lindas_)
+static cancel_result thread_cancel_soft( Lane* s, double secs_, bool wake_lindas_)
 {
     s->cancel_request = CANCEL_SOFT; // it's now signaled to stop
     // negative timeout: we don't want to truly abort the lane, we just want it to react to cancel_test() on its own
@@ -130,7 +130,7 @@ static cancel_result thread_cancel_soft( Lane* s, double secs_, bool_t wake_lind
 
 // ################################################################################################
 
-static cancel_result thread_cancel_hard( lua_State* L, Lane* s, double secs_, bool_t force_, double waitkill_timeout_)
+static cancel_result thread_cancel_hard( lua_State* L, Lane* s, double secs_, bool force_, double waitkill_timeout_)
 {
     cancel_result result;
 
@@ -175,7 +175,7 @@ static cancel_result thread_cancel_hard( lua_State* L, Lane* s, double secs_, bo
 
 // ################################################################################################
 
-cancel_result thread_cancel( lua_State* L, Lane* s, CancelOp op_, double secs_, bool_t force_, double waitkill_timeout_)
+cancel_result thread_cancel( lua_State* L, Lane* s, CancelOp op_, double secs_, bool force_, double waitkill_timeout_)
 {
     // remember that lanes are not transferable: only one thread can cancel a lane, so no multithreading issue here
     // We can read 's->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
@@ -276,7 +276,7 @@ LUAG_FUNC( thread_cancel)
     }
 
     {
-        bool_t force = lua_toboolean( L, 2);     // FALSE if nothing there
+        bool const force = lua_toboolean( L, 2) ? true : false;     // false if nothing there
         double forcekill_timeout = luaL_optnumber( L, 3, 0.0);
 
         switch( thread_cancel( L, s, op, secs, force, forcekill_timeout))

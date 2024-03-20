@@ -304,10 +304,9 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
                 lua_getfield( L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);                                 // DPC proxy metatable require() "module" _R._LOADED
                 if( lua_istable( L, -1))
                 {
-                    bool_t alreadyloaded;
                     lua_pushvalue( L, -2);                                                             // DPC proxy metatable require() "module" _R._LOADED "module"
                     lua_rawget( L, -2);                                                                // DPC proxy metatable require() "module" _R._LOADED module
-                    alreadyloaded = lua_toboolean( L, -1);
+                    int const alreadyloaded = lua_toboolean( L, -1);
                     if( !alreadyloaded) // not loaded
                     {
                         int require_result;
@@ -450,7 +449,7 @@ void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index)
  *   the id function of the copied value, or NULL for non-deep userdata
  *   (not copied)
  */
-bool_t copydeep( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
+bool copydeep( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
 {
     char const* errmsg;
     luaG_IdFunction idfunc = get_idfunc( L, i, mode_);
@@ -458,7 +457,7 @@ bool_t copydeep( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, ui
 
     if( idfunc == NULL)
     {
-        return FALSE;   // not a deep userdata
+        return false;   // not a deep userdata
     }
 
     STACK_CHECK( L, 0);
@@ -497,5 +496,5 @@ bool_t copydeep( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, ui
         lua_State* errL = (mode_ == eLM_FromKeeper) ? L2 : L;
         luaL_error( errL, errmsg);
     }
-    return TRUE;
+    return true;
 }

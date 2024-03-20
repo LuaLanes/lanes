@@ -121,12 +121,11 @@ LUAG_FUNC( linda_protected_call)
 LUAG_FUNC( linda_send)
 {
     struct s_Linda* linda = lua_toLinda( L, 1);
-    bool_t ret = FALSE;
+    bool ret{ false };
     enum e_cancel_request cancel = CANCEL_NONE;
     int pushed;
     time_d timeout = -1.0;
     uint_t key_i = 2; // index of first key, if timeout not there
-    bool_t as_nil_sentinel; // if not NULL, send() will silently send a single nil if nothing is provided
 
     if( lua_type( L, 2) == LUA_TNUMBER) // we don't want to use lua_isnumber() because of autocoercion
     {
@@ -138,7 +137,7 @@ LUAG_FUNC( linda_send)
         ++ key_i;
     }
 
-    as_nil_sentinel = equal_unique_key( L, key_i, NIL_SENTINEL);
+    bool const as_nil_sentinel{ equal_unique_key(L, key_i, NIL_SENTINEL) };// if not nullptr, send() will silently send a single nil if nothing is provided
     if( as_nil_sentinel)
     {
         // the real key to send data to is after the NIL_SENTINEL marker
@@ -168,13 +167,12 @@ LUAG_FUNC( linda_send)
     keeper_toggle_nil_sentinels( L, key_i + 1, eLM_ToKeeper);
 
     {
-        bool_t try_again = TRUE;
         Lane* const s = get_lane_from_registry( L);
         Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
         lua_State* KL = K ? K->L : nullptr; // need to do this for 'STACK_CHECK'
         if( KL == nullptr) return 0;
         STACK_CHECK( KL, 0);
-        for( ;;)
+        for(bool try_again{ true };;)
         {
             if( s != nullptr)
             {
@@ -196,7 +194,7 @@ LUAG_FUNC( linda_send)
             }
             ASSERT_L( pushed == 1);
 
-            ret = lua_toboolean( L, -1);
+            ret = lua_toboolean( L, -1) ? true : false;
             lua_pop( L, 1);
 
             if( ret)
@@ -328,11 +326,10 @@ LUAG_FUNC( linda_receive)
     }
 
     {
-        bool_t try_again = TRUE;
         Lane* const s = get_lane_from_registry( L);
         Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
         if( K == nullptr) return 0;
-        for( ;;)
+        for (bool try_again{ true };;)
         {
             if( s != nullptr)
             {
@@ -425,7 +422,7 @@ LUAG_FUNC( linda_set)
 {
     struct s_Linda* const linda = lua_toLinda( L, 1);
     int pushed;
-    bool_t has_value = lua_gettop( L) > 2;
+    bool const has_value{ lua_gettop(L) > 2 };
 
     // make sure the key is of a valid type (throws an error if not the case)
     check_key_types( L, 2, 2);
@@ -647,7 +644,7 @@ LUAG_FUNC( linda_deep)
 * Useful for concatenation or debugging purposes
 */
 
-static int linda_tostring( lua_State* L, int idx_, bool_t opt_)
+static int linda_tostring( lua_State* L, int idx_, bool opt_)
 {
     struct s_Linda* linda = (struct s_Linda*) luaG_todeep( L, linda_id, idx_);
     if( !opt_)
@@ -670,7 +667,7 @@ static int linda_tostring( lua_State* L, int idx_, bool_t opt_)
 
 LUAG_FUNC( linda_tostring)
 {
-    return linda_tostring( L, 1, FALSE);
+    return linda_tostring( L, 1, false);
 }
 
 
@@ -683,16 +680,16 @@ LUAG_FUNC( linda_tostring)
 */
 LUAG_FUNC( linda_concat)
 {                                   // linda1? linda2?
-    bool_t atLeastOneLinda = FALSE;
+    bool atLeastOneLinda{ false };
     // Lua semantics enforce that one of the 2 arguments is a Linda, but not necessarily both.
-    if( linda_tostring( L, 1, TRUE))
+    if( linda_tostring( L, 1, true))
     {
-        atLeastOneLinda = TRUE;
+        atLeastOneLinda = true;
         lua_replace( L, 1);
     }
-    if( linda_tostring( L, 2, TRUE))
+    if( linda_tostring( L, 2, true))
     {
-        atLeastOneLinda = TRUE;
+        atLeastOneLinda = true;
         lua_replace( L, 2);
     }
     if( !atLeastOneLinda) // should not be possible
@@ -727,7 +724,7 @@ LUAG_FUNC( linda_towatch)
     if( pushed == 0)
     {
         // if the linda is empty, don't return nil
-        pushed = linda_tostring( L, 1, FALSE);
+        pushed = linda_tostring( L, 1, false);
     }
     return pushed;
 }

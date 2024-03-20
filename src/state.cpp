@@ -174,13 +174,13 @@ static void open1lib( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L, char con
             name_ = libs[i].name; // note that the provided name_ doesn't necessarily ends with '\0', hence len_
             if( libfunc != NULL)
             {
-                bool_t const isLanesCore = (libfunc == require_lanes_core) ? TRUE : FALSE; // don't want to create a global for "lanes.core"
+                bool const isLanesCore{ libfunc == require_lanes_core }; // don't want to create a global for "lanes.core"
                 DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening %.*s library\n" INDENT_END, (int) len_, name_));
                 STACK_CHECK( L, 0);
                 // open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
                 luaL_requiref( L, name_, libfunc, !isLanesCore);
                 // lanes.core doesn't declare a global, so scan it here and now
-                if( isLanesCore == TRUE)
+                if( isLanesCore == true)
                 {
                     populate_func_lookup_table( L, -1, name_);
                 }

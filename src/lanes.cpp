@@ -147,12 +147,12 @@ struct s_Linda;
 /*
 * Push a table stored in registry onto Lua stack.
 *
-* If there is no existing table, create one if 'create' is TRUE.
+* If there is no existing table, create one if 'create' is true.
 * 
-* Returns: TRUE if a table was pushed
-*          FALSE if no table found, not created, and nothing pushed
+* Returns: true if a table was pushed
+*          false if no table found, not created, and nothing pushed
 */
-static bool_t push_registry_table( lua_State* L, UniqueKey key, bool_t create)
+static bool push_registry_table( lua_State* L, UniqueKey key, bool create)
 {
     STACK_GROW( L, 3);
     STACK_CHECK( L, 0);
@@ -164,14 +164,14 @@ static bool_t push_registry_table( lua_State* L, UniqueKey key, bool_t create)
 
         if( !create)
         {
-            return FALSE;
+            return false;
         }
 
         lua_newtable( L);                                                          // t
         REGISTRY_SET( L, key, lua_pushvalue( L, -2));
     }
     STACK_END( L, 1);
-    return TRUE;    // table pushed
+    return true;    // table pushed
 }
 
 #if HAVE_LANE_TRACKING()
@@ -200,9 +200,9 @@ static void tracking_add( Lane* s)
 /*
  * A free-running lane has ended; remove it from tracking chain
  */
-static bool_t tracking_remove( Lane* s)
+static bool tracking_remove( Lane* s)
 {
-    bool_t found = FALSE;
+    bool found{ false };
     MUTEX_LOCK( &s->U->tracking_cs);
     {
         // Make sure (within the MUTEX) that we actually are in the chain
@@ -219,7 +219,7 @@ static bool_t tracking_remove( Lane* s)
                 {
                     *ref = s->tracking_next;
                     s->tracking_next = nullptr;
-                    found = TRUE;
+                    found = true;
                     break;
                 }
                 ref = (Lane**) &((*ref)->tracking_next);
@@ -278,7 +278,7 @@ LUAG_FUNC( set_finalizer)
     luaL_argcheck( L, lua_isfunction( L, 1), 1, "finalizer should be a function");
     luaL_argcheck( L, lua_gettop( L) == 1, 1, "too many arguments");
     // Get the current finalizer table (if any)
-    push_registry_table( L, FINALIZER_REGKEY, TRUE /*do create if none*/);      // finalizer {finalisers}
+    push_registry_table( L, FINALIZER_REGKEY, true /*do create if none*/);      // finalizer {finalisers}
     STACK_GROW( L, 2);
     lua_pushinteger( L, lua_rawlen( L, -1) + 1);                                 // finalizer {finalisers} idx
     lua_pushvalue( L, 1);                                                        // finalizer {finalisers} idx finalizer
@@ -309,7 +309,7 @@ static int run_finalizers( lua_State* L, int lua_rc)
     int n;
     int err_handler_index = 0;
     int rc = LUA_OK;                                                                // ...
-    if( !push_registry_table( L, FINALIZER_REGKEY, FALSE))                          // ... finalizers?
+    if( !push_registry_table( L, FINALIZER_REGKEY, false))                          // ... finalizers?
     {
         return 0;   // no finalizers
     }
@@ -406,9 +406,9 @@ static void selfdestruct_add( Lane* s)
 /*
  * A free-running lane has ended; remove it from selfdestruct chain
  */
-static bool_t selfdestruct_remove( Lane* s)
+static bool selfdestruct_remove( Lane* s)
 {
-    bool_t found = FALSE;
+    bool found{ false };
     MUTEX_LOCK( &s->U->selfdestruct_cs);
     {
         // Make sure (within the MUTEX) that we actually are in the chain
@@ -427,7 +427,7 @@ static bool_t selfdestruct_remove( Lane* s)
                     s->selfdestruct_next = nullptr;
                     // the terminal shutdown should wait until the lane is done with its lua_close()
                     ++ s->U->selfdestructing_count;
-                    found = TRUE;
+                    found = true;
                     break;
                 }
                 ref = (Lane**) &((*ref)->selfdestruct_next);
@@ -456,9 +456,9 @@ static int selfdestruct_gc( lua_State* L)
             while( s != SELFDESTRUCT_END)
             {
                 // attempt a regular unforced hard cancel with a small timeout
-                bool_t cancelled = THREAD_ISNULL( s->thread) || thread_cancel( L, s, CO_Hard, 0.0001, FALSE, 0.0);
+                bool const cancelled = THREAD_ISNULL( s->thread) || thread_cancel( L, s, CO_Hard, 0.0001, false, 0.0);
                 // if we failed, and we know the thread is waiting on a linda
-                if( cancelled == FALSE && s->status == WAITING && s->waiting_on != nullptr)
+                if( cancelled == false && s->status == WAITING && s->waiting_on != nullptr)
                 {
                     // signal the linda to wake up the thread so that it can react to the cancel query
                     // let us hope we never land here with a pointer on a linda that has been destroyed...
@@ -653,10 +653,9 @@ static DECLARE_CONST_UNIQUE_KEY( EXTENDED_STACKTRACE_REGKEY, 0x2357c69a7c92c936)
 
 LUAG_FUNC( set_error_reporting)
 {
-    bool_t equal;
     luaL_checktype( L, 1, LUA_TSTRING);
     lua_pushliteral( L, "extended");
-    equal = lua_rawequal( L, -1, 1);
+    int equal = lua_rawequal( L, -1, 1);
     lua_pop( L, 1);
     if( equal)
     {
@@ -678,7 +677,6 @@ static int lane_error( lua_State* L)
 {
     lua_Debug ar;
     int n;
-    bool_t extended;
 
     // error message (any type)
     STACK_CHECK_ABS( L, 1);                                                         // some_error
@@ -692,7 +690,7 @@ static int lane_error( lua_State* L)
 
     STACK_GROW( L, 3);
     REGISTRY_GET( L, EXTENDED_STACKTRACE_REGKEY);                                   // some_error basic|extended
-    extended = lua_toboolean( L, -1);
+    bool const extended{ lua_toboolean(L, -1) ? true : false};
     lua_pop( L, 1);                                                                 // some_error
 
     // Place stack trace at 'registry[lane_error]' for the 'lua_pcall()'
@@ -977,7 +975,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void* vs)
         MUTEX_UNLOCK( &s->done_lock);
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
     }
-    THREAD_CLEANUP_POP( FALSE);
+    THREAD_CLEANUP_POP( false);
     return 0;   // ignored
 }
 
@@ -1047,7 +1045,7 @@ LUAG_FUNC( lane_new)
     Lane** ud;
 
     char const* libs_str = lua_tostring( L, 2);
-    bool_t const have_priority = !lua_isnoneornil( L, 3);
+    bool const have_priority{ !lua_isnoneornil(L, 3) };
     int const priority = have_priority ? (int) lua_tointeger( L, 3) : THREAD_PRIO_DEFAULT;
     uint_t const globals_idx = lua_isnoneornil( L, 4) ? 0 : 4;
     uint_t const package_idx = lua_isnoneornil( L, 5) ? 0 : 5;
@@ -1304,7 +1302,7 @@ LUAG_FUNC( lane_new)
 //
 LUAG_FUNC( thread_gc)
 {
-    bool_t have_gc_cb = FALSE;
+    bool have_gc_cb{ false };
     Lane* s = lua_toLane( L, 1);                                        // ud
 
     // if there a gc callback?
@@ -1315,7 +1313,7 @@ LUAG_FUNC( thread_gc)
     {
         lua_remove( L, -2);                                               // ud gc_cb|nil
         lua_pushstring( L, s->debug_name);                                // ud gc_cb name
-        have_gc_cb = TRUE;
+        have_gc_cb = true;
     }
     else
     {
@@ -1427,7 +1425,7 @@ LUAG_FUNC( thread_join)
     double wait_secs = luaL_optnumber( L, 2, -1.0);
     lua_State* L2 = s->L;
     int ret;
-    bool_t done = THREAD_ISNULL( s->thread) || THREAD_WAIT( &s->thread, wait_secs, &s->done_signal, &s->done_lock, &s->status);
+    bool const done{ THREAD_ISNULL(s->thread) || THREAD_WAIT(&s->thread, wait_secs, &s->done_signal, &s->done_lock, &s->status) };
     if( !done || !L2)
     {
         STACK_GROW( L, 2);
@@ -1486,7 +1484,7 @@ LUAG_FUNC( thread_join)
 
             default:
             DEBUGSPEW_CODE( fprintf( stderr, "Status: %d\n", s->status));
-            ASSERT_L( FALSE);
+            ASSERT_L( false);
             ret = 0;
         }
         lua_close( L2);
@@ -1532,11 +1530,10 @@ LUAG_FUNC( thread_index)
         }
         {
             // check if we already fetched the values from the thread or not
-            bool_t fetched;
             lua_Integer key = lua_tointeger( L, KEY);
             lua_pushinteger( L, 0);
             lua_rawget( L, USR);
-            fetched = !lua_isnil( L, -1);
+            bool const fetched{ !lua_isnil(L, -1) };
             lua_pop( L, 1); // back to our 2 args + uservalue on the stack
             if( !fetched)
             {
@@ -1820,7 +1817,7 @@ static volatile long s_initCount = 0;
 LUAG_FUNC( configure)
 {
     Universe* U = universe_get( L);
-    bool_t const from_master_state = (U == nullptr);
+    bool const from_master_state{ U == nullptr };
     char const* name = luaL_checkstring( L, lua_upvalueindex( 1));
     _ASSERT_L( L, lua_type( L, 1) == LUA_TTABLE);
 
@@ -1879,10 +1876,10 @@ LUAG_FUNC( configure)
         lua_setmetatable( L, -2);                                                          // settings universe
         lua_pop( L, 1);                                                                    // settings
         lua_getfield( L, 1, "verbose_errors");                                             // settings verbose_errors
-        U->verboseErrors = lua_toboolean( L, -1);
+        U->verboseErrors = lua_toboolean( L, -1) ? true : false;
         lua_pop( L, 1);                                                                    // settings
         lua_getfield( L, 1, "demote_full_userdata");                                       // settings demote_full_userdata
-        U->demoteFullUserdata = lua_toboolean( L, -1);
+        U->demoteFullUserdata = lua_toboolean( L, -1) ? true : false;
         lua_pop( L, 1);                                                                    // settings
 #if HAVE_LANE_TRACKING()
         MUTEX_INIT( &U->tracking_cs);

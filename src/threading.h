@@ -7,12 +7,6 @@
  */
 #include "platform.h"
 
-typedef int bool_t;
-#ifndef FALSE
-# define FALSE 0
-# define TRUE 1
-#endif
-
 typedef unsigned int uint_t;
 
 #include <time.h>
@@ -165,7 +159,7 @@ time_d now_secs(void);
 
 time_d SIGNAL_TIMEOUT_PREPARE( double rel_secs );
 
-bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
+bool SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 
 
 /*---=== Threading ===---
@@ -209,7 +203,7 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
     void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, int prio /* -3..+3 */);
 
 #	if defined(PLATFORM_LINUX)
-        extern volatile bool_t sudo;
+        extern volatile bool sudo;
 #		ifdef LINUX_SCHED_RR
 #			define THREAD_PRIO_MIN (sudo ? -3 : 0)
 #		else
@@ -245,10 +239,10 @@ bool_t SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 
 
 #if THREADWAIT_METHOD == THREADWAIT_TIMEOUT
-bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs);
+bool THREAD_WAIT_IMPL( THREAD_T *ref, double secs);
 #define THREAD_WAIT( a, b, c, d, e) THREAD_WAIT_IMPL( a, b)
 #else // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-bool_t THREAD_WAIT_IMPL( THREAD_T *ref, double secs, SIGNAL_T *signal_ref, MUTEX_T *mu_ref, volatile enum e_status *st_ref);
+bool THREAD_WAIT_IMPL( THREAD_T *ref, double secs, SIGNAL_T *signal_ref, MUTEX_T *mu_ref, volatile enum e_status *st_ref);
 #define THREAD_WAIT THREAD_WAIT_IMPL
 #endif // // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 

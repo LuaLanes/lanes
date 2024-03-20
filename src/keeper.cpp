@@ -397,7 +397,7 @@ int keepercall_limit( lua_State* L)
 //out: true or nil
 int keepercall_set( lua_State* L)
 {
-    bool_t should_wake_writers = FALSE;
+    bool should_wake_writers{ false };
     STACK_GROW( L, 6);
 
     // retrieve fifos associated with the linda

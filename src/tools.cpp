@@ -48,7 +48,7 @@ THE SOFTWARE.
 #include "uniquekey.h"
 
 // functions implemented in deep.c
-extern bool_t copydeep( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, LookupMode mode_, char const* upName_);
+extern bool copydeep( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, LookupMode mode_, char const* upName_);
 extern void push_registry_subtable( lua_State* L, UniqueKey key_);
 
 DEBUGSPEW_CODE( char const* debugspew_indent = "----+----!----+----!----+----!----+----!----+----!----+----!----+----!----+");
@@ -766,14 +766,14 @@ static char const* find_lookup_name( lua_State* L, uint_t i, LookupMode mode_, c
 /*
  * Push a looked-up table, or nothing if we found nothing
  */
-static bool_t lookup_table( lua_State* L2, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
+static bool lookup_table( lua_State* L2, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
 {
     // get the name of the table we want to send
     size_t len;
     char const* fqn = find_lookup_name( L, i, mode_, upName_, &len);
     if( NULL == fqn) // name not found, it is some user-created table
     {
-        return FALSE;
+        return false;
     }
     // push the equivalent table in the destination's stack, retrieved from the lookup table
     STACK_CHECK( L2, 0);                                     // L                          // L2
@@ -782,7 +782,7 @@ static bool_t lookup_table( lua_State* L2, lua_State* L, uint_t i, LookupMode mo
     {
         default: // shouldn't happen, in theory...
         (void) luaL_error( L, "internal error: unknown lookup mode");
-        return FALSE;
+        return false;
 
         case eLM_ToKeeper:
         // push a sentinel closure that holds the lookup name as upvalue
@@ -803,7 +803,7 @@ static bool_t lookup_table( lua_State* L2, lua_State* L, uint_t i, LookupMode mo
         {
             lua_pop( L2, 2);                                                                   //
             STACK_MID( L2, 0);
-            return FALSE;
+            return false;
         }
         else if( !lua_istable( L2, -1))
         {
@@ -822,13 +822,13 @@ static bool_t lookup_table( lua_State* L2, lua_State* L, uint_t i, LookupMode mo
                 , fqn
                 , to ? to : "main"
             );
-            return FALSE;
+            return false;
         }
         lua_remove( L2, -2);                                                                 // t
         break;
     }
     STACK_END( L2, 1);
-    return TRUE;
+    return true;
 }
 
 
@@ -839,12 +839,12 @@ static bool_t lookup_table( lua_State* L2, lua_State* L, uint_t i, LookupMode mo
  *
  * Always pushes a table to 'L2'.
  *
- * Returns TRUE if the table was cached (no need to fill it!); FALSE if
+ * Returns true if the table was cached (no need to fill it!); false if
  * it's a virgin.
  */
-static bool_t push_cached_table( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i)
+static bool push_cached_table( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i)
 {
-    bool_t not_found_in_cache;                                                                     // L2
+    bool not_found_in_cache;                                                                         // L2
     DECLARE_CONST_UNIQUE_KEY( p, lua_topointer( L, i));
 
     ASSERT_L( L2_cache_i != 0);
@@ -854,11 +854,11 @@ static bool_t push_cached_table( lua_State* L2, uint_t L2_cache_i, lua_State* L,
     // We don't need to use the from state ('L') in ID since the life span
     // is only for the duration of a copy (both states are locked).
     // push a light userdata uniquely representing the table
-    push_unique_key( L2, p);                                                                       // ... p
+    push_unique_key( L2, p);                                                                         // ... p
 
     //fprintf( stderr, "<< ID: %s >>\n", lua_tostring( L2, -1));
 
-    lua_rawget( L2, L2_cache_i);                                                                   // ... {cached|nil}
+    lua_rawget( L2, L2_cache_i);                                                                     // ... {cached|nil}
     not_found_in_cache = lua_isnil( L2, -1);
     if( not_found_in_cache)
     {
@@ -1391,7 +1391,7 @@ static void copy_cached_func( Universe* U, lua_State* L2, uint_t L2_cache_i, lua
     }
 }
 
-static bool_t push_cached_metatable( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum eLookupMode mode_, char const* upName_)
+static bool push_cached_metatable( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum eLookupMode mode_, char const* upName_)
 {
     STACK_CHECK( L, 0);
     if( lua_getmetatable( L, i))                                                 // ... mt
@@ -1434,10 +1434,10 @@ static bool_t push_cached_metatable( Universe* U, lua_State* L2, uint_t L2_cache
         lua_pop( L, 1);                                                            // ...
         STACK_END( L2, 1);
         STACK_MID( L, 0);
-        return TRUE;
+        return true;
     }
     STACK_END( L, 0);
-    return FALSE;
+    return false;
 }
 
 static void inter_copy_keyvaluepair( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, enum e_vt vt, LookupMode mode_, char const* upName_)
@@ -1510,7 +1510,7 @@ static void inter_copy_keyvaluepair( Universe* U, lua_State* L2, uint_t L2_cache
 */
 static DECLARE_CONST_UNIQUE_KEY( CLONABLES_CACHE_KEY, 0xD04EE018B3DEE8F5);
 
-static bool_t copyclone( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t source_i_, LookupMode mode_, char const* upName_)
+static bool copyclone( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t source_i_, LookupMode mode_, char const* upName_)
 {
     void* const source = lua_touserdata( L, source_i_);
     source_i_ = lua_absindex( L, source_i_);
@@ -1524,7 +1524,7 @@ static bool_t copyclone( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_Stat
     if ( !lua_isnil( L2, -1))
     {
         STACK_MID( L2, 1);
-        return TRUE;
+        return true;
     }
     else
     {
@@ -1536,7 +1536,7 @@ static bool_t copyclone( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_Stat
     if( !lua_getmetatable( L, source_i_))                                        // ... mt?
     {
         STACK_MID( L, 0);
-        return FALSE;
+        return false;
     }
 
     // no __lanesclone? -> not clonable
@@ -1545,7 +1545,7 @@ static bool_t copyclone( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_Stat
     {
         lua_pop( L, 2);                                                          // ...
         STACK_MID( L, 0);
-        return FALSE;
+        return false;
     }
 
     // we need to copy over the uservalues of the userdata as well
@@ -1620,16 +1620,16 @@ static bool_t copyclone( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_Stat
     STACK_END( L2, 1);
     lua_pop( L, 1);                                                              // ...
     STACK_END( L, 0);
-    return TRUE;
+    return true;
 }
 
-static bool_t inter_copy_userdata( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, LookupMode mode_, char const* upName_)
+static bool inter_copy_userdata( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, LookupMode mode_, char const* upName_)
 {
     STACK_CHECK( L, 0);
     STACK_CHECK( L2, 0);
     if( vt == VT_KEY)
     {
-        return FALSE;
+        return false;
     }
 
     // try clonable userdata first
@@ -1637,7 +1637,7 @@ static bool_t inter_copy_userdata( Universe* U, lua_State* L2, uint_t L2_cache_i
     {
         STACK_MID( L, 0);
         STACK_MID( L2, 1);
-        return TRUE;
+        return true;
     }
 
     STACK_MID( L, 0);
@@ -1649,7 +1649,7 @@ static bool_t inter_copy_userdata( Universe* U, lua_State* L2, uint_t L2_cache_i
     {
         STACK_MID( L, 0);
         STACK_MID( L2, 1);
-        return TRUE;
+        return true;
     }
 
     STACK_MID( L, 0);
@@ -1668,14 +1668,14 @@ static bool_t inter_copy_userdata( Universe* U, lua_State* L2, uint_t L2_cache_i
 
     STACK_END( L2, 1);
     STACK_END( L, 0);
-    return TRUE;
+    return true;
 }
 
-static bool_t inter_copy_function( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t source_i_, enum e_vt vt, LookupMode mode_, char const* upName_)
+static bool inter_copy_function( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t source_i_, enum e_vt vt, LookupMode mode_, char const* upName_)
 {
     if( vt == VT_KEY)
     {
-        return FALSE;
+        return false;
     }
 
     STACK_CHECK( L, 0);                                                            // L (source)                 // L2 (destination)
@@ -1699,7 +1699,7 @@ static bool_t inter_copy_function( Universe* U, lua_State* L2, uint_t L2_cache_i
             lua_pop( L, 1);                                                        // ...
             STACK_MID( L, 0);
             STACK_MID( L2, 1);
-            return TRUE;
+            return true;
         }
         lua_pop( L2, 1);                                                                                         // ...
 
@@ -1761,14 +1761,14 @@ static bool_t inter_copy_function( Universe* U, lua_State* L2, uint_t L2_cache_i
     }
     STACK_END( L2, 1);
     STACK_END( L, 0);
-    return TRUE;
+    return true;
 }
 
-static bool_t inter_copy_table( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, LookupMode mode_, char const* upName_)
+static bool inter_copy_table( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, LookupMode mode_, char const* upName_)
 {
     if( vt == VT_KEY)
     {
-        return FALSE;
+        return false;
     }
 
     STACK_CHECK( L, 0);
@@ -1782,7 +1782,7 @@ static bool_t inter_copy_table( Universe* U, lua_State* L2, uint_t L2_cache_i, l
     if( lookup_table( L2, L, i, mode_, upName_))
     {
         ASSERT_L( lua_istable( L2, -1) || (lua_tocfunction( L2, -1) == table_lookup_sentinel));    // from lookup datables // can also be table_lookup_sentinel if this is a table we know
-        return TRUE;
+        return true;
     }
 
     /* Check if we've already copied the same table from 'L' (during this transmission), and
@@ -1797,7 +1797,7 @@ static bool_t inter_copy_table( Universe* U, lua_State* L2, uint_t L2_cache_i, l
     if( push_cached_table( L2, L2_cache_i, L, i))
     {
         ASSERT_L( lua_istable( L2, -1));    // from cache
-        return TRUE;
+        return true;
     }
     ASSERT_L( lua_istable( L2, -1));
 
@@ -1821,7 +1821,7 @@ static bool_t inter_copy_table( Universe* U, lua_State* L2, uint_t L2_cache_i, l
     }
     STACK_END( L2, 1);
     STACK_END( L, 0);
-    return TRUE;
+    return true;
 }
 
 /*
@@ -1832,11 +1832,11 @@ static bool_t inter_copy_table( Universe* U, lua_State* L2, uint_t L2_cache_i, l
 *
 * 'i' is an absolute index (no -1, ...)
 *
-* Returns TRUE if value was pushed, FALSE if its type is non-supported.
+* Returns true if value was pushed, false if its type is non-supported.
 */
-bool_t inter_copy_one( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, LookupMode mode_, char const* upName_)
+bool inter_copy_one( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, LookupMode mode_, char const* upName_)
 {
-    bool_t ret = TRUE;
+    bool ret{ true };
     int val_type = lua_type( L, i);
     static int const pod_mask = (1 << LUA_TNIL) | (1 << LUA_TBOOLEAN) | (1 << LUA_TLIGHTUSERDATA) | (1 << LUA_TNUMBER) | (1 << LUA_TSTRING);
     STACK_GROW( L2, 1);
@@ -1870,7 +1870,7 @@ bool_t inter_copy_one( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State*
 
         case LUA_TBOOLEAN:
         {
-            bool_t v = lua_toboolean( L, i);
+            int const v{ lua_toboolean(L, i) };
             DEBUGSPEW_CODE( fprintf( stderr, "%s\n", v ? "true" : "false"));
             lua_pushboolean( L2, v);
         }
@@ -1921,7 +1921,7 @@ bool_t inter_copy_one( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State*
         case LUA_TNIL:
         if( vt == VT_KEY)
         {
-            ret = FALSE;
+            ret = false;
             break;
         }
         lua_pushnil( L2);
@@ -1939,7 +1939,7 @@ bool_t inter_copy_one( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State*
 
         case 10: // LuaJIT CDATA
         case LUA_TTHREAD:
-        ret = FALSE;
+        ret = false;
         break;
     }
 
@@ -1964,7 +1964,7 @@ int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupM
     uint_t i, j;
     char tmpBuf[16];
     char const* pBuf = U->verboseErrors ? tmpBuf : "?";
-    bool_t copyok = TRUE;
+    bool copyok{ true };
 
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_inter_copy()\n" INDENT_END));
     DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);

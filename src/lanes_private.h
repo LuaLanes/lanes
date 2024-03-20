@@ -39,7 +39,7 @@ struct s_Lane
 
     volatile enum e_cancel_request cancel_request;
     //
-    // M: sets to FALSE, flags TRUE for cancel request
+    // M: sets to false, flags true for cancel request
     // S: reads to see if cancel is requested
 
 #if THREADWAIT_METHOD == THREADWAIT_CONDVAR
