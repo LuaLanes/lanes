@@ -125,7 +125,7 @@ LUAG_FUNC( linda_send)
     enum e_cancel_request cancel = CANCEL_NONE;
     int pushed;
     time_d timeout = -1.0;
-    uint_t key_i = 2; // index of first key, if timeout not there
+    int key_i = 2; // index of first key, if timeout not there
 
     if( lua_type( L, 2) == LUA_TNUMBER) // we don't want to use lua_isnumber() because of autocoercion
     {
@@ -150,7 +150,7 @@ LUAG_FUNC( linda_send)
     STACK_GROW( L, 1);
 
     // make sure there is something to send
-    if( (uint_t)lua_gettop( L) == key_i)
+    if( lua_gettop( L) == key_i)
     {
         if( as_nil_sentinel)
         {
@@ -277,7 +277,7 @@ LUAG_FUNC( linda_receive)
     keeper_api_t keeper_receive;
     
     time_d timeout = -1.0;
-    uint_t key_i = 2;
+    int key_i = 2;
 
     if( lua_type( L, 2) == LUA_TNUMBER) // we don't want to use lua_isnumber() because of autocoercion
     {

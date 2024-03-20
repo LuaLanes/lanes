@@ -15,7 +15,7 @@ extern "C" {
 
 // ################################################################################################
 
-typedef struct s_Lane Lane; // forward
+struct Lane; // forward
 
 /*
  * Lane cancellation request modes
@@ -27,14 +27,14 @@ enum e_cancel_request
     CANCEL_HARD  // user wants the lane to be interrupted (meaning code won't return from those functions) from inside linda:send/receive calls
 };
 
-typedef enum
+enum cancel_result
 {
     CR_Timeout,
     CR_Cancelled,
     CR_Killed
-} cancel_result;
+};
 
-typedef enum
+enum CancelOp
 {
     CO_Invalid = -2,
     CO_Hard = -1,
@@ -43,7 +43,7 @@ typedef enum
     CO_Line = LUA_MASKLINE,
     CO_Call = LUA_MASKCALL,
     CO_Ret = LUA_MASKRET,
-} CancelOp;
+};
 
 // crc64/we of string "CANCEL_ERROR" generated at http://www.nitrxgen.net/hashgen/
 static constexpr UniqueKey CANCEL_ERROR{ 0xe97d41626cc97577ull }; // 'cancel_error' sentinel

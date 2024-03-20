@@ -59,12 +59,12 @@
 #define __min( a, b) (((a) < (b)) ? (a) : (b))
 #endif // __min
 
-typedef struct
+struct keeper_fifo
 {
     lua_Integer first;
     lua_Integer count;
     lua_Integer limit;
-} keeper_fifo;
+};
 
 static int const CONTENTS_TABLE = 1;
 
@@ -643,7 +643,7 @@ void init_keepers( Universe* U, lua_State* L)
         (void) luaL_error( L, "Bad number of keepers (%d)", nb_keepers);
     }
 
-    // Keepers contains an array of 1 s_Keeper, adjust for the actual number of keeper states
+    // Keepers contains an array of 1 Keeper, adjust for the actual number of keeper states
     {
         size_t const bytes = sizeof( Keepers) + (nb_keepers - 1) * sizeof( Keeper);
         {
@@ -793,7 +793,7 @@ void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, LookupMode const mod
 *
 * Returns: number of return values (pushed to 'L') or -1 in case of error
 */
-int keeper_call( Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, void* linda, uint_t starting_index)
+int keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, void* linda, int starting_index)
 {
     int const args = starting_index ? (lua_gettop( L) - starting_index + 1) : 0;
     int const Ktos = lua_gettop( K);

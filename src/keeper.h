@@ -12,25 +12,21 @@ extern "C" {
 #include "uniquekey.h"
 
 // forwards
-struct s_Universe;
-typedef struct s_Universe Universe;
-enum eLookupMode;
-typedef enum eLookupMode LookupMode;
+struct Universe;
+enum LookupMode;
 
-struct s_Keeper
+struct Keeper
 {
     MUTEX_T keeper_cs;
     lua_State* L;
     //int count;
 };
-typedef struct s_Keeper Keeper;
 
-struct s_Keepers
+struct Keepers
 {
     int nb_keepers;
     Keeper keeper_array[1];
 };
-typedef struct s_Keepers Keepers;
 
 void init_keepers( Universe* U, lua_State* L);
 void close_keepers( Universe* U);
@@ -45,7 +41,7 @@ int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, ptrdiff_t 
 // crc64/we of string "NIL_SENTINEL" generated at http://www.nitrxgen.net/hashgen/
 static constexpr UniqueKey NIL_SENTINEL{ 0x7eaafa003a1d11a1ull };
 
-typedef lua_CFunction keeper_api_t;
+using keeper_api_t = lua_CFunction;
 #define KEEPER_API( _op) keepercall_ ## _op
 #define PUSH_KEEPER_FUNC lua_pushcfunction
 // lua_Cfunctions to run inside a keeper state (formerly implemented in Lua)
@@ -58,4 +54,4 @@ int keepercall_get( lua_State* L);
 int keepercall_set( lua_State* L);
 int keepercall_count( lua_State* L);
 
-int keeper_call( Universe* U, lua_State* K, keeper_api_t _func, lua_State* L, void* linda, uint_t starting_index);
+int keeper_call(Universe* U, lua_State* K, keeper_api_t _func, lua_State* L, void* linda, int starting_index);

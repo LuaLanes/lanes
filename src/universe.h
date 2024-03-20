@@ -13,10 +13,8 @@ extern "C" {
 
 // forwards
 struct DeepPrelude;
-struct s_Keepers;
-typedef struct s_Keepers Keepers;
-struct s_Lane;
-typedef struct s_Lane Lane;
+struct Keepers;
+struct Lane;
 
 // ################################################################################################
 
@@ -28,27 +26,25 @@ typedef struct s_Lane Lane;
 // ################################################################################################
 
 // everything we need to provide to lua_newstate()
-struct AllocatorDefinition_s
+struct AllocatorDefinition
 {
     lua_Alloc allocF;
     void* allocUD;
 };
-typedef struct AllocatorDefinition_s AllocatorDefinition;
 
 // mutex-protected allocator for use with Lua states that share a non-threadsafe allocator
-struct ProtectedAllocator_s
+struct ProtectedAllocator
 {
     AllocatorDefinition definition;
     MUTEX_T lock;
 };
-typedef struct ProtectedAllocator_s ProtectedAllocator;
 
 // ################################################################################################
 
 // everything regarding the Lanes universe is stored in that global structure
 // held as a full userdata in the master Lua state that required it for the first time
 // don't forget to initialize all members in LG_configure()
-struct s_Universe
+struct Universe
 {
     // for verbose errors
     bool verboseErrors;
@@ -98,7 +94,6 @@ struct s_Universe
     // The terminal desinit sequence should wait for all such processing to terminate before force-killing threads
     int volatile selfdestructing_count;
 };
-typedef struct s_Universe Universe;
 
 Universe* universe_get( lua_State* L);
 Universe* universe_create( lua_State* L);

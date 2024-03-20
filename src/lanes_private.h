@@ -13,7 +13,7 @@ enum ThreadStatus
 // NOTE: values to be changed by either thread, during execution, without
 //       locking, are marked "volatile"
 //
-struct s_Lane
+struct Lane
 {
     THREAD_T thread;
     //
@@ -59,19 +59,18 @@ struct s_Lane
     // M: sets to NORMAL, if issued a kill changes to KILLED
     // S: not used
 
-    struct s_Lane* volatile selfdestruct_next;
+    Lane* volatile selfdestruct_next;
     //
     // M: sets to non-nullptr if facing lane handle '__gc' cycle but the lane
     //    is still running
     // S: cleans up after itself if non-nullptr at lane exit
 
 #if HAVE_LANE_TRACKING()
-    struct s_Lane* volatile tracking_next;
+    Lane* volatile tracking_next;
 #endif // HAVE_LANE_TRACKING()
     //
     // For tracking only
 };
-typedef struct s_Lane Lane;
 
 // To allow free-running threads (longer lifespan than the handle's)
 // 'Lane' are malloc/free'd and the handle only carries a pointer.

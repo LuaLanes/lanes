@@ -7,8 +7,6 @@
  */
 #include "platform.h"
 
-typedef unsigned int uint_t;
-
 #include <time.h>
 
 /* Note: ERROR is a defined entity on Win32
@@ -60,14 +58,14 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
 
     #if _WIN32_WINNT < 0x0600 // CONDITION_VARIABLE aren't available, use a signal
 
-    typedef struct
+    struct SIGNAL_T
     {
         CRITICAL_SECTION    signalCS;
         CRITICAL_SECTION    countCS;
         HANDLE      waitEvent;
         HANDLE      waitDoneEvent;
         LONG        waitersCount;
-    } SIGNAL_T;
+    };
 
 
     #define MUTEX_T HANDLE
@@ -89,7 +87,7 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
 
   #define MUTEX_RECURSIVE_INIT(ref)  MUTEX_INIT(ref)  /* always recursive in Win32 */
 
-  typedef unsigned int THREAD_RETURN_T;
+  using THREAD_RETURN_T = unsigned int;
 
   #define YIELD() Sleep(0)
     #define THREAD_CALLCONV __stdcall
@@ -124,9 +122,9 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   #define MUTEX_LOCK(ref)    pthread_mutex_lock(ref)
   #define MUTEX_UNLOCK(ref)  pthread_mutex_unlock(ref)
 
-  typedef void * THREAD_RETURN_T;
+  using THREAD_RETURN_T = void *;
 
-  typedef pthread_cond_t SIGNAL_T;
+  using SIGNAL_T = pthread_cond_t;
 
   void SIGNAL_ONE( SIGNAL_T *ref );
 
@@ -154,7 +152,7 @@ void SIGNAL_ALL( SIGNAL_T *ref );
 *           0.0 for instant check
 *           >0.0 absolute timeout in secs + ms
 */
-typedef double time_d;
+using time_d = double;
 time_d now_secs(void);
 
 time_d SIGNAL_TIMEOUT_PREPARE( double rel_secs );
@@ -169,7 +167,7 @@ bool SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 
 #if THREADAPI == THREADAPI_WINDOWS
 
-    typedef HANDLE THREAD_T;
+    using THREAD_T = HANDLE;
 #	define THREAD_ISNULL( _h) (_h == 0)
     void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (__stdcall *func)( void*), void* data, int prio /* -3..+3 */);
 
@@ -197,7 +195,7 @@ bool SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 #  endif
 # endif
 
-    typedef pthread_t THREAD_T;
+    using THREAD_T = pthread_t;
 #	define THREAD_ISNULL( _h) 0 // pthread_t may be a structure: never 'null' by itself
 
     void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, int prio /* -3..+3 */);

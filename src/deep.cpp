@@ -108,7 +108,7 @@ static void get_deep_lookup( lua_State* L)
 * Return the registered ID function for 'index' (deep userdata proxy),
 * or nullptr if 'index' is not a deep userdata proxy.
 */
-static inline luaG_IdFunction get_idfunc( lua_State* L, int index, LookupMode mode_)
+static inline luaG_IdFunction* get_idfunc( lua_State* L, int index, LookupMode mode_)
 {
     // when looking inside a keeper, we are 100% sure the object is a deep userdata
     if( mode_ == eLM_FromKeeper)
@@ -122,7 +122,7 @@ static inline luaG_IdFunction get_idfunc( lua_State* L, int index, LookupMode mo
         // essentially we are making sure that the metatable of the object we want to copy is stored in our metatable/idfunc database
         // it is the only way to ensure that the userdata is indeed a deep userdata!
         // of course, we could just trust the caller, but we won't
-        luaG_IdFunction ret;
+        luaG_IdFunction* ret;
         STACK_GROW( L, 1);
         STACK_CHECK( L, 0);
 
@@ -134,7 +134,7 @@ static inline luaG_IdFunction get_idfunc( lua_State* L, int index, LookupMode mo
         // replace metatable with the idfunc pointer, if it is actually a deep userdata
         get_deep_lookup( L);                    // deep ... idfunc|nil
 
-        ret = (luaG_IdFunction) lua_touserdata( L, -1); // nullptr if not a userdata
+        ret = (luaG_IdFunction*) lua_touserdata( L, -1); // nullptr if not a userdata
         lua_pop( L, 1);
         STACK_END( L, 0);
         return ret;
@@ -377,7 +377,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
 *
 * Returns:  'proxy' userdata for accessing the deep data via 'luaG_todeep()'
 */
-int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_)
+int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction* idfunc, int nuv_)
 {
     char const* errmsg;
 
@@ -424,7 +424,7 @@ int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_)
 * Reference count is not changed, and access to the deep userdata is not
 * serialized. It is the module's responsibility to prevent conflicting usage.
 */
-void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index)
+void* luaG_todeep( lua_State* L, luaG_IdFunction* idfunc, int index)
 {
     DeepPrelude** proxy;
 
@@ -449,10 +449,10 @@ void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index)
  *   the id function of the copied value, or nullptr for non-deep userdata
  *   (not copied)
  */
-bool copydeep( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
+bool copydeep(Universe* U, lua_State* L2, int L2_cache_i, lua_State* L, int i, LookupMode mode_, char const* upName_)
 {
     char const* errmsg;
-    luaG_IdFunction idfunc = get_idfunc( L, i, mode_);
+    luaG_IdFunction* idfunc = get_idfunc( L, i, mode_);
     int nuv = 0;
 
     if (idfunc == nullptr)

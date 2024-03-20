@@ -11,9 +11,10 @@
 
 #define SYSCTL_CORE_COUNT "machdep.cpu.core_count"
 
-typedef struct cpu_set {
+struct cpu_set_t
+{
 	uint32_t count;
-} cpu_set_t;
+} ;
 
 static inline void CPU_ZERO(cpu_set_t *cs) { cs->count = 0; }
 static inline void CPU_SET(int num, cpu_set_t *cs) { cs->count |= (1 << num); }

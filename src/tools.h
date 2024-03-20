@@ -6,13 +6,9 @@
 #include "macros_and_utils.h"
 
 // forwards
-struct s_Universe;
-typedef struct s_Universe Universe;
+struct Universe;
 
 // ################################################################################################
-
-#define luaG_optunsigned(L,i,d) ((uint_t) luaL_optinteger(L,i,d))
-#define luaG_tounsigned(L,i) ((uint_t) lua_tointeger(L,i))
 
 #ifdef _DEBUG
 void luaG_dump( lua_State* L);
@@ -29,14 +25,14 @@ enum e_vt
     VT_KEY,
     VT_METATABLE
 };
-bool inter_copy_one( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, enum e_vt vt, LookupMode mode_, char const* upName_);
+bool inter_copy_one(Universe* U, lua_State* L2, int L2_cache_i, lua_State* L, int i, enum e_vt vt, LookupMode mode_, char const* upName_);
 
 // ################################################################################################
 
 int luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int package_idx_, LookupMode mode_);
 
-int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupMode mode_);
-int luaG_inter_move( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupMode mode_);
+int luaG_inter_copy(Universe* U, lua_State* L, lua_State* L2, int n, LookupMode mode_);
+int luaG_inter_move(Universe* U, lua_State* L, lua_State* L2, int n, LookupMode mode_);
 
 int luaG_nameof( lua_State* L);
 

@@ -609,7 +609,7 @@ static int selfdestruct_gc( lua_State* L)
 //
 LUAG_FUNC( set_singlethreaded)
 {
-    uint_t cores = luaG_optunsigned( L, 1, 1);
+    lua_Integer cores = luaL_optinteger(L, 1, 1);
     (void) cores; // prevent "unused" warning
 
 #ifdef PLATFORM_OSX
@@ -1048,10 +1048,10 @@ LUAG_FUNC( lane_new)
     char const* libs_str = lua_tostring( L, 2);
     bool const have_priority{ !lua_isnoneornil(L, 3) };
     int const priority = have_priority ? (int) lua_tointeger( L, 3) : THREAD_PRIO_DEFAULT;
-    uint_t const globals_idx = lua_isnoneornil( L, 4) ? 0 : 4;
-    uint_t const package_idx = lua_isnoneornil( L, 5) ? 0 : 5;
-    uint_t const required_idx = lua_isnoneornil( L, 6) ? 0 : 6;
-    uint_t const gc_cb_idx = lua_isnoneornil( L, 7) ? 0 : 7;
+    int const globals_idx = lua_isnoneornil( L, 4) ? 0 : 4;
+    int const package_idx = lua_isnoneornil(L, 5) ? 0 : 5;
+    int const required_idx = lua_isnoneornil(L, 6) ? 0 : 6;
+    int const gc_cb_idx = lua_isnoneornil(L, 7) ? 0 : 7;
 
 #define FIXED_ARGS 7
     int const nargs = lua_gettop(L) - FIXED_ARGS;
@@ -1456,7 +1456,7 @@ LUAG_FUNC( thread_join)
         {
             case DONE:
             {
-                uint_t n = lua_gettop( L2);       // whole L2 stack
+                int n = lua_gettop( L2);       // whole L2 stack
                 if( (n > 0) && (luaG_inter_move( U, L2, L, n, eLM_LaneBody) != 0))
                 {
                     return luaL_error( L, "tried to copy unsupported types");

@@ -594,7 +594,7 @@ bool THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 #	endif // pthread_attr_setschedpolicy()
 #	endif // defined(__MINGW32__) || defined(__MINGW64__)
 
-  static void _PT_FAIL( int rc, const char *name, const char *file, uint_t line ) {
+  static void _PT_FAIL( int rc, const char *name, const char *file, int line ) {
     const char *why= (rc==EINVAL) ? "EINVAL" : 
                      (rc==EBUSY) ? "EBUSY" : 
                      (rc==EPERM) ? "EPERM" :
@@ -847,7 +847,7 @@ void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, 
         /*
         // Wait slightly if thread creation has exchausted the system
         //
-        { uint_t retries;
+        { int retries;
         for( retries=0; retries<THREAD_CREATE_RETRIES_MAX; retries++ ) {
 
         int rc= pthread_create( ref, &a, func, data );
