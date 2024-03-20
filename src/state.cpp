@@ -146,7 +146,7 @@ static const luaL_Reg libs[] =
 #endif
     { LUA_COLIBNAME, luaopen_coroutine}, // Lua 5.2: coroutine is no longer a part of base!
 #else // LUA_VERSION_NUM
-    { LUA_COLIBNAME, NULL},              // Lua 5.1: part of base package
+    { LUA_COLIBNAME, nullptr }, // Lua 5.1: part of base package
 #endif // LUA_VERSION_NUM
     { LUA_DBLIBNAME, luaopen_debug},
 #if LUAJIT_FLAVOR() != 0 // building against LuaJIT headers, add some LuaJIT-specific libs
@@ -156,11 +156,11 @@ static const luaL_Reg libs[] =
     { LUA_FFILIBNAME, luaopen_ffi},
 #endif // LUAJIT_FLAVOR()
 
-{ LUA_DBLIBNAME, luaopen_debug},
-{ "lanes.core", require_lanes_core}, // So that we can open it like any base library (possible since we have access to the init function)
+    { LUA_DBLIBNAME, luaopen_debug},
+    { "lanes.core", require_lanes_core}, // So that we can open it like any base library (possible since we have access to the init function)
                                                                          //
-{ "base", NULL},                     // ignore "base" (already acquired it)
-{ NULL, NULL }
+    { "base", nullptr }, // ignore "base" (already acquired it)
+    { nullptr, nullptr }
 };
 
 static void open1lib( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L, char const* name_, size_t len_)
@@ -172,7 +172,7 @@ static void open1lib( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L, char con
         {
             lua_CFunction libfunc = libs[i].func;
             name_ = libs[i].name; // note that the provided name_ doesn't necessarily ends with '\0', hence len_
-            if( libfunc != NULL)
+            if (libfunc != nullptr)
             {
                 bool const isLanesCore{ libfunc == require_lanes_core }; // don't want to create a global for "lanes.core"
                 DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening %.*s library\n" INDENT_END, (int) len_, name_));
@@ -224,11 +224,11 @@ void initialize_on_state_create( Universe* U, lua_State* L)
     {
         // store C function pointer in an internal variable
         U->on_state_create_func = lua_tocfunction( L, -1);  // settings on_state_create
-        if( U->on_state_create_func != NULL)
+        if (U->on_state_create_func != nullptr)
         {
             // make sure the function doesn't have upvalues
             char const* upname = lua_getupvalue( L, -1, 1);   // settings on_state_create upval?
-            if( upname != NULL) // should be "" for C functions with upvalues if any
+            if (upname != nullptr) // should be "" for C functions with upvalues if any
             {
                 (void) luaL_error( L, "on_state_create shouldn't have upvalues");
             }
@@ -254,7 +254,7 @@ lua_State* create_state( Universe* U, lua_State* from_)
     // for some reason, LuaJIT 64 bits does not support creating a state with lua_newstate...
     L = luaL_newstate();
 #else // LUAJIT_FLAVOR() == 64
-    if( U->provide_allocator != NULL) // we have a function we can call to obtain an allocator
+    if (U->provide_allocator != nullptr) // we have a function we can call to obtain an allocator
     {
         lua_pushcclosure( from_, U->provide_allocator, 0);
         lua_call( from_, 0, 1);
@@ -271,7 +271,7 @@ lua_State* create_state( Universe* U, lua_State* from_)
     }
 #endif // LUAJIT_FLAVOR() == 64
 
-    if( L == NULL)
+    if (L == nullptr)
     {
         (void) luaL_error( from_, "luaG_newstate() failed while creating state; out of memory");
     }
@@ -280,7 +280,7 @@ lua_State* create_state( Universe* U, lua_State* from_)
 
 void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, LookupMode mode_)
 {
-    if( U->on_state_create_func != NULL)
+    if (U->on_state_create_func != nullptr)
     {
         STACK_CHECK( L, 0);
         DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "calling on_state_create()\n" INDENT_END));
@@ -315,12 +315,12 @@ void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, LookupMo
 /*
 * Like 'luaL_openlibs()' but allows the set of libraries be selected
 *
-*   NULL    no libraries, not even base
+*   nullptr    no libraries, not even base
 *   ""      base library only
 *   "io,string"     named libraries
 *   "*"     all libraries
 *
-* Base ("unpack", "print" etc.) is always added, unless 'libs' is NULL.
+* Base ("unpack", "print" etc.) is always added, unless 'libs' is nullptr.
 *
 * *NOT* called for keeper states!
 *
@@ -342,9 +342,9 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
     STACK_MID( L, 0);
 
     // neither libs (not even 'base') nor special init func: we are done
-    if( libs_ == NULL && U->on_state_create_func == NULL)
+    if (libs_ == nullptr && U->on_state_create_func == nullptr)
     {
-        DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_newstate(NULL)\n" INDENT_END));
+        DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_newstate(nullptr)\n" INDENT_END));
         return L;
     }
 
@@ -360,7 +360,7 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
 
     // Anything causes 'base' to be taken in
     //
-    if( libs_ != NULL)
+    if (libs_ != nullptr)
     {
         // special "*" case (mainly to help with LuaJIT compatibility)
         // as we are called from luaopen_lanes_core() already, and that would deadlock
@@ -370,7 +370,7 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
             luaL_openlibs( L);
             // don't forget lanes.core for regular lane states
             open1lib( DEBUGSPEW_PARAM_COMMA( U) L, "lanes.core", 10);
-            libs_ = NULL; // done with libs
+            libs_ = nullptr; // done with libs
         }
         else
         {
@@ -417,7 +417,7 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
     STACK_CHECK( L, 0);
     // after all this, register everything we find in our name<->function database
     lua_pushglobaltable( L); // Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
-    populate_func_lookup_table( L, -1, NULL);
+    populate_func_lookup_table(L, -1, nullptr);
 
 #if 0 && USE_DEBUG_SPEW()
     // dump the lookup database contents

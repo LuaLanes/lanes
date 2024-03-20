@@ -36,7 +36,7 @@ extern "C" {
 #define lua_setuservalue lua_setfenv
 #define lua_getuservalue lua_getfenv
 #define lua_rawlen lua_objlen
-#define luaG_registerlibfuncs( L, _funcs) luaL_register( L, NULL, _funcs)
+#define luaG_registerlibfuncs(L, _funcs) luaL_register(L, nullptr, _funcs)
 #define LUA_OK 0
 #define LUA_ERRGCMM 666 // doesn't exist in Lua 5.1, we don't care about the actual value
 void luaL_requiref (lua_State* L, const char* modname, lua_CFunction openf, int glb); // implementation copied from Lua 5.2 sources

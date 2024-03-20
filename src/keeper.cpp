@@ -412,7 +412,7 @@ int keepercall_set( lua_State* L)
         lua_rawget( L, 1);                              // fifos key fifo|nil
         // empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
         fifo = (keeper_fifo*) lua_touserdata( L, -1);
-        if( fifo != nullptr) // might be NULL if we set a nonexistent key to nil
+        if( fifo != nullptr) // might be nullptr if we set a nonexistent key to nil
         {                                               // fifos key fifo
             if( fifo->limit < 0) // fifo limit value is the default (unlimited): we can totally remove it
             {
@@ -621,7 +621,7 @@ void close_keepers( Universe* U)
 /*
  * Initialize keeper states
  *
- * If there is a problem, returns NULL and pushes the error message on the stack
+ * If there is a problem, returns nullptr and pushes the error message on the stack
  * else returns the keepers bookkeeping structure.
  *
  * Note: Any problems would be design flaws; the created Lua state is left

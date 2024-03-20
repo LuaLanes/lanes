@@ -114,7 +114,7 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   #endif
 
   #define MUTEX_T            pthread_mutex_t
-  #define MUTEX_INIT(ref)    pthread_mutex_init(ref,NULL)
+  #define MUTEX_INIT(ref)    pthread_mutex_init(ref, nullptr)
   #define MUTEX_RECURSIVE_INIT(ref) \
       { pthread_mutexattr_t a; pthread_mutexattr_init( &a ); \
         pthread_mutexattr_settype( &a, _MUTEX_RECURSIVE ); \

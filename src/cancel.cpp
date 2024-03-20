@@ -56,7 +56,7 @@ THE SOFTWARE.
 static inline enum e_cancel_request cancel_test( lua_State* L)
 {
     Lane* const s = get_lane_from_registry( L);
-    // 's' is NULL for the original main state (and no-one can cancel that)
+    // 's' is nullptr for the original main state (and no-one can cancel that)
     return s ? s->cancel_request : CANCEL_NONE;
 }
 

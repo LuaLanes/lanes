@@ -68,7 +68,7 @@ Universe* universe_get( lua_State* L)
     STACK_GROW( L, 2);
     STACK_CHECK( L, 0);
     REGISTRY_GET( L, UNIVERSE_REGKEY);
-    universe = (Universe*) lua_touserdata( L, -1); // NULL if nil
+    universe = (Universe*) lua_touserdata( L, -1); // nullptr if nil
     lua_pop( L, 1);
     STACK_END( L, 0);
     return universe;

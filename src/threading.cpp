@@ -107,7 +107,7 @@ static void FAIL( char const* funcname, int rc)
     fprintf( stderr, "%s() failed! (%d)\n", funcname, rc );
 #else // PLATFORM_XBOX
     char buf[256];
-    FormatMessageA( FORMAT_MESSAGE_FROM_SYSTEM, NULL, rc, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 256, NULL);
+    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, rc, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 256, nullptr);
     fprintf( stderr, "%s() failed! [GetLastError() -> %d] '%s'", funcname, rc, buf);
 #endif // PLATFORM_XBOX
 #ifdef _MSC_VER
@@ -188,7 +188,7 @@ time_d now_secs(void) {
         //   suseconds_t  tv_usec;  /* and microseconds */
         // };
 
-    int rc= gettimeofday( &tv, NULL /*time zone not used any more (in Linux)*/ );
+    int rc = gettimeofday(&tv, nullptr /*time zone not used any more (in Linux)*/);
     assert( rc==0 );
 
     return ((double)tv.tv_sec) + ((tv.tv_usec)/1000) / 1000.0;
@@ -310,15 +310,15 @@ MSDN: "you can create at most 2028 threads"
 // Note: Visual C++ requires '__stdcall' where it is
 void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (__stdcall *func)( void*), void* data, int prio /* -3..+3 */)
 {
-    HANDLE h = (HANDLE) _beginthreadex( NULL, // security
+    HANDLE h = (HANDLE) _beginthreadex(nullptr, // security
         _THREAD_STACK_SIZE,
         func,
         data,
         0,    // flags (0/CREATE_SUSPENDED)
-        NULL  // thread id (not used)
+        nullptr // thread id (not used)
     );
 
-    if( h == NULL) // _beginthreadex returns 0L on failure instead of -1L (like _beginthread)
+    if (h == nullptr) // _beginthreadex returns 0L on failure instead of -1L (like _beginthread)
     {
         FAIL( "CreateThread", GetLastError());
     }
@@ -365,7 +365,7 @@ bool THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
 
     if (rc == WAIT_TIMEOUT) return false;
     if( rc !=0) FAIL( "WaitForSingleObject", rc==WAIT_FAILED ? GetLastError() : rc);
-    *ref= NULL;     // thread no longer usable
+    *ref = nullptr; // thread no longer usable
     return true;
   }
   //
@@ -376,7 +376,7 @@ bool THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
         // in theory no-one should call this as it is very dangerous (memory and mutex leaks, no notification of DLLs, etc.)
         if (!TerminateThread( *ref, 0 )) FAIL("TerminateThread", GetLastError());
         #endif // PLATFORM_XBOX
-        *ref= NULL;
+        *ref = nullptr;
     }
 
     void THREAD_MAKE_ASYNCH_CANCELLABLE() {} // nothing to do for windows threads, we can cancel them anytime we want
@@ -609,7 +609,7 @@ bool THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
   #define PT_CALL( call ) { int rc= call; if (rc!=0) _PT_FAIL( rc, #call, __FILE__, __LINE__ ); }
   //
   void SIGNAL_INIT( SIGNAL_T *ref ) {
-    PT_CALL( pthread_cond_init(ref,NULL /*attr*/) );
+    PT_CALL(pthread_cond_init(ref, nullptr /*attr*/));
     }
   void SIGNAL_FREE( SIGNAL_T *ref ) {
     PT_CALL( pthread_cond_destroy(ref) );
@@ -903,7 +903,7 @@ void THREAD_SET_AFFINITY( unsigned int aff)
     int bit = 0;
 #ifdef __NetBSD__
     cpuset_t *cpuset = cpuset_create();
-    if( cpuset == NULL)
+    if (cpuset == nullptr)
         _PT_FAIL( errno, "cpuset_create", __FILE__, __LINE__-2 );
 #define CPU_SET(b, s) cpuset_set(b, *(s))
 #else
@@ -940,7 +940,7 @@ void THREAD_SET_AFFINITY( unsigned int aff)
 bool THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *mu_ref, volatile enum e_status *st_ref)
 {
     struct timespec ts_store;
-    const struct timespec *timeout= NULL;
+    const struct timespec* timeout = nullptr;
     bool done;
 
     // Do timeout counting before the locks
@@ -959,10 +959,10 @@ bool THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *mu
     /* Thread is joinable
     */
     if (!timeout) {
-        PT_CALL( pthread_join( *ref, NULL /*ignore exit value*/ ));
+        PT_CALL(pthread_join(*ref, nullptr /*ignore exit value*/));
         done = true;
     } else {
-        int rc= PTHREAD_TIMEDJOIN( *ref, NULL, timeout );
+        int rc = PTHREAD_TIMEDJOIN(*ref, nullptr, timeout);
         if ((rc!=0) && (rc!=ETIMEDOUT)) {
             _PT_FAIL( rc, "PTHREAD_TIMEDJOIN", __FILE__, __LINE__-2 );
         }
@@ -1010,9 +1010,9 @@ bool THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *mu
     __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "Cannot make thread async cancellable!");
 #else
         // that's the default, but just in case...
-        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, nullptr);
         // we want cancellation to take effect immediately if possible, instead of waiting for a cancellation point (which is the default)
-        pthread_setcanceltype( PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+        pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, nullptr);
 #endif
     }
 

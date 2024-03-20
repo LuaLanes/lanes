@@ -106,7 +106,7 @@ static void get_deep_lookup( lua_State* L)
 
 /*
 * Return the registered ID function for 'index' (deep userdata proxy),
-* or NULL if 'index' is not a deep userdata proxy.
+* or nullptr if 'index' is not a deep userdata proxy.
 */
 static inline luaG_IdFunction get_idfunc( lua_State* L, int index, LookupMode mode_)
 {
@@ -128,13 +128,13 @@ static inline luaG_IdFunction get_idfunc( lua_State* L, int index, LookupMode mo
 
         if( !lua_getmetatable( L, index))       // deep ... metatable?
         {
-            return NULL;    // no metatable: can't be a deep userdata object!
+            return nullptr; // no metatable: can't be a deep userdata object!
         }
 
         // replace metatable with the idfunc pointer, if it is actually a deep userdata
         get_deep_lookup( L);                    // deep ... idfunc|nil
 
-        ret = (luaG_IdFunction) lua_touserdata( L, -1); // NULL if not a userdata
+        ret = (luaG_IdFunction) lua_touserdata( L, -1); // nullptr if not a userdata
         lua_pop( L, 1);
         STACK_END( L, 0);
         return ret;
@@ -189,14 +189,14 @@ static int deep_userdata_gc( lua_State* L)
             luaL_error( L, "Bad idfunc(eDO_delete): should not push anything");
         }
     }
-    *proxy = NULL;  // make sure we don't use it any more, just in case
+    *proxy = nullptr; // make sure we don't use it any more, just in case
     return 0;
 }
 
 
 /*
  * Push a proxy userdata on the stack.
- * returns NULL if ok, else some error string related to bad idfunc behavior or module require problem
+ * returns nullptr if ok, else some error string related to bad idfunc behavior or module require problem
  * (error cannot happen with mode_ == eLM_ToKeeper)
  *
  * Initializes necessary structures if it's the first time 'idfunc' is being
@@ -214,7 +214,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
     if ( !lua_isnil( L, -1))
     {
         lua_remove( L, -2);                                                                            // proxy
-        return NULL;
+        return nullptr;
     }
     else
     {
@@ -293,7 +293,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
                 return "Bad idfunc(eOP_module): should not push anything";
             }
         }
-        if( NULL != modname) // we actually got a module name
+        if (nullptr != modname) // we actually got a module name
         {
             // L.registry._LOADED exists without having registered the 'package' library.
             lua_getglobal( L, "require");                                                              // DPC proxy metatable require()
@@ -352,7 +352,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
     lua_remove( L, -2);                                                                                // proxy
     ASSERT_L( lua_isuserdata( L, -1));
     STACK_END( L, 0);
-    return NULL;
+    return nullptr;
 }
 
 /*
@@ -386,7 +386,7 @@ int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_)
     {
         int const oldtop = lua_gettop( L);
         DeepPrelude* prelude = (DeepPrelude*) idfunc( L, eDO_new);
-        if( prelude == NULL)
+        if (prelude == nullptr)
         {
             return luaL_error( L, "idfunc(eDO_new) failed to create deep userdata (out of memory)");
         }
@@ -408,7 +408,7 @@ int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_)
             return luaL_error( L, "Bad idfunc(eDO_new): should not push anything on the stack");
         }
         errmsg = push_deep_proxy( universe_get( L), L, prelude, nuv_, eLM_LaneBody);  // proxy
-        if( errmsg != NULL)
+        if (errmsg != nullptr)
         {
             return luaL_error( L, errmsg);
         }
@@ -432,7 +432,7 @@ void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index)
     // ensure it is actually a deep userdata
     if( get_idfunc( L, index, eLM_LaneBody) != idfunc)
     {
-        return NULL;    // no metatable, or wrong kind
+        return nullptr; // no metatable, or wrong kind
     }
 
     proxy = (DeepPrelude**) lua_touserdata( L, index);
@@ -446,7 +446,7 @@ void* luaG_todeep( lua_State* L, luaG_IdFunction idfunc, int index)
  * Copy deep userdata between two separate Lua states (from L to L2)
  *
  * Returns:
- *   the id function of the copied value, or NULL for non-deep userdata
+ *   the id function of the copied value, or nullptr for non-deep userdata
  *   (not copied)
  */
 bool copydeep( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i, LookupMode mode_, char const* upName_)
@@ -455,7 +455,7 @@ bool copydeep( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint
     luaG_IdFunction idfunc = get_idfunc( L, i, mode_);
     int nuv = 0;
 
-    if( idfunc == NULL)
+    if (idfunc == nullptr)
     {
         return false;   // not a deep userdata
     }
@@ -490,7 +490,7 @@ bool copydeep( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint
     STACK_END( L2, 1);
     STACK_END( L, 0);
 
-    if( errmsg != NULL)
+    if (errmsg != nullptr)
     {
         // raise the error in the proper state (not the keeper)
         lua_State* errL = (mode_ == eLM_FromKeeper) ? L2 : L;

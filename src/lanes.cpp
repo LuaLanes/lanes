@@ -1559,11 +1559,12 @@ LUAG_FUNC( thread_index)
                         break;
                     }
                     // fall through if we are killed, as we got nil, "killed" on the stack
+                    [[fallthrough]];
 
                     case DONE: // got regular return values
                     {
-                        int i, nvalues = lua_gettop( L) - 3;
-                        for( i = nvalues; i > 0; -- i)
+                        int const nvalues{ lua_gettop(L) - 3 };
+                        for( int i = nvalues; i > 0; -- i)
                         {
                             // pop the last element of the stack, to store it in the uservalue at its proper index
                             lua_rawseti( L, USR, i);
@@ -2049,16 +2050,20 @@ static void EnableCrashingOnCrashes( void)
         const DWORD EXCEPTION_SWALLOWING = 0x1;
 
         HMODULE kernel32 = LoadLibraryA("kernel32.dll");
-        tGetPolicy pGetPolicy = (tGetPolicy)GetProcAddress(kernel32, "GetProcessUserModeExceptionPolicy");
-        tSetPolicy pSetPolicy = (tSetPolicy)GetProcAddress(kernel32, "SetProcessUserModeExceptionPolicy");
-        if( pGetPolicy && pSetPolicy)
+        if (kernel32)
         {
-            DWORD dwFlags;
-            if( pGetPolicy( &dwFlags))
+            tGetPolicy pGetPolicy = (tGetPolicy) GetProcAddress(kernel32, "GetProcessUserModeExceptionPolicy");
+            tSetPolicy pSetPolicy = (tSetPolicy) GetProcAddress(kernel32, "SetProcessUserModeExceptionPolicy");
+            if (pGetPolicy && pSetPolicy)
             {
-                // Turn off the filter
-                pSetPolicy( dwFlags & ~EXCEPTION_SWALLOWING);
+                DWORD dwFlags;
+                if (pGetPolicy(&dwFlags))
+                {
+                    // Turn off the filter
+                    pSetPolicy(dwFlags & ~EXCEPTION_SWALLOWING);
+                }
             }
+            FreeLibrary(kernel32);
         }
         //typedef void (* SignalHandlerPointer)( int);
         /*SignalHandlerPointer previousHandler =*/ signal( SIGABRT, signal_handler);
