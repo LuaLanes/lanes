@@ -1,6 +1,7 @@
 #pragma once
 
 #include "compat.h"
+#include "macros_and_utils.h"
 
 class UniqueKey
 {
@@ -37,5 +38,18 @@ class UniqueKey
     {
         // unfortunately, converting a scalar to a pointer must go through a C cast
         return lua_touserdata(L, i) == (void*) m_storage;
+    }
+    void query_registry(lua_State* const L) const
+    {
+        push(L);
+        lua_rawget(L, LUA_REGISTRYINDEX);
+    }
+    template <typename OP>
+    void set_registry(lua_State* L, OP operation_) const
+    {
+        // Note we can't check stack consistency because operation is not always a push (could be insert, replace, whatever)
+        push(L);                              // ... key
+        operation_(L);                        // ... key value
+        lua_rawset(L, LUA_REGISTRYINDEX);     // ...
     }
 };

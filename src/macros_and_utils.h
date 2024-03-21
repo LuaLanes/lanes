@@ -80,18 +80,4 @@ extern char const* debugspew_indent;
 
 #define STACK_GROW( L, n) do { if (!lua_checkstack(L,(int)(n))) luaL_error( L, "Cannot grow stack!" ); } while( 0)
 
-// non-string keyed registry access
-#define REGISTRY_SET( L, key_, value_) \
-{ \
-    key_.push(L); \
-    value_; \
-    lua_rawset( L, LUA_REGISTRYINDEX); \
-}
-
-#define REGISTRY_GET( L, key_) \
-{ \
-    key_.push(L); \
-    lua_rawget( L, LUA_REGISTRYINDEX); \
-}
-
 #define LUAG_FUNC( func_name) int LG_##func_name( lua_State* L)

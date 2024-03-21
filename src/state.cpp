@@ -203,14 +203,14 @@ static void copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2)
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "copy_one_time_settings()\n" INDENT_END));
     DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
 
-    REGISTRY_GET( L, CONFIG_REGKEY);                                               // config
-                                                                                                                                                                 // copy settings from from source to destination registry
+    CONFIG_REGKEY.query_registry(L);                                               // config
+    // copy settings from from source to destination registry
     if( luaG_inter_move( U, L, L2, 1, eLM_LaneBody) < 0)                           //                           // config
     {
         (void) luaL_error( L, "failed to copy settings when loading lanes.core");
     }
     // set L2:_R[CONFIG_REGKEY] = settings
-    REGISTRY_SET( L2, CONFIG_REGKEY, lua_insert( L2, -2));                                                      //
+    CONFIG_REGKEY.set_registry(L2, [](lua_State* L) { lua_insert(L, -2); });                                    // config
     STACK_END( L2, 0);
     STACK_END( L, 0);
     DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
@@ -297,7 +297,7 @@ void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, LookupMo
                 // this doesn't count as an error though
                 return;
             }
-            REGISTRY_GET( L, CONFIG_REGKEY);                                            // {}
+            CONFIG_REGKEY.query_registry(L);                                            // {}
             STACK_MID( L, 1);
             lua_getfield( L, -1, "on_state_create");                                    // {} on_state_create()
             lua_remove( L, -2);                                                         // on_state_create()
@@ -338,7 +338,7 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
     STACK_MID( L, 0);
 
     // we'll need this every time we transfer some C function from/to this state
-    REGISTRY_SET( L, LOOKUP_REGKEY, lua_newtable( L));
+    LOOKUP_REGKEY.set_registry(L, [](lua_State* L) { lua_newtable(L); });
     STACK_MID( L, 0);
 
     // neither libs (not even 'base') nor special init func: we are done

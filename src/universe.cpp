@@ -46,7 +46,7 @@ Universe* universe_create( lua_State* L)
     Universe* U = (Universe*) lua_newuserdatauv( L, sizeof(Universe), 0);                          // universe
     memset( U, 0, sizeof( Universe));
     STACK_CHECK( L, 1);
-    REGISTRY_SET( L, UNIVERSE_REGKEY, lua_pushvalue(L, -2));                                       // universe
+    UNIVERSE_REGKEY.set_registry(L, [](lua_State* L) { lua_pushvalue(L, -2); });                   // universe
     STACK_END( L, 1);
     return U;
 }
@@ -56,7 +56,7 @@ Universe* universe_create( lua_State* L)
 void universe_store( lua_State* L, Universe* U)
 {
     STACK_CHECK( L, 0);
-    REGISTRY_SET( L, UNIVERSE_REGKEY, (nullptr != U) ? lua_pushlightuserdata( L, U) : lua_pushnil( L));
+    UNIVERSE_REGKEY.set_registry(L, [U](lua_State* L) { U ? lua_pushlightuserdata( L, U) : lua_pushnil( L); });
     STACK_END( L, 0);
 }
 
@@ -67,7 +67,7 @@ Universe* universe_get( lua_State* L)
     Universe* universe;
     STACK_GROW( L, 2);
     STACK_CHECK( L, 0);
-    REGISTRY_GET( L, UNIVERSE_REGKEY);
+    UNIVERSE_REGKEY.query_registry(L);
     universe = (Universe*) lua_touserdata( L, -1); // nullptr if nil
     lua_pop( L, 1);
     STACK_END( L, 0);

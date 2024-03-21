@@ -157,7 +157,7 @@ static bool push_registry_table( lua_State* L, UniqueKey key, bool create)
     STACK_GROW( L, 3);
     STACK_CHECK( L, 0);
 
-    REGISTRY_GET( L, key);                                                       // ?
+    key.query_registry(L);                                                       // ?
     if( lua_isnil( L, -1))                                                       // nil?
     {
         lua_pop( L, 1);                                                            //
@@ -168,7 +168,7 @@ static bool push_registry_table( lua_State* L, UniqueKey key, bool create)
         }
 
         lua_newtable( L);                                                          // t
-        REGISTRY_SET( L, key, lua_pushvalue( L, -2));
+        key.set_registry(L, [](lua_State* L) { lua_pushvalue(L, -2); });
     }
     STACK_END( L, 1);
     return true;    // table pushed
@@ -669,7 +669,7 @@ LUAG_FUNC( set_error_reporting)
         return luaL_error( L, "unsupported error reporting model");
     }
 done:
-    REGISTRY_SET( L, EXTENDED_STACKTRACE_REGKEY, lua_pushboolean( L, equal));
+    EXTENDED_STACKTRACE_REGKEY.set_registry(L, [equal](lua_State* L) { lua_pushboolean(L, equal); });
     return 0;
 }
 
@@ -679,7 +679,7 @@ static int lane_error( lua_State* L)
     int n;
 
     // error message (any type)
-    STACK_CHECK_ABS( L, 1);                                                         // some_error
+    STACK_CHECK_ABS( L, 1);                                                             // some_error
 
     // Don't do stack survey for cancelled lanes.
     //
@@ -689,11 +689,11 @@ static int lane_error( lua_State* L)
     }
 
     STACK_GROW( L, 3);
-    REGISTRY_GET( L, EXTENDED_STACKTRACE_REGKEY);                                   // some_error basic|extended
+    EXTENDED_STACKTRACE_REGKEY.query_registry(L);                                       // some_error basic|extended
     bool const extended{ lua_toboolean(L, -1) ? true : false};
-    lua_pop( L, 1);                                                                 // some_error
+    lua_pop( L, 1);                                                                     // some_error
 
-    // Place stack trace at 'registry[lane_error]' for the 'lua_pcall()'
+    // Place stack trace at 'registry[STACKTRACE_REGKEY]' for the 'lua_pcall()'
     // caller to fetch. This bypasses the Lua 5.1 limitation of only one
     // return value from error handler to 'lua_pcall()' caller.
 
@@ -703,7 +703,7 @@ static int lane_error( lua_State* L)
     //
     // table of { "sourcefile.lua:<line>", ... }
     //
-    lua_newtable( L);                                                                // some_error {}
+    lua_newtable( L);                                                                   // some_error {}
 
     // Best to start from level 1, but in some cases it might be a C function
     // and we don't get '.currentline' for that. It's okay - just keep level
@@ -739,10 +739,11 @@ static int lane_error( lua_State* L)
         {
             lua_pushfstring( L, "%s:?", ar.short_src);                                  // some_error {} "blah"
         }
-        lua_rawseti( L, -2, (lua_Integer) n);                                         // some_error {}
+        lua_rawseti( L, -2, (lua_Integer) n);                                           // some_error {}
     }
 
-    REGISTRY_SET( L, STACKTRACE_REGKEY, lua_insert( L, -2));                        // some_error
+    // store the stack trace table in the registry
+    STACKTRACE_REGKEY.set_registry(L, [](lua_State* L) { lua_insert(L, -2); });        // some_error
 
     STACK_END( L, 1);
     return 1;   // the untouched error value
@@ -764,7 +765,7 @@ static void push_stack_trace( lua_State* L, int rc_, int stk_base_)
             // fetch the call stack table from the registry where the handler stored it
             STACK_GROW( L, 1);
             // yields nil if no stack was generated (in case of cancellation for example)
-            REGISTRY_GET( L, STACKTRACE_REGKEY);                                       // err trace|nil
+            STACKTRACE_REGKEY.query_registry(L);                                       // err trace|nil
             STACK_END( L, 1);
 
             // For cancellation the error message is CANCEL_ERROR, and a stack trace isn't placed
@@ -794,7 +795,7 @@ LUAG_FUNC( set_debug_threadname)
     lua_settop( L, 1);
     STACK_CHECK_ABS( L, 1);
     // store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...
-    REGISTRY_SET( L, hidden_regkey, lua_pushvalue( L, -2));
+    hidden_regkey.set_registry(L, [](lua_State* L) { lua_pushvalue(L, -2); });
     STACK_MID( L, 1);
     s->debug_name = lua_tostring( L, -1);
     // keep a direct pointer on the string
@@ -1276,7 +1277,7 @@ LUAG_FUNC( lane_new)
     lua_setiuservalue( L, -2, 1);                                    // func libs priority globals package required gc_cb lane
 
     // Store 's' in the lane's registry, for 'cancel_test()' (we do cancel tests at pending send/receive).
-    REGISTRY_SET( L2, CANCEL_TEST_KEY, lua_pushlightuserdata( L2, s));                                                                         // func [... args ...]
+    CANCEL_TEST_KEY.set_registry(L2, [s](lua_State* L) { lua_pushlightuserdata(L, s); });                                                      // func [... args ...]
 
     STACK_END( L, 1);
     STACK_END( L2, 1 + nargs);
@@ -1993,7 +1994,7 @@ LUAG_FUNC( configure)
 
     STACK_MID( L, 2); // reference stack contains only the function argument 'settings'
     // we'll need this every time we transfer some C function from/to this state
-    REGISTRY_SET( L, LOOKUP_REGKEY, lua_newtable( L));
+    LOOKUP_REGKEY.set_registry(L, [](lua_State* L) { lua_newtable(L); });                  // settings M
     STACK_MID( L, 2);
 
     // register all native functions found in that module in the transferable functions database
@@ -2015,8 +2016,8 @@ LUAG_FUNC( configure)
     }
     lua_pop( L, 1);                                                                        // settings
 
-    // set _R[CONFIG_REGKEY] = settings 
-    REGISTRY_SET( L, CONFIG_REGKEY, lua_pushvalue( L, -2)); // -2 because CONFIG_REGKEY is pushed before the value itself
+    // set _R[CONFIG_REGKEY] = settings
+    CONFIG_REGKEY.set_registry(L, [](lua_State* L) { lua_pushvalue(L, -2); });
     STACK_END( L, 1);
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() END\n" INDENT_END, L));
     DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
@@ -2103,7 +2104,7 @@ LANES_API int luaopen_lanes_core( lua_State* L)
     lua_pushvalue( L, 1);                               // M "lanes.core"
     lua_pushvalue( L, -2);                              // M "lanes.core" M
     lua_pushcclosure( L, LG_configure, 2);              // M LG_configure()
-    REGISTRY_GET( L, CONFIG_REGKEY);                    // M LG_configure() settings
+    CONFIG_REGKEY.query_registry(L);                    // M LG_configure() settings
     if( !lua_isnil( L, -1)) // this is not the first require "lanes.core": call configure() immediately
     {
         lua_pushvalue( L, -1);                          // M LG_configure() settings settings

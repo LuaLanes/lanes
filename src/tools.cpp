@@ -61,32 +61,32 @@ DEBUGSPEW_CODE( char const* debugspew_indent = "----+----!----+----!----+----!--
  */
 void push_registry_subtable_mode( lua_State* L, UniqueKey key_, const char* mode_)
 {
-  STACK_GROW( L, 3);
-  STACK_CHECK( L, 0);
+    STACK_GROW(L, 3);
+    STACK_CHECK(L, 0);
 
-  REGISTRY_GET( L, key_);                               // {}|nil
-  STACK_MID( L, 1);
+    key_.query_registry(L);                                               // {}|nil
+    STACK_MID(L, 1);
 
-  if( lua_isnil( L, -1))
-  {
-    lua_pop( L, 1);                                     //
-    lua_newtable( L);                                   // {}
-    // _R[key_] = {}
-    REGISTRY_SET( L, key_, lua_pushvalue( L, -2));      // {}
-    STACK_MID( L, 1);
-
-    // Set its metatable if requested
-    if( mode_)
+    if (lua_isnil(L, -1))
     {
-      lua_newtable( L);                                 // {} mt
-      lua_pushliteral( L, "__mode");                    // {} mt "__mode"
-      lua_pushstring( L, mode_);                        // {} mt "__mode" mode
-      lua_rawset( L, -3);                               // {} mt
-      lua_setmetatable( L, -2);                         // {}
+        lua_pop(L, 1);                                                    //
+        lua_newtable(L);                                                  // {}
+        // _R[key_] = {}
+        key_.set_registry(L, [](lua_State* L) { lua_pushvalue(L, -2); }); // {}
+        STACK_MID(L, 1);
+
+        // Set its metatable if requested
+        if (mode_)
+        {
+            lua_newtable(L);                                              // {} mt
+            lua_pushliteral(L, "__mode");                                 // {} mt "__mode"
+            lua_pushstring(L, mode_);                                     // {} mt "__mode" mode
+            lua_rawset(L, -3);                                            // {} mt
+            lua_setmetatable(L, -2);                                      // {}
+        }
     }
-  }
-  STACK_END( L, 1);
-  ASSERT_L( lua_istable( L, -1));
+    STACK_END(L, 1);
+    ASSERT_L(lua_istable(L, -1));
 }
 
 // ################################################################################################
@@ -573,7 +573,7 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* name_)
     DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
     STACK_GROW( L, 3);
     STACK_CHECK( L, 0);
-    REGISTRY_GET( L, LOOKUP_REGKEY);                                               // {}
+    LOOKUP_REGKEY.query_registry(L);                                                 // {}
     STACK_MID( L, 1);
     ASSERT_L( lua_istable( L, -1));
     if( lua_type( L, in_base) == LUA_TFUNCTION) // for example when a module is a simple function
@@ -603,12 +603,12 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* name_)
             STACK_MID( L, 2);
         }
         // retrieve the cache, create it if we haven't done it yet
-        REGISTRY_GET( L, LOOKUPCACHE_REGKEY);                                        // {} {fqn} {cache}?
+        LOOKUPCACHE_REGKEY.query_registry(L);                                          // {} {fqn} {cache}?
         if( lua_isnil( L, -1))
         {
             lua_pop( L, 1);                                                            // {} {fqn}
             lua_newtable( L);                                                          // {} {fqn} {cache}
-            REGISTRY_SET( L, LOOKUPCACHE_REGKEY, lua_pushvalue( L, -2));
+            LOOKUPCACHE_REGKEY.set_registry(L, [](lua_State* L) { lua_pushvalue(L, -2); });
             STACK_MID( L, 3);
         }
         // process everything we find in that table, filling in lookup data for all functions and tables we see there
@@ -719,7 +719,7 @@ static char const* find_lookup_name(lua_State* L, int i, LookupMode mode_, char 
     else
     {
         // fetch the name from the source state's lookup table
-        REGISTRY_GET( L, LOOKUP_REGKEY);                       // ... v ... {}
+        LOOKUP_REGKEY.query_registry(L);                       // ... v ... {}
         STACK_MID( L, 1);
         ASSERT_L( lua_istable( L, -1));
         lua_pushvalue( L, i);                                  // ... v ... {} v
@@ -792,7 +792,7 @@ static bool lookup_table(lua_State* L2, lua_State* L, int i, LookupMode mode_, c
 
         case eLM_LaneBody:
         case eLM_FromKeeper:
-        REGISTRY_GET( L2, LOOKUP_REGKEY);                                                    // {}
+        LOOKUP_REGKEY.query_registry(L2);                                                    // {}
         STACK_MID( L2, 1);
         ASSERT_L( lua_istable( L2, -1));
         lua_pushlstring( L2, fqn, len);                                                      // {} "f.q.n"
@@ -1093,7 +1093,7 @@ static void lookup_native_func(lua_State* L2, lua_State* L, int i, LookupMode mo
 
         case eLM_LaneBody:
         case eLM_FromKeeper:
-        REGISTRY_GET( L2, LOOKUP_REGKEY);                                                    // {}
+        LOOKUP_REGKEY.query_registry(L2);                                                    // {}
         STACK_MID( L2, 1);
         ASSERT_L( lua_istable( L2, -1));
         lua_pushlstring( L2, fqn, len);                                                      // {} "f.q.n"

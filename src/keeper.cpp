@@ -172,7 +172,7 @@ static void push_table( lua_State* L, int idx_)
     STACK_GROW( L, 4);
     STACK_CHECK( L, 0);
     idx_ = lua_absindex( L, idx_);
-    REGISTRY_GET( L, FIFOS_KEY);                 // ud fifos
+    FIFOS_KEY.query_registry(L);                 // ud fifos
     lua_pushvalue( L, idx_);                     // ud fifos ud
     lua_rawget( L, -2);                          // ud fifos fifos[ud]
     STACK_MID( L, 2);
@@ -196,7 +196,7 @@ int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, ptrdiff_t 
     if( KL == nullptr) return 0;
     STACK_GROW( KL, 4);
     STACK_CHECK( KL, 0);
-    REGISTRY_GET( KL, FIFOS_KEY);                               // fifos
+    FIFOS_KEY.query_registry(KL);                               // fifos
     lua_pushlightuserdata( KL, ptr_);                           // fifos ud
     lua_rawget( KL, -2);                                        // fifos storage
     lua_remove( KL, -2);                                        // storage
@@ -243,7 +243,7 @@ int keepercall_clear( lua_State* L)
 {
     STACK_GROW( L, 3);
     STACK_CHECK( L, 0);
-    REGISTRY_GET( L, FIFOS_KEY);                 // ud fifos
+    FIFOS_KEY.query_registry(L);                 // ud fifos
     lua_pushvalue( L, 1);                        // ud fifos ud
     lua_pushnil( L);                             // ud fifos ud nil
     lua_rawset( L, -3);                          // ud fifos
@@ -712,9 +712,8 @@ void init_keepers( Universe* U, lua_State* L)
         // to see VM name in Decoda debugger
         lua_pushfstring( K, "Keeper #%d", i + 1);                                         // "Keeper #n"
         lua_setglobal( K, "decoda_name");                                                 //
-
         // create the fifos table in the keeper state
-        REGISTRY_SET( K, FIFOS_KEY, lua_newtable( K));
+        FIFOS_KEY.set_registry(K, [](lua_State* L) { lua_newtable(L); } );
         STACK_END( K, 0);
     }
     STACK_END( L, 0);

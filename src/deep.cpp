@@ -94,7 +94,7 @@ static void get_deep_lookup( lua_State* L)
 {
     STACK_GROW( L, 1);
     STACK_CHECK( L, 1);                                      // a
-    REGISTRY_GET( L, DEEP_LOOKUP_KEY);                       // a {}
+    DEEP_LOOKUP_KEY.query_registry(L);                       // a {}
     if( !lua_isnil( L, -1))
     {
         lua_insert( L, -2);                                  // {} a
