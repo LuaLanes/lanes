@@ -51,8 +51,10 @@ void* lua_newuserdatauv( lua_State* L, size_t sz, int nuvalue)
     return lua_newuserdata( L, sz);
 }
 
-int lua_getiuservalue( lua_State* L, int idx, int n)
+// push on stack uservalue #n of full userdata at idx
+int lua_getiuservalue(lua_State* L, int idx, int n)
 {
+    // full userdata can have only 1 uservalue before 5.4
     if( n > 1)
     {
         lua_pushnil( L);
@@ -76,6 +78,7 @@ int lua_getiuservalue( lua_State* L, int idx, int n)
     return lua_type( L, -1);
 }
 
+// pop stack top, sets it a uservalue #n of full userdata at idx
 int lua_setiuservalue( lua_State* L, int idx, int n)
 {
     if( n > 1

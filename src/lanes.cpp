@@ -2076,7 +2076,7 @@ static void EnableCrashingOnCrashes( void)
         while( !s_ecoc_go_ahead) { Sleep(1); } // changes threads
     }
 }
-#endif // PLATFORM_WIN32
+#endif // PLATFORM_WIN32 && !defined NDEBUG
 
 LANES_API int luaopen_lanes_core( lua_State* L)
 {

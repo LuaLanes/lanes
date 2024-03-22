@@ -5,6 +5,7 @@ extern "C" {
 #endif // __cplusplus
 #include "lua.h"
 #include "lualib.h"
+#include "lauxlib.h"
 #ifdef __cplusplus
 }
 #endif // __cplusplus
@@ -78,6 +79,10 @@ extern char const* debugspew_indent;
 
 #define ASSERT_L(c) _ASSERT_L(L,c)
 
-#define STACK_GROW( L, n) do { if (!lua_checkstack(L,(int)(n))) luaL_error( L, "Cannot grow stack!" ); } while( 0)
+inline void STACK_GROW(lua_State* L, int n_)
+{
+    if (!lua_checkstack(L, n_))
+        luaL_error(L, "Cannot grow stack!");
+}
 
 #define LUAG_FUNC( func_name) int LG_##func_name( lua_State* L)
