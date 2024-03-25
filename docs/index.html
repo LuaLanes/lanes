@@ -917,7 +917,7 @@
 	</table>
 
 <p>
-	Only available if lane tracking feature is compiled (see <tt>HAVE_LANE_TRACKING</tt> in <tt>lanes.c</tt>) and <a href="#track_lanes"><tt>track_lanes</tt></a> is set.
+	Only available if lane tracking feature is compiled (see <tt>HAVE_LANE_TRACKING</tt> in <tt>lanes.cpp</tt>) and <a href="#track_lanes"><tt>track_lanes</tt></a> is set.
 	<br/>
 	Returns an array table where each entry is a table containing a lane's name and status. Returns <tt>nil</tt> if no lane is running.
 </p>
@@ -1702,9 +1702,9 @@ int luaD_new_clonable( lua_State* L)
 			<li><tt>eDO_metatable</tt>: should build a metatable for the object. Don't cache the metatable yourself, Lanes takes care of it (<tt>eDO_metatable</tt> should only be invoked once per state). Just push the metatable on the stack.</li>
 			<li><tt>eDO_module</tt>: requests the name of the module that exports the idfunc, to be returned. It is necessary so that Lanes can require it in any lane state that receives a userdata. This is to prevent crashes in situations where the module could be unloaded while the idfunc pointer is still held.</li>
 		</ul>
-		Take a look at <tt>linda_id</tt> in <tt>lanes.c</tt> or <tt>deep_test_id</tt> in <tt>deep_test.c</tt>.
+		Take a look at <tt>linda_id</tt> in <tt>lanes.cpp</tt> or <tt>deep_test_id</tt> in <tt>deep_test.cpp</tt>.
 	</li>
-	<li>Include <tt>"deep.h"</tt> and either link against Lanes or statically compile <tt>compat.c deep.c tools.c universe.c</tt> into your module if you want to avoid a runtime dependency for users that will use your module without Lanes.
+	<li>Include <tt>"deep.h"</tt> and either link against Lanes or statically compile <tt>compat.cpp deep.cpp tools.cpp universe.cpp</tt> into your module if you want to avoid a runtime dependency for users that will use your module without Lanes.
 	<li>Instanciate your userdata using <tt>luaG_newdeepuserdata()</tt>, instead of the regular <tt>lua_newuserdata()</tt>. Given an <tt>idfunc</tt>, it sets up the support structures and returns a state-specific proxy userdata for accessing your data. This proxy can also be copied over to other lanes.</li>
 	<li>Accessing the deep userdata from your C code, use <tt>luaG_todeep()</tt> instead of the regular <tt>lua_touserdata()</tt>.</li>
 </ol>
@@ -1724,7 +1724,7 @@ int luaD_new_clonable( lua_State* L)
 </p>
 
 <p>
-	<b>NOTE</b>: The lifespan of deep userdata may exceed that of the Lua state that created it. The allocation of the data storage should not be tied to the Lua state used. In other words, use <tt>malloc()</tt>/<tt>free()</tt> or similar memory handling mechanism.
+	<b>NOTE</b>: The lifespan of deep userdata may exceed that of the Lua state that created it. The allocation of the data storage should not be tied to the Lua state used. In other words, use <tt>new</tt>/<tt>delete</tt>, <tt>malloc()</tt>/<tt>free()</tt> or similar memory handling mechanism.
 </p>
 
 
@@ -1812,4 +1812,4 @@ int luaD_new_clonable( lua_State* L)
 </p>
 
 </body>
-</html>
+</html></pre>

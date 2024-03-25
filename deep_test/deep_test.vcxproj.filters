@@ -15,20 +15,20 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="deep_test.c">
+    <ClCompile Include="..\src\compat.cpp">
+      <Filter>Lanes</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\deep.cpp">
+      <Filter>Lanes</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\tools.cpp">
+      <Filter>Lanes</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\universe.cpp">
+      <Filter>Lanes</Filter>
+    </ClCompile>
+    <ClCompile Include="deep_test.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deep.c">
-      <Filter>Lanes</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\universe.c">
-      <Filter>Lanes</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\compat.c">
-      <Filter>Lanes</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\tools.c">
-      <Filter>Lanes</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

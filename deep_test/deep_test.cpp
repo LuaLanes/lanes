@@ -1,29 +1,59 @@
+#include "lanes/src/deep.h"
+#include "lanes/src/compat.h"
+
 #include <malloc.h>
 #include <memory.h>
 #include <assert.h>
 
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-
-#include "lanes/src/deep.h"
-#include "lanes/src/compat.h"
-
 // ################################################################################################
 
 // a lanes-deep userdata. needs DeepPrelude and luaG_newdeepuserdata from Lanes code.
-struct s_MyDeepUserdata
+struct MyDeepUserdata
 {
 	DeepPrelude prelude; // Deep userdata MUST start with this header
-	lua_Integer val;
+	lua_Integer val{ 0 };
 };
-static void* deep_test_id( lua_State* L, enum eDeepOp op_);
+
+// ################################################################################################
+
+static void* deep_test_id( lua_State* L, DeepOp op_)
+{
+	switch( op_)
+	{
+		case eDO_new:
+		{
+			MyDeepUserdata* deep_test = new MyDeepUserdata;
+			return deep_test;
+		}
+
+		case eDO_delete:
+		{
+			MyDeepUserdata* deep_test = static_cast<MyDeepUserdata*>(lua_touserdata( L, 1));
+			delete deep_test;
+			return nullptr;
+		}
+
+		case eDO_metatable:
+		{
+			luaL_getmetatable( L, "deep");             // mt
+			return nullptr;
+		}
+
+		case eDO_module:
+		return (void*)"deep_test";
+
+		default:
+		{
+			return nullptr;
+		}
+	}
+}
 
 // ################################################################################################
 
 static int deep_set( lua_State* L)
 {
-	struct s_MyDeepUserdata* self = luaG_todeep( L, deep_test_id, 1);
+	MyDeepUserdata* self = static_cast<MyDeepUserdata*>(luaG_todeep(L, deep_test_id, 1));
 	lua_Integer i = lua_tointeger( L, 2);
 	self->val = i;
 	return 0;
@@ -34,8 +64,8 @@ static int deep_set( lua_State* L)
 // won't actually do anything as deep userdata don't have uservalue slots
 static int deep_setuv( lua_State* L)
 {
-	struct s_MyDeepUserdata* self = luaG_todeep( L, deep_test_id, 1);
-	int uv = (int) luaL_optinteger( L, 2, 1);
+	MyDeepUserdata* self = static_cast<MyDeepUserdata*>(luaG_todeep(L, deep_test_id, 1));
+	int uv = (int) luaL_optinteger(L, 2, 1);
 	lua_settop( L, 3);
 	lua_pushboolean( L, lua_setiuservalue( L, 1, uv) != 0);
 	return 1;
@@ -46,8 +76,8 @@ static int deep_setuv( lua_State* L)
 // won't actually do anything as deep userdata don't have uservalue slots
 static int deep_getuv( lua_State* L)
 {
-	struct s_MyDeepUserdata* self = luaG_todeep( L, deep_test_id, 1);
-	int uv = (int) luaL_optinteger( L, 2, 1);
+	MyDeepUserdata* self = static_cast<MyDeepUserdata*>(luaG_todeep(L, deep_test_id, 1));
+	int uv = (int) luaL_optinteger(L, 2, 1);
 	lua_getiuservalue( L, 1, uv);
 	return 1;
 }
@@ -56,8 +86,8 @@ static int deep_getuv( lua_State* L)
 
 static int deep_tostring( lua_State* L)
 {
-	struct s_MyDeepUserdata* self = luaG_todeep( L, deep_test_id, 1);
-	lua_pushfstring( L, "%p:deep(%d)", lua_topointer( L, 1), self->val);
+	MyDeepUserdata* self = static_cast<MyDeepUserdata*>(luaG_todeep(L, deep_test_id, 1));
+	lua_pushfstring(L, "%p:deep(%d)", lua_topointer(L, 1), self->val);
 	return 1;
 }
 
@@ -65,7 +95,7 @@ static int deep_tostring( lua_State* L)
 
 static int deep_gc( lua_State* L)
 {
-	struct s_MyDeepUserdata* self = luaG_todeep( L, deep_test_id, 1);
+	MyDeepUserdata* self = static_cast<MyDeepUserdata*>(luaG_todeep(L, deep_test_id, 1));
 	return 0;
 }
 
@@ -78,45 +108,8 @@ static luaL_Reg const deep_mt[] =
 	{ "set", deep_set},
 	{ "setuv", deep_setuv},
 	{ "getuv", deep_getuv},
-	{ NULL, NULL }
+	{ nullptr, nullptr }
 };
-
-// ################################################################################################
-
-static void* deep_test_id( lua_State* L, enum eDeepOp op_)
-{
-	switch( op_)
-	{
-		case eDO_new:
-		{
-			struct s_MyDeepUserdata* deep_test = (struct s_MyDeepUserdata*) malloc( sizeof(struct s_MyDeepUserdata));
-			deep_test->prelude.magic.value = DEEP_VERSION.value;
-			deep_test->val = 0;
-			return deep_test;
-		}
-
-		case eDO_delete:
-		{
-			struct s_MyDeepUserdata* deep_test = (struct s_MyDeepUserdata*) lua_touserdata( L, 1);
-			free( deep_test);
-			return NULL;
-		}
-
-		case eDO_metatable:
-		{
-			luaL_getmetatable( L, "deep");             // mt
-			return NULL;
-		}
-
-		case eDO_module:
-		return "deep_test";
-
-		default:
-		{
-			return NULL;
-		}
-	}
-}
 
 // ################################################################################################
 
@@ -131,7 +124,7 @@ int luaD_new_deep( lua_State* L)
 // ################################################################################################
 // ################################################################################################
 
-struct s_MyClonableUserdata
+struct MyClonableUserdata
 {
 	lua_Integer val;
 };
@@ -140,8 +133,8 @@ struct s_MyClonableUserdata
 
 static int clonable_set( lua_State* L)
 {
-	struct s_MyClonableUserdata* self = (struct s_MyClonableUserdata*) lua_touserdata( L, 1);
-	lua_Integer i = lua_tointeger( L, 2);
+	MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
+	lua_Integer i = lua_tointeger(L, 2);
 	self->val = i;
 	return 0;
 }
@@ -150,8 +143,8 @@ static int clonable_set( lua_State* L)
 
 static int clonable_setuv( lua_State* L)
 {
-	struct s_MyClonableUserdata* self = (struct s_MyClonableUserdata*) lua_touserdata( L, 1);
-	int uv = (int) luaL_optinteger( L, 2, 1);
+	MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
+	int uv = (int) luaL_optinteger(L, 2, 1);
 	lua_settop( L, 3);
 	lua_pushboolean( L, lua_setiuservalue( L, 1, uv) != 0);
 	return 1;
@@ -161,8 +154,8 @@ static int clonable_setuv( lua_State* L)
 
 static int clonable_getuv( lua_State* L)
 {
-	struct s_MyClonableUserdata* self = (struct s_MyClonableUserdata*) lua_touserdata( L, 1);
-	int uv = (int) luaL_optinteger( L, 2, 1);
+	MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
+	int uv = (int) luaL_optinteger(L, 2, 1);
 	lua_getiuservalue( L, 1, uv);
 	return 1;
 }
@@ -171,8 +164,8 @@ static int clonable_getuv( lua_State* L)
 
 static int clonable_tostring(lua_State* L)
 {
-	struct s_MyClonableUserdata* self = (struct s_MyClonableUserdata*) lua_touserdata( L, 1);
-	lua_pushfstring( L, "%p:clonable(%d)", lua_topointer( L, 1), self->val);
+	MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
+	lua_pushfstring(L, "%p:clonable(%d)", lua_topointer(L, 1), self->val);
 	return 1;
 }
 
@@ -180,7 +173,7 @@ static int clonable_tostring(lua_State* L)
 
 static int clonable_gc( lua_State* L)
 {
-	struct s_MyClonableUserdata* self = (struct s_MyClonableUserdata*) lua_touserdata( L, 1);
+	MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
 	return 0;
 }
 
@@ -193,10 +186,10 @@ static int clonable_lanesclone( lua_State* L)
 	{
 		case 3:
 		{
-			struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
-			struct s_MyClonableUserdata* from = lua_touserdata( L, 2);
+			MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
+			MyClonableUserdata* from = static_cast<MyClonableUserdata*>(lua_touserdata(L, 2));
 			size_t len = lua_tointeger( L, 3);
-			assert( len == sizeof(struct s_MyClonableUserdata));
+			assert( len == sizeof(MyClonableUserdata));
 			*self = *from;
 		}
 		return 0;
@@ -217,7 +210,7 @@ static luaL_Reg const clonable_mt[] =
 	{ "set", clonable_set},
 	{ "setuv", clonable_setuv},
 	{ "getuv", clonable_getuv},
-	{ NULL, NULL }
+	{ nullptr, nullptr }
 };
 
 // ################################################################################################
@@ -225,7 +218,7 @@ static luaL_Reg const clonable_mt[] =
 int luaD_new_clonable( lua_State* L)
 {
 	int nuv = (int) luaL_optinteger( L, 1, 1);
-	lua_newuserdatauv( L, sizeof( struct s_MyClonableUserdata), nuv);
+	lua_newuserdatauv( L, sizeof(MyClonableUserdata), nuv);
 	luaL_setmetatable( L, "clonable");
 	return 1;
 }
@@ -237,7 +230,7 @@ static luaL_Reg const deep_module[] =
 {
 	{ "new_deep", luaD_new_deep},
 	{ "new_clonable", luaD_new_clonable},
-	{ NULL, NULL}
+	{ nullptr, nullptr }
 };
 
 // ################################################################################################

@@ -675,11 +675,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\compat.c" />
-    <ClCompile Include="..\src\deep.c" />
-    <ClCompile Include="..\src\tools.c" />
-    <ClCompile Include="..\src\universe.c" />
-    <ClCompile Include="deep_test.c" />
+    <ClCompile Include="..\src\compat.cpp" />
+    <ClCompile Include="..\src\deep.cpp" />
+    <ClCompile Include="..\src\tools.cpp" />
+    <ClCompile Include="..\src\universe.cpp" />
+    <ClCompile Include="deep_test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\compat.h" />
