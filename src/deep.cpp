@@ -74,16 +74,16 @@ static constexpr UniqueKey DEEP_PROXY_CACHE_KEY{ 0x05773d6fc26be106ull };
 static void set_deep_lookup( lua_State* L)
 {
     STACK_GROW( L, 3);
-    STACK_CHECK( L, 2);                                      // a b
+    STACK_CHECK_START_REL(L, 2);                             // a b
     push_registry_subtable( L, DEEP_LOOKUP_KEY);             // a b {}
-    STACK_MID( L, 3);
+    STACK_CHECK( L, 3);
     lua_insert( L, -3);                                      // {} a b
     lua_pushvalue( L, -1);                                   // {} a b b
     lua_pushvalue( L,-3);                                    // {} a b b a
     lua_rawset( L, -5);                                      // {} a b
     lua_rawset( L, -3);                                      // {}
     lua_pop( L, 1);                                          //
-    STACK_END( L, 0);
+    STACK_CHECK( L, 0);
 }
 
 /*
@@ -93,7 +93,7 @@ static void set_deep_lookup( lua_State* L)
 static void get_deep_lookup( lua_State* L)
 {
     STACK_GROW( L, 1);
-    STACK_CHECK( L, 1);                                      // a
+    STACK_CHECK_START_REL(L, 1);                             // a
     DEEP_LOOKUP_KEY.query_registry(L);                       // a {}
     if( !lua_isnil( L, -1))
     {
@@ -101,7 +101,7 @@ static void get_deep_lookup( lua_State* L)
         lua_rawget( L, -2);                                  // {} b
     }
     lua_remove( L, -2);                                      // a|b
-    STACK_END( L, 1);
+    STACK_CHECK( L, 1);
 }
 
 /*
@@ -122,9 +122,8 @@ static inline luaG_IdFunction* get_idfunc( lua_State* L, int index, LookupMode m
         // essentially we are making sure that the metatable of the object we want to copy is stored in our metatable/idfunc database
         // it is the only way to ensure that the userdata is indeed a deep userdata!
         // of course, we could just trust the caller, but we won't
-        luaG_IdFunction* ret;
         STACK_GROW( L, 1);
-        STACK_CHECK( L, 0);
+        STACK_CHECK_START_REL(L, 0);
 
         if( !lua_getmetatable( L, index))       // deep ... metatable?
         {
@@ -134,9 +133,9 @@ static inline luaG_IdFunction* get_idfunc( lua_State* L, int index, LookupMode m
         // replace metatable with the idfunc pointer, if it is actually a deep userdata
         get_deep_lookup( L);                    // deep ... idfunc|nil
 
-        ret = (luaG_IdFunction*) lua_touserdata( L, -1); // nullptr if not a userdata
+        luaG_IdFunction* const ret{ static_cast<luaG_IdFunction*>(lua_touserdata(L, -1)) }; // nullptr if not a userdata
         lua_pop( L, 1);
-        STACK_END( L, 0);
+        STACK_CHECK( L, 0);
         return ret;
     }
 }
@@ -228,7 +227,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
     if( U) MUTEX_UNLOCK( &U->deep_lock);
 
     STACK_GROW( L, 7);
-    STACK_CHECK( L, 0);
+    STACK_CHECK_START_REL(L, 0);
 
     // a new full userdata, fitted with the specified number of uservalue slots (always 1 for Lua < 5.4)
     proxy = (DeepPrelude**) lua_newuserdatauv( L, sizeof(DeepPrelude*), nuv_);                         // DPC proxy
@@ -340,7 +339,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
             }
         }
     }
-    STACK_MID( L, 2);                                                                                  // DPC proxy metatable
+    STACK_CHECK( L, 2);                                                                                  // DPC proxy metatable
     ASSERT_L( lua_isuserdata( L, -2));
     ASSERT_L( lua_istable( L, -1));
     lua_setmetatable( L, -2);                                                                          // DPC proxy
@@ -351,7 +350,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
     lua_rawset( L, -4);                                                                                // DPC proxy
     lua_remove( L, -2);                                                                                // proxy
     ASSERT_L( lua_isuserdata( L, -1));
-    STACK_END( L, 0);
+    STACK_CHECK( L, 0);
     return nullptr;
 }
 
@@ -382,7 +381,7 @@ int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction* idfunc, int nuv_)
     char const* errmsg;
 
     STACK_GROW( L, 1);
-    STACK_CHECK( L, 0);
+    STACK_CHECK_START_REL(L, 0);
     {
         int const oldtop = lua_gettop( L);
         DeepPrelude* prelude = (DeepPrelude*) idfunc( L, eDO_new);
@@ -413,7 +412,7 @@ int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction* idfunc, int nuv_)
             return luaL_error( L, errmsg);
         }
     }
-    STACK_END( L, 1);
+    STACK_CHECK( L, 1);
     return 1;
 }
 
@@ -428,7 +427,7 @@ void* luaG_todeep( lua_State* L, luaG_IdFunction* idfunc, int index)
 {
     DeepPrelude** proxy;
 
-    STACK_CHECK( L, 0);
+    STACK_CHECK_START_REL(L, 0);
     // ensure it is actually a deep userdata
     if( get_idfunc( L, index, eLM_LaneBody) != idfunc)
     {
@@ -436,7 +435,7 @@ void* luaG_todeep( lua_State* L, luaG_IdFunction* idfunc, int index)
     }
 
     proxy = (DeepPrelude**) lua_touserdata( L, index);
-    STACK_END( L, 0);
+    STACK_CHECK( L, 0);
 
     return *proxy;
 }
@@ -460,8 +459,8 @@ bool copydeep(Universe* U, lua_State* L2, int L2_cache_i, lua_State* L, int i, L
         return false;   // not a deep userdata
     }
 
-    STACK_CHECK( L, 0);
-    STACK_CHECK( L2, 0);
+    STACK_CHECK_START_REL(L, 0);
+    STACK_CHECK_START_REL(L2, 0);
 
     // extract all uservalues of the source
     while( lua_getiuservalue( L, i, nuv + 1) != LUA_TNONE)                               // ... u [uv]* nil
@@ -470,7 +469,7 @@ bool copydeep(Universe* U, lua_State* L2, int L2_cache_i, lua_State* L, int i, L
     }
     // last call returned TNONE and pushed nil, that we don't need
     lua_pop( L, 1);                                                                      // ... u [uv]*
-    STACK_MID( L, nuv);
+    STACK_CHECK( L, nuv);
 
     errmsg = push_deep_proxy( U, L2, *(DeepPrelude**) lua_touserdata( L, i), nuv, mode_);                   // u
 
@@ -487,8 +486,8 @@ bool copydeep(Universe* U, lua_State* L2, int L2_cache_i, lua_State* L, int i, L
         }
     }
 
-    STACK_END( L2, 1);
-    STACK_END( L, 0);
+    STACK_CHECK( L2, 1);
+    STACK_CHECK( L, 0);
 
     if (errmsg != nullptr)
     {

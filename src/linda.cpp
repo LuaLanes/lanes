@@ -88,7 +88,7 @@ LUAG_FUNC( linda_protected_call)
 
     // acquire the keeper
     Keeper* K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED(linda));
-    lua_State* KL = K ? K->L : nullptr; // need to do this for 'STACK_CHECK'
+    lua_State* KL = K ? K->L : nullptr;
     if( KL == nullptr) return 0;
 
     // retrieve the actual function to be called and move it before the arguments
@@ -168,10 +168,10 @@ LUAG_FUNC( linda_send)
 
     {
         Lane* const s = get_lane_from_registry( L);
-        Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
-        lua_State* KL = K ? K->L : nullptr; // need to do this for 'STACK_CHECK'
+        Keeper* const K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
+        lua_State* KL = K ? K->L : nullptr;
         if( KL == nullptr) return 0;
-        STACK_CHECK( KL, 0);
+        STACK_CHECK_START_REL(KL, 0);
         for(bool try_again{ true };;)
         {
             if( s != nullptr)
@@ -186,7 +186,7 @@ LUAG_FUNC( linda_send)
                 break;
             }
 
-            STACK_MID( KL, 0);
+            STACK_CHECK( KL, 0);
             pushed = keeper_call( linda->U, KL, KEEPER_API( send), L, linda, key_i);
             if( pushed < 0)
             {
@@ -231,7 +231,7 @@ LUAG_FUNC( linda_send)
                 }
             }
         }
-        STACK_END( KL, 0);
+        STACK_CHECK( KL, 0);
     }
 
     if( pushed < 0)
@@ -839,7 +839,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
         case eDO_metatable:
         {
 
-            STACK_CHECK( L, 0);
+            STACK_CHECK_START_REL(L, 0);
             lua_newtable( L);
             // metatable is its own index
             lua_pushvalue( L, -1);
@@ -904,7 +904,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             NIL_SENTINEL.push(L);
             lua_setfield( L, -2, "null");
 
-            STACK_END( L, 1);
+            STACK_CHECK( L, 1);
             return nullptr;
         }
 

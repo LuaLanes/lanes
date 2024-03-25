@@ -170,12 +170,12 @@ static constexpr UniqueKey FIFOS_KEY{ 0xdce50bbc351cd465ull };
 static void push_table(lua_State* L, int idx_)
 {
     STACK_GROW(L, 4);
-    STACK_CHECK(L, 0);
+    STACK_CHECK_START_REL(L, 0);
     idx_ = lua_absindex(L, idx_);
     FIFOS_KEY.query_registry(L);               // ud fifos
     lua_pushvalue(L, idx_);                    // ud fifos ud
     lua_rawget(L, -2);                         // ud fifos fifos[ud]
-    STACK_MID(L, 2);
+    STACK_CHECK(L, 2);
     if (lua_isnil(L, -1))
     {
         lua_pop(L, 1);                         // ud fifos
@@ -186,7 +186,7 @@ static void push_table(lua_State* L, int idx_)
         lua_rawset(L, -4);                     // ud fifos fifos[ud]
     }
     lua_remove(L, -2);                         // ud fifos[ud]
-    STACK_END(L, 1);
+    STACK_CHECK(L, 1);
 }
 
 // ##################################################################################################
@@ -197,7 +197,7 @@ int keeper_push_linda_storage(Universe* U, lua_State* L, void* ptr_, ptrdiff_t m
     lua_State* const KL = K ? K->L : nullptr;
     if( KL == nullptr) return 0;
     STACK_GROW(KL, 4);
-    STACK_CHECK(KL, 0);
+    STACK_CHECK_START_REL(KL, 0);
     FIFOS_KEY.query_registry(KL);                                 // fifos
     lua_pushlightuserdata(KL, ptr_);                              // fifos ud
     lua_rawget(KL, -2);                                           // fifos storage
@@ -205,38 +205,38 @@ int keeper_push_linda_storage(Universe* U, lua_State* L, void* ptr_, ptrdiff_t m
     if( !lua_istable(KL, -1))
     {
         lua_pop(KL, 1);                                           //
-        STACK_MID(KL, 0);
+        STACK_CHECK(KL, 0);
         return 0;
     }
     // move data from keeper to destination state                    KEEPER                       MAIN
     lua_pushnil(KL);                                              // storage nil
     STACK_GROW(L, 5);
-    STACK_CHECK(L, 0);
+    STACK_CHECK_START_REL(L, 0);
     lua_newtable(L);                                                                           // out
     while( lua_next(KL, -2))                                      // storage key fifo
     {
         keeper_fifo* fifo = prepare_fifo_access(KL, -1);          // storage key fifo
         lua_pushvalue(KL, -2);                                    // storage key fifo key
         luaG_inter_move(U, KL, L, 1, eLM_FromKeeper);             // storage key fifo          // out key
-        STACK_MID(L, 2);
+        STACK_CHECK(L, 2);
         lua_newtable(L);                                                                       // out key keyout
         luaG_inter_move(U, KL, L, 1, eLM_FromKeeper);             // storage key               // out key keyout fifo
         lua_pushinteger(L, fifo->first);                                                       // out key keyout fifo first
-        STACK_MID(L, 5);
+        STACK_CHECK(L, 5);
         lua_setfield(L, -3, "first");                                                          // out key keyout fifo
         lua_pushinteger(L, fifo->count);                                                       // out key keyout fifo count
-        STACK_MID(L, 5);
+        STACK_CHECK(L, 5);
         lua_setfield(L, -3, "count");                                                          // out key keyout fifo
         lua_pushinteger(L, fifo->limit);                                                       // out key keyout fifo limit
-        STACK_MID(L, 5);
+        STACK_CHECK(L, 5);
         lua_setfield(L, -3, "limit");                                                          // out key keyout fifo
         lua_setfield(L, -2, "fifo");                                                           // out key keyout
         lua_rawset(L, -3);                                                                     // out
-        STACK_MID(L, 1);
+        STACK_CHECK(L, 1);
     }
-    STACK_END(L, 1);
+    STACK_CHECK(L, 1);
     lua_pop(KL, 1);                                               //
-    STACK_END(KL, 0);
+    STACK_CHECK(KL, 0);
     return 1;
 }
 
@@ -246,13 +246,13 @@ int keeper_push_linda_storage(Universe* U, lua_State* L, void* ptr_, ptrdiff_t m
 int keepercall_clear(lua_State* L)
 {
     STACK_GROW(L, 3);
-    STACK_CHECK(L, 0);
+    STACK_CHECK_START_REL(L, 0);
     FIFOS_KEY.query_registry(L);                // ud fifos
     lua_pushvalue(L, 1);                        // ud fifos ud
     lua_pushnil(L);                             // ud fifos ud nil
     lua_rawset(L, -3);                          // ud fifos
     lua_pop(L, 1);                              // ud
-    STACK_END(L, 0);
+    STACK_CHECK(L, 0);
     return 0;
 }
 
@@ -637,7 +637,7 @@ void close_keepers(Universe* U)
  */
 void init_keepers(Universe* U, lua_State* L)
 {
-    STACK_CHECK(L, 0);                                             // L                            K
+    STACK_CHECK_START_REL(L, 0);                                   // L                            K
     lua_getfield(L, 1, "nb_keepers");                              // nb_keepers
     int nb_keepers{ static_cast<int>(lua_tointeger(L, -1)) };
     lua_pop(L, 1);                                                 //
@@ -677,19 +677,19 @@ void init_keepers(Universe* U, lua_State* L)
         // therefore, we need a recursive mutex.
         MUTEX_RECURSIVE_INIT(&U->keepers->keeper_array[i].keeper_cs);
 
-        STACK_CHECK(K, 0);
+        STACK_CHECK_START_ABS(K, 0);
 
         // copy the universe pointer in the keeper itself
         universe_store(K, U);
-        STACK_MID(K, 0);
+        STACK_CHECK(K, 0);
 
         // make sure 'package' is initialized in keeper states, so that we have require()
         // this because this is needed when transferring deep userdata object
         luaL_requiref(K, "package", luaopen_package, 1);           //                              package
         lua_pop(K, 1);                                             //
-        STACK_MID(K, 0);
+        STACK_CHECK(K, 0);
         serialize_require(DEBUGSPEW_PARAM_COMMA(U) K);
-        STACK_MID(K, 0);
+        STACK_CHECK(K, 0);
 
         // copy package.path and package.cpath from the source state
         lua_getglobal(L, "package");                               // "..." keepersUD package
@@ -705,7 +705,7 @@ void init_keepers(Universe* U, lua_State* L)
             }
         }
         lua_pop(L, 1);                                             //
-        STACK_MID(L, 0);
+        STACK_CHECK(L, 0);
 
         // attempt to call on_state_create(), if we have one and it is a C function
         // (only support a C function because we can't transfer executable Lua code in keepers)
@@ -717,9 +717,9 @@ void init_keepers(Universe* U, lua_State* L)
         lua_setglobal(K, "decoda_name");                           //
         // create the fifos table in the keeper state
         FIFOS_KEY.set_registry(K, [](lua_State* L) { lua_newtable(L); });
-        STACK_END(K, 0);
+        STACK_CHECK(K, 0);
     }
-    STACK_END(L, 0);
+    STACK_CHECK(L, 0);
 }
 
 // ##################################################################################################

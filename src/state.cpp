@@ -91,28 +91,28 @@ static int luaG_new_require( lua_State* L)
 /*
 * Serialize calls to 'require', if it exists
 */
-void serialize_require( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L)
+void serialize_require(DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L)
 {
-    STACK_GROW( L, 1);
-    STACK_CHECK( L, 0);
-    DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "serializing require()\n" INDENT_END));
+    STACK_GROW(L, 1);
+    STACK_CHECK_START_REL(L, 0);
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "serializing require()\n" INDENT_END));
 
     // Check 'require' is there and not already wrapped; if not, do nothing
     //
-    lua_getglobal( L, "require");
-    if( lua_isfunction( L, -1) && lua_tocfunction( L, -1) != luaG_new_require)
+    lua_getglobal(L, "require");
+    if (lua_isfunction(L, -1) && lua_tocfunction(L, -1) != luaG_new_require)
     {
         // [-1]: original 'require' function
-        lua_pushcclosure( L, luaG_new_require, 1 /*upvalues*/);
-        lua_setglobal( L, "require");
+        lua_pushcclosure(L, luaG_new_require, 1 /*upvalues*/);
+        lua_setglobal(L, "require");
     }
     else
     {
         // [-1]: nil
-        lua_pop( L, 1);
+        lua_pop(L, 1);
     }
 
-    STACK_END( L, 0);
+    STACK_CHECK(L, 0);
 }
 
 // ################################################################################################
@@ -176,7 +176,7 @@ static void open1lib( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L, char con
             {
                 bool const isLanesCore{ libfunc == require_lanes_core }; // don't want to create a global for "lanes.core"
                 DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening %.*s library\n" INDENT_END, (int) len_, name_));
-                STACK_CHECK( L, 0);
+                STACK_CHECK_START_REL(L, 0);
                 // open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
                 luaL_requiref( L, name_, libfunc, !isLanesCore);
                 // lanes.core doesn't declare a global, so scan it here and now
@@ -185,7 +185,7 @@ static void open1lib( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L, char con
                     populate_func_lookup_table( L, -1, name_);
                 }
                 lua_pop( L, 1);
-                STACK_END( L, 0);
+                STACK_CHECK( L, 0);
             }
             break;
         }
@@ -197,8 +197,8 @@ static void open1lib( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L, char con
 static void copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2)
 {
     STACK_GROW( L, 2);
-    STACK_CHECK( L, 0);
-    STACK_CHECK( L2, 0);
+    STACK_CHECK_START_REL(L, 0);
+    STACK_CHECK_START_REL(L2, 0);
 
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "copy_one_time_settings()\n" INDENT_END));
     DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
@@ -211,31 +211,31 @@ static void copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2)
     }
     // set L2:_R[CONFIG_REGKEY] = settings
     CONFIG_REGKEY.set_registry(L2, [](lua_State* L) { lua_insert(L, -2); });                                    // config
-    STACK_END( L2, 0);
-    STACK_END( L, 0);
+    STACK_CHECK( L2, 0);
+    STACK_CHECK( L, 0);
     DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
 }
 
 void initialize_on_state_create( Universe* U, lua_State* L)
 {
-    STACK_CHECK( L, 0);
-    lua_getfield( L, -1, "on_state_create");              // settings on_state_create|nil
-    if( !lua_isnil( L, -1))
+    STACK_CHECK_START_REL(L, 1);                             // settings
+    lua_getfield(L, -1, "on_state_create");                  // settings on_state_create|nil
+    if( !lua_isnil(L, -1))
     {
         // store C function pointer in an internal variable
-        U->on_state_create_func = lua_tocfunction( L, -1);  // settings on_state_create
+        U->on_state_create_func = lua_tocfunction(L, -1);    // settings on_state_create
         if (U->on_state_create_func != nullptr)
         {
             // make sure the function doesn't have upvalues
-            char const* upname = lua_getupvalue( L, -1, 1);   // settings on_state_create upval?
+            char const* upname = lua_getupvalue(L, -1, 1);   // settings on_state_create upval?
             if (upname != nullptr) // should be "" for C functions with upvalues if any
             {
-                (void) luaL_error( L, "on_state_create shouldn't have upvalues");
+                (void) luaL_error(L, "on_state_create shouldn't have upvalues");
             }
             // remove this C function from the config table so that it doesn't cause problems
             // when we transfer the config table in newly created Lua states
-            lua_pushnil( L);                                  // settings on_state_create nil
-            lua_setfield( L, -3, "on_state_create");          // settings on_state_create
+            lua_pushnil(L);                                  // settings on_state_create nil
+            lua_setfield(L, -3, "on_state_create");          // settings on_state_create
         }
         else
         {
@@ -243,8 +243,8 @@ void initialize_on_state_create( Universe* U, lua_State* L)
             U->on_state_create_func = (lua_CFunction) initialize_on_state_create;
         }
     }
-    lua_pop( L, 1);                                       // settings
-    STACK_END( L, 0);
+    lua_pop(L, 1);                                           // settings
+    STACK_CHECK(L, 1);
 }
 
 lua_State* create_state( Universe* U, lua_State* from_)
@@ -282,7 +282,7 @@ void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, LookupMo
 {
     if (U->on_state_create_func != nullptr)
     {
-        STACK_CHECK( L, 0);
+        STACK_CHECK_START_REL(L, 0);
         DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "calling on_state_create()\n" INDENT_END));
         if( U->on_state_create_func != (lua_CFunction) initialize_on_state_create)
         {
@@ -295,20 +295,21 @@ void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, LookupMo
             {
                 // if attempting to call in a keeper state, do nothing because the function doesn't exist there
                 // this doesn't count as an error though
+                STACK_CHECK(L, 0);
                 return;
             }
             CONFIG_REGKEY.query_registry(L);                                            // {}
-            STACK_MID( L, 1);
+            STACK_CHECK( L, 1);
             lua_getfield( L, -1, "on_state_create");                                    // {} on_state_create()
             lua_remove( L, -2);                                                         // on_state_create()
         }
-        STACK_MID( L, 1);
+        STACK_CHECK( L, 1);
         // capture error and raise it in caller state
         if( lua_pcall( L, 0, 0, 0) != LUA_OK)
         {
             luaL_error( from_, "on_state_create failed: \"%s\"", lua_isstring( L, -1) ? lua_tostring( L, -1) : lua_typename( L, lua_type( L, -1)));
         }
-        STACK_END( L, 0);
+        STACK_CHECK( L, 0);
     }
 }
 
@@ -330,16 +331,16 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
     lua_State* L = create_state( U, from_);
 
     STACK_GROW( L, 2);
-    STACK_CHECK_ABS( L, 0);
+    STACK_CHECK_START_ABS(L, 0);
 
     // copy the universe as a light userdata (only the master state holds the full userdata)
     // that way, if Lanes is required in this new state, we'll know we are part of this universe
     universe_store( L, U);
-    STACK_MID( L, 0);
+    STACK_CHECK(L, 0);
 
     // we'll need this every time we transfer some C function from/to this state
     LOOKUP_REGKEY.set_registry(L, [](lua_State* L) { lua_newtable(L); });
-    STACK_MID( L, 0);
+    STACK_CHECK(L, 0);
 
     // neither libs (not even 'base') nor special init func: we are done
     if (libs_ == nullptr && U->on_state_create_func == nullptr)
@@ -386,7 +387,7 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
 #endif // LUA_VERSION_NUM
         }
     }
-    STACK_END( L, 0);
+    STACK_CHECK(L, 0);
 
     // scan all libraries, open them one by one
     if( libs_)
@@ -414,9 +415,10 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
     // will raise an error in from_ in case of problem
     call_on_state_create( U, L, from_, eLM_LaneBody);
 
-    STACK_CHECK( L, 0);
+    STACK_CHECK(L, 0);
     // after all this, register everything we find in our name<->function database
     lua_pushglobaltable( L); // Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
+    STACK_CHECK(L, 1);
     populate_func_lookup_table(L, -1, nullptr);
 
 #if 0 && USE_DEBUG_SPEW()
@@ -436,7 +438,7 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
 #endif // USE_DEBUG_SPEW()
 
     lua_pop( L, 1);
-    STACK_END( L, 0);
-    DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+    STACK_CHECK(L, 0);
+    DEBUGSPEW_CODE(--U->debugspew_indent_depth);
     return L;
 }

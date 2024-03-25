@@ -10,6 +10,8 @@ extern "C" {
 }
 #endif // __cplusplus
 
+#include <cassert>
+
 #define USE_DEBUG_SPEW() 0
 #if USE_DEBUG_SPEW()
 extern char const* debugspew_indent;
@@ -27,53 +29,89 @@ extern char const* debugspew_indent;
 #ifdef NDEBUG
 
 #define _ASSERT_L(lua,c)     //nothing
-#define STACK_CHECK(L,o)     //nothing
-#define STACK_CHECK_ABS(L,o) //nothing
-#define STACK_MID(L,c)       //nothing
-#define STACK_END(L,c)       //nothing
 #define STACK_DUMP(L)        //nothing
+
+#define STACK_CHECK_START_REL(L, offset_)
+#define STACK_CHECK_START_ABS(L, offset_)
+#define STACK_CHECK_RESET_REL(L, offset_)
+#define STACK_CHECK_RESET_ABS(L, offset_)
+#define STACK_CHECK(L, offset_)
 
 #else // NDEBUG
 
 #define _ASSERT_L( L, cond_) if( (cond_) == 0) { (void) luaL_error( L, "ASSERT failed: %s:%d '%s'", __FILE__, __LINE__, #cond_);}
+#define STACK_DUMP( L)    luaG_dump( L)
 
-#define STACK_CHECK( L, offset_) \
-    { \
-        int const L##_delta = offset_; \
-        if( (L##_delta < 0) || (lua_gettop( L) < L##_delta)) \
-        { \
-            assert( false); \
-            (void) luaL_error( L, "STACK INIT ASSERT failed (%d not %d): %s:%d", lua_gettop( L), L##_delta, __FILE__, __LINE__); \
-        } \
-        int const L##_oldtop = lua_gettop( L) - L##_delta
+class StackChecker
+{
+    private:
+    lua_State* const m_L;
+    int m_oldtop;
 
-#define STACK_CHECK_ABS( L, offset_) \
-    { \
-        int const L##_pos = offset_; \
-        if( lua_gettop( L) < L##_pos) \
-        { \
-            assert( false); \
-            (void) luaL_error( L, "STACK INIT ASSERT failed (%d not %d): %s:%d", lua_gettop( L), L##_pos, __FILE__, __LINE__); \
-        } \
-        int const L##_oldtop = 0
+    public:
+    struct Relative
+    {
+        int const m_offset;
 
-#define STACK_MID( L, change) \
-        do if( change != LUA_MULTRET) \
-        { \
-            int stack_check_a = lua_gettop( L) - L##_oldtop; \
-            int stack_check_b = (change); \
-            if( stack_check_a != stack_check_b) \
-            { \
-                assert( false); \
-                luaL_error( L, "STACK ASSERT failed (%d not %d): %s:%d", stack_check_a, stack_check_b, __FILE__, __LINE__); \
-            } \
-        } while( 0)
+        operator int() const { return m_offset; }
+    };
 
-#define STACK_END( L, change) \
-        STACK_MID( L, change); \
+    struct Absolute
+    {
+        int const m_offset;
+
+        operator int() const { return m_offset; }
+    };
+
+    StackChecker(lua_State* const L_, Relative offset_, char const* file_, size_t const line_)
+    : m_L{ L_ }
+    , m_oldtop{ lua_gettop(L_) - offset_ }
+    {
+        if ((offset_ < 0) || (m_oldtop < 0))
+        {
+            assert(false);
+            (void) luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%d", lua_gettop(m_L), offset_, file_, line_);
+        }
     }
 
-#define STACK_DUMP( L)    luaG_dump( L)
+    StackChecker(lua_State* const L_, Absolute pos_, char const* file_, size_t const line_)
+    : m_L{ L_ }
+    , m_oldtop{ 0 }
+    {
+        if (lua_gettop(m_L) != pos_)
+        {
+            assert(false);
+            (void) luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%d", lua_gettop(m_L), pos_, file_, line_);
+        }
+    }
+
+    StackChecker& operator=(StackChecker const& rhs_)
+    {
+        assert(m_L == rhs_.m_L);
+        m_oldtop = rhs_.m_oldtop;
+        return *this;
+    }
+
+    // verify if the distance between the current top and the initial one is what we expect
+    void check(int expected_, char const* file_, size_t const line_)
+    {
+        if (expected_ != LUA_MULTRET)
+        {
+            int const actual{ lua_gettop(m_L) - m_oldtop };
+            if (actual != expected_)
+            {
+                assert(false);
+                luaL_error(m_L, "STACK ASSERT failed (%d not %d): %s:%d", actual, expected_, file_, line_);
+            }
+        }
+    }
+};
+
+#define STACK_CHECK_START_REL(L, offset_) StackChecker stackChecker_##L(L, StackChecker::Relative{ offset_ }, __FILE__, __LINE__)
+#define STACK_CHECK_START_ABS(L, offset_) StackChecker stackChecker_##L(L, StackChecker::Absolute{ offset_ }, __FILE__, __LINE__)
+#define STACK_CHECK_RESET_REL(L, offset_) stackChecker_##L = StackChecker{L, StackChecker::Relative{ offset_ }, __FILE__, __LINE__}
+#define STACK_CHECK_RESET_ABS(L, offset_) stackChecker_##L = StackChecker{L, StackChecker::Absolute{ offset_ }, __FILE__, __LINE__}
+#define STACK_CHECK(L, offset_) stackChecker_##L.check(offset_, __FILE__, __LINE__)
 
 #endif // NDEBUG
 

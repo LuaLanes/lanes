@@ -52,6 +52,13 @@ for key,count in pairs(fifo_linda:count(A.channel, B.channel)) do
     print("channel " .. key .. " contains " .. count .. " entries.")
     -- print(i, key_count[1], key_count[2])
 end
+print "Dumping linda stats.. [3]" -- count everything
+for key,contents in pairs(fifo_linda:dump()) do
+    print("channel " .. key .. ": limit=".. contents.limit, " first=" .. contents.first, " count=" .. contents.count)
+    for k,v in pairs(contents.fifo) do
+        print("[".. k.."] = " .. v)
+    end
+end
 
 print "Reading A.."
 print( A:receive( 1.0))
