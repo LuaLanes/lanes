@@ -35,6 +35,7 @@
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerCommandArguments>-i deeptest.lua</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
+    <RemoteDebuggerCommandArguments>-i deeptest.lua</RemoteDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">
     <LocalDebuggerCommand>$(SolutionDir)..\MoonJIT\bin\$(Platform)\moonjit.exe</LocalDebuggerCommand>
