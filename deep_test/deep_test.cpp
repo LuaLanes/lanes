@@ -8,9 +8,8 @@
 // ################################################################################################
 
 // a lanes-deep userdata. needs DeepPrelude and luaG_newdeepuserdata from Lanes code.
-struct MyDeepUserdata
+struct MyDeepUserdata : public DeepPrelude // Deep userdata MUST start with a DeepPrelude
 {
-	DeepPrelude prelude; // Deep userdata MUST start with this header
 	lua_Integer val{ 0 };
 };
 

@@ -8,8 +8,9 @@ extern "C" {
 }
 #endif // __cplusplus
 
-#include "threading.h"
 #include "macros_and_utils.h"
+
+#include <mutex>
 
 // forwards
 struct DeepPrelude;
@@ -28,15 +29,15 @@ struct Lane;
 // everything we need to provide to lua_newstate()
 struct AllocatorDefinition
 {
-    lua_Alloc allocF;
-    void* allocUD;
+    lua_Alloc allocF{ nullptr };
+    void* allocUD{ nullptr };
 };
 
 // mutex-protected allocator for use with Lua states that share a non-threadsafe allocator
 struct ProtectedAllocator
 {
     AllocatorDefinition definition;
-    MUTEX_T lock;
+    std::mutex lock;
 };
 
 // ################################################################################################
@@ -47,15 +48,15 @@ struct ProtectedAllocator
 struct Universe
 {
     // for verbose errors
-    bool verboseErrors;
+    bool verboseErrors{ false };
 
-    bool demoteFullUserdata;
+    bool demoteFullUserdata{ false };
 
     // before a state is created, this function will be called to obtain the allocator
-    lua_CFunction provide_allocator;
+    lua_CFunction provide_allocator{ nullptr };
 
     // after a state is created, this function will be called right after the bases libraries are loaded
-    lua_CFunction on_state_create_func;
+    lua_CFunction on_state_create_func{ nullptr };
 
     // if allocator="protected" is found in the configuration settings, a wrapper allocator will protect all allocator calls with a mutex
     // contains a mutex and the original allocator definition
@@ -63,38 +64,34 @@ struct Universe
 
     AllocatorDefinition internal_allocator;
 
-    Keepers* keepers;
+    Keepers* keepers{ nullptr };
 
     // Initialized by 'init_once_LOCKED()': the deep userdata Linda object
     // used for timers (each lane will get a proxy to this)
-    volatile DeepPrelude* timer_deep;  // = nullptr
+    volatile DeepPrelude* timer_deep{ nullptr }; // = nullptr
 
 #if HAVE_LANE_TRACKING()
-    MUTEX_T tracking_cs;
-    Lane* volatile tracking_first; // will change to TRACKING_END if we want to activate tracking
+    std::mutex tracking_cs;
+    Lane* volatile tracking_first{ nullptr }; // will change to TRACKING_END if we want to activate tracking
 #endif // HAVE_LANE_TRACKING()
 
-    MUTEX_T selfdestruct_cs;
+    std::mutex selfdestruct_cs;
 
     // require() serialization
-    MUTEX_T require_cs;
+    std::recursive_mutex require_cs;
 
-    // Lock for reference counter inc/dec locks (to be initialized by outside code) TODO: get rid of this and use atomics instead!
-    MUTEX_T deep_lock;
-    MUTEX_T mtid_lock;
-
-    lua_Integer last_mt_id;
+    std::atomic<lua_Integer> last_mt_id{ 0 };
 
 #if USE_DEBUG_SPEW()
-    int debugspew_indent_depth;
+    int debugspew_indent_depth{ 0 };
 #endif // USE_DEBUG_SPEW()
 
-    Lane* volatile selfdestruct_first;
+    Lane* volatile selfdestruct_first{ nullptr };
     // After a lane has removed itself from the chain, it still performs some processing.
     // The terminal desinit sequence should wait for all such processing to terminate before force-killing threads
-    int volatile selfdestructing_count;
+    int volatile selfdestructing_count{ 0 };
 };
 
-Universe* universe_get( lua_State* L);
-Universe* universe_create( lua_State* L);
-void universe_store( lua_State* L, Universe* U);
+Universe* universe_get(lua_State* L);
+Universe* universe_create(lua_State* L);
+void universe_store(lua_State* L, Universe* U);

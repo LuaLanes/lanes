@@ -143,10 +143,13 @@ static inline luaG_IdFunction* get_idfunc( lua_State* L, int index, LookupMode m
 
 void free_deep_prelude( lua_State* L, DeepPrelude* prelude_)
 {
+    ASSERT_L(prelude_->idfunc);
+    STACK_CHECK_START_REL(L, 0);
     // Call 'idfunc( "delete", deep_ptr )' to make deep cleanup
     lua_pushlightuserdata( L, prelude_);
-    ASSERT_L( prelude_->idfunc);
     prelude_->idfunc( L, eDO_delete);
+    lua_pop(L, 1);
+    STACK_CHECK(L, 0);
 }
 
 
@@ -160,14 +163,10 @@ static int deep_userdata_gc( lua_State* L)
 {
     DeepPrelude** proxy = (DeepPrelude**) lua_touserdata( L, 1);
     DeepPrelude* p = *proxy;
-    Universe* U = universe_get( L);
-    int v;
 
     // can work without a universe if creating a deep userdata from some external C module when Lanes isn't loaded
     // in that case, we are not multithreaded and locking isn't necessary anyway
-    if( U) MUTEX_LOCK( &U->deep_lock);
-    v = -- (p->refcount);
-    if (U) MUTEX_UNLOCK( &U->deep_lock);
+    int v{ p->m_refcount.fetch_sub(1, std::memory_order_relaxed) };
 
     if( v == 0)
     {
@@ -202,7 +201,7 @@ static int deep_userdata_gc( lua_State* L)
  * used in this Lua state (metatable, registring it). Otherwise, increments the
  * reference count.
  */
-char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, int nuv_, LookupMode mode_)
+char const* push_deep_proxy(lua_State* L, DeepPrelude* prelude, int nuv_, LookupMode mode_)
 {
     DeepPrelude** proxy;
 
@@ -220,12 +219,6 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
         lua_pop( L, 1);                                                                                // DPC
     }
 
-    // can work without a universe if creating a deep userdata from some external C module when Lanes isn't loaded
-    // in that case, we are not multithreaded and locking isn't necessary anyway
-    if( U) MUTEX_LOCK( &U->deep_lock);
-    ++ (prelude->refcount);  // one more proxy pointing to this deep data
-    if( U) MUTEX_UNLOCK( &U->deep_lock);
-
     STACK_GROW( L, 7);
     STACK_CHECK_START_REL(L, 0);
 
@@ -233,6 +226,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
     proxy = (DeepPrelude**) lua_newuserdatauv( L, sizeof(DeepPrelude*), nuv_);                         // DPC proxy
     ASSERT_L( proxy);
     *proxy = prelude;
+    prelude->m_refcount.fetch_add(1, std::memory_order_relaxed); // one more proxy pointing to this deep data
 
     // Get/create metatable for 'idfunc' (in this state)
     lua_pushlightuserdata( L, (void*)(ptrdiff_t)(prelude->idfunc));                                    // DPC proxy idfunc
@@ -378,39 +372,38 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
 */
 int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction* idfunc, int nuv_)
 {
-    char const* errmsg;
-
     STACK_GROW( L, 1);
     STACK_CHECK_START_REL(L, 0);
+    int const oldtop{ lua_gettop(L) };
+    DeepPrelude* const prelude{ static_cast<DeepPrelude*>(idfunc(L, eDO_new)) };
+    if (prelude == nullptr)
     {
-        int const oldtop = lua_gettop( L);
-        DeepPrelude* prelude = (DeepPrelude*) idfunc( L, eDO_new);
-        if (prelude == nullptr)
-        {
-            return luaL_error( L, "idfunc(eDO_new) failed to create deep userdata (out of memory)");
-        }
-        if( prelude->magic != DEEP_VERSION)
-        {
-            // just in case, don't leak the newly allocated deep userdata object
-            lua_pushlightuserdata( L, prelude);
-            idfunc( L, eDO_delete);
-            return luaL_error( L, "Bad idfunc(eDO_new): DEEP_VERSION is incorrect, rebuild your implementation with the latest deep implementation");
-        }
-        prelude->refcount = 0; // 'push_deep_proxy' will lift it to 1
-        prelude->idfunc = idfunc;
+        return luaL_error( L, "idfunc(eDO_new) failed to create deep userdata (out of memory)");
+    }
 
-        if( lua_gettop( L) - oldtop != 0)
-        {
-            // just in case, don't leak the newly allocated deep userdata object
-            lua_pushlightuserdata( L, prelude);
-            idfunc( L, eDO_delete);
-            return luaL_error( L, "Bad idfunc(eDO_new): should not push anything on the stack");
-        }
-        errmsg = push_deep_proxy( universe_get( L), L, prelude, nuv_, eLM_LaneBody);  // proxy
-        if (errmsg != nullptr)
-        {
-            return luaL_error( L, errmsg);
-        }
+    if( prelude->magic != DEEP_VERSION)
+    {
+        // just in case, don't leak the newly allocated deep userdata object
+        lua_pushlightuserdata( L, prelude);
+        idfunc( L, eDO_delete);
+        return luaL_error( L, "Bad idfunc(eDO_new): DEEP_VERSION is incorrect, rebuild your implementation with the latest deep implementation");
+    }
+
+    ASSERT_L(prelude->m_refcount.load(std::memory_order_relaxed) == 0); // 'push_deep_proxy' will lift it to 1
+    prelude->idfunc = idfunc;
+
+    if( lua_gettop( L) - oldtop != 0)
+    {
+        // just in case, don't leak the newly allocated deep userdata object
+        lua_pushlightuserdata( L, prelude);
+        idfunc( L, eDO_delete);
+        return luaL_error( L, "Bad idfunc(eDO_new): should not push anything on the stack");
+    }
+
+    char const* const errmsg{ push_deep_proxy(L, prelude, nuv_, eLM_LaneBody) }; // proxy
+    if (errmsg != nullptr)
+    {
+        return luaL_error( L, errmsg);
     }
     STACK_CHECK( L, 1);
     return 1;
@@ -471,7 +464,7 @@ bool copydeep(Universe* U, lua_State* L2, int L2_cache_i, lua_State* L, int i, L
     lua_pop( L, 1);                                                                      // ... u [uv]*
     STACK_CHECK( L, nuv);
 
-    errmsg = push_deep_proxy( U, L2, *(DeepPrelude**) lua_touserdata( L, i), nuv, mode_);                   // u
+    errmsg = push_deep_proxy(L2, *(DeepPrelude**) lua_touserdata( L, i), nuv, mode_);                   // u
 
     // transfer all uservalues of the source in the destination
     {

@@ -174,9 +174,9 @@ static void* protected_lua_Alloc( void *ud, void *ptr, size_t osize, size_t nsiz
 {
     void* p;
     ProtectedAllocator* s = (ProtectedAllocator*) ud;
-    MUTEX_LOCK( &s->lock);
+    s->lock.lock();
     p = s->definition.allocF( s->definition.allocUD, ptr, osize, nsize);
-    MUTEX_UNLOCK( &s->lock);
+    s->lock.unlock();
     return p;
 }
 
@@ -214,9 +214,7 @@ void initialize_allocator_function( Universe* U, lua_State* L)
         }
         else if( lua_type( L, -1) == LUA_TSTRING) // should be "protected"
         {
-            // initialize all we need for the protected allocator
-            MUTEX_INIT( &U->protected_allocator.lock); // the mutex
-            // and the original allocator to call from inside protection by the mutex
+            // set the original allocator to call from inside protection by the mutex
             U->protected_allocator.definition.allocF = lua_getallocf( L, &U->protected_allocator.definition.allocUD);
             // before a state is created, this function will be called to obtain the allocator
             U->provide_allocator = luaG_provide_protected_allocator;
@@ -226,8 +224,6 @@ void initialize_allocator_function( Universe* U, lua_State* L)
     }
     else
     {
-        // initialize the mutex even if we are not going to use it, because cleanup_allocator_function will deinitialize it
-        MUTEX_INIT( &U->protected_allocator.lock);
         // just grab whatever allocator was provided to lua_newstate
         U->protected_allocator.definition.allocF = lua_getallocf( L, &U->protected_allocator.definition.allocUD);
     }
@@ -258,8 +254,6 @@ void cleanup_allocator_function( Universe* U, lua_State* L)
     {
         // install the non-protected allocator
         lua_setallocf( L, U->protected_allocator.definition.allocF, U->protected_allocator.definition.allocUD);
-        // release the mutex
-        MUTEX_FREE( &U->protected_allocator.lock);
     }
 }
 
@@ -645,15 +639,13 @@ static lua_Integer get_mt_id( Universe* U, lua_State* L, int i)
     lua_pushvalue( L, i);                        // ... _R[REG_MTID] {mt}
     lua_rawget( L, -2);                          // ... _R[REG_MTID] mtk?
 
-    id = lua_tointeger( L, -1);    // 0 for nil
+    id = lua_tointeger( L, -1); // 0 for nil
     lua_pop( L, 1);                              // ... _R[REG_MTID]
     STACK_CHECK( L, 1);
 
     if( id == 0)
     {
-        MUTEX_LOCK( &U->mtid_lock);
-        id = ++ U->last_mt_id;
-        MUTEX_UNLOCK( &U->mtid_lock);
+        id = U->last_mt_id.fetch_add(1, std::memory_order_relaxed);
 
         /* Create two-way references: id_uint <-> table
         */

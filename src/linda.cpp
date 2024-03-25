@@ -791,8 +791,8 @@ static void* linda_id( lua_State* L, DeepOp op_)
             * One can use any memory allocation scheme.
             * just don't use L's allocF because we don't know which state will get the honor of GCing the linda
             */
+            Universe* const U = universe_get(L);
             {
-                Universe* const U = universe_get(L);
                 AllocatorDefinition* const allocD = &U->internal_allocator;
                 s = (struct s_Linda*) allocD->allocF(allocD->allocUD, nullptr, 0, sizeof(struct s_Linda) + name_len); // terminating 0 is already included
             }
@@ -801,7 +801,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
                 s->prelude.DeepPrelude::DeepPrelude();
                 SIGNAL_INIT( &s->read_happened);
                 SIGNAL_INIT( &s->write_happened);
-                s->U = universe_get( L);
+                s->U = U;
                 s->simulate_cancel = CancelRequest::None;
                 s->group = linda_group << KEEPER_MAGIC_SHIFT;
                 s->name[0] = 0;
@@ -828,9 +828,9 @@ static void* linda_id( lua_State* L, DeepOp op_)
             // There aren't any lanes waiting on these lindas, since all proxies have been gc'ed. Right?
             SIGNAL_FREE( &linda->read_happened);
             SIGNAL_FREE( &linda->write_happened);
+            linda->prelude.DeepPrelude::~DeepPrelude();
             {
-                Universe* const U = universe_get(L);
-                AllocatorDefinition* const allocD = &U->internal_allocator;
+                AllocatorDefinition* const allocD = &linda->U->internal_allocator;
                 (void) allocD->allocF(allocD->allocUD, linda, sizeof(struct s_Linda) + strlen(linda->name), 0);
             }
             return nullptr;

@@ -72,11 +72,11 @@ static int luaG_new_require( lua_State* L)
 
     // Using 'lua_pcall()' to catch errors; otherwise a failing 'require' would
     // leave us locked, blocking any future 'require' calls from other lanes.
-    
-    MUTEX_LOCK( &U->require_cs);
+
+    U->require_cs.lock();
     // starting with Lua 5.4, require may return a second optional value, so we need LUA_MULTRET
     rc = lua_pcall( L, args, LUA_MULTRET, 0 /*errfunc*/ ); // err|result(s)
-    MUTEX_UNLOCK( &U->require_cs);
+    U->require_cs.unlock();
 
     // the required module (or an error message) is left on the stack as returned value by original require function
 
