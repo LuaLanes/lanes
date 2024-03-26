@@ -38,7 +38,6 @@ int luaG_nameof( lua_State* L);
 
 void populate_func_lookup_table( lua_State* L, int _i, char const* _name);
 void initialize_allocator_function( Universe* U, lua_State* L);
-void cleanup_allocator_function( Universe* U, lua_State* L);
 
 // ################################################################################################
 

@@ -27,17 +27,91 @@ struct Lane;
 // ################################################################################################
 
 // everything we need to provide to lua_newstate()
-struct AllocatorDefinition
+class AllocatorDefinition
 {
-    lua_Alloc allocF{ nullptr };
-    void* allocUD{ nullptr };
+    public:
+
+    lua_Alloc m_allocF{ nullptr };
+    void* m_allocUD{ nullptr };
+
+    static void* operator new(size_t size_, lua_State* L) noexcept { return lua_newuserdatauv(L, size_, 0); }
+    // always embedded somewhere else or "in-place constructed" as a full userdata
+    // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
+    static void operator delete(void* p_, lua_State* L) { ASSERT_L(!"should never be called") };
+
+    AllocatorDefinition(lua_Alloc allocF_, void* allocUD_) noexcept
+    : m_allocF{ allocF_ }
+    , m_allocUD{ allocUD_ }
+    {
+    }
+    AllocatorDefinition() = default;
+    AllocatorDefinition(AllocatorDefinition const& rhs_) = default;
+    AllocatorDefinition(AllocatorDefinition&& rhs_) = default;
+    AllocatorDefinition& operator=(AllocatorDefinition const& rhs_) = default;
+    AllocatorDefinition& operator=(AllocatorDefinition&& rhs_) = default;
+
+    void initFrom(lua_State* L)
+    {
+        m_allocF = lua_getallocf(L, &m_allocUD);
+    }
+
+    void* lua_alloc(void* ptr_, size_t osize_, size_t nsize_)
+    {
+        m_allocF(m_allocUD, ptr_, osize_, nsize_);
+    }
+
+    void* alloc(size_t nsize_)
+    {
+        return m_allocF(m_allocUD, nullptr, 0, nsize_);
+    }
+
+    void free(void* ptr_, size_t osize_)
+    {
+        std::ignore = m_allocF(m_allocUD, ptr_, osize_, 0);
+    }
 };
 
+// ################################################################################################
+
 // mutex-protected allocator for use with Lua states that share a non-threadsafe allocator
-struct ProtectedAllocator
+class ProtectedAllocator : public AllocatorDefinition
 {
-    AllocatorDefinition definition;
-    std::mutex lock;
+    private:
+
+    std::mutex m_lock;
+
+    static void* protected_lua_Alloc(void* ud_, void* ptr_, size_t osize_, size_t nsize_)
+    {
+        ProtectedAllocator* const s{ static_cast<ProtectedAllocator*>(ud_) };
+        std::lock_guard<std::mutex> guard{ s->m_lock };
+        return s->m_allocF(s->m_allocUD, ptr_, osize_, nsize_);
+    }
+
+    public:
+
+    // we are not like our base class: we can't be created inside a full userdata (or we would have to install a metatable and __gc handler to destroy ourselves properly)
+    static void* operator new(size_t size_, lua_State* L) noexcept = delete;
+    static void operator delete(void* p_, lua_State* L) = delete;
+
+    AllocatorDefinition makeDefinition()
+    {
+        return AllocatorDefinition{ protected_lua_Alloc, this};
+    }
+
+    void installIn(lua_State* L)
+    {
+        lua_setallocf(L, protected_lua_Alloc, this);
+    }
+
+    void removeFrom(lua_State* L)
+    {
+        // remove the protected allocator, if any
+        if (m_allocF != nullptr)
+        {
+            // install the non-protected allocator
+            lua_setallocf(L, m_allocF, m_allocUD);
+        }
+    }
 };
 
 // ################################################################################################

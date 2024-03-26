@@ -614,11 +614,8 @@ void close_keepers(Universe* U)
             MUTEX_FREE(&U->keepers->keeper_array[i].keeper_cs);
         }
         // free the keeper bookkeeping structure
-        {
-            AllocatorDefinition* const allocD = &U->internal_allocator;
-            std::ignore = allocD->allocF(allocD->allocUD, U->keepers, sizeof(Keepers) + (nbKeepers - 1) * sizeof(Keeper), 0);
-            U->keepers = nullptr;
-        }
+        U->internal_allocator.free(U->keepers, sizeof(Keepers) + (nbKeepers - 1) * sizeof(Keeper));
+        U->keepers = nullptr;
     }
 }
 
@@ -649,10 +646,7 @@ void init_keepers(Universe* U, lua_State* L)
     // Keepers contains an array of 1 Keeper, adjust for the actual number of keeper states
     {
         size_t const bytes = sizeof(Keepers) + (nb_keepers - 1) * sizeof(Keeper);
-        {
-            AllocatorDefinition* const allocD = &U->internal_allocator;
-            U->keepers = (Keepers*) allocD->allocF(allocD->allocUD, nullptr, 0, bytes);
-        }
+        U->keepers = static_cast<Keepers*>(U->internal_allocator.alloc(bytes));
         if (U->keepers == nullptr)
         {
             (void) luaL_error(L, "init_keepers() failed while creating keeper array; out of memory");

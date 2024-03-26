@@ -47,4 +47,6 @@ end
 
 -- wait for completion
 linda:receive( linda.batched, "key", COUNT)
+print "waiting a bit more ..."
+linda:receive( 1, "foo")
 print "SUCCESS"

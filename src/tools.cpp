@@ -156,105 +156,92 @@ void luaG_dump( lua_State* L)
 // ################################################################################################
 
 // same as PUC-Lua l_alloc
-static void* libc_lua_Alloc(void* ud, void* ptr, size_t osize, size_t nsize)
+extern "C" static void* libc_lua_Alloc([[maybe_unused]] void* ud, [[maybe_unused]] void* ptr_, size_t osize_, size_t nsize_)
 {
-    (void)ud; (void)osize;  /* not used */
-    if (nsize == 0)
+    if (nsize_ == 0)
     {
-        free(ptr);
+        free(ptr_);
         return nullptr;
     }
     else
     {
-        return realloc(ptr, nsize);
+        return realloc(ptr_, nsize_);
     }
 }
 
-static void* protected_lua_Alloc( void *ud, void *ptr, size_t osize, size_t nsize)
-{
-    void* p;
-    ProtectedAllocator* s = (ProtectedAllocator*) ud;
-    s->lock.lock();
-    p = s->definition.allocF( s->definition.allocUD, ptr, osize, nsize);
-    s->lock.unlock();
-    return p;
-}
+// #################################################################################################
 
-static int luaG_provide_protected_allocator( lua_State* L)
+static int luaG_provide_protected_allocator(lua_State* L)
 {
-    Universe* U = universe_get( L);
-    AllocatorDefinition* const def = (AllocatorDefinition*) lua_newuserdatauv( L, sizeof(AllocatorDefinition), 0);
-    def->allocF = protected_lua_Alloc;
-    def->allocUD = &U->protected_allocator;
+    Universe* const U{ universe_get(L) };
+    // push a new full userdata on the stack, giving access to the universe's protected allocator
+    AllocatorDefinition* const def{ new (L) AllocatorDefinition{ U->protected_allocator.makeDefinition() } };
     return 1;
 }
 
+// #################################################################################################
+
 // called once at the creation of the universe (therefore L is the master Lua state everything originates from)
 // Do I need to disable this when compiling for LuaJIT to prevent issues?
-void initialize_allocator_function( Universe* U, lua_State* L)
+void initialize_allocator_function(Universe* U, lua_State* L)
 {
     STACK_CHECK_START_REL(L, 1);                            // settings
-    lua_getfield( L, -1, "allocator");                      // settings allocator|nil|"protected"
-    if( !lua_isnil( L, -1))
+    lua_getfield(L, -1, "allocator");                       // settings allocator|nil|"protected"
+    if (!lua_isnil(L, -1))
     {
         // store C function pointer in an internal variable
-        U->provide_allocator = lua_tocfunction( L, -1);     // settings allocator
+        U->provide_allocator = lua_tocfunction(L, -1);      // settings allocator
         if (U->provide_allocator != nullptr)
         {
             // make sure the function doesn't have upvalues
-            char const* upname = lua_getupvalue( L, -1, 1); // settings allocator upval?
+            char const* upname = lua_getupvalue(L, -1, 1);  // settings allocator upval?
             if (upname != nullptr) // should be "" for C functions with upvalues if any
             {
-                (void) luaL_error( L, "config.allocator() shouldn't have upvalues");
+                (void) luaL_error(L, "config.allocator() shouldn't have upvalues");
             }
             // remove this C function from the config table so that it doesn't cause problems
             // when we transfer the config table in newly created Lua states
-            lua_pushnil( L);                                // settings allocator nil
-            lua_setfield( L, -3, "allocator");              // settings allocator
+            lua_pushnil(L);                                 // settings allocator nil
+            lua_setfield(L, -3, "allocator");               // settings allocator
         }
-        else if( lua_type( L, -1) == LUA_TSTRING) // should be "protected"
+        else if (lua_type(L, -1) == LUA_TSTRING) // should be "protected"
         {
+            ASSERT_L(strcmp(lua_tostring(L, -1), "protected") == 0);
             // set the original allocator to call from inside protection by the mutex
-            U->protected_allocator.definition.allocF = lua_getallocf( L, &U->protected_allocator.definition.allocUD);
+            U->protected_allocator.initFrom(L);
+            U->protected_allocator.installIn(L);
             // before a state is created, this function will be called to obtain the allocator
             U->provide_allocator = luaG_provide_protected_allocator;
-
-            lua_setallocf( L, protected_lua_Alloc, &U->protected_allocator);
         }
     }
     else
     {
         // just grab whatever allocator was provided to lua_newstate
-        U->protected_allocator.definition.allocF = lua_getallocf( L, &U->protected_allocator.definition.allocUD);
+        U->protected_allocator.initFrom(L);
     }
-    lua_pop( L, 1);                                         // settings
+    lua_pop(L, 1);                                          // settings
     STACK_CHECK(L, 1);
 
-    lua_getfield( L, -1, "internal_allocator");             // settings "libc"|"allocator"
+    lua_getfield(L, -1, "internal_allocator");              // settings "libc"|"allocator"
     {
-        char const* allocator = lua_tostring( L, -1);
+        char const* allocator = lua_tostring(L, -1);
         if (strcmp(allocator, "libc") == 0)
         {
-            U->internal_allocator.allocF = libc_lua_Alloc;
-            U->internal_allocator.allocUD = nullptr;
+            U->internal_allocator = AllocatorDefinition{ libc_lua_Alloc, nullptr };
+        }
+        else if (U->provide_allocator = luaG_provide_protected_allocator)
+        {
+            // user wants mutex protection on the state's allocator. Use protection for our own allocations too, just in case.
+            U->internal_allocator = U->protected_allocator.makeDefinition();
         }
         else
         {
-            U->internal_allocator = U->protected_allocator.definition;
+            // no protection required, just use whatever we have as-is.
+            U->internal_allocator = U->protected_allocator;
         }
     }
-    lua_pop( L, 1);                                         // settings
-    STACK_CHECK( L, 1);
-}
-
-void cleanup_allocator_function( Universe* U, lua_State* L)
-{
-    // remove the protected allocator, if any
-    if (U->protected_allocator.definition.allocF != nullptr)
-    {
-        // install the non-protected allocator
-        lua_setallocf( L, U->protected_allocator.definition.allocF, U->protected_allocator.definition.allocUD);
-    }
+    lua_pop(L, 1);                                          // settings
+    STACK_CHECK(L, 1);
 }
 
 // ################################################################################################

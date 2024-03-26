@@ -345,13 +345,12 @@
 				<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 					<tr>
 						<td>
-							<pre>	struct { lua_Alloc allocF; void* allocUD;}</pre>
+							<pre>	struct { lua_Alloc allocF; void* allocUD; }</pre>
 						</td>
 					</tr>
 				</table>
-				The contents will be used to create the state with <tt>lua_newstate( allocF, allocUD)</tt>.
+				The contents will be used to create the state with <tt>lua_newstate(allocF, allocUD)</tt>.
 				This option is mostly useful for embedders that want to provide different allocators to each lane, for example to have each one work in a different memory pool thus preventing the need for the allocator itself to be threadsafe.
-				Note however that linda deep proxy are allocated with the allocator from the master state, because they are not tied to a particular state.
 			</td>
 		</tr>
 
@@ -364,7 +363,7 @@
 			</td>
 			<td>
 				(Since v3.16.1)<br />
-				Controls which allocator is used for Lanest internal allocations (for keeper and deep userdata management).
+				Controls which allocator is used for Lanes internal allocations (for keeper, linda and lane management).
 				If <tt>"libc"</tt>, Lanes uses <tt>realloc</tt> and <tt>free</tt>.<br />
 				If <tt>"allocator"</tt>, Lanes uses whatever was obtained from the <tt>"allocator"</tt> setting.<br />
 				This option is mostly useful for embedders that want control all memory allocations, but have issues when Lanes tries to use the Lua State allocator for internal purposes (especially with LuaJIT).

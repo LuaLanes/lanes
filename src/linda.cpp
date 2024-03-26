@@ -759,7 +759,6 @@ static void* linda_id( lua_State* L, DeepOp op_)
     {
         case eDO_new:
         {
-            struct s_Linda* s;
             size_t name_len = 0;
             char const* linda_name = nullptr;
             unsigned long linda_group = 0;
@@ -791,12 +790,9 @@ static void* linda_id( lua_State* L, DeepOp op_)
             * One can use any memory allocation scheme.
             * just don't use L's allocF because we don't know which state will get the honor of GCing the linda
             */
-            Universe* const U = universe_get(L);
-            {
-                AllocatorDefinition* const allocD = &U->internal_allocator;
-                s = (struct s_Linda*) allocD->allocF(allocD->allocUD, nullptr, 0, sizeof(struct s_Linda) + name_len); // terminating 0 is already included
-            }
-            if( s)
+            Universe* const U{ universe_get(L) };
+            struct s_Linda* s{ static_cast<struct s_Linda*>(U->internal_allocator.alloc(sizeof(struct s_Linda) + name_len)) }; // terminating 0 is already included
+            if (s)
             {
                 s->prelude.DeepPrelude::DeepPrelude();
                 SIGNAL_INIT( &s->read_happened);
@@ -812,12 +808,11 @@ static void* linda_id( lua_State* L, DeepOp op_)
 
         case eDO_delete:
         {
-            Keeper* K;
             struct s_Linda* linda = (struct s_Linda*) lua_touserdata( L, 1);
             ASSERT_L( linda);
 
             // Clean associated structures in the keeper state.
-            K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
+            Keeper* const K{ keeper_acquire(linda->U->keepers, LINDA_KEEPER_HASHSEED(linda)) };
             if( K && K->L) // can be nullptr if this happens during main state shutdown (lanes is GC'ed -> no keepers -> no need to cleanup)
             {
                 // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
@@ -829,10 +824,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             SIGNAL_FREE( &linda->read_happened);
             SIGNAL_FREE( &linda->write_happened);
             linda->prelude.DeepPrelude::~DeepPrelude();
-            {
-                AllocatorDefinition* const allocD = &linda->U->internal_allocator;
-                (void) allocD->allocF(allocD->allocUD, linda, sizeof(struct s_Linda) + strlen(linda->name), 0);
-            }
+            linda->U->internal_allocator.free(linda, sizeof(struct s_Linda) + strlen(linda->name));
             return nullptr;
         }
 

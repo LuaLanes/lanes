@@ -254,10 +254,7 @@ static void lane_cleanup( Lane* s)
     }
 #endif // HAVE_LANE_TRACKING()
 
-    {
-        AllocatorDefinition* const allocD = &s->U->internal_allocator;
-        (void) allocD->allocF(allocD->allocUD, s, sizeof(Lane), 0);
-    }
+    s->U->internal_allocator.free(s, sizeof(Lane));
 }
 
 /*
@@ -584,7 +581,7 @@ static int selfdestruct_gc( lua_State* L)
     close_keepers( U);
 
     // remove the protected allocator, if any
-    cleanup_allocator_function( U, L);
+    U->protected_allocator.removeFrom(L);
 
     U->Universe::~Universe();
 
@@ -1036,10 +1033,6 @@ static constexpr UniqueKey GCCB_KEY{ 0xcfb1f046ef074e88ull };
 //
 LUAG_FUNC( lane_new)
 {
-    lua_State* L2;
-    Lane* s;
-    Lane** ud;
-
     char const* libs_str = lua_tostring( L, 2);
     bool const have_priority{ !lua_isnoneornil(L, 3) };
     int const priority = have_priority ? (int) lua_tointeger( L, 3) : THREAD_PRIO_DEFAULT;
@@ -1066,7 +1059,7 @@ LUAG_FUNC( lane_new)
     DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
 
     // populate with selected libraries at the same time
-    L2 = luaG_newstate( U, L, libs_str);                             // L                                                                      // L2
+    lua_State* const L2{ luaG_newstate(U, L, libs_str) };            // L                                                                      // L2
 
     STACK_GROW( L2, nargs + 3);                                                                                                                //
     STACK_CHECK_START_REL(L2, 0);
@@ -1219,11 +1212,8 @@ LUAG_FUNC( lane_new)
     // 's' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
     //
     // a Lane full userdata needs a single uservalue
-    ud = (Lane**) lua_newuserdatauv( L, sizeof( Lane*), 1);          // func libs priority globals package required gc_cb lane
-    {
-        AllocatorDefinition* const allocD = &U->internal_allocator;
-        s = *ud = (Lane*) allocD->allocF(allocD->allocUD, nullptr, 0, sizeof(Lane));
-    }
+    Lane** const ud{ static_cast<Lane**>(lua_newuserdatauv(L, sizeof(Lane*), 1)) }; // func libs priority globals package required gc_cb lane
+    Lane* const s{ *ud = static_cast<Lane*>(U->internal_allocator.alloc(sizeof(Lane))) }; // don't forget to store the pointer in the userdata!
     if( s == nullptr)
     {
         return luaL_error( L, "could not create lane: out of memory");

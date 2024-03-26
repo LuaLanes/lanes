@@ -260,14 +260,14 @@ lua_State* create_state( Universe* U, lua_State* from_)
         lua_call( from_, 0, 1);
         {
             AllocatorDefinition* const def = (AllocatorDefinition*) lua_touserdata( from_, -1);
-            L = lua_newstate( def->allocF, def->allocUD);
+            L = lua_newstate( def->m_allocF, def->m_allocUD);
         }
         lua_pop( from_, 1);
     }
     else
     {
         // reuse the allocator provided when the master state was created
-        L = lua_newstate( U->protected_allocator.definition.allocF, U->protected_allocator.definition.allocUD);
+        L = lua_newstate(U->protected_allocator.m_allocF, U->protected_allocator.m_allocUD);
     }
 #endif // LUAJIT_FLAVOR() == 64
 
