@@ -142,7 +142,7 @@ struct Universe
 
     // Initialized by 'init_once_LOCKED()': the deep userdata Linda object
     // used for timers (each lane will get a proxy to this)
-    volatile DeepPrelude* timer_deep{ nullptr }; // = nullptr
+    DeepPrelude* timer_deep{ nullptr };
 
 #if HAVE_LANE_TRACKING()
     std::mutex tracking_cs;

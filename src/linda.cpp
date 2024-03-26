@@ -808,7 +808,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
 
         case eDO_delete:
         {
-            struct s_Linda* linda = (struct s_Linda*) lua_touserdata( L, 1);
+            struct s_Linda* const linda{ lua_touserdata<struct s_Linda>(L, 1) };
             ASSERT_L( linda);
 
             // Clean associated structures in the keeper state.

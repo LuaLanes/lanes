@@ -67,7 +67,7 @@ Universe* universe_get(lua_State* L)
     STACK_GROW(L, 2);
     STACK_CHECK_START_REL(L, 0);
     UNIVERSE_REGKEY.query_registry(L);
-    Universe* const universe = static_cast<Universe*>(lua_touserdata(L, -1)); // nullptr if nil
+    Universe* const universe{ lua_touserdata<Universe>(L, -1) }; // nullptr if nil
     lua_pop(L, 1);
     STACK_CHECK(L, 0);
     return universe;

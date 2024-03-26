@@ -124,3 +124,10 @@ inline void STACK_GROW(lua_State* L, int n_)
 }
 
 #define LUAG_FUNC( func_name) int LG_##func_name( lua_State* L)
+
+// a small helper to extract a userdata pointer from the stack
+template<typename T>
+T* lua_touserdata(lua_State* L, int index_)
+{
+    return static_cast<T*>(lua_touserdata(L, index_));
+}
