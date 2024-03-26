@@ -632,7 +632,7 @@ static lua_Integer get_mt_id( Universe* U, lua_State* L, int i)
 
     if( id == 0)
     {
-        id = U->last_mt_id.fetch_add(1, std::memory_order_relaxed);
+        id = U->next_mt_id.fetch_add(1, std::memory_order_relaxed);
 
         /* Create two-way references: id_uint <-> table
         */

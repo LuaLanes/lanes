@@ -154,7 +154,7 @@ struct Universe
     // require() serialization
     std::recursive_mutex require_cs;
 
-    std::atomic<lua_Integer> last_mt_id{ 0 };
+    std::atomic<lua_Integer> next_mt_id{ 1 };
 
 #if USE_DEBUG_SPEW()
     int debugspew_indent_depth{ 0 };
