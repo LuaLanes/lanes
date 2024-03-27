@@ -11,6 +11,7 @@ extern "C" {
 #endif // __cplusplus
 
 #include <cassert>
+#include <type_traits>
 
 #define USE_DEBUG_SPEW() 0
 #if USE_DEBUG_SPEW()
@@ -125,9 +126,24 @@ inline void STACK_GROW(lua_State* L, int n_)
 
 #define LUAG_FUNC( func_name) int LG_##func_name( lua_State* L)
 
-// a small helper to extract a userdata pointer from the stack
+// a small helper to extract a full userdata pointer from the stack in a safe way
 template<typename T>
-T* lua_touserdata(lua_State* L, int index_)
+T* lua_tofulluserdata(lua_State* L, int index_)
 {
+    ASSERT_L(lua_isnil(L, index_) || lua_type(L, index_) == LUA_TUSERDATA);
     return static_cast<T*>(lua_touserdata(L, index_));
+}
+
+template<typename T>
+auto lua_tolightuserdata(lua_State* L, int index_)
+{
+    ASSERT_L(lua_isnil(L, index_) || lua_islightuserdata(L, index_));
+    if constexpr (std::is_pointer_v<T>)
+    {
+        return static_cast<T>(lua_touserdata(L, index_));
+    }
+    else
+    {
+        return static_cast<T*>(lua_touserdata(L, index_));
+    }
 }

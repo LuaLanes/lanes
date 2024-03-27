@@ -442,7 +442,7 @@ static bool selfdestruct_remove( Lane* s)
 */
 static int selfdestruct_gc( lua_State* L)
 {
-    Universe* const U{ lua_touserdata<Universe>(L, 1) };
+    Universe* const U{ lua_tofulluserdata<Universe>(L, 1) };
 
     while( U->selfdestruct_first != SELFDESTRUCT_END) // true at most once!
     {
@@ -574,7 +574,7 @@ static int selfdestruct_gc( lua_State* L)
     {
         int const prev_ref_count{ U->timer_deep->m_refcount.fetch_sub(1, std::memory_order_relaxed) };
         ASSERT_L(prev_ref_count == 1); // this should be the last reference
-        free_deep_prelude( L, (DeepPrelude*) U->timer_deep);
+        free_deep_prelude(L, U->timer_deep);
         U->timer_deep = nullptr;
     }
 
@@ -781,7 +781,7 @@ LUAG_FUNC( set_debug_threadname)
     // fnv164 of string "debug_threadname" generated at https://www.pelock.com/products/hash-calculator
     constexpr UniqueKey hidden_regkey{ 0x79C0669AAAE04440ull };
     // C s_lane structure is a light userdata upvalue
-    Lane* const s{ lua_touserdata<Lane>(L, lua_upvalueindex(1)) };
+    Lane* const s{ lua_tolightuserdata<Lane>(L, lua_upvalueindex(1)) };
     luaL_checktype( L, -1, LUA_TSTRING);                           // "name"
     lua_settop( L, 1);
     STACK_CHECK_START_ABS( L, 1);
@@ -1887,7 +1887,7 @@ LUAG_FUNC( configure)
         STACK_CHECK( L, 2);
 
         // Proxy userdata contents is only a 'DeepPrelude*' pointer
-        U->timer_deep = *lua_touserdata<DeepPrelude*>(L, -1);
+        U->timer_deep = *lua_tofulluserdata<DeepPrelude*>(L, -1);
         // increment refcount so that this linda remains alive as long as the universe exists.
         U->timer_deep->m_refcount.fetch_add(1, std::memory_order_relaxed);
         lua_pop( L, 1);                                                                    // settings
@@ -1916,7 +1916,7 @@ LUAG_FUNC( configure)
 
     {
         char const* errmsg;
-        errmsg = push_deep_proxy(L, (DeepPrelude*) U->timer_deep, 0, eLM_LaneBody);        // settings M timer_deep
+        errmsg = push_deep_proxy(L, U->timer_deep, 0, eLM_LaneBody);                       // settings M timer_deep
         if( errmsg != nullptr)
         {
             return luaL_error( L, errmsg);

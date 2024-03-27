@@ -36,17 +36,22 @@ THE SOFTWARE.
 #include "macros_and_utils.h"
 #include "uniquekey.h"
 
-// crc64/we of string "UNIVERSE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey UNIVERSE_REGKEY{ 0x9f877b2cf078f17full };
+// xxh64 of string "UNIVERSE_FULL_REGKEY" generated at http://www.nitrxgen.net/hashgen/
+static constexpr UniqueKey UNIVERSE_FULL_REGKEY{ 0x99CA130C09EDC074ull };
+// xxh64 of string "UNIVERSE_LIGHT_REGKEY" generated at http://www.nitrxgen.net/hashgen/
+static constexpr UniqueKey UNIVERSE_LIGHT_REGKEY{ 0x3663C07C742CEB81ull };
 
 // ################################################################################################
 
+// only called from the master state
 Universe* universe_create(lua_State* L)
 {
-    Universe* const U = static_cast<Universe*>(lua_newuserdatauv(L, sizeof(Universe), 0));               // universe
+    ASSERT_L(universe_get(L) == nullptr);
+    Universe* const U = static_cast<Universe*>(lua_newuserdatauv(L, sizeof(Universe), 0));         // universe
     U->Universe::Universe();
     STACK_CHECK_START_REL(L, 1);
-    UNIVERSE_REGKEY.set_registry(L, [](lua_State* L) { lua_pushvalue(L, -2); });                   // universe
+    UNIVERSE_FULL_REGKEY.set_registry(L, [](lua_State* L) { lua_pushvalue(L, -2); });
+    UNIVERSE_LIGHT_REGKEY.set_registry(L, [U](lua_State* L) { lua_pushlightuserdata( L, U); });
     STACK_CHECK(L, 1);
     return U;
 }
@@ -55,8 +60,9 @@ Universe* universe_create(lua_State* L)
 
 void universe_store(lua_State* L, Universe* U)
 {
+    ASSERT_L(universe_get(L) == nullptr);
     STACK_CHECK_START_REL(L, 0);
-    UNIVERSE_REGKEY.set_registry(L, [U](lua_State* L) { U ? lua_pushlightuserdata( L, U) : lua_pushnil( L); });
+    UNIVERSE_LIGHT_REGKEY.set_registry(L, [U](lua_State* L) { U ? lua_pushlightuserdata( L, U) : lua_pushnil( L); });
     STACK_CHECK( L, 0);
 }
 
@@ -66,8 +72,8 @@ Universe* universe_get(lua_State* L)
 {
     STACK_GROW(L, 2);
     STACK_CHECK_START_REL(L, 0);
-    UNIVERSE_REGKEY.query_registry(L);
-    Universe* const universe{ lua_touserdata<Universe>(L, -1) }; // nullptr if nil
+    UNIVERSE_LIGHT_REGKEY.query_registry(L);
+    Universe* const universe{ lua_tolightuserdata<Universe>(L, -1) }; // nullptr if nil
     lua_pop(L, 1);
     STACK_CHECK(L, 0);
     return universe;

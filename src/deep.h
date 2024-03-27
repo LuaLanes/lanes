@@ -36,19 +36,20 @@ enum DeepOp
     eDO_module,
 };
 
-using luaG_IdFunction = void*( lua_State* L, DeepOp op_);
+using luaG_IdFunction = void*(*)( lua_State* L, DeepOp op_);
 
 // ################################################################################################
 
 // xxh64 of string "DEEP_VERSION_3" generated at https://www.pelock.com/products/hash-calculator
 static constexpr UniqueKey DEEP_VERSION{ 0xB2CC0FD9C0AE9674ull };
 
-// should be used as header for full userdata
+// should be used as header for deep userdata
+// a deep userdata is a full userdata that stores a single pointer to the actual DeepPrelude-derived object
 struct DeepPrelude
 {
     UniqueKey const magic{ DEEP_VERSION };
     // when stored in a keeper state, the full userdata doesn't have a metatable, so we need direct access to the idfunc
-    luaG_IdFunction* idfunc { nullptr };
+    luaG_IdFunction idfunc { nullptr };
     // data is destroyed when refcount is 0
     std::atomic<int> m_refcount{ 0 };
 };
@@ -56,5 +57,5 @@ struct DeepPrelude
 char const* push_deep_proxy(lua_State* L, DeepPrelude* prelude, int nuv_, LookupMode mode_);
 void free_deep_prelude( lua_State* L, DeepPrelude* prelude_);
 
-LANES_API int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction* idfunc, int nuv_);
-LANES_API void* luaG_todeep( lua_State* L, luaG_IdFunction* idfunc, int index);
+LANES_API int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_);
+LANES_API DeepPrelude* luaG_todeep(lua_State* L, luaG_IdFunction idfunc, int index);
