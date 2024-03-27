@@ -147,3 +147,9 @@ auto lua_tolightuserdata(lua_State* L, int index_)
         return static_cast<T*>(lua_touserdata(L, index_));
     }
 }
+
+template <typename T>
+T* lua_newuserdatauv(lua_State* L, int nuvalue_)
+{
+    return static_cast<T*>(lua_newuserdatauv(L, sizeof(T), nuvalue_));
+}

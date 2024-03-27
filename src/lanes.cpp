@@ -572,7 +572,7 @@ static int selfdestruct_gc( lua_State* L)
     // no need to mutex-protect this as all threads in the universe are gone at that point
     if( U->timer_deep != nullptr) // test ins case some early internal error prevented Lanes from creating the deep timer
     {
-        int const prev_ref_count{ U->timer_deep->m_refcount.fetch_sub(1, std::memory_order_relaxed) };
+        [[maybe_unused]] int const prev_ref_count{ U->timer_deep->m_refcount.fetch_sub(1, std::memory_order_relaxed) };
         ASSERT_L(prev_ref_count == 1); // this should be the last reference
         free_deep_prelude(L, U->timer_deep);
         U->timer_deep = nullptr;
@@ -1212,7 +1212,7 @@ LUAG_FUNC( lane_new)
     // 's' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
     //
     // a Lane full userdata needs a single uservalue
-    Lane** const ud{ static_cast<Lane**>(lua_newuserdatauv(L, sizeof(Lane*), 1)) }; // func libs priority globals package required gc_cb lane
+    Lane** const ud{ lua_newuserdatauv<Lane*>(L, 1) };               // func libs priority globals package required gc_cb lane
     Lane* const s{ *ud = static_cast<Lane*>(U->internal_allocator.alloc(sizeof(Lane))) }; // don't forget to store the pointer in the userdata!
     if( s == nullptr)
     {
@@ -1915,8 +1915,7 @@ LUAG_FUNC( configure)
     STACK_CHECK( L, 2);
 
     {
-        char const* errmsg;
-        errmsg = push_deep_proxy(L, U->timer_deep, 0, eLM_LaneBody);                       // settings M timer_deep
+        char const* errmsg{ push_deep_proxy(L, U->timer_deep, 0, eLM_LaneBody) };          // settings M timer_deep
         if( errmsg != nullptr)
         {
             return luaL_error( L, errmsg);
