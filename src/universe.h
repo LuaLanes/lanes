@@ -8,6 +8,7 @@ extern "C" {
 }
 #endif // __cplusplus
 
+#include "compat.h"
 #include "macros_and_utils.h"
 
 #include <mutex>
