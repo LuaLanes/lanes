@@ -166,9 +166,9 @@ static int deep_userdata_gc( lua_State* L)
 
     // can work without a universe if creating a deep userdata from some external C module when Lanes isn't loaded
     // in that case, we are not multithreaded and locking isn't necessary anyway
-    int v{ p->m_refcount.fetch_sub(1, std::memory_order_relaxed) };
+    bool const isLastRef{ p->m_refcount.fetch_sub(1, std::memory_order_relaxed) == 1 };
 
-    if( v == 0)
+    if (isLastRef)
     {
         // retrieve wrapped __gc
         lua_pushvalue( L, lua_upvalueindex( 1));                              // self __gc?
@@ -425,7 +425,6 @@ DeepPrelude* luaG_todeep(lua_State* L, luaG_IdFunction idfunc, int index)
     STACK_CHECK(L, 0);
 
     DeepPrelude** const proxy{ lua_tofulluserdata<DeepPrelude*>(L, index) };
-
     return *proxy;
 }
 
