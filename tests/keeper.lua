@@ -6,6 +6,14 @@
 
 local lanes = require "lanes".configure{ with_timers = false, nb_keepers = 200}
 
+do
+    print "Linda names test:"
+    local unnamedLinda = lanes.linda()
+    local unnamedLinda2 = lanes.linda("")
+    local veeeerrrryyyylooongNamedLinda= lanes.linda( "veeeerrrryyyylooongNamedLinda", 1)
+    print(unnamedLinda, unnamedLinda2, veeeerrrryyyylooongNamedLinda)
+end
+
 local print_id = 0
 local PRINT = function(...)
     print_id = print_id + 1
@@ -33,6 +41,7 @@ local B= keeper( lindaB )
 
 local lindaC= lanes.linda( "C", 3)
 local C= keeper( lindaC )
+print("Created", lindaA, lindaB, lindaC)
 
 A.some= 1
 PRINT("A.some == " .. A.some )

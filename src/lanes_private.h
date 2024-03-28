@@ -83,7 +83,7 @@ static inline Lane* get_lane_from_registry( lua_State* L)
     STACK_GROW( L, 1);
     STACK_CHECK_START_REL(L, 0);
     CANCEL_TEST_KEY.query_registry(L);
-    Lane* const s{ lua_tolightuserdata<Lane>(L, -1) }; // lightuserdata (true 's_lane' pointer) / nil
+    Lane* const s{ lua_tolightuserdata<Lane>(L, -1) }; // lightuserdata (true 'Lane' pointer) / nil
     lua_pop( L, 1);
     STACK_CHECK( L, 0);
     return s;

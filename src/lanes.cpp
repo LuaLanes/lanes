@@ -142,8 +142,6 @@ static constexpr UniqueKey STACKTRACE_REGKEY{ 0x534af7d3226a429full };
 // crc64/we of string "FINALIZER_REGKEY" generated at http://www.nitrxgen.net/hashgen/
 static constexpr UniqueKey FINALIZER_REGKEY{ 0x188fccb8bf348e09ull };
 
-struct s_Linda;
-
 /*
 * Push a table stored in registry onto Lua stack.
 *
@@ -892,7 +890,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main( void* vs)
     lua_setglobal( L, "set_finalizer");
 
     // Tie "set_debug_threadname()" to the state
-    // But don't register it in the lookup database because of the s_lane pointer upvalue
+    // But don't register it in the lookup database because of the Lane pointer upvalue
     lua_pushlightuserdata( L, s);
     lua_pushcclosure( L, LG_set_debug_threadname, 1);
     lua_setglobal( L, "set_debug_threadname");

@@ -42,32 +42,120 @@ THE SOFTWARE.
 #include "deep.h"
 #include "lanes_private.h"
 
+#include <array>
+#include <bit>
+#include <variant>
+
 /*
-* Actual data is kept within a keeper state, which is hashed by the 's_Linda'
+* Actual data is kept within a keeper state, which is hashed by the 'Linda'
 * pointer (which is same to all userdatas pointing to it).
 */
-struct s_Linda
+struct Linda : public DeepPrelude // Deep userdata MUST start with this header
 {
-    DeepPrelude prelude; // Deep userdata MUST start with this header
+    private:
+
+    static constexpr size_t kEmbeddedNameLength = 24;
+    using EmbeddedName = std::array<char, kEmbeddedNameLength>;
+    struct AllocatedName
+    {
+        size_t len{ 0 };
+        char* name{ nullptr };
+    };
+
+    public:
+
     SIGNAL_T read_happened;
     SIGNAL_T write_happened;
-    Universe* U; // the universe this linda belongs to
-    ptrdiff_t group; // a group to control keeper allocation between lindas
-    CancelRequest simulate_cancel;
-    char name[1];
-};
-#define LINDA_KEEPER_HASHSEED( linda) (linda->group ? linda->group : (ptrdiff_t)linda)
+    Universe* const U; // the universe this linda belongs to
+    ptrdiff_t const group; // a group to control keeper allocation between lindas
+    CancelRequest simulate_cancel{ CancelRequest::None };
+    std::variant<AllocatedName, EmbeddedName> m_name;
 
+    public:
+
+    Linda(Universe* U_, ptrdiff_t group_, char const* name_, size_t len_)
+    : U{ U_ }
+    , group{ group_ << KEEPER_MAGIC_SHIFT }
+    {
+        SIGNAL_INIT(&read_happened);
+        SIGNAL_INIT(&write_happened);
+
+        setName(name_, len_);
+    }
+
+    ~Linda()
+    {
+        // There aren't any lanes waiting on these lindas, since all proxies have been gc'ed. Right?
+        SIGNAL_FREE(&read_happened);
+        SIGNAL_FREE(&write_happened);
+        if (std::holds_alternative<AllocatedName>(m_name))
+        {
+            AllocatedName& name = std::get<AllocatedName>(m_name);
+            U->internal_allocator.free(name.name, name.len);
+        }
+    }
+
+    private:
+
+    void setName(char const* name_, size_t len_)
+    {
+        // keep default
+        if (!name_ || len_ == 0)
+        {
+            return;
+        }
+        ++len_; // don't forget terminating 0
+        if (len_ < kEmbeddedNameLength)
+        {
+            m_name.emplace<EmbeddedName>();
+            char* const name{ std::get<EmbeddedName>(m_name).data() };
+            memcpy(name, name_, len_);
+        }
+        else
+        {
+            AllocatedName& name = std::get<AllocatedName>(m_name);
+            name.name = static_cast<char*>(U->internal_allocator.alloc(len_));
+            name.len = len_;
+            memcpy(name.name, name_, len_);
+        }
+    }
+
+    public:
+
+    ptrdiff_t hashSeed() const { return group ? group : std::bit_cast<ptrdiff_t>(this); }
+
+    char const* getName() const
+    {
+        if (std::holds_alternative<AllocatedName>(m_name))
+        {
+            AllocatedName const& name = std::get<AllocatedName>(m_name);
+            return name.name;
+        }
+        if (std::holds_alternative<EmbeddedName>(m_name))
+        {
+            char const* const name{ std::get<EmbeddedName>(m_name).data() };
+            return name;
+        }
+        return nullptr;
+    }
+};
 static void* linda_id( lua_State*, DeepOp);
 
-static inline struct s_Linda* lua_toLinda( lua_State* L, int idx_)
+template<bool OPT>
+static inline Linda* lua_toLinda(lua_State* L, int idx_)
 {
-    struct s_Linda* linda = (struct s_Linda*) luaG_todeep( L, linda_id, idx_);
-    luaL_argcheck( L, linda != nullptr, idx_, "expecting a linda object");
+    Linda* const linda{ static_cast<Linda*>(luaG_todeep(L, linda_id, idx_)) };
+    if (!OPT)
+    {
+        luaL_argcheck(L, linda != nullptr, idx_, "expecting a linda object");
+    }
+    ASSERT_L(linda->U == universe_get(L));
     return linda;
 }
 
-static void check_key_types( lua_State* L, int start_, int end_)
+// #################################################################################################
+
+static void check_key_types(lua_State* L, int start_, int end_)
 {
     int i;
     for( i = start_; i <= end_; ++ i)
@@ -81,13 +169,14 @@ static void check_key_types( lua_State* L, int start_, int end_)
     }
 }
 
-LUAG_FUNC( linda_protected_call)
+// #################################################################################################
+
+LUAG_FUNC(linda_protected_call)
 {
-    int rc = LUA_OK;
-    struct s_Linda* linda = lua_toLinda( L, 1);
+    Linda* const linda{ lua_toLinda<false>(L, 1) };
 
     // acquire the keeper
-    Keeper* K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED(linda));
+    Keeper* K = keeper_acquire( linda->U->keepers, linda->hashSeed());
     lua_State* KL = K ? K->L : nullptr;
     if( KL == nullptr) return 0;
 
@@ -95,7 +184,7 @@ LUAG_FUNC( linda_protected_call)
     lua_pushvalue( L, lua_upvalueindex( 1));
     lua_insert( L, 1);
     // do a protected call
-    rc = lua_pcall( L, lua_gettop( L) - 1, LUA_MULTRET, 0);
+    int const rc{ lua_pcall(L, lua_gettop(L) - 1, LUA_MULTRET, 0) };
 
     // release the keeper
     keeper_release( K);
@@ -109,6 +198,8 @@ LUAG_FUNC( linda_protected_call)
     return lua_gettop( L);
 }
 
+// #################################################################################################
+
 /*
 * bool= linda_send( linda_ud, [timeout_secs=-1,] [linda.null,] key_num|str|bool|lightuserdata, ... )
 *
@@ -120,7 +211,7 @@ LUAG_FUNC( linda_protected_call)
 */
 LUAG_FUNC( linda_send)
 {
-    struct s_Linda* linda = lua_toLinda( L, 1);
+    Linda* const linda{ lua_toLinda<false>(L, 1) };
     bool ret{ false };
     CancelRequest cancel{ CancelRequest::None };
     int pushed;
@@ -167,8 +258,8 @@ LUAG_FUNC( linda_send)
     keeper_toggle_nil_sentinels( L, key_i + 1, eLM_ToKeeper);
 
     {
-        Lane* const s = get_lane_from_registry( L);
-        Keeper* const K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
+        Lane* const s{ get_lane_from_registry(L) };
+        Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
         lua_State* KL = K ? K->L : nullptr;
         if( KL == nullptr) return 0;
         STACK_CHECK_START_REL(KL, 0);
@@ -256,6 +347,7 @@ LUAG_FUNC( linda_send)
     }
 }
 
+// #################################################################################################
 
 /*
  * 2 modes of operation
@@ -271,7 +363,7 @@ LUAG_FUNC( linda_send)
 #define BATCH_SENTINEL "270e6c9d-280f-4983-8fee-a7ecdda01475"
 LUAG_FUNC( linda_receive)
 {
-    struct s_Linda* linda = lua_toLinda( L, 1);
+    Linda* const linda{ lua_toLinda<false>(L, 1) };
     int pushed, expected_pushed_min, expected_pushed_max;
     CancelRequest cancel{ CancelRequest::None };
     keeper_api_t keeper_receive;
@@ -326,8 +418,8 @@ LUAG_FUNC( linda_receive)
     }
 
     {
-        Lane* const s = get_lane_from_registry( L);
-        Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
+        Lane* const s{ get_lane_from_registry(L) };
+        Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
         if( K == nullptr) return 0;
         for (bool try_again{ true };;)
         {
@@ -409,6 +501,7 @@ LUAG_FUNC( linda_receive)
     }
 }
 
+// #################################################################################################
 
 /*
 * [true|lanes.cancel_error] = linda_set( linda_ud, key_num|str|bool|lightuserdata [, value [, ...]])
@@ -420,7 +513,7 @@ LUAG_FUNC( linda_receive)
 */
 LUAG_FUNC( linda_set)
 {
-    struct s_Linda* const linda = lua_toLinda( L, 1);
+    Linda* const linda{ lua_toLinda<false>(L, 1) };
     int pushed;
     bool const has_value{ lua_gettop(L) > 2 };
 
@@ -428,7 +521,7 @@ LUAG_FUNC( linda_set)
     check_key_types( L, 2, 2);
 
     {
-        Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
+        Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
 
         if (linda->simulate_cancel == CancelRequest::None)
         {
@@ -467,6 +560,7 @@ LUAG_FUNC( linda_set)
     return (pushed < 0) ? luaL_error( L, "tried to copy unsupported types") : pushed;
 }
 
+// #################################################################################################
 
 /*
  * [val] = linda_count( linda_ud, [key [, ...]])
@@ -475,14 +569,14 @@ LUAG_FUNC( linda_set)
  */
 LUAG_FUNC( linda_count)
 {
-    struct s_Linda* linda = lua_toLinda( L, 1);
+    Linda* const linda{ lua_toLinda<false>(L, 1) };
     int pushed;
 
     // make sure the keys are of a valid type
     check_key_types( L, 2, lua_gettop( L));
 
     {
-        Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
+        Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
         pushed = keeper_call( linda->U, K->L, KEEPER_API( count), L, linda, 2);
         if( pushed < 0)
         {
@@ -492,6 +586,7 @@ LUAG_FUNC( linda_count)
     return pushed;
 }
 
+// #################################################################################################
 
 /*
 * [val [, ...]] = linda_get( linda_ud, key_num|str|bool|lightuserdata [, count = 1])
@@ -500,7 +595,7 @@ LUAG_FUNC( linda_count)
 */
 LUAG_FUNC( linda_get)
 {
-    struct s_Linda* const linda = lua_toLinda( L, 1);
+    Linda* const linda{ lua_toLinda<false>(L, 1) };
     int pushed;
     lua_Integer count = luaL_optinteger( L, 3, 1);
     luaL_argcheck( L, count >= 1, 3, "count should be >= 1");
@@ -509,7 +604,7 @@ LUAG_FUNC( linda_get)
     // make sure the key is of a valid type (throws an error if not the case)
     check_key_types( L, 2, 2);
     {
-        Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
+        Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
 
         if (linda->simulate_cancel == CancelRequest::None)
         {
@@ -535,6 +630,7 @@ LUAG_FUNC( linda_get)
     return pushed;
 }
 
+// #################################################################################################
 
 /*
 * [true] = linda_limit( linda_ud, key_num|str|bool|lightuserdata, int)
@@ -544,7 +640,7 @@ LUAG_FUNC( linda_get)
 */
 LUAG_FUNC( linda_limit)
 {
-    struct s_Linda* linda = lua_toLinda( L, 1);
+    Linda* const linda{ lua_toLinda<false>(L, 1) };
     int pushed;
 
     // make sure we got 3 arguments: the linda, a key and a limit
@@ -555,7 +651,7 @@ LUAG_FUNC( linda_limit)
     check_key_types( L, 2, 2);
 
     {
-        Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
+        Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
 
         if (linda->simulate_cancel == CancelRequest::None)
         {
@@ -578,6 +674,7 @@ LUAG_FUNC( linda_limit)
     return pushed;
 }
 
+// #################################################################################################
 
 /*
 * (void) = linda_cancel( linda_ud, "read"|"write"|"both"|"none")
@@ -586,7 +683,7 @@ LUAG_FUNC( linda_limit)
 */
 LUAG_FUNC( linda_cancel)
 {
-    struct s_Linda* linda = lua_toLinda( L, 1);
+    Linda* const linda{ lua_toLinda<false>(L, 1) };
     char const* who = luaL_optstring( L, 2, "both");
 
     // make sure we got 3 arguments: the linda, a key and a limit
@@ -617,6 +714,7 @@ LUAG_FUNC( linda_cancel)
     return 0;
 }
 
+// #################################################################################################
 
 /*
 * lightuserdata= linda_deep( linda_ud )
@@ -630,11 +728,12 @@ LUAG_FUNC( linda_cancel)
 */
 LUAG_FUNC( linda_deep)
 {
-    struct s_Linda* linda= lua_toLinda( L, 1);
+    Linda* const linda{ lua_toLinda<false>(L, 1) };
     lua_pushlightuserdata( L, linda); // just the address
     return 1;
 }
 
+// #################################################################################################
 
 /*
 * string = linda:__tostring( linda_ud)
@@ -644,19 +743,16 @@ LUAG_FUNC( linda_deep)
 * Useful for concatenation or debugging purposes
 */
 
-static int linda_tostring( lua_State* L, int idx_, bool opt_)
+template <bool OPT>
+static int linda_tostring(lua_State* L, int idx_)
 {
-    struct s_Linda* linda = (struct s_Linda*) luaG_todeep( L, linda_id, idx_);
-    if( !opt_)
-    {
-        luaL_argcheck( L, linda, idx_, "expecting a linda object");
-    }
+    Linda* const linda{ lua_toLinda<OPT>(L, idx_) };
     if( linda != nullptr)
     {
         char text[128];
         int len;
-        if( linda->name[0])
-            len = sprintf( text, "Linda: %.*s", (int)sizeof(text) - 8, linda->name);
+        if( linda->getName())
+            len = sprintf( text, "Linda: %.*s", (int)sizeof(text) - 8, linda->getName());
         else
             len = sprintf( text, "Linda: %p", linda);
         lua_pushlstring( L, text, len);
@@ -667,9 +763,10 @@ static int linda_tostring( lua_State* L, int idx_, bool opt_)
 
 LUAG_FUNC( linda_tostring)
 {
-    return linda_tostring( L, 1, false);
+    return linda_tostring<false>(L, 1);
 }
 
+// #################################################################################################
 
 /*
 * string = linda:__concat( a, b)
@@ -682,12 +779,12 @@ LUAG_FUNC( linda_concat)
 {                                   // linda1? linda2?
     bool atLeastOneLinda{ false };
     // Lua semantics enforce that one of the 2 arguments is a Linda, but not necessarily both.
-    if( linda_tostring( L, 1, true))
+    if( linda_tostring<true>( L, 1))
     {
         atLeastOneLinda = true;
         lua_replace( L, 1);
     }
-    if( linda_tostring( L, 2, true))
+    if( linda_tostring<true>( L, 2))
     {
         atLeastOneLinda = true;
         lua_replace( L, 2);
@@ -700,15 +797,16 @@ LUAG_FUNC( linda_concat)
     return 1;
 }
 
+// #################################################################################################
+
 /*
  * table = linda:dump()
  * return a table listing all pending data inside the linda
  */
 LUAG_FUNC( linda_dump)
 {
-    struct s_Linda* linda = lua_toLinda( L, 1);
-    ASSERT_L( linda->U == universe_get( L));
-    return keeper_push_linda_storage( linda->U, L, linda, LINDA_KEEPER_HASHSEED( linda));
+    Linda* const linda{ lua_toLinda<false>(L, 1) };
+    return keeper_push_linda_storage(linda->U, L, linda, linda->hashSeed());
 }
 
 /*
@@ -717,14 +815,12 @@ LUAG_FUNC( linda_dump)
  */
 LUAG_FUNC( linda_towatch)
 {
-    struct s_Linda* linda = lua_toLinda( L, 1);
-    int pushed;
-    ASSERT_L( linda->U == universe_get( L));
-    pushed = keeper_push_linda_storage( linda->U, L, linda, LINDA_KEEPER_HASHSEED( linda));
-    if( pushed == 0)
+    Linda* const linda{ lua_toLinda<false>(L, 1) };
+    int pushed{ keeper_push_linda_storage(linda->U, L, linda, linda->hashSeed()) };
+    if (pushed == 0)
     {
         // if the linda is empty, don't return nil
-        pushed = linda_tostring( L, 1, false);
+        pushed = linda_tostring<false>(L, 1);
     }
     return pushed;
 }
@@ -791,28 +887,21 @@ static void* linda_id( lua_State* L, DeepOp op_)
             * just don't use L's allocF because we don't know which state will get the honor of GCing the linda
             */
             Universe* const U{ universe_get(L) };
-            struct s_Linda* s{ static_cast<struct s_Linda*>(U->internal_allocator.alloc(sizeof(struct s_Linda) + name_len)) }; // terminating 0 is already included
+            Linda* s{ static_cast<Linda*>(U->internal_allocator.alloc(sizeof(Linda))) }; // terminating 0 is already included
             if (s)
             {
-                s->prelude.DeepPrelude::DeepPrelude();
-                SIGNAL_INIT( &s->read_happened);
-                SIGNAL_INIT( &s->write_happened);
-                s->U = U;
-                s->simulate_cancel = CancelRequest::None;
-                s->group = linda_group << KEEPER_MAGIC_SHIFT;
-                s->name[0] = 0;
-                memcpy( s->name, linda_name, name_len ? name_len + 1 : 0);
+                s->Linda::Linda(U, linda_group, linda_name, name_len);
             }
             return s;
         }
 
         case eDO_delete:
         {
-            struct s_Linda* const linda{ lua_tolightuserdata<struct s_Linda>(L, 1) };
+            Linda* const linda{ lua_tolightuserdata<Linda>(L, 1) };
             ASSERT_L( linda);
 
             // Clean associated structures in the keeper state.
-            Keeper* const K{ keeper_acquire(linda->U->keepers, LINDA_KEEPER_HASHSEED(linda)) };
+            Keeper* const K{ keeper_acquire(linda->U->keepers, linda->hashSeed()) };
             if( K && K->L) // can be nullptr if this happens during main state shutdown (lanes is GC'ed -> no keepers -> no need to cleanup)
             {
                 // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
@@ -820,11 +909,8 @@ static void* linda_id( lua_State* L, DeepOp op_)
             }
             keeper_release( K);
 
-            // There aren't any lanes waiting on these lindas, since all proxies have been gc'ed. Right?
-            SIGNAL_FREE( &linda->read_happened);
-            SIGNAL_FREE( &linda->write_happened);
-            linda->prelude.DeepPrelude::~DeepPrelude();
-            linda->U->internal_allocator.free(linda, sizeof(struct s_Linda) + strlen(linda->name));
+            linda->Linda::~Linda();
+            linda->U->internal_allocator.free(linda, sizeof(Linda));
             return nullptr;
         }
 
