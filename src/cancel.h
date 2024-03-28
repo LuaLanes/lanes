@@ -51,7 +51,7 @@ static constexpr UniqueKey CANCEL_ERROR{ 0xe97d41626cc97577ull }; // 'raise_canc
 // crc64/we of string "CANCEL_TEST_KEY" generated at http://www.nitrxgen.net/hashgen/
 static constexpr UniqueKey CANCEL_TEST_KEY{ 0xe66f5960c57d133aull }; // used as registry key
 
-CancelResult thread_cancel(lua_State* L, Lane* s, CancelOp op_, double secs_, bool force_, double waitkill_timeout_);
+CancelResult thread_cancel(lua_State* L, Lane* lane_, CancelOp op_, double secs_, bool force_, double waitkill_timeout_);
 
 [[noreturn]] static inline void raise_cancel_error(lua_State* L)
 {
@@ -63,7 +63,7 @@ CancelResult thread_cancel(lua_State* L, Lane* s, CancelOp op_, double secs_, bo
 // ################################################################################################
 // ################################################################################################
 
-LUAG_FUNC( cancel_test);
-LUAG_FUNC( thread_cancel);
+LUAG_FUNC(cancel_test);
+LUAG_FUNC(thread_cancel);
 
 // ################################################################################################

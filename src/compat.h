@@ -95,5 +95,6 @@ int lua_setiuservalue( lua_State* L, int idx, int n);
 #define luaG_registerlibfuncs( L, _funcs) luaL_setfuncs( L, _funcs, 0)
 #define lua504_dump lua_dump
 #define luaL_optint(L,n,d) ((int)luaL_optinteger(L, (n), (d)))
+#define LUA_ERRGCMM 666 // doesn't exist in Lua 5.4, we don't care about the actual value
 
 #endif // LUA_VERSION_NUM == 504

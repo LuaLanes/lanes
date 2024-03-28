@@ -55,9 +55,9 @@ THE SOFTWARE.
 */
 static inline CancelRequest cancel_test(lua_State* L)
 {
-    Lane* const s = get_lane_from_registry( L);
+    Lane* const lane{ get_lane_from_registry(L) };
     // 's' is nullptr for the original main state (and no-one can cancel that)
-    return s ? s->cancel_request : CancelRequest::None;
+    return lane ? lane->cancel_request : CancelRequest::None;
 }
 
 // ################################################################################################
@@ -111,38 +111,36 @@ static void cancel_hook(lua_State* L, [[maybe_unused]] lua_Debug* ar)
 
 // ################################################################################################
 
-static CancelResult thread_cancel_soft(Lane* s, double secs_, bool wake_lindas_)
+static CancelResult thread_cancel_soft(Lane* lane_, double secs_, bool wake_lindas_)
 {
-    s->cancel_request = CancelRequest::Soft; // it's now signaled to stop
+    lane_->cancel_request = CancelRequest::Soft; // it's now signaled to stop
     // negative timeout: we don't want to truly abort the lane, we just want it to react to cancel_test() on its own
-    if( wake_lindas_) // wake the thread so that execution returns from any pending linda operation if desired
+    if (wake_lindas_) // wake the thread so that execution returns from any pending linda operation if desired
     {
-        SIGNAL_T* waiting_on = s->waiting_on;
-        if( s->status == WAITING && waiting_on != nullptr)
+        SIGNAL_T* const waiting_on{ lane_->waiting_on };
+        if (lane_->status == WAITING && waiting_on != nullptr)
         {
             SIGNAL_ALL( waiting_on);
         }
     }
 
-    return THREAD_WAIT(&s->thread, secs_, &s->done_signal, &s->done_lock, &s->status) ? CancelResult::Cancelled : CancelResult::Timeout;
+    return THREAD_WAIT(&lane_->thread, secs_, &lane_->done_signal, &lane_->done_lock, &lane_->status) ? CancelResult::Cancelled : CancelResult::Timeout;
 }
 
 // ################################################################################################
 
-static CancelResult thread_cancel_hard(lua_State* L, Lane* s, double secs_, bool force_, double waitkill_timeout_)
+static CancelResult thread_cancel_hard(lua_State* L, Lane* lane_, double secs_, bool force_, double waitkill_timeout_)
 {
-    CancelResult result;
-
-    s->cancel_request = CancelRequest::Hard; // it's now signaled to stop
+    lane_->cancel_request = CancelRequest::Hard; // it's now signaled to stop
     {
-        SIGNAL_T* waiting_on = s->waiting_on;
-        if( s->status == WAITING && waiting_on != nullptr)
+        SIGNAL_T* waiting_on = lane_->waiting_on;
+        if (lane_->status == WAITING && waiting_on != nullptr)
         {
             SIGNAL_ALL( waiting_on);
         }
     }
 
-    result = THREAD_WAIT(&s->thread, secs_, &s->done_signal, &s->done_lock, &s->status) ? CancelResult::Cancelled : CancelResult::Timeout;
+    CancelResult result{ THREAD_WAIT(&lane_->thread, secs_, &lane_->done_signal, &lane_->done_lock, &lane_->status) ? CancelResult::Cancelled : CancelResult::Timeout };
 
     if ((result == CancelResult::Timeout) && force_)
     {
@@ -151,11 +149,11 @@ static CancelResult thread_cancel_hard(lua_State* L, Lane* s, double secs_, bool
         // would be use of "cancellation cleanup handlers" that at least
         // PThread seems to have).
         //
-        THREAD_KILL( &s->thread);
+        THREAD_KILL(&lane_->thread);
 #if THREADAPI == THREADAPI_PTHREAD
         // pthread: make sure the thread is really stopped!
         // note that this may block forever if the lane doesn't call a cancellation point and pthread doesn't honor PTHREAD_CANCEL_ASYNCHRONOUS
-        result = THREAD_WAIT(&s->thread, waitkill_timeout_, &s->done_signal, &s->done_lock, &s->status) ? CancelResult::Killed : CancelResult::Timeout;
+        result = THREAD_WAIT(&lane_->thread, waitkill_timeout_, &lane_->done_signal, &lane_->done_lock, &lane_->status) ? CancelResult::Killed : CancelResult::Timeout;
         if (result == CancelResult::Timeout)
         {
             std::ignore = luaL_error( L, "force-killed lane failed to terminate within %f second%s", waitkill_timeout_, waitkill_timeout_ > 1 ? "s" : "");
@@ -164,8 +162,8 @@ static CancelResult thread_cancel_hard(lua_State* L, Lane* s, double secs_, bool
         (void) waitkill_timeout_; // unused
         (void) L; // unused
 #endif // THREADAPI == THREADAPI_PTHREAD
-        s->mstatus = ThreadStatus::Killed; // mark 'gc' to wait for it
-        // note that s->status value must remain to whatever it was at the time of the kill
+        lane_->mstatus = ThreadStatus::Killed; // mark 'gc' to wait for it
+        // note that lane_->status value must remain to whatever it was at the time of the kill
         // because we need to know if we can lua_close() the Lua State or not.
         result = CancelResult::Killed;
     }
@@ -174,16 +172,16 @@ static CancelResult thread_cancel_hard(lua_State* L, Lane* s, double secs_, bool
 
 // ################################################################################################
 
-CancelResult thread_cancel(lua_State* L, Lane* s, CancelOp op_, double secs_, bool force_, double waitkill_timeout_)
+CancelResult thread_cancel(lua_State* L, Lane* lane_, CancelOp op_, double secs_, bool force_, double waitkill_timeout_)
 {
     // remember that lanes are not transferable: only one thread can cancel a lane, so no multithreading issue here
-    // We can read 's->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
-    if (s->mstatus == ThreadStatus::Killed)
+    // We can read 'lane_->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
+    if (lane_->mstatus == ThreadStatus::Killed)
     {
         return CancelResult::Killed;
     }
 
-    if( s->status >= DONE)
+    if (lane_->status >= DONE)
     {
         // say "ok" by default, including when lane is already done
         return CancelResult::Cancelled;
@@ -191,12 +189,12 @@ CancelResult thread_cancel(lua_State* L, Lane* s, CancelOp op_, double secs_, bo
 
     // signal the linda the wake up the thread so that it can react to the cancel query
     // let us hope we never land here with a pointer on a linda that has been destroyed...
-    if( op_ == CO_Soft)
+    if (op_ == CO_Soft)
     {
-        return thread_cancel_soft( s, secs_, force_);
+        return thread_cancel_soft(lane_, secs_, force_);
     }
 
-    return thread_cancel_hard( L, s, secs_, force_, waitkill_timeout_);
+    return thread_cancel_hard(L, lane_, secs_, force_, waitkill_timeout_);
 }
 
 // ################################################################################################
@@ -247,54 +245,51 @@ static CancelOp which_op( lua_State* L, int idx_)
 // ################################################################################################
 
 // bool[,reason] = lane_h:cancel( [mode, hookcount] [, timeout] [, force [, forcekill_timeout]])
-LUAG_FUNC( thread_cancel)
+LUAG_FUNC(thread_cancel)
 {
-    Lane* s = lua_toLane( L, 1);
-    double secs = 0.0;
-    CancelOp op = which_op( L, 2); // this removes the op string from the stack
+    Lane* const lane{ lua_toLane(L, 1) };
+    CancelOp const op{ which_op(L, 2) }; // this removes the op string from the stack
 
-    if( op > 0) // hook is requested
+    if (op > 0) // hook is requested
     {
-        int hook_count = (int) lua_tointeger( L, 2);
-        lua_remove( L, 2); // argument is processed, remove it
-        if( hook_count < 1)
+        int hook_count = (int) lua_tointeger(L, 2);
+        lua_remove(L, 2); // argument is processed, remove it
+        if (hook_count < 1)
         {
-            return luaL_error( L, "hook count cannot be < 1");
+            return luaL_error(L, "hook count cannot be < 1");
         }
-        lua_sethook( s->L, cancel_hook, op, hook_count);
+        lua_sethook(lane->L, cancel_hook, op, hook_count);
     }
 
-    if( lua_type( L, 2) == LUA_TNUMBER)
+    double secs{ 0.0 };
+    if (lua_type(L, 2) == LUA_TNUMBER)
     {
-        secs = lua_tonumber( L, 2);
-        lua_remove( L, 2); // argument is processed, remove it
-        if( secs < 0.0)
+        secs = lua_tonumber(L, 2);
+        lua_remove(L, 2); // argument is processed, remove it
+        if (secs < 0.0)
         {
-            return luaL_error( L, "cancel timeout cannot be < 0");
+            return luaL_error(L, "cancel timeout cannot be < 0");
         }
     }
 
+    bool const force{ lua_toboolean(L, 2) ? true : false }; // false if nothing there
+    double const forcekill_timeout{ luaL_optnumber(L, 3, 0.0) };
+    switch (thread_cancel(L, lane, op, secs, force, forcekill_timeout))
     {
-        bool const force = lua_toboolean( L, 2) ? true : false;     // false if nothing there
-        double forcekill_timeout = luaL_optnumber( L, 3, 0.0);
+        case CancelResult::Timeout:
+        lua_pushboolean(L, 0);
+        lua_pushstring(L, "timeout");
+        return 2;
 
-        switch( thread_cancel( L, s, op, secs, force, forcekill_timeout))
-        {
-            case CancelResult::Timeout:
-            lua_pushboolean( L, 0);
-            lua_pushstring( L, "timeout");
-            return 2;
+        case CancelResult::Cancelled:
+        lua_pushboolean(L, 1);
+        push_thread_status(L, lane);
+        return 2;
 
-            case CancelResult::Cancelled:
-            lua_pushboolean( L, 1);
-            push_thread_status( L, s);
-            return 2;
-
-            case CancelResult::Killed:
-            lua_pushboolean( L, 1);
-            push_thread_status( L, s);
-            return 2;
-        }
+        case CancelResult::Killed:
+        lua_pushboolean(L, 1);
+        push_thread_status(L, lane);
+        return 2;
     }
     // should never happen, only here to prevent the compiler from complaining of "not all control paths returning a value"
     return 0;
