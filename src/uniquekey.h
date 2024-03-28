@@ -3,6 +3,8 @@
 #include "compat.h"
 #include "macros_and_utils.h"
 
+#include <bit>
+
 class UniqueKey
 {
     private:
@@ -31,13 +33,11 @@ class UniqueKey
 
     void push(lua_State* const L) const
     {
-        // unfortunately, converting a scalar to a pointer must go through a C cast
-        lua_pushlightuserdata(L, (void*) m_storage);
+        lua_pushlightuserdata(L, std::bit_cast<void*>(m_storage));
     }
     bool equals(lua_State* const L, int i) const
     {
-        // unfortunately, converting a scalar to a pointer must go through a C cast
-        return lua_touserdata(L, i) == (void*) m_storage;
+        return lua_touserdata(L, i) == std::bit_cast<void*>(m_storage);
     }
     void query_registry(lua_State* const L) const
     {
