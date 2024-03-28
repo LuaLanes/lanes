@@ -207,7 +207,7 @@ static void push_table(lua_State* L, int idx_)
 
 // ##################################################################################################
 
-int keeper_push_linda_storage(Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_)
+int keeper_push_linda_storage(Universe* U, lua_State* L, void* ptr_, uintptr_t magic_)
 {
     Keeper* const K = which_keeper( U->keepers, magic_);
     lua_State* const KL = K ? K->L : nullptr;
@@ -731,7 +731,7 @@ void init_keepers(Universe* U, lua_State* L)
 // ##################################################################################################
 
 // should be called only when inside a keeper_acquire/keeper_release pair (see linda_protected_call)
-Keeper* which_keeper(Keepers* keepers_, ptrdiff_t magic_)
+Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_)
 {
     int const nbKeepers{ keepers_->nb_keepers };
     unsigned int i = (unsigned int)((magic_ >> KEEPER_MAGIC_SHIFT) % nbKeepers);
@@ -740,7 +740,7 @@ Keeper* which_keeper(Keepers* keepers_, ptrdiff_t magic_)
 
 // ##################################################################################################
 
-Keeper* keeper_acquire(Keepers* keepers_, ptrdiff_t magic_)
+Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_)
 {
     int const nbKeepers{ keepers_->nb_keepers };
     // can be 0 if this happens during main state shutdown (lanes is being GC'ed -> no keepers)

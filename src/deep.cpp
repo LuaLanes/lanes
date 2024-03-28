@@ -32,20 +32,21 @@ THE SOFTWARE.
 ===============================================================================
 */
 
-#include <stdio.h>
-#include <assert.h>
-#include <string.h>
+#include "compat.h"
+#include "deep.h"
+#include "tools.h"
+#include "uniquekey.h"
+#include "universe.h"
+
+#include <bit>
+#include <cassert>
 #include <ctype.h>
+#include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #if !defined(__APPLE__)
 #include <malloc.h>
 #endif
-
-#include "compat.h"
-#include "deep.h"
-#include "tools.h"
-#include "universe.h"
-#include "uniquekey.h"
 
 /*-- Metatable copying --*/
 
@@ -227,7 +228,7 @@ char const* push_deep_proxy(lua_State* L, DeepPrelude* prelude, int nuv_, Lookup
     prelude->m_refcount.fetch_add(1, std::memory_order_relaxed); // one more proxy pointing to this deep data
 
     // Get/create metatable for 'idfunc' (in this state)
-    lua_pushlightuserdata( L, (void*)(ptrdiff_t)(prelude->idfunc));                                    // DPC proxy idfunc
+    lua_pushlightuserdata( L, std::bit_cast<void*>(prelude->idfunc));                                  // DPC proxy idfunc
     get_deep_lookup( L);                                                                               // DPC proxy metatable?
 
     if( lua_isnil( L, -1)) // // No metatable yet.
@@ -269,7 +270,7 @@ char const* push_deep_proxy(lua_State* L, DeepPrelude* prelude, int nuv_, Lookup
 
         // Memorize for later rounds
         lua_pushvalue( L, -1);                                                                         // DPC proxy metatable metatable
-        lua_pushlightuserdata( L, (void*)(ptrdiff_t)(prelude->idfunc));                                // DPC proxy metatable metatable idfunc
+        lua_pushlightuserdata( L, std::bit_cast<void*>(prelude->idfunc));                              // DPC proxy metatable metatable idfunc
         set_deep_lookup( L);                                                                           // DPC proxy metatable
 
         // 2 - cause the target state to require the module that exported the idfunc

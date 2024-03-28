@@ -50,7 +50,7 @@ THE SOFTWARE.
 * Actual data is kept within a keeper state, which is hashed by the 'Linda'
 * pointer (which is same to all userdatas pointing to it).
 */
-struct Linda : public DeepPrelude // Deep userdata MUST start with this header
+class Linda : public DeepPrelude // Deep userdata MUST start with this header
 {
     private:
 
@@ -61,19 +61,28 @@ struct Linda : public DeepPrelude // Deep userdata MUST start with this header
         size_t len{ 0 };
         char* name{ nullptr };
     };
+    // depending on the name length, it is either embedded inside the Linda, or allocated separately
+    std::variant<AllocatedName, EmbeddedName> m_name;
 
     public:
 
     SIGNAL_T read_happened;
     SIGNAL_T write_happened;
     Universe* const U; // the universe this linda belongs to
-    ptrdiff_t const group; // a group to control keeper allocation between lindas
+    uintptr_t const group; // a group to control keeper allocation between lindas
     CancelRequest simulate_cancel{ CancelRequest::None };
-    std::variant<AllocatedName, EmbeddedName> m_name;
 
     public:
 
-    Linda(Universe* U_, ptrdiff_t group_, char const* name_, size_t len_)
+    // a fifo full userdata has one uservalue, the table that holds the actual fifo contents
+    static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internal_allocator.alloc(size_); }
+    // always embedded somewhere else or "in-place constructed" as a full userdata
+    // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
+    static void operator delete(void* p_, Universe* U_) { U_->internal_allocator.free(p_, sizeof(Linda)); }
+    // this one is for us, to make sure memory is freed by the correct allocator
+    static void operator delete(void* p_) { static_cast<Linda*>(p_)->U->internal_allocator.free(p_, sizeof(Linda)); }
+
+    Linda(Universe* U_, uintptr_t group_, char const* name_, size_t len_)
     : U{ U_ }
     , group{ group_ << KEEPER_MAGIC_SHIFT }
     {
@@ -122,7 +131,7 @@ struct Linda : public DeepPrelude // Deep userdata MUST start with this header
 
     public:
 
-    ptrdiff_t hashSeed() const { return group ? group : std::bit_cast<ptrdiff_t>(this); }
+    uintptr_t hashSeed() const { return group ? group : std::bit_cast<uintptr_t>(this); }
 
     char const* getName() const
     {
@@ -887,11 +896,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             * just don't use L's allocF because we don't know which state will get the honor of GCing the linda
             */
             Universe* const U{ universe_get(L) };
-            Linda* s{ static_cast<Linda*>(U->internal_allocator.alloc(sizeof(Linda))) }; // terminating 0 is already included
-            if (s)
-            {
-                s->Linda::Linda(U, linda_group, linda_name, name_len);
-            }
+            Linda* s{ new (U) Linda{ U, linda_group, linda_name, name_len } };
             return s;
         }
 
@@ -909,8 +914,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             }
             keeper_release( K);
 
-            linda->Linda::~Linda();
-            linda->U->internal_allocator.free(linda, sizeof(Linda));
+            delete linda; // operator delete overload ensures things go as expected
             return nullptr;
         }
 

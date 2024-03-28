@@ -28,18 +28,18 @@ struct Keepers
     Keeper keeper_array[1];
 };
 
-static constexpr ptrdiff_t KEEPER_MAGIC_SHIFT{ 3 };
+static constexpr uintptr_t KEEPER_MAGIC_SHIFT{ 3 };
 // crc64/we of string "NIL_SENTINEL" generated at http://www.nitrxgen.net/hashgen/
 static constexpr UniqueKey NIL_SENTINEL{ 0x7eaafa003a1d11a1ull };
 
 void init_keepers(Universe* U, lua_State* L);
 void close_keepers(Universe* U);
 
-Keeper* which_keeper(Keepers* keepers_, ptrdiff_t magic_);
-Keeper* keeper_acquire(Keepers* keepers_, ptrdiff_t magic_);
+Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_);
+Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_);
 void keeper_release(Keeper* K);
 void keeper_toggle_nil_sentinels(lua_State* L, int val_i_, LookupMode const mode_);
-int keeper_push_linda_storage(Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_);
+int keeper_push_linda_storage(Universe* U, lua_State* L, void* ptr_, uintptr_t magic_);
 
 using keeper_api_t = lua_CFunction;
 #define KEEPER_API(_op) keepercall_##_op
