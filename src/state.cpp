@@ -82,7 +82,7 @@ static int luaG_new_require( lua_State* L)
 
     if( rc != LUA_OK) // LUA_ERRRUN / LUA_ERRMEM ?
     {
-        return lua_error( L);
+        raise_lua_error(L);
     }
     // should be 1 for Lua <= 5.3, 1 or 2 starting with Lua 5.4
     return lua_gettop(L);                                           // result(s)

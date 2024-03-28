@@ -50,7 +50,7 @@ THE SOFTWARE.
 * Called by cancellation hooks and/or pending Linda operations (because then
 * the check won't affect performance).
 *
-* Returns CANCEL_SOFT/HARD if any locks are to be exited, and 'cancel_error()' called,
+* Returns CANCEL_SOFT/HARD if any locks are to be exited, and 'raise_cancel_error()' called,
 * to make execution of the lane end.
 */
 static inline CancelRequest cancel_test(lua_State* L)
@@ -78,13 +78,13 @@ LUAG_FUNC( cancel_test)
 // ################################################################################################
 // ################################################################################################
 
-static void cancel_hook( lua_State* L, [[maybe_unused]] lua_Debug* ar)
+static void cancel_hook(lua_State* L, [[maybe_unused]] lua_Debug* ar)
 {
-    DEBUGSPEW_CODE( fprintf( stderr, "cancel_hook\n"));
+    DEBUGSPEW_CODE(fprintf(stderr, "cancel_hook\n"));
     if (cancel_test(L) != CancelRequest::None)
     {
-        lua_sethook( L, nullptr, 0, 0);
-        cancel_error( L);
+        lua_sethook(L, nullptr, 0, 0);
+        raise_cancel_error(L);
     }
 }
 
@@ -158,7 +158,7 @@ static CancelResult thread_cancel_hard(lua_State* L, Lane* s, double secs_, bool
         result = THREAD_WAIT(&s->thread, waitkill_timeout_, &s->done_signal, &s->done_lock, &s->status) ? CancelResult::Killed : CancelResult::Timeout;
         if (result == CancelResult::Timeout)
         {
-            (void) luaL_error( L, "force-killed lane failed to terminate within %f second%s", waitkill_timeout_, waitkill_timeout_ > 1 ? "s" : "");
+            std::ignore = luaL_error( L, "force-killed lane failed to terminate within %f second%s", waitkill_timeout_, waitkill_timeout_ > 1 ? "s" : "");
         }
 #else
         (void) waitkill_timeout_; // unused
@@ -238,7 +238,7 @@ static CancelOp which_op( lua_State* L, int idx_)
         lua_remove( L, idx_); // argument is processed, remove it
         if( op == CO_Invalid)
         {
-            luaL_error( L, "invalid hook option %s", str);
+            std::ignore = luaL_error( L, "invalid hook option %s", str);
         }
         return op;
     }

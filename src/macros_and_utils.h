@@ -11,6 +11,7 @@ extern "C" {
 #endif // __cplusplus
 
 #include <cassert>
+#include <tuple>
 #include <type_traits>
 
 #define USE_DEBUG_SPEW() 0
@@ -71,7 +72,7 @@ class StackChecker
         if ((offset_ < 0) || (m_oldtop < 0))
         {
             assert(false);
-            (void) luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%d", lua_gettop(m_L), offset_, file_, line_);
+            std::ignore = luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%d", lua_gettop(m_L), offset_, file_, line_);
         }
     }
 
@@ -82,7 +83,7 @@ class StackChecker
         if (lua_gettop(m_L) != pos_)
         {
             assert(false);
-            (void) luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%d", lua_gettop(m_L), pos_, file_, line_);
+            std::ignore = luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%d", lua_gettop(m_L), pos_, file_, line_);
         }
     }
 
@@ -102,7 +103,7 @@ class StackChecker
             if (actual != expected_)
             {
                 assert(false);
-                luaL_error(m_L, "STACK ASSERT failed (%d not %d): %s:%d", actual, expected_, file_, line_);
+                std::ignore = luaL_error(m_L, "STACK ASSERT failed (%d not %d): %s:%d", actual, expected_, file_, line_);
             }
         }
     }
@@ -121,10 +122,14 @@ class StackChecker
 inline void STACK_GROW(lua_State* L, int n_)
 {
     if (!lua_checkstack(L, n_))
-        luaL_error(L, "Cannot grow stack!");
+    {
+        std::ignore = luaL_error(L, "Cannot grow stack!");
+    }
 }
 
 #define LUAG_FUNC( func_name) int LG_##func_name( lua_State* L)
+
+// #################################################################################################
 
 // a small helper to extract a full userdata pointer from the stack in a safe way
 template<typename T>
@@ -152,4 +157,13 @@ template <typename T>
 T* lua_newuserdatauv(lua_State* L, int nuvalue_)
 {
     return static_cast<T*>(lua_newuserdatauv(L, sizeof(T), nuvalue_));
+}
+
+// #################################################################################################
+
+// use this instead of Lua's lua_error if possible
+[[noreturn]] static inline void raise_lua_error(lua_State* L)
+{
+    std::ignore = lua_error(L); // doesn't return
+    assert(false); // we should never get here, but i'm paranoid
 }

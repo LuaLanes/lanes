@@ -184,7 +184,7 @@ static int deep_userdata_gc( lua_State* L)
         // top was set to 0, then userdata was pushed. "delete" might want to pop the userdata (we don't care), but should not push anything!
         if ( lua_gettop( L) > 1)
         {
-            luaL_error( L, "Bad idfunc(eDO_delete): should not push anything");
+            return luaL_error( L, "Bad idfunc(eDO_delete): should not push anything");
         }
     }
     *proxy = nullptr; // make sure we don't use it any more, just in case
@@ -478,8 +478,8 @@ bool copydeep(Universe* U, lua_State* L2, int L2_cache_i, lua_State* L, int i, L
     if (errmsg != nullptr)
     {
         // raise the error in the proper state (not the keeper)
-        lua_State* errL = (mode_ == eLM_FromKeeper) ? L2 : L;
-        luaL_error( errL, errmsg);
+        lua_State* const errL { (mode_ == eLM_FromKeeper) ? L2 : L };
+        std::ignore = luaL_error(errL, errmsg);
     }
     return true;
 }

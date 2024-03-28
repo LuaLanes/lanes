@@ -1110,7 +1110,7 @@ LUAG_FUNC( lane_new)
                 if( lua_isnil( L2, -1))
                 {
                     lua_pop( L2, 1);                                                                                                           //
-                    luaL_error( L, "cannot pre-require modules without loading 'package' library first");
+                    return luaL_error( L, "cannot pre-require modules without loading 'package' library first");
                 }
                 else
                 {
@@ -1119,7 +1119,7 @@ LUAG_FUNC( lane_new)
                     {
                         // propagate error to main state if any
                         luaG_inter_move( U, L2, L, 1, eLM_LaneBody); // func libs priority globals package required gc_cb [... args ...] n "modname" error
-                        return lua_error( L);
+                        raise_lua_error(L);
                     }
                     // after requiring the module, register the functions it exported in our name<->function database
                     populate_func_lookup_table( L2, -1, name);
@@ -1538,11 +1538,9 @@ LUAG_FUNC( thread_index)
                         lua_pushliteral( L, "Unexpected status: ");
                         lua_pushstring( L, thread_status_string( s));
                         lua_concat( L, 2);
-                        lua_error( L);
-                        break;
+                        raise_lua_error(L);
                     }
-                    // fall through if we are killed, as we got nil, "killed" on the stack
-                    [[fallthrough]];
+                    [[fallthrough]]; // fall through if we are killed, as we got nil, "killed" on the stack
 
                     case DONE: // got regular return values
                     {

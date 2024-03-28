@@ -165,7 +165,7 @@ static void check_key_types(lua_State* L, int start_, int end_)
         {
             continue;
         }
-        (void) luaL_error( L, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", i);
+        std::ignore = luaL_error(L, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", i);
     }
 }
 
@@ -192,7 +192,7 @@ LUAG_FUNC(linda_protected_call)
     // if there was an error, forward it
     if( rc != LUA_OK)
     {
-        return lua_error( L);
+        raise_lua_error(L);
     }
     // return whatever the actual operation provided
     return lua_gettop( L);
@@ -339,7 +339,7 @@ LUAG_FUNC( linda_send)
 
         case CancelRequest::Hard:
         // raise an error interrupting execution only in case of hard cancel
-        return cancel_error( L); // raises an error and doesn't return
+        raise_cancel_error(L); // raises an error and doesn't return
 
         default:
         lua_pushboolean( L, ret); // true (success) or false (timeout)
@@ -494,7 +494,7 @@ LUAG_FUNC( linda_receive)
 
         case CancelRequest::Hard:
         // raise an error interrupting execution only in case of hard cancel
-        return cancel_error( L); // raises an error and doesn't return
+        raise_cancel_error(L); // raises an error and doesn't return
 
         default:
         return pushed;
