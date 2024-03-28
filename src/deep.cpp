@@ -32,8 +32,9 @@ THE SOFTWARE.
 ===============================================================================
 */
 
-#include "compat.h"
 #include "deep.h"
+
+#include "compat.h"
 #include "tools.h"
 #include "uniquekey.h"
 #include "universe.h"
@@ -95,7 +96,7 @@ static void get_deep_lookup( lua_State* L)
 {
     STACK_GROW( L, 1);
     STACK_CHECK_START_REL(L, 1);                             // a
-    DEEP_LOOKUP_KEY.query_registry(L);                       // a {}
+    DEEP_LOOKUP_KEY.pushValue(L);                            // a {}
     if( !lua_isnil( L, -1))
     {
         lua_insert( L, -2);                                  // {} a

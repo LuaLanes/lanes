@@ -31,7 +31,7 @@ class UniqueKey
         return m_storage == rhs_.m_storage;
     }
 
-    void push(lua_State* const L) const
+    void pushKey(lua_State* const L) const
     {
         lua_pushlightuserdata(L, std::bit_cast<void*>(m_storage));
     }
@@ -39,17 +39,38 @@ class UniqueKey
     {
         return lua_touserdata(L, i) == std::bit_cast<void*>(m_storage);
     }
-    void query_registry(lua_State* const L) const
+    void pushValue(lua_State* const L) const
     {
-        push(L);
+        pushKey(L);
         lua_rawget(L, LUA_REGISTRYINDEX);
     }
     template <typename OP>
-    void set_registry(lua_State* L, OP operation_) const
+    void setValue(lua_State* L, OP operation_) const
     {
         // Note we can't check stack consistency because operation is not always a push (could be insert, replace, whatever)
-        push(L);                              // ... key
+        pushKey(L);                           // ... key
         operation_(L);                        // ... key value
         lua_rawset(L, LUA_REGISTRYINDEX);     // ...
+    }
+    template <typename T>
+    T* readLightUserDataValue(lua_State* const L) const
+    {
+        STACK_GROW(L, 1);
+        STACK_CHECK_START_REL(L, 0);
+        pushValue(L);
+        T* const value{ lua_tolightuserdata<T>(L, -1) }; // lightuserdata/nil
+        lua_pop(L, 1);
+        STACK_CHECK(L, 0);
+        return value;
+    }
+    bool readBoolValue(lua_State* const L) const
+    {
+        STACK_GROW(L, 1);
+        STACK_CHECK_START_REL(L, 0);
+        pushValue(L);
+        bool const value{ lua_toboolean(L, -1) ? true : false}; // bool/nil
+        lua_pop(L, 1);
+        STACK_CHECK(L, 0);
+        return value;
     }
 };

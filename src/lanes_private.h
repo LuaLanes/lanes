@@ -72,21 +72,13 @@ struct Lane
     // For tracking only
 };
 
+// xxh64 of string "LANE_POINTER_REGKEY" generated at https://www.pelock.com/products/hash-calculator
+static constexpr UniqueKey LANE_POINTER_REGKEY{ 0xB3022205633743BCull }; // used as registry key
+
 // To allow free-running threads (longer lifespan than the handle's)
 // 'Lane' are malloc/free'd and the handle only carries a pointer.
 // This is not deep userdata since the handle's not portable among lanes.
 //
 #define lua_toLane( L, i) (*((Lane**) luaL_checkudata( L, i, "Lane")))
-
-static inline Lane* get_lane_from_registry( lua_State* L)
-{
-    STACK_GROW( L, 1);
-    STACK_CHECK_START_REL(L, 0);
-    CANCEL_TEST_KEY.query_registry(L);
-    Lane* const s{ lua_tolightuserdata<Lane>(L, -1) }; // lightuserdata (true 'Lane' pointer) / nil
-    lua_pop( L, 1);
-    STACK_CHECK( L, 0);
-    return s;
-}
 
 int push_thread_status( lua_State* L, Lane* s);

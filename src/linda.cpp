@@ -216,11 +216,8 @@ LUAG_FUNC(linda_protected_call)
 LUAG_FUNC(linda_send)
 {
     Linda* const linda{ lua_toLinda<false>(L, 1) };
-    bool ret{ false };
-    CancelRequest cancel{ CancelRequest::None };
-    int pushed;
-    time_d timeout = -1.0;
-    int key_i = 2; // index of first key, if timeout not there
+    time_d timeout{ -1.0 };
+    int key_i{ 2 }; // index of first key, if timeout not there
 
     if (lua_type(L, 2) == LUA_TNUMBER) // we don't want to use lua_isnumber() because of autocoercion
     {
@@ -250,7 +247,7 @@ LUAG_FUNC(linda_send)
         if (as_nil_sentinel)
         {
             // send a single nil if nothing is provided
-            NIL_SENTINEL.push(L);
+            NIL_SENTINEL.pushKey(L);
         }
         else
         {
@@ -260,9 +257,11 @@ LUAG_FUNC(linda_send)
 
     // convert nils to some special non-nil sentinel in sent values
     keeper_toggle_nil_sentinels(L, key_i + 1, eLM_ToKeeper);
-
+    bool ret{ false };
+    CancelRequest cancel{ CancelRequest::None };
+    int pushed{ 0 };
     {
-        Lane* const lane{ get_lane_from_registry(L) };
+        Lane* const lane{ LANE_POINTER_REGKEY.readLightUserDataValue<Lane>(L) };
         Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
         lua_State* const KL{ K ? K->L : nullptr };
         if (KL == nullptr)
@@ -339,7 +338,7 @@ LUAG_FUNC(linda_send)
     {
         case CancelRequest::Soft:
         // if user wants to soft-cancel, the call returns lanes.cancel_error
-        CANCEL_ERROR.push(L);
+        CANCEL_ERROR.pushKey(L);
         return 1;
 
         case CancelRequest::Hard:
@@ -387,7 +386,7 @@ LUAG_FUNC(linda_receive)
     keeper_api_t keeper_receive;
     int expected_pushed_min{ 0 }, expected_pushed_max{ 0 };
     // are we in batched mode?
-    BATCH_SENTINEL.push(L);
+    BATCH_SENTINEL.pushKey(L);
     int const is_batched{ lua501_equal(L, key_i, -1) };
     lua_pop(L, 1);
     if (is_batched)
@@ -419,7 +418,7 @@ LUAG_FUNC(linda_receive)
         expected_pushed_min = expected_pushed_max = 2;
     }
 
-    Lane* const lane{ get_lane_from_registry(L) };
+    Lane* const lane{ LANE_POINTER_REGKEY.readLightUserDataValue<Lane>(L) };
     Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
     if (K == nullptr)
         return 0;
@@ -492,7 +491,7 @@ LUAG_FUNC(linda_receive)
     {
         case CancelRequest::Soft:
         // if user wants to soft-cancel, the call returns CANCEL_ERROR
-        CANCEL_ERROR.push(L);
+        CANCEL_ERROR.pushKey(L);
         return 1;
 
         case CancelRequest::Hard:
@@ -551,7 +550,7 @@ LUAG_FUNC(linda_set)
     else // linda is cancelled
     {
         // do nothing and return lanes.cancel_error
-        CANCEL_ERROR.push(L);
+        CANCEL_ERROR.pushKey(L);
         pushed = 1;
     }
 
@@ -610,7 +609,7 @@ LUAG_FUNC(linda_get)
     else // linda is cancelled
     {
         // do nothing and return lanes.cancel_error
-        CANCEL_ERROR.push(L);
+        CANCEL_ERROR.pushKey(L);
         pushed = 1;
     }
     // an error can be raised if we attempt to read an unregistered function
@@ -655,7 +654,7 @@ LUAG_FUNC( linda_limit)
     else // linda is cancelled
     {
         // do nothing and return lanes.cancel_error
-        CANCEL_ERROR.push(L);
+        CANCEL_ERROR.pushKey(L);
         pushed = 1;
     }
     // propagate pushed boolean if any
@@ -961,10 +960,10 @@ static void* linda_id( lua_State* L, DeepOp op_)
             lua_setfield(L, -2, "dump");
 
             // some constants
-            BATCH_SENTINEL.push(L);
+            BATCH_SENTINEL.pushKey(L);
             lua_setfield(L, -2, "batched");
 
-            NIL_SENTINEL.push(L);
+            NIL_SENTINEL.pushKey(L);
             lua_setfield(L, -2, "null");
 
             STACK_CHECK(L, 1);

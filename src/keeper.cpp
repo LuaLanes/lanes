@@ -188,7 +188,7 @@ static void push_table(lua_State* L, int idx_)
     STACK_GROW(L, 5);
     STACK_CHECK_START_REL(L, 0);
     idx_ = lua_absindex(L, idx_);
-    FIFOS_KEY.query_registry(L);               // ud fifos
+    FIFOS_KEY.pushValue(L);                    // ud fifos
     lua_pushvalue(L, idx_);                    // ud fifos ud
     lua_rawget(L, -2);                         // ud fifos fifos[ud]
     STACK_CHECK(L, 2);
@@ -209,16 +209,17 @@ static void push_table(lua_State* L, int idx_)
 
 int keeper_push_linda_storage(Universe* U, lua_State* L, void* ptr_, uintptr_t magic_)
 {
-    Keeper* const K = which_keeper( U->keepers, magic_);
-    lua_State* const KL = K ? K->L : nullptr;
-    if( KL == nullptr) return 0;
+    Keeper* const K{ which_keeper(U->keepers, magic_) };
+    lua_State* const KL{ K ? K->L : nullptr };
+    if (KL == nullptr)
+        return 0;
     STACK_GROW(KL, 4);
     STACK_CHECK_START_REL(KL, 0);
-    FIFOS_KEY.query_registry(KL);                                 // fifos
+    FIFOS_KEY.pushValue(KL);                                      // fifos
     lua_pushlightuserdata(KL, ptr_);                              // fifos ud
     lua_rawget(KL, -2);                                           // fifos storage
     lua_remove(KL, -2);                                           // storage
-    if( !lua_istable(KL, -1))
+    if (!lua_istable(KL, -1))
     {
         lua_pop(KL, 1);                                           //
         STACK_CHECK(KL, 0);
@@ -229,7 +230,7 @@ int keeper_push_linda_storage(Universe* U, lua_State* L, void* ptr_, uintptr_t m
     STACK_GROW(L, 5);
     STACK_CHECK_START_REL(L, 0);
     lua_newtable(L);                                                                           // out
-    while( lua_next(KL, -2))                                      // storage key fifo
+    while (lua_next(KL, -2))                                      // storage key fifo
     {
         keeper_fifo* fifo = prepare_fifo_access(KL, -1);          // storage key fifotbl
         lua_pushvalue(KL, -2);                                    // storage key fifotbl key
@@ -263,7 +264,7 @@ int keepercall_clear(lua_State* L)
 {
     STACK_GROW(L, 3);
     STACK_CHECK_START_REL(L, 0);
-    FIFOS_KEY.query_registry(L);                // ud fifos
+    FIFOS_KEY.pushValue(L);                     // ud fifos
     lua_pushvalue(L, 1);                        // ud fifos ud
     lua_pushnil(L);                             // ud fifos ud nil
     lua_rawset(L, -3);                          // ud fifos
@@ -722,7 +723,7 @@ void init_keepers(Universe* U, lua_State* L)
         lua_pushfstring(K, "Keeper #%d", i + 1);                   //                              "Keeper #n"
         lua_setglobal(K, "decoda_name");                           //
         // create the fifos table in the keeper state
-        FIFOS_KEY.set_registry(K, [](lua_State* L) { lua_newtable(L); });
+        FIFOS_KEY.setValue(K, [](lua_State* L) { lua_newtable(L); });
         STACK_CHECK(K, 0);
     }
     STACK_CHECK(L, 0);
@@ -788,7 +789,7 @@ void keeper_toggle_nil_sentinels(lua_State* L, int val_i_, LookupMode const mode
         {
             if (lua_isnil(L, i))
             {
-                NIL_SENTINEL.push(L);
+                NIL_SENTINEL.pushKey(L);
                 lua_replace(L, i);
             }
         }

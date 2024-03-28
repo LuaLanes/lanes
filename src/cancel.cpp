@@ -55,8 +55,8 @@ THE SOFTWARE.
 */
 static inline CancelRequest cancel_test(lua_State* L)
 {
-    Lane* const lane{ get_lane_from_registry(L) };
-    // 's' is nullptr for the original main state (and no-one can cancel that)
+    Lane* const lane{ LANE_POINTER_REGKEY.readLightUserDataValue<Lane>(L) };
+    // 'lane' is nullptr for the original main state (and no-one can cancel that)
     return lane ? lane->cancel_request : CancelRequest::None;
 }
 

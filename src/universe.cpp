@@ -50,8 +50,8 @@ Universe* universe_create(lua_State* L)
     Universe* const U = static_cast<Universe*>(lua_newuserdatauv(L, sizeof(Universe), 0));         // universe
     U->Universe::Universe();
     STACK_CHECK_START_REL(L, 1);
-    UNIVERSE_FULL_REGKEY.set_registry(L, [](lua_State* L) { lua_pushvalue(L, -2); });
-    UNIVERSE_LIGHT_REGKEY.set_registry(L, [U](lua_State* L) { lua_pushlightuserdata( L, U); });
+    UNIVERSE_FULL_REGKEY.setValue(L, [](lua_State* L) { lua_pushvalue(L, -2); });
+    UNIVERSE_LIGHT_REGKEY.setValue(L, [U](lua_State* L) { lua_pushlightuserdata( L, U); });
     STACK_CHECK(L, 1);
     return U;
 }
@@ -62,7 +62,7 @@ void universe_store(lua_State* L, Universe* U)
 {
     ASSERT_L(universe_get(L) == nullptr);
     STACK_CHECK_START_REL(L, 0);
-    UNIVERSE_LIGHT_REGKEY.set_registry(L, [U](lua_State* L) { U ? lua_pushlightuserdata( L, U) : lua_pushnil( L); });
+    UNIVERSE_LIGHT_REGKEY.setValue(L, [U](lua_State* L) { U ? lua_pushlightuserdata( L, U) : lua_pushnil( L); });
     STACK_CHECK( L, 0);
 }
 
@@ -70,11 +70,8 @@ void universe_store(lua_State* L, Universe* U)
 
 Universe* universe_get(lua_State* L)
 {
-    STACK_GROW(L, 2);
     STACK_CHECK_START_REL(L, 0);
-    UNIVERSE_LIGHT_REGKEY.query_registry(L);
-    Universe* const universe{ lua_tolightuserdata<Universe>(L, -1) }; // nullptr if nil
-    lua_pop(L, 1);
-    STACK_CHECK(L, 0);
+    Universe* const universe{ UNIVERSE_LIGHT_REGKEY.readLightUserDataValue<Universe>(L) };
+    STACK_CHECK( L, 0);
     return universe;
 }

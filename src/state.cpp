@@ -203,14 +203,14 @@ static void copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2)
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "copy_one_time_settings()\n" INDENT_END));
     DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
 
-    CONFIG_REGKEY.query_registry(L);                                               // config
+    CONFIG_REGKEY.pushValue(L);                                                    // config
     // copy settings from from source to destination registry
     if( luaG_inter_move( U, L, L2, 1, eLM_LaneBody) < 0)                           //                           // config
     {
         (void) luaL_error( L, "failed to copy settings when loading lanes.core");
     }
     // set L2:_R[CONFIG_REGKEY] = settings
-    CONFIG_REGKEY.set_registry(L2, [](lua_State* L) { lua_insert(L, -2); });                                    // config
+    CONFIG_REGKEY.setValue(L2, [](lua_State* L) { lua_insert(L, -2); });                                        // config
     STACK_CHECK( L2, 0);
     STACK_CHECK( L, 0);
     DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
@@ -273,43 +273,43 @@ lua_State* create_state( Universe* U, lua_State* from_)
 
     if (L == nullptr)
     {
-        (void) luaL_error( from_, "luaG_newstate() failed while creating state; out of memory");
+        std::ignore = luaL_error( from_, "luaG_newstate() failed while creating state; out of memory");
     }
     return L;
 }
 
-void call_on_state_create( Universe* U, lua_State* L, lua_State* from_, LookupMode mode_)
+void call_on_state_create(Universe* U, lua_State* L, lua_State* from_, LookupMode mode_)
 {
     if (U->on_state_create_func != nullptr)
     {
         STACK_CHECK_START_REL(L, 0);
-        DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "calling on_state_create()\n" INDENT_END));
-        if( U->on_state_create_func != (lua_CFunction) initialize_on_state_create)
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "calling on_state_create()\n" INDENT_END));
+        if (U->on_state_create_func != (lua_CFunction) initialize_on_state_create)
         {
             // C function: recreate a closure in the new state, bypassing the lookup scheme
-            lua_pushcfunction( L, U->on_state_create_func);                             // on_state_create()
+            lua_pushcfunction(L, U->on_state_create_func); // on_state_create()
         }
         else // Lua function located in the config table, copied when we opened "lanes.core"
         {
-            if( mode_ != eLM_LaneBody)
+            if (mode_ != eLM_LaneBody)
             {
                 // if attempting to call in a keeper state, do nothing because the function doesn't exist there
                 // this doesn't count as an error though
                 STACK_CHECK(L, 0);
                 return;
             }
-            CONFIG_REGKEY.query_registry(L);                                            // {}
-            STACK_CHECK( L, 1);
-            lua_getfield( L, -1, "on_state_create");                                    // {} on_state_create()
-            lua_remove( L, -2);                                                         // on_state_create()
+            CONFIG_REGKEY.pushValue(L);                                                // {}
+            STACK_CHECK(L, 1);
+            lua_getfield(L, -1, "on_state_create");                                    // {} on_state_create()
+            lua_remove(L, -2);                                                         // on_state_create()
         }
-        STACK_CHECK( L, 1);
+        STACK_CHECK(L, 1);
         // capture error and raise it in caller state
-        if( lua_pcall( L, 0, 0, 0) != LUA_OK)
+        if (lua_pcall(L, 0, 0, 0) != LUA_OK)
         {
-            luaL_error( from_, "on_state_create failed: \"%s\"", lua_isstring( L, -1) ? lua_tostring( L, -1) : lua_typename( L, lua_type( L, -1)));
+            luaL_error(from_, "on_state_create failed: \"%s\"", lua_isstring(L, -1) ? lua_tostring(L, -1) : lua_typename(L, lua_type(L, -1)));
         }
-        STACK_CHECK( L, 0);
+        STACK_CHECK(L, 0);
     }
 }
 
@@ -339,7 +339,7 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
     STACK_CHECK(L, 0);
 
     // we'll need this every time we transfer some C function from/to this state
-    LOOKUP_REGKEY.set_registry(L, [](lua_State* L) { lua_newtable(L); });
+    LOOKUP_REGKEY.setValue(L, [](lua_State* L) { lua_newtable(L); });
     STACK_CHECK(L, 0);
 
     // neither libs (not even 'base') nor special init func: we are done

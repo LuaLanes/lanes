@@ -48,15 +48,12 @@ enum CancelOp
 // crc64/we of string "CANCEL_ERROR" generated at http://www.nitrxgen.net/hashgen/
 static constexpr UniqueKey CANCEL_ERROR{ 0xe97d41626cc97577ull }; // 'raise_cancel_error' sentinel
 
-// crc64/we of string "CANCEL_TEST_KEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey CANCEL_TEST_KEY{ 0xe66f5960c57d133aull }; // used as registry key
-
 CancelResult thread_cancel(lua_State* L, Lane* lane_, CancelOp op_, double secs_, bool force_, double waitkill_timeout_);
 
 [[noreturn]] static inline void raise_cancel_error(lua_State* L)
 {
     STACK_GROW(L, 1);
-    CANCEL_ERROR.push(L); // special error value
+    CANCEL_ERROR.pushKey(L); // special error value
     raise_lua_error(L); // doesn't return
 }
 
