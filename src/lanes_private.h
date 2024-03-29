@@ -1,8 +1,10 @@
 #pragma once
 
-#include "uniquekey.h"
 #include "cancel.h"
+#include "uniquekey.h"
 #include "universe.h"
+
+#include <latch>
 
 // NOTE: values to be changed by either thread, during execution, without
 //       locking, are marked "volatile"
@@ -22,6 +24,7 @@ class Lane
     using enum ThreadStatus;
 
     THREAD_T thread;
+    std::latch m_ready{ 1 };
     //
     // M: sub-thread OS thread
     // S: not used

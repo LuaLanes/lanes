@@ -60,7 +60,7 @@ Universe* universe_create(lua_State* L)
 
 void universe_store(lua_State* L, Universe* U)
 {
-    ASSERT_L(universe_get(L) == nullptr);
+    ASSERT_L(!U || universe_get(L) == nullptr);
     STACK_CHECK_START_REL(L, 0);
     UNIVERSE_LIGHT_REGKEY.setValue(L, [U](lua_State* L) { U ? lua_pushlightuserdata( L, U) : lua_pushnil( L); });
     STACK_CHECK( L, 0);
