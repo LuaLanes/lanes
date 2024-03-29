@@ -189,7 +189,7 @@ CancelResult thread_cancel(lua_State* L, Lane* lane_, CancelOp op_, double secs_
 
     // signal the linda the wake up the thread so that it can react to the cancel query
     // let us hope we never land here with a pointer on a linda that has been destroyed...
-    if (op_ == CO_Soft)
+    if (op_ == CancelOp::Soft)
     {
         return thread_cancel_soft(lane_, secs_, force_);
     }
@@ -203,45 +203,46 @@ CancelResult thread_cancel(lua_State* L, Lane* lane_, CancelOp op_, double secs_
 // > 0: the mask
 // = 0: soft
 // < 0: hard
-static CancelOp which_op( lua_State* L, int idx_)
+static CancelOp which_op(lua_State* L, int idx_)
 {
-    if( lua_type( L, idx_) == LUA_TSTRING)
+    if (lua_type(L, idx_) == LUA_TSTRING)
     {
-        CancelOp op = CO_Invalid;
-        char const* str = lua_tostring( L, idx_);
-        if( strcmp( str, "soft") == 0)
+        CancelOp op{ CancelOp::Invalid };
+        char const* str = lua_tostring(L, idx_);
+        if (strcmp(str, "hard") == 0)
         {
-            op = CO_Soft;
+            op = CancelOp::Hard;
         }
-        else if( strcmp( str, "count") == 0)
+        else if (strcmp(str, "soft") == 0)
         {
-            op = CO_Count;
+            op = CancelOp::Soft;
         }
-        else if( strcmp( str, "line") == 0)
+        else if (strcmp(str, "call") == 0)
         {
-            op = CO_Line;
+            op = CancelOp::MaskCall;
         }
-        else if( strcmp( str, "call") == 0)
+        else if (strcmp(str, "ret") == 0)
         {
-            op = CO_Call;
+            op = CancelOp::MaskRet;
         }
-        else if( strcmp( str, "ret") == 0)
+        else if (strcmp(str, "line") == 0)
         {
-            op = CO_Ret;
+            op = CancelOp::MaskLine;
         }
-        else if( strcmp( str, "hard") == 0)
+        else if (strcmp(str, "count") == 0)
         {
-            op = CO_Hard;
+            op = CancelOp::MaskCount;
         }
-        lua_remove( L, idx_); // argument is processed, remove it
-        if( op == CO_Invalid)
+        lua_remove(L, idx_); // argument is processed, remove it
+        if (op == CancelOp::Invalid)
         {
-            std::ignore = luaL_error( L, "invalid hook option %s", str);
+            std::ignore = luaL_error(L, "invalid hook option %s", str);
         }
         return op;
     }
-    return CO_Hard;
+    return CancelOp::Hard;
 }
+
 // ################################################################################################
 
 // bool[,reason] = lane_h:cancel( [mode, hookcount] [, timeout] [, force [, forcekill_timeout]])
@@ -250,15 +251,15 @@ LUAG_FUNC(thread_cancel)
     Lane* const lane{ lua_toLane(L, 1) };
     CancelOp const op{ which_op(L, 2) }; // this removes the op string from the stack
 
-    if (op > 0) // hook is requested
+    if (static_cast<int>(op) > static_cast<int>(CancelOp::Soft)) // hook is requested
     {
-        int hook_count = (int) lua_tointeger(L, 2);
+        int const hook_count{ static_cast<int>(lua_tointeger(L, 2)) };
         lua_remove(L, 2); // argument is processed, remove it
         if (hook_count < 1)
         {
             return luaL_error(L, "hook count cannot be < 1");
         }
-        lua_sethook(lane->L, cancel_hook, op, hook_count);
+        lua_sethook(lane->L, cancel_hook, static_cast<int>(op), hook_count);
     }
 
     double secs{ 0.0 };

@@ -12,8 +12,8 @@ extern "C" {
 #include "uniquekey.h"
 
 // forwards
+enum class LookupMode;
 struct Universe;
-enum LookupMode;
 
 struct Keeper
 {

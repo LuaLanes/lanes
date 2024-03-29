@@ -256,7 +256,7 @@ LUAG_FUNC(linda_send)
     }
 
     // convert nils to some special non-nil sentinel in sent values
-    keeper_toggle_nil_sentinels(L, key_i + 1, eLM_ToKeeper);
+    keeper_toggle_nil_sentinels(L, key_i + 1, LookupMode::ToKeeper);
     bool ret{ false };
     CancelRequest cancel{ CancelRequest::None };
     int pushed{ 0 };
@@ -448,7 +448,7 @@ LUAG_FUNC(linda_receive)
         {
             ASSERT_L(pushed >= expected_pushed_min && pushed <= expected_pushed_max);
             // replace sentinels with real nils
-            keeper_toggle_nil_sentinels(L, lua_gettop(L) - pushed, eLM_FromKeeper);
+            keeper_toggle_nil_sentinels(L, lua_gettop(L) - pushed, LookupMode::FromKeeper);
             // To be done from within the 'K' locking area
             //
             SIGNAL_ALL(&linda->read_happened);
@@ -527,7 +527,7 @@ LUAG_FUNC(linda_set)
         if (has_value)
         {
             // convert nils to some special non-nil sentinel in sent values
-            keeper_toggle_nil_sentinels(L, 3, eLM_ToKeeper);
+            keeper_toggle_nil_sentinels(L, 3, LookupMode::ToKeeper);
         }
         pushed = keeper_call(linda->U, K->L, KEEPER_API(set), L, linda, 2);
         if (pushed >= 0) // no error?
@@ -603,7 +603,7 @@ LUAG_FUNC(linda_get)
         pushed = keeper_call(linda->U, K->L, KEEPER_API(get), L, linda, 2);
         if (pushed > 0)
         {
-            keeper_toggle_nil_sentinels(L, lua_gettop(L) - pushed, eLM_FromKeeper);
+            keeper_toggle_nil_sentinels(L, lua_gettop(L) - pushed, LookupMode::FromKeeper);
         }
     }
     else // linda is cancelled
@@ -843,7 +843,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
 {
     switch( op_)
     {
-        case eDO_new:
+        case DeepOp::New:
         {
             size_t name_len = 0;
             char const* linda_name = nullptr;
@@ -881,7 +881,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             return linda;
         }
 
-        case eDO_delete:
+        case DeepOp::Delete:
         {
             Linda* const linda{ lua_tolightuserdata<Linda>(L, 1) };
             ASSERT_L(linda);
@@ -899,7 +899,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             return nullptr;
         }
 
-        case eDO_metatable:
+        case DeepOp::Metatable:
         {
             STACK_CHECK_START_REL(L, 0);
             lua_newtable(L);
@@ -970,7 +970,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             return nullptr;
         }
 
-        case eDO_module:
+        case DeepOp::Module:
         // linda is a special case because we know lanes must be loaded from the main lua state
         // to be able to ever get here, so we know it will remain loaded as long a the main state is around
         // in other words, forever.

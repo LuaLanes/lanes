@@ -19,13 +19,13 @@ void luaG_dump( lua_State* L);
 void push_registry_subtable_mode( lua_State* L, UniqueKey key_, const char* mode_);
 void push_registry_subtable( lua_State* L, UniqueKey key_);
 
-enum e_vt
+enum class VT
 {
-    VT_NORMAL,
-    VT_KEY,
-    VT_METATABLE
+    NORMAL,
+    KEY,
+    METATABLE
 };
-bool inter_copy_one(Universe* U, lua_State* L2, int L2_cache_i, lua_State* L, int i, enum e_vt vt, LookupMode mode_, char const* upName_);
+bool inter_copy_one(Universe* U, lua_State* L2, int L2_cache_i, lua_State* L, int i, VT vt_, LookupMode mode_, char const* upName_);
 
 // ################################################################################################
 

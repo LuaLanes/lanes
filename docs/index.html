@@ -1669,10 +1669,10 @@ int luaD_new_clonable( lua_State* L)
 		<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>	void* idfunc( lua_State* L, DeepOp op_);</pre></td></tr></table>
 		<tt>op_</tt> can be one of:
 		<ul>
-			<li><tt>eDO_new</tt>: requests the creation of a new object, whose pointer is returned. Said object must derive from <tt>DeepPrelude</tt>.</li>
-			<li><tt>eDO_delete</tt>: receives this same pointer on the stack as a light userdata, and should cleanup the object.</li>
-			<li><tt>eDO_metatable</tt>: should build a metatable for the object. Don't cache the metatable yourself, Lanes takes care of it (<tt>eDO_metatable</tt> should only be invoked once per state). Just push the metatable on the stack.</li>
-			<li><tt>eDO_module</tt>: requests the name of the module that exports the idfunc, to be returned. It is necessary so that Lanes can require it in any lane state that receives a userdata. This is to prevent crashes in situations where the module could be unloaded while the idfunc pointer is still held.</li>
+			<li><tt>DeepOp::New</tt>: requests the creation of a new object, whose pointer is returned. Said object must derive from <tt>DeepPrelude</tt>.</li>
+			<li><tt>DeepOp::Delete</tt>: receives this same pointer on the stack as a light userdata, and should cleanup the object.</li>
+			<li><tt>DeepOp::Metatable</tt>: should build a metatable for the object. Don't cache the metatable yourself, Lanes takes care of it (<tt>DeepOp::Metatable</tt> should only be invoked once per state). Just push the metatable on the stack.</li>
+			<li><tt>DeepOp::Module</tt>: requests the name of the module that exports the idfunc, to be returned. It is necessary so that Lanes can require it in any lane state that receives a userdata. This is to prevent crashes in situations where the module could be unloaded while the idfunc pointer is still held.</li>
 		</ul>
 		Take a look at <tt>linda_id</tt> in <tt>lanes.cpp</tt> or <tt>deep_test_id</tt> in <tt>deep_test.cpp</tt>.
 	</li>
@@ -1686,13 +1686,13 @@ int luaD_new_clonable( lua_State* L)
 </p>
 
 <p>
-	Deep userdata in transit inside keeper states (sent in a linda but not yet consumed) don't call <tt>idfunc(eDO_delete)</tt> and aren't considered by reference counting. The rationale is the following:
+	Deep userdata in transit inside keeper states (sent in a linda but not yet consumed) don't call <tt>idfunc(DeepOp::Delete)</tt> and aren't considered by reference counting. The rationale is the following:
 	<br />
 	If some non-keeper state holds a deep userdata for some deep object, then even if the keeper collects its own deep userdata, it shouldn't be cleaned up since the refcount is not 0.
 	<br />
 	OTOH, if a keeper state holds the last deep userdata for some deep object, then no lane can do actual work with it. Deep userdata's <tt>idfunc()</tt> is never called from a keeper state.
 	<br />
-	Therefore, Lanes can just call <tt>idfunc(eDO_delete)</tt> when the last non-keeper-held deep userdata is collected, as long as it doesn't do the same in a keeper state after that, since any remaining deep userdata in keeper states now hold stale pointers.
+	Therefore, Lanes can just call <tt>idfunc(DeepOp::Delete)</tt> when the last non-keeper-held deep userdata is collected, as long as it doesn't do the same in a keeper state after that, since any remaining deep userdata in keeper states now hold stale pointers.
 </p>
 
 <p>

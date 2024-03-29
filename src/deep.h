@@ -21,19 +21,19 @@ extern "C" {
 // forwards
 struct Universe;
 
-enum LookupMode
+enum class LookupMode
 {
-    eLM_LaneBody, // send the lane body directly from the source to the destination lane
-    eLM_ToKeeper, // send a function from a lane to a keeper state
-    eLM_FromKeeper // send a function from a keeper state to a lane
+    LaneBody, // send the lane body directly from the source to the destination lane
+    ToKeeper, // send a function from a lane to a keeper state
+    FromKeeper // send a function from a keeper state to a lane
 };
 
-enum DeepOp
+enum class DeepOp
 {
-    eDO_new,
-    eDO_delete,
-    eDO_metatable,
-    eDO_module,
+    New,
+    Delete,
+    Metatable,
+    Module,
 };
 
 using luaG_IdFunction = void*(*)( lua_State* L, DeepOp op_);

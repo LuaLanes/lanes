@@ -205,7 +205,7 @@ static void copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2)
 
     CONFIG_REGKEY.pushValue(L);                                                    // config
     // copy settings from from source to destination registry
-    if( luaG_inter_move( U, L, L2, 1, eLM_LaneBody) < 0)                           //                           // config
+    if( luaG_inter_move( U, L, L2, 1, LookupMode::LaneBody) < 0)                   //                           // config
     {
         (void) luaL_error( L, "failed to copy settings when loading lanes.core");
     }
@@ -291,7 +291,7 @@ void call_on_state_create(Universe* U, lua_State* L, lua_State* from_, LookupMod
         }
         else // Lua function located in the config table, copied when we opened "lanes.core"
         {
-            if (mode_ != eLM_LaneBody)
+            if (mode_ != LookupMode::LaneBody)
             {
                 // if attempting to call in a keeper state, do nothing because the function doesn't exist there
                 // this doesn't count as an error though
@@ -413,7 +413,7 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
 
     // call this after the base libraries are loaded and GC is restarted
     // will raise an error in from_ in case of problem
-    call_on_state_create( U, L, from_, eLM_LaneBody);
+    call_on_state_create(U, L, from_, LookupMode::LaneBody);
 
     STACK_CHECK(L, 0);
     // after all this, register everything we find in our name<->function database

@@ -34,15 +34,15 @@ enum class CancelResult
     Killed
 };
 
-enum CancelOp
+enum class CancelOp
 {
-    CO_Invalid = -2,
-    CO_Hard = -1,
-    CO_Soft = 0,
-    CO_Count = LUA_MASKCOUNT,
-    CO_Line = LUA_MASKLINE,
-    CO_Call = LUA_MASKCALL,
-    CO_Ret = LUA_MASKRET,
+    Invalid = -2,
+    Hard = -1,
+    Soft = 0,
+    MaskCall = LUA_MASKCALL,
+    MaskRet = LUA_MASKRET,
+    MaskLine = LUA_MASKLINE,
+    MaskCount = LUA_MASKCOUNT,
 };
 
 // crc64/we of string "CANCEL_ERROR" generated at http://www.nitrxgen.net/hashgen/

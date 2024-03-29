@@ -19,26 +19,26 @@ static void* deep_test_id( lua_State* L, DeepOp op_)
 {
 	switch( op_)
 	{
-		case eDO_new:
+		case DeepOp::New:
 		{
 			MyDeepUserdata* deep_test = new MyDeepUserdata;
 			return deep_test;
 		}
 
-		case eDO_delete:
+		case DeepOp::Delete:
 		{
 			MyDeepUserdata* deep_test = static_cast<MyDeepUserdata*>(lua_touserdata( L, 1));
 			delete deep_test;
 			return nullptr;
 		}
 
-		case eDO_metatable:
+		case DeepOp::Metatable:
 		{
 			luaL_getmetatable( L, "deep");             // mt
 			return nullptr;
 		}
 
-		case eDO_module:
+		case DeepOp::Module:
 		return (void*)"deep_test";
 
 		default:

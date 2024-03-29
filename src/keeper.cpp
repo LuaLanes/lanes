@@ -234,10 +234,10 @@ int keeper_push_linda_storage(Universe* U, lua_State* L, void* ptr_, uintptr_t m
     {
         keeper_fifo* fifo = prepare_fifo_access(KL, -1);          // storage key fifotbl
         lua_pushvalue(KL, -2);                                    // storage key fifotbl key
-        luaG_inter_move(U, KL, L, 1, eLM_FromKeeper);             // storage key fifotbl       // out key
+        luaG_inter_move(U, KL, L, 1, LookupMode::FromKeeper);     // storage key fifotbl       // out key
         STACK_CHECK(L, 2);
         lua_newtable(L);                                                                       // out key keyout
-        luaG_inter_move(U, KL, L, 1, eLM_FromKeeper);             // storage key               // out key keyout fifotbl
+        luaG_inter_move(U, KL, L, 1, LookupMode::FromKeeper);     // storage key               // out key keyout fifotbl
         lua_pushinteger(L, fifo->first);                                                       // out key keyout fifotbl first
         STACK_CHECK(L, 5);
         lua_setfield(L, -3, "first");                                                          // out key keyout fifotbl
@@ -703,8 +703,8 @@ void init_keepers(Universe* U, lua_State* L)
         lua_getglobal(L, "package");                               // "..." keepersUD package
         if (!lua_isnil(L, -1))
         {
-            // when copying with mode eLM_ToKeeper, error message is pushed at the top of the stack, not raised immediately
-            if (luaG_inter_copy_package(U, L, K, -1, eLM_ToKeeper))
+            // when copying with mode LookupMode::ToKeeper, error message is pushed at the top of the stack, not raised immediately
+            if (luaG_inter_copy_package(U, L, K, -1, LookupMode::ToKeeper))
             {
                 // if something went wrong, the error message is at the top of the stack
                 lua_remove(L, -2);                                 // error_msg
@@ -717,7 +717,7 @@ void init_keepers(Universe* U, lua_State* L)
         // attempt to call on_state_create(), if we have one and it is a C function
         // (only support a C function because we can't transfer executable Lua code in keepers)
         // will raise an error in L in case of problem
-        call_on_state_create(U, K, L, eLM_ToKeeper);
+        call_on_state_create(U, K, L, LookupMode::ToKeeper);
 
         // to see VM name in Decoda debugger
         lua_pushfstring(K, "Keeper #%d", i + 1);                   //                              "Keeper #n"
@@ -785,7 +785,7 @@ void keeper_toggle_nil_sentinels(lua_State* L, int val_i_, LookupMode const mode
     int const n{ lua_gettop(L) };
     for (int i = val_i_; i <= n; ++i)
     {
-        if (mode_ == eLM_ToKeeper)
+        if (mode_ == LookupMode::ToKeeper)
         {
             if (lua_isnil(L, i))
             {
@@ -827,7 +827,7 @@ int keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, voi
 
     lua_pushlightuserdata(K, linda);
 
-    if ((args == 0) || luaG_inter_copy(U, L, K, args, eLM_ToKeeper) == 0) // L->K
+    if ((args == 0) || luaG_inter_copy(U, L, K, args, LookupMode::ToKeeper) == 0) // L->K
     {
         lua_call(K, 1 + args, LUA_MULTRET);
 
@@ -836,7 +836,7 @@ int keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, voi
         // this may interrupt a lane, causing the destruction of the underlying OS thread
         // after this, another lane making use of this keeper can get an error code from the mutex-locking function
         // when attempting to grab the mutex again (WINVER <= 0x400 does this, but locks just fine, I don't know about pthread)
-        if ((retvals > 0) && luaG_inter_move(U, K, L, retvals, eLM_FromKeeper) != 0) // K->L
+        if ((retvals > 0) && luaG_inter_move(U, K, L, retvals, LookupMode::FromKeeper) != 0) // K->L
         {
             retvals = -1;
         }

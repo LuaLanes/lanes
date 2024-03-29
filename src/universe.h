@@ -13,12 +13,12 @@ extern "C" {
 
 #include <mutex>
 
+// ################################################################################################
+
 // forwards
 struct DeepPrelude;
 struct Keepers;
 class Lane;
-
-// ################################################################################################
 
 /*
 * Do we want to activate full lane tracking feature? (EXPERIMENTAL)
@@ -166,6 +166,8 @@ struct Universe
     // The terminal desinit sequence should wait for all such processing to terminate before force-killing threads
     int volatile selfdestructing_count{ 0 };
 };
+
+// ################################################################################################
 
 Universe* universe_get(lua_State* L);
 Universe* universe_create(lua_State* L);
