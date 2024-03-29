@@ -99,6 +99,27 @@ THE SOFTWARE.
 # include <sys/types.h>
 #endif
 
+// forwarding (will do things better later)
+static void tracking_add(Lane* lane_);
+
+Lane::Lane(Universe* U_, lua_State* L_)
+: U{ U_ }
+, L{ L_ }
+{
+#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
+    MUTEX_INIT(&done_lock);
+    SIGNAL_INIT(&done_signal);
+#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
+
+#if HAVE_LANE_TRACKING()
+    if (U->tracking_first)
+    {
+        tracking_add(this);
+    }
+#endif // HAVE_LANE_TRACKING()
+}
+
+
 /* Do you want full call stacks, or just the line where the error happened?
 *
 * TBD: The full stack feature does not seem to work (try 'make error').
@@ -228,27 +249,22 @@ static bool tracking_remove(Lane* lane_)
 
 // #################################################################################################
 
-//---
-// low-level cleanup
-
-static void lane_cleanup(Lane* lane_)
+Lane::~Lane()
 {
     // Clean up after a (finished) thread
     //
 #if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-    SIGNAL_FREE(&lane_->done_signal);
-    MUTEX_FREE(&lane_->done_lock);
+    SIGNAL_FREE(&done_signal);
+    MUTEX_FREE(&done_lock);
 #endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 
 #if HAVE_LANE_TRACKING()
-    if (lane_->U->tracking_first != nullptr)
+    if (U->tracking_first != nullptr)
     {
         // Lane was cleaned up, no need to handle at process termination
-        tracking_remove(lane_);
+        tracking_remove(this);
     }
 #endif // HAVE_LANE_TRACKING()
-
-    lane_->U->internal_allocator.free(lane_, sizeof(Lane));
 }
 
 /*
@@ -536,7 +552,7 @@ static int selfdestruct_gc( lua_State* L)
 #endif // THREADAPI == THREADAPI_PTHREAD
                     }
                     // NO lua_close() in this case because we don't know where execution of the state was interrupted
-                    lane_cleanup(lane);
+                    delete lane;
                     lane = next_s;
                     ++n;
                 }
@@ -565,7 +581,7 @@ static int selfdestruct_gc( lua_State* L)
         U->timer_deep = nullptr;
     }
 
-    close_keepers( U);
+    close_keepers(U);
 
     // remove the protected allocator, if any
     U->protected_allocator.removeFrom(L);
@@ -919,7 +935,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main(void* vs)
     // STACK_DUMP(L);
     //  Call finalizers, if the script has set them up.
     //
-    int rc2 = run_finalizers(L, rc);
+    int rc2{ run_finalizers(L, rc) };
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p finalizer: %s\n" INDENT_END, L, get_errcode_name(rc2)));
     if (rc2 != LUA_OK) // Error within a finalizer!
     {
@@ -938,7 +954,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main(void* vs)
         --lane->U->selfdestructing_count;
         lane->U->selfdestruct_cs.unlock();
 
-        lane_cleanup(lane); // s is freed at this point
+        delete lane;
     }
     else
     {
@@ -1207,35 +1223,14 @@ LUAG_FUNC( lane_new)
     STACK_CHECK( L2, 1 + nargs);
 
     // 'lane' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
-    //
-    // a Lane full userdata needs a single uservalue
-    Lane** const ud{ lua_newuserdatauv<Lane*>(L, 1) };               // func libs priority globals package required gc_cb lane
-    Lane* const lane{ *ud = static_cast<Lane*>(U->internal_allocator.alloc(sizeof(Lane))) }; // don't forget to store the pointer in the userdata!
+    Lane* const lane{ new (U) Lane{ U, L2 } };
     if (lane == nullptr)
     {
         return luaL_error(L, "could not create lane: out of memory");
     }
-
-    lane->L = L2;
-    lane->U = U;
-    lane->status = PENDING;
-    lane->waiting_on = nullptr;
-    lane->debug_name = "<unnamed>";
-    lane->cancel_request = CancelRequest::None;
-
-#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-    MUTEX_INIT(&lane->done_lock);
-    SIGNAL_INIT(&lane->done_signal);
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-    lane->mstatus = ThreadStatus::Normal;
-    lane->selfdestruct_next = nullptr;
-#if HAVE_LANE_TRACKING()
-    lane->tracking_next = nullptr;
-    if (lane->U->tracking_first)
-    {
-        tracking_add(lane);
-    }
-#endif // HAVE_LANE_TRACKING()
+    // a Lane full userdata needs a single uservalue
+    Lane** const ud{ lua_newuserdatauv<Lane*>(L, 1) };              // func libs priority globals package required gc_cb lane
+    *ud = lane; // don't forget to store the pointer in the userdata!
 
     // Set metatable for the userdata
     //
@@ -1245,7 +1240,7 @@ LUAG_FUNC( lane_new)
 
     // Create uservalue for the userdata
     // (this is where lane body return values will be stored when the handle is indexed by a numeric key)
-    lua_newtable( L);                                                // func libs cancelstep priority globals package required gc_cb lane uv
+    lua_newtable(L);                                                // func libs cancelstep priority globals package required gc_cb lane uv
 
     // Store the gc_cb callback in the uservalue
     if (gc_cb_idx > 0)
@@ -1263,6 +1258,7 @@ LUAG_FUNC( lane_new)
     STACK_CHECK(L, 1);
     STACK_CHECK( L2, 1 + nargs);
 
+    // TODO: launch thread earlier, sync with a std::latch to parallelize OS thread warmup and L2 preparation
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: launching thread\n" INDENT_END));
     THREAD_CREATE(&lane->thread, lane_main, lane, priority);
 
@@ -1306,7 +1302,7 @@ LUAG_FUNC(thread_gc)
 
     // We can read 'lane->status' without locks, but not wait for it
     // test Killed state first, as it doesn't need to enter the selfdestruct chain
-    if (lane->mstatus == ThreadStatus::Killed)
+    if (lane->mstatus == Lane::Killed)
     {
         // Make sure a kill has proceeded, before cleaning up the data structure.
         //
@@ -1350,7 +1346,7 @@ LUAG_FUNC(thread_gc)
     }
 
     // Clean up after a (finished) thread
-    lane_cleanup(lane);
+    delete lane;
 
     // do this after lane cleanup in case the callback triggers an error
     if (have_gc_cb)
@@ -1377,7 +1373,7 @@ static char const * thread_status_string(Lane* lane_)
 {
     enum e_status const st{ lane_->status }; // read just once (volatile)
     char const* str =
-        (lane_->mstatus == ThreadStatus::Killed) ? "killed" : // new to v3.3.0!
+        (lane_->mstatus == Lane::Killed) ? "killed" : // new to v3.3.0!
         (st == PENDING) ? "pending" :
         (st == RUNNING) ? "running" :    // like in 'co.status()'
         (st == WAITING) ? "waiting" :
@@ -1413,7 +1409,6 @@ LUAG_FUNC(thread_join)
     Lane* const lane{ lua_toLane(L, 1) };
     lua_Number const wait_secs{ luaL_optnumber(L, 2, -1.0) };
     lua_State* const L2{ lane->L };
-    int ret;
     bool const done{ THREAD_ISNULL(lane->thread) || THREAD_WAIT(&lane->thread, wait_secs, &lane->done_signal, &lane->done_lock, &lane->status) };
     if (!done || !L2)
     {
@@ -1426,7 +1421,8 @@ LUAG_FUNC(thread_join)
     STACK_CHECK_START_REL(L, 0);
     // Thread is DONE/ERROR_ST/CANCELLED; all ours now
 
-    if (lane->mstatus == ThreadStatus::Killed) // OS thread was killed if thread_cancel was forced
+    int ret{ 0 };
+    if (lane->mstatus == Lane::Killed) // OS thread was killed if thread_cancel was forced
     {
         // in that case, even if the thread was killed while DONE/ERROR_ST/CANCELLED, ignore regular return values
         STACK_GROW(L, 2);
@@ -1536,7 +1532,7 @@ LUAG_FUNC(thread_index)
                 switch (lane->status)
                 {
                     default:
-                    if (lane->mstatus != ThreadStatus::Killed)
+                    if (lane->mstatus != Lane::Killed)
                     {
                         // this is an internal error, we probably never get here
                         lua_settop(L, 0);

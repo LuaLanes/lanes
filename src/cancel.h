@@ -15,7 +15,7 @@ extern "C" {
 
 // ################################################################################################
 
-struct Lane; // forward
+class Lane; // forward
 
 /*
  * Lane cancellation request modes

@@ -162,7 +162,7 @@ static CancelResult thread_cancel_hard(lua_State* L, Lane* lane_, double secs_, 
         (void) waitkill_timeout_; // unused
         (void) L; // unused
 #endif // THREADAPI == THREADAPI_PTHREAD
-        lane_->mstatus = ThreadStatus::Killed; // mark 'gc' to wait for it
+        lane_->mstatus = Lane::Killed; // mark 'gc' to wait for it
         // note that lane_->status value must remain to whatever it was at the time of the kill
         // because we need to know if we can lua_close() the Lua State or not.
         result = CancelResult::Killed;
@@ -176,7 +176,7 @@ CancelResult thread_cancel(lua_State* L, Lane* lane_, CancelOp op_, double secs_
 {
     // remember that lanes are not transferable: only one thread can cancel a lane, so no multithreading issue here
     // We can read 'lane_->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
-    if (lane_->mstatus == ThreadStatus::Killed)
+    if (lane_->mstatus == Lane::Killed)
     {
         return CancelResult::Killed;
     }

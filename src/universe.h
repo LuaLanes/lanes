@@ -16,7 +16,7 @@ extern "C" {
 // forwards
 struct DeepPrelude;
 struct Keepers;
-struct Lane;
+class Lane;
 
 // ################################################################################################
 
