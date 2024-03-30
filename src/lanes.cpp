@@ -1094,15 +1094,28 @@ LUAG_FUNC(lane_new)
         return luaL_error(L, "could not create lane: out of memory");
     }
 
-    // would prefer std::experimental::scope, but it's not universally available
-    struct OnExit
+    class OnExit
     {
+        private:
+
+        lua_State* const m_L;
         Lane* m_lane{ nullptr };
-        OnExit(Lane* lane_) : m_lane{ lane_ } {}
+        int const m_gc_cb_idx;
+
+        public:
+
+        OnExit(lua_State* L_, Lane* lane_, int gc_cb_idx_)
+        : m_L{ L_ }
+        , m_lane{ lane_ }
+        , m_gc_cb_idx{ gc_cb_idx_ }
+        {}
+
         ~OnExit()
         {
             if (m_lane)
             {
+                // we still need a full userdata so that garbage collection can do its thing
+                prepareUserData();
                 // leave a single cancel_error on the stack for the caller
                 lua_settop(m_lane->L, 0);
                 CANCEL_ERROR.pushKey(m_lane->L);
@@ -1117,7 +1130,47 @@ LUAG_FUNC(lane_new)
                 m_lane->m_ready.count_down();
             }
         }
-    } onExit{ lane };
+
+        private:
+
+        void prepareUserData()
+        {
+            DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: preparing lane userdata\n" INDENT_END));
+            STACK_CHECK_START_REL(m_L, 0);
+            // a Lane full userdata needs a single uservalue
+            Lane** const ud{ lua_newuserdatauv<Lane*>(m_L, 1) };                     // ... lane
+            *ud = m_lane; // don't forget to store the pointer in the userdata!
+
+            // Set metatable for the userdata
+            //
+            lua_pushvalue(m_L, lua_upvalueindex(1));                                 // ... lane mt
+            lua_setmetatable(m_L, -2);                                               // ... lane
+            STACK_CHECK(m_L, 1);
+
+            // Create uservalue for the userdata
+            // (this is where lane body return values will be stored when the handle is indexed by a numeric key)
+            lua_newtable(m_L);                                                       // ... lane uv
+
+            // Store the gc_cb callback in the uservalue
+            if (m_gc_cb_idx > 0)
+            {
+                GCCB_KEY.pushKey(m_L);                                               // ... lane uv k
+                lua_pushvalue(m_L, m_gc_cb_idx);                                     // ... lane uv k gc_cb
+                lua_rawset(m_L, -3);                                                 // ... lane uv
+            }
+
+            lua_setiuservalue(m_L, -2, 1);                                           // ... lane
+            STACK_CHECK(m_L, 1);
+        }
+
+        public:
+
+        void success()
+        {
+            prepareUserData();
+            m_lane = nullptr;
+        }
+    } onExit{ L, lane, gc_cb_idx };
     // launch the thread early, it will sync with a std::latch to parallelize OS thread warmup and L2 preparation
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: launching thread\n" INDENT_END));
     THREAD_CREATE(&lane->thread, lane_main, lane, priority);
@@ -1133,16 +1186,15 @@ LUAG_FUNC(lane_new)
     lua_setglobal( L2, "decoda_name");                                                                                                              //
     ASSERT_L( lua_gettop( L2) == 0);
 
-    DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: update 'package'\n" INDENT_END));
     // package
     if (package_idx != 0)
     {
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: update 'package'\n" INDENT_END));
         // when copying with mode LookupMode::LaneBody, should raise an error in case of problem, not leave it one the stack
         (void) luaG_inter_copy_package(U, L, L2, package_idx, LookupMode::LaneBody);
     }
 
     // modules to require in the target lane *before* the function is transfered!
-
     if (required_idx != 0)
     {
         int nbRequired = 1;
@@ -1224,16 +1276,15 @@ LUAG_FUNC(lane_new)
         DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
     }
     STACK_CHECK(L, 0);
-    STACK_CHECK( L2, 0);
+    STACK_CHECK(L2, 0);
 
     // Lane main function
     if (lua_type(L, 1) == LUA_TFUNCTION)
     {
-        int res;
         DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane body\n" INDENT_END));
         DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
         lua_pushvalue(L, 1);                                                // func libs priority globals package required gc_cb [... args ...] func
-        res = luaG_inter_move(U, L, L2, 1, LookupMode::LaneBody);           // func libs priority globals package required gc_cb [... args ...]     // func
+        int const res{ luaG_inter_move(U, L, L2, 1, LookupMode::LaneBody) };// func libs priority globals package required gc_cb [... args ...]     // func
         DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
         if (res != 0)
         {
@@ -1242,6 +1293,7 @@ LUAG_FUNC(lane_new)
     }
     else if (lua_type(L, 1) == LUA_TSTRING)
     {
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: compile lane body\n" INDENT_END));
         // compile the string
         if (luaL_loadstring(L2, lua_tostring(L, 1)) != 0)                                                                                           // func
         {
@@ -1249,8 +1301,8 @@ LUAG_FUNC(lane_new)
         }
     }
     STACK_CHECK(L, 0);
-    STACK_CHECK( L2, 1);
-    ASSERT_L( lua_isfunction( L2, 1));
+    STACK_CHECK(L2, 1);
+    ASSERT_L(lua_isfunction(L2, 1));
 
     // revive arguments
     if (nargs > 0)
@@ -1266,44 +1318,19 @@ LUAG_FUNC(lane_new)
         }
     }
     STACK_CHECK(L, -nargs);
-    ASSERT_L( lua_gettop( L) == FIXED_ARGS);
-    STACK_CHECK_RESET_REL(L, 0);
-    STACK_CHECK( L2, 1 + nargs);
-
-    // a Lane full userdata needs a single uservalue
-    Lane** const ud{ lua_newuserdatauv<Lane*>(L, 1) };                      // func libs priority globals package required gc_cb lane
-    *ud = lane; // don't forget to store the pointer in the userdata!
-
-    // Set metatable for the userdata
-    //
-    lua_pushvalue(L, lua_upvalueindex( 1));                                 // func libs priority globals package required gc_cb lane mt
-    lua_setmetatable(L, -2);                                                // func libs priority globals package required gc_cb lane
-    STACK_CHECK(L, 1);
-
-    // Create uservalue for the userdata
-    // (this is where lane body return values will be stored when the handle is indexed by a numeric key)
-    lua_newtable(L);                                                        // func libs cancelstep priority globals package required gc_cb lane uv
-
-    // Store the gc_cb callback in the uservalue
-    if (gc_cb_idx > 0)
-    {
-        GCCB_KEY.pushKey(L);                                                // func libs priority globals package required gc_cb lane uv k
-        lua_pushvalue(L, gc_cb_idx);                                        // func libs priority globals package required gc_cb lane uv k gc_cb
-        lua_rawset(L, -3);                                                  // func libs priority globals package required gc_cb lane uv
-    }
-
-    lua_setiuservalue(L, -2, 1);                                            // func libs priority globals package required gc_cb lane
+    ASSERT_L(lua_gettop( L) == FIXED_ARGS);
 
     // Store 'lane' in the lane's registry, for 'cancel_test()' (we do cancel tests at pending send/receive).
     LANE_POINTER_REGKEY.setValue(L2, [lane](lua_State* L) { lua_pushlightuserdata(L, lane); });                                                     // func [... args ...]
-
-    STACK_CHECK(L, 1);
     STACK_CHECK(L2, 1 + nargs);
-    DEBUGSPEW_CODE(--U->debugspew_indent_depth);
 
+    STACK_CHECK_RESET_REL(L, 0);
     // all went well, the lane's thread can start working
-    onExit.m_lane = nullptr;
+    onExit.success();
+    // we should have the lane userdata on top of the stack
+    STACK_CHECK(L, 1);
     lane->m_ready.count_down();
+    DEBUGSPEW_CODE(--U->debugspew_indent_depth);
     return 1;
 }
 
