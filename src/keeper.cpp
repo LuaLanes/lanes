@@ -61,10 +61,10 @@ class keeper_fifo
     int limit{ -1 };
 
     // a fifo full userdata has one uservalue, the table that holds the actual fifo contents
-    static void* operator new(size_t size_, lua_State* L) noexcept { return lua_newuserdatauv<keeper_fifo>(L, 1); }
+    static void* operator new([[maybe_unused]] size_t size_, lua_State* L) noexcept { return lua_newuserdatauv<keeper_fifo>(L, 1); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
-    static void operator delete(void* p_, lua_State* L) { ASSERT_L(!"should never be called") };
+    static void operator delete([[maybe_unused]] void* p_, lua_State* L) { ASSERT_L(!"should never be called") };
 
     static keeper_fifo* getPtr(lua_State* L, int idx_)
     {

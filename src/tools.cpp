@@ -156,7 +156,7 @@ void luaG_dump( lua_State* L)
 // ################################################################################################
 
 // same as PUC-Lua l_alloc
-extern "C" static void* libc_lua_Alloc([[maybe_unused]] void* ud, [[maybe_unused]] void* ptr_, size_t osize_, size_t nsize_)
+extern "C" static void* libc_lua_Alloc([[maybe_unused]] void* ud, [[maybe_unused]] void* ptr_, [[maybe_unused]] size_t osize_, size_t nsize_)
 {
     if (nsize_ == 0)
     {
@@ -175,7 +175,7 @@ static int luaG_provide_protected_allocator(lua_State* L)
 {
     Universe* const U{ universe_get(L) };
     // push a new full userdata on the stack, giving access to the universe's protected allocator
-    AllocatorDefinition* const def{ new (L) AllocatorDefinition{ U->protected_allocator.makeDefinition() } };
+    [[maybe_unused]] AllocatorDefinition* const def{ new (L) AllocatorDefinition{ U->protected_allocator.makeDefinition() } };
     return 1;
 }
 
@@ -229,7 +229,7 @@ void initialize_allocator_function(Universe* U, lua_State* L)
         {
             U->internal_allocator = AllocatorDefinition{ libc_lua_Alloc, nullptr };
         }
-        else if (U->provide_allocator = luaG_provide_protected_allocator)
+        else if (U->provide_allocator == luaG_provide_protected_allocator)
         {
             // user wants mutex protection on the state's allocator. Use protection for our own allocations too, just in case.
             U->internal_allocator = U->protected_allocator.makeDefinition();

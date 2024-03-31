@@ -655,22 +655,16 @@ static constexpr UniqueKey EXTENDED_STACKTRACE_REGKEY{ 0x2357c69a7c92c936ull }; 
 LUAG_FUNC( set_error_reporting)
 {
     luaL_checktype(L, 1, LUA_TSTRING);
+    char const* mode{ lua_tostring(L, 1) };
     lua_pushliteral(L, "extended");
-    int equal = lua_rawequal(L, -1, 1);
-    lua_pop(L, 1);
-    if (equal)
+    bool const extended{ strcmp(mode, "extended") == 0 };
+    bool const basic{ strcmp(mode, "basic") == 0 };
+    if (!extended && !basic)
     {
-        goto done;
+        return luaL_error(L, "unsupported error reporting model %s", mode);
     }
-    lua_pushliteral(L, "basic");
-    equal = !lua_rawequal(L, -1, 1);
-    lua_pop(L, 1);
-    if (equal)
-    {
-        return luaL_error(L, "unsupported error reporting model");
-    }
-done:
-    EXTENDED_STACKTRACE_REGKEY.setValue(L, [equal](lua_State* L) { lua_pushboolean(L, equal); });
+
+    EXTENDED_STACKTRACE_REGKEY.setValue(L, [extended](lua_State* L) { lua_pushboolean(L, extended ? 1 : 0); });
     return 0;
 }
 
