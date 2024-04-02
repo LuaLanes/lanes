@@ -158,13 +158,13 @@ struct Universe
     std::atomic<lua_Integer> next_mt_id{ 1 };
 
 #if USE_DEBUG_SPEW()
-    int debugspew_indent_depth{ 0 };
+    std::atomic<int> debugspew_indent_depth{ 0 };
 #endif // USE_DEBUG_SPEW()
 
     Lane* volatile selfdestruct_first{ nullptr };
     // After a lane has removed itself from the chain, it still performs some processing.
     // The terminal desinit sequence should wait for all such processing to terminate before force-killing threads
-    int volatile selfdestructing_count{ 0 };
+    std::atomic<int> selfdestructing_count{ 0 };
 };
 
 // ################################################################################################

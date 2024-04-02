@@ -359,9 +359,9 @@ static void update_lookup_entry( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* 
 
     size_t prevNameLength, newNameLength;
     char const* prevName;
-    DEBUGSPEW_CODE( char const *newName);
-    DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "update_lookup_entry()\n" INDENT_END));
-    DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(char const *newName);
+    DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "update_lookup_entry()\n" INDENT_END));
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
 
     STACK_CHECK_START_REL(L, 0);
     // first, raise an error if the function is already known
@@ -420,8 +420,8 @@ static void update_lookup_entry( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* 
         lua_rawseti( L, fqn, _depth);                                                       // ... {bfc} k
     }
     -- _depth;
-    STACK_CHECK( L, -1);
-    DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+    STACK_CHECK(L, -1);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
 }
 
 // #################################################################################################
@@ -435,8 +435,8 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U) 
     int const cache = _ctx_base + 2;
     // we need to remember subtables to process them after functions encountered at the current depth (breadth-first search)
     int const breadth_first_cache = lua_gettop( L) + 1;
-    DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "populate_func_lookup_table_recur()\n" INDENT_END));
-    DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "populate_func_lookup_table_recur()\n" INDENT_END));
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
 
     STACK_GROW( L, 6);
     // slot _i contains a table where we search for functions (or a full userdata with a metatable)
@@ -457,8 +457,8 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U) 
     STACK_CHECK( L, 0);
     if( visit_count > 0)
     {
-        DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "already visited\n" INDENT_END));
-        DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "already visited\n" INDENT_END));
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
         return;
     }
 
@@ -513,7 +513,7 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U) 
     {
         DEBUGSPEW_CODE( char const* key = (lua_type( L, -2) == LUA_TSTRING) ? lua_tostring( L, -2) : "not a string");
         DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "table '%s'\n" INDENT_END, key));
-        DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
         // un-visit this table in case we do need to process it
         lua_pushvalue( L, -1);                                                                  // ... {_i} {bfc} k {} {}
         lua_rawget( L, cache);                                                                  // ... {_i} {bfc} k {} n
@@ -536,7 +536,7 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U) 
         populate_func_lookup_table_recur( DEBUGSPEW_PARAM_COMMA( U) L, _ctx_base, lua_gettop( L), _depth);
         lua_pop( L, 1);                                                                         // ... {_i} {bfc} k
         STACK_CHECK( L, 2);
-        DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     }
     // remove table name from fqn stack
     lua_pushnil( L);                                                                          // ... {_i} {bfc} nil
@@ -546,7 +546,7 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U) 
     lua_pop( L, 1);                                                                           // ... {_i}
     STACK_CHECK( L, 0);
     // we are done                                                                            // ... {_i} {bfc}
-    DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
 }
 
 // #################################################################################################
@@ -561,7 +561,7 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* name_)
     int start_depth = 0;
     DEBUGSPEW_CODE( Universe* U = universe_get( L));
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: populate_func_lookup_table('%s')\n" INDENT_END, L, name_ ? name_ : "nullptr"));
-    DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
     STACK_GROW( L, 3);
     STACK_CHECK_START_REL(L, 0);
     LOOKUP_REGKEY.pushValue(L);                                                      // {}
@@ -612,7 +612,7 @@ void populate_func_lookup_table( lua_State* L, int _i, char const* name_)
         (void) luaL_error( L, "unsupported module type %s", lua_typename( L, lua_type( L, in_base)));
     }
     STACK_CHECK( L, 0);
-    DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
 }
 
 // #################################################################################################
@@ -1774,10 +1774,10 @@ static bool inter_copy_function(Universe* U, lua_State* L2, int L2_cache_i, lua_
     }
     else // regular function
     {
-        DEBUGSPEW_CODE( fprintf( stderr, "FUNCTION %s\n", upName_));
-        DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(fprintf( stderr, "FUNCTION %s\n", upName_));
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
         copy_cached_func( U, L2, L2_cache_i, L, source_i_, mode_, upName_);                                      // ... f
-        DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     }
     STACK_CHECK( L2, 1);
     STACK_CHECK( L, 0);
@@ -1868,7 +1868,7 @@ bool inter_copy_one(Universe* U, lua_State* L2, int L2_cache_i, lua_State* L, in
     STACK_CHECK_START_REL(L2, 0);                                                      // L                          // L2
 
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "inter_copy_one()\n" INDENT_END));
-    DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%s %s: " INDENT_END, lua_type_names[val_type], vt_names[static_cast<int>(vt_)]));
 
     // Non-POD can be skipped if its metatable contains { __lanesignore = true }
@@ -1967,7 +1967,7 @@ bool inter_copy_one(Universe* U, lua_State* L2, int L2_cache_i, lua_State* L, in
         break;
     }
 
-    DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
 
     STACK_CHECK( L2, ret ? 1 : 0);
     STACK_CHECK( L, 0);
@@ -1991,13 +1991,13 @@ int luaG_inter_copy(Universe* U, lua_State* L, lua_State* L2, int n, LookupMode 
     bool copyok{ true };
 
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_inter_copy()\n" INDENT_END));
-    DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
 
     if( n > top_L)
     {
         // requesting to copy more than is available?
         DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "nothing to copy()\n" INDENT_END));
-        DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
         return -1;
     }
 
@@ -2026,7 +2026,7 @@ int luaG_inter_copy(Universe* U, lua_State* L, lua_State* L2, int n, LookupMode 
     }
     STACK_CHECK( L, 0);
 
-    DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
 
     if( copyok)
     {
@@ -2051,54 +2051,57 @@ int luaG_inter_move(Universe* U, lua_State* L, lua_State* L2, int n, LookupMode 
     return ret;
 }
 
-int luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int package_idx_, LookupMode mode_)
+int luaG_inter_copy_package(Universe* U, lua_State* L, lua_State* L2, int package_idx_, LookupMode mode_)
 {
-    DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_inter_copy_package()\n" INDENT_END));
-    DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "luaG_inter_copy_package()\n" INDENT_END));
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
     // package
     STACK_CHECK_START_REL(L, 0);
     STACK_CHECK_START_REL(L2, 0);
-    package_idx_ = lua_absindex( L, package_idx_);
-    if( lua_type( L, package_idx_) != LUA_TTABLE)
+    package_idx_ = lua_absindex(L, package_idx_);
+    if (lua_type(L, package_idx_) != LUA_TTABLE)
     {
-        lua_pushfstring( L, "expected package as table, got %s", luaL_typename( L, package_idx_));
-        STACK_CHECK( L, 1);
+        lua_pushfstring(L, "expected package as table, got %s", luaL_typename(L, package_idx_));
+        STACK_CHECK(L, 1);
         // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
         return (mode_ == LookupMode::LaneBody) ? lua_error(L) : 1;
     }
-    lua_getglobal( L2, "package");
-    if( !lua_isnil( L2, -1)) // package library not loaded: do nothing
+    lua_getglobal(L2, "package");
+    if (!lua_isnil(L2, -1)) // package library not loaded: do nothing
     {
-        int i;
         // package.loaders is renamed package.searchers in Lua 5.2
         // but don't copy it anyway, as the function names change depending on the slot index!
         // users should provide an on_state_create function to setup custom loaders instead
         // don't copy package.preload in keeper states (they don't know how to translate functions)
         char const* entries[] = { "path", "cpath", (mode_ == LookupMode::LaneBody) ? "preload" : nullptr /*, (LUA_VERSION_NUM == 501) ? "loaders" : "searchers"*/, nullptr };
-        for( i = 0; entries[i]; ++ i)
+        for (char const* const entry : entries)
         {
-            DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "package.%s\n" INDENT_END, entries[i]));
-            lua_getfield( L, package_idx_, entries[i]);
-            if( lua_isnil( L, -1))
+            if (!entry)
             {
-                lua_pop( L, 1);
+                continue;
+            }
+            DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "package.%s\n" INDENT_END, entry));
+            lua_getfield(L, package_idx_, entry);
+            if (lua_isnil(L, -1))
+            {
+                lua_pop(L, 1);
             }
             else
             {
-                DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
-                luaG_inter_move( U, L, L2, 1, mode_); // moves the entry to L2
-                DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
-                lua_setfield( L2, -2, entries[i]); // set package[entries[i]]
+                DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
+                luaG_inter_move(U, L, L2, 1, mode_); // moves the entry to L2
+                DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
+                lua_setfield(L2, -2, entry); // set package[entry]
             }
         }
     }
     else
     {
-        DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "'package' not loaded, nothing to do\n" INDENT_END));
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "'package' not loaded, nothing to do\n" INDENT_END));
     }
-    lua_pop( L2, 1);
-    STACK_CHECK( L2, 0);
-    STACK_CHECK( L, 0);
-    DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+    lua_pop(L2, 1);
+    STACK_CHECK(L2, 0);
+    STACK_CHECK(L, 0);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     return 0;
 }

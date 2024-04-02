@@ -434,7 +434,7 @@ static bool selfdestruct_remove(Lane* lane_)
                 *ref = lane_->selfdestruct_next;
                 lane_->selfdestruct_next = nullptr;
                 // the terminal shutdown should wait until the lane is done with its lua_close()
-                ++lane_->U->selfdestructing_count;
+                lane_->U->selfdestructing_count.fetch_add(1, std::memory_order_release);
                 found = true;
                 break;
             }
@@ -526,7 +526,7 @@ static int universe_gc( lua_State* L)
 
         // If some lanes are currently cleaning after themselves, wait until they are done.
         // They are no longer listed in the selfdestruct chain, but they still have to lua_close().
-        while (U->selfdestructing_count > 0)
+        while (U->selfdestructing_count.load(std::memory_order_acquire) > 0)
         {
             YIELD();
         }
@@ -569,7 +569,7 @@ static int universe_gc( lua_State* L)
 
     // If some lanes are currently cleaning after themselves, wait until they are done.
     // They are no longer listed in the selfdestruct chain, but they still have to lua_close().
-    while( U->selfdestructing_count > 0)
+    while (U->selfdestructing_count.load(std::memory_order_acquire) > 0)
     {
         YIELD();
     }
@@ -956,7 +956,7 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main(void* vs)
 
             lane->U->selfdestruct_cs.lock();
             // done with lua_close(), terminal shutdown sequence may proceed
-            --lane->U->selfdestructing_count;
+            lane->U->selfdestructing_count.fetch_sub(1, std::memory_order_release);
             lane->U->selfdestruct_cs.unlock();
 
             delete lane;
@@ -1000,13 +1000,13 @@ LUAG_FUNC(require)
     DEBUGSPEW_CODE(Universe* U = universe_get(L));
     STACK_CHECK_START_REL(L, 0);
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.require %s BEGIN\n" INDENT_END, name));
-    DEBUGSPEW_CODE(++U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
     lua_pushvalue(L, lua_upvalueindex(1)); // "name" require
     lua_insert(L, 1); // require "name"
     lua_call(L, nargs, 1); // module
     populate_func_lookup_table(L, -1, name);
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.require %s END\n" INDENT_END, name));
-    DEBUGSPEW_CODE(--U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     STACK_CHECK(L, 0);
     return 1;
 }
@@ -1026,10 +1026,10 @@ LUAG_FUNC(register)
     DEBUGSPEW_CODE(Universe* U = universe_get(L));
     STACK_CHECK_START_REL(L, 0); // "name" mod_table
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.register %s BEGIN\n" INDENT_END, name));
-    DEBUGSPEW_CODE(++U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
     populate_func_lookup_table(L, -1, name);
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.register %s END\n" INDENT_END, name));
-    DEBUGSPEW_CODE(--U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     STACK_CHECK(L, 0);
     return 0;
 }
@@ -1076,7 +1076,7 @@ LUAG_FUNC(lane_new)
 
     /* --- Create and prepare the sub state --- */
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: setup\n" INDENT_END));
-    DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
 
     // populate with selected libraries at the same time
     lua_State* const L2{ luaG_newstate(U, L, libs_str) };                   // L                                                                    // L2
@@ -1162,6 +1162,7 @@ LUAG_FUNC(lane_new)
         void success()
         {
             prepareUserData();
+            m_lane->m_ready.count_down();
             m_lane = nullptr;
         }
     } onExit{ L, lane, gc_cb_idx };
@@ -1193,7 +1194,7 @@ LUAG_FUNC(lane_new)
     {
         int nbRequired = 1;
         DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: require 'required' list\n" INDENT_END));
-        DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
         // should not happen, was checked in lanes.lua before calling lane_new()
         if (lua_type(L, required_idx) != LUA_TTABLE)
         {
@@ -1238,7 +1239,7 @@ LUAG_FUNC(lane_new)
             lua_pop(L, 1);                                                  // func libs priority globals package required gc_cb [... args ...] n
             ++ nbRequired;
         }                                                                   // func libs priority globals package required gc_cb [... args ...]
-        DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     }
     STACK_CHECK(L, 0);
     STACK_CHECK(L2, 0);                                                                                                                             //
@@ -1254,7 +1255,7 @@ LUAG_FUNC(lane_new)
             return luaL_error(L, "Expected table, got %s", luaL_typename(L, globals_idx));
         }
 
-        DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
         lua_pushnil(L);                                                     // func libs priority globals package required gc_cb [... args ...] nil
         // Lua 5.2 wants us to push the globals table on the stack
         lua_pushglobaltable(L2);                                                                                                                    // _G
@@ -1267,7 +1268,7 @@ LUAG_FUNC(lane_new)
         }                                                                   // func libs priority globals package required gc_cb [... args ...]
         lua_pop( L2, 1);                                                                                                                            //
 
-        DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     }
     STACK_CHECK(L, 0);
     STACK_CHECK(L2, 0);
@@ -1275,11 +1276,11 @@ LUAG_FUNC(lane_new)
     // Lane main function
     if (lua_type(L, 1) == LUA_TFUNCTION)
     {
-        DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane body\n" INDENT_END));
-        DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane body\n" INDENT_END));
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
         lua_pushvalue(L, 1);                                                // func libs priority globals package required gc_cb [... args ...] func
         int const res{ luaG_inter_move(U, L, L2, 1, LookupMode::LaneBody) };// func libs priority globals package required gc_cb [... args ...]     // func
-        DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
         if (res != 0)
         {
             return luaL_error(L, "tried to copy unsupported types");
@@ -1302,10 +1303,10 @@ LUAG_FUNC(lane_new)
     if (nargs > 0)
     {
         int res;
-        DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane arguments\n" INDENT_END));
-        DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane arguments\n" INDENT_END));
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
         res = luaG_inter_move(U, L, L2, nargs, LookupMode::LaneBody);       // func libs priority globals package required gc_cb                    // func [... args ...]
-        DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
         if (res != 0)
         {
             return luaL_error(L, "tried to copy unsupported types");
@@ -1323,8 +1324,7 @@ LUAG_FUNC(lane_new)
     onExit.success();
     // we should have the lane userdata on top of the stack
     STACK_CHECK(L, 1);
-    lane->m_ready.count_down();
-    DEBUGSPEW_CODE(--U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     return 1;
 }
 
@@ -1922,13 +1922,13 @@ LUAG_FUNC(configure)
     STACK_GROW(L, 4);
     STACK_CHECK_START_ABS(L, 1);                                                          // settings
 
-    DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END, L));
-    DEBUGSPEW_CODE( if (U) ++ U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END, L));
+    DEBUGSPEW_CODE(if (U) U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
 
     if(U == nullptr)
     {
         U = universe_create( L);                                                          // settings universe
-        DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
         lua_newtable( L);                                                                 // settings universe mt
         lua_getfield(L, 1, "shutdown_timeout");                                           // settings universe mt shutdown_timeout
         lua_pushcclosure(L, universe_gc, 1);                                              // settings universe mt universe_gc
@@ -2070,7 +2070,7 @@ LUAG_FUNC(configure)
     CONFIG_REGKEY.setValue(L, [](lua_State* L) { lua_pushvalue(L, -2); });
     STACK_CHECK(L, 1);
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%p: lanes.configure() END\n" INDENT_END, L));
-    DEBUGSPEW_CODE(--U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     // Return the settings table
     return 1;
 }

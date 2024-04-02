@@ -18,7 +18,7 @@ extern "C" {
 #if USE_DEBUG_SPEW()
 extern char const* debugspew_indent;
 #define INDENT_BEGIN "%.*s "
-#define INDENT_END , (U ? U->debugspew_indent_depth : 0), debugspew_indent
+#define INDENT_END , (U ? U->debugspew_indent_depth.load(std::memory_order_relaxed) : 0), debugspew_indent
 #define DEBUGSPEW_CODE(_code) _code
 #define DEBUGSPEW_PARAM_COMMA( param_) param_,
 #define DEBUGSPEW_COMMA_PARAM( param_) , param_

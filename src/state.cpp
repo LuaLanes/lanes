@@ -200,8 +200,8 @@ static void copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2)
     STACK_CHECK_START_REL(L, 0);
     STACK_CHECK_START_REL(L2, 0);
 
-    DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "copy_one_time_settings()\n" INDENT_END));
-    DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "copy_one_time_settings()\n" INDENT_END));
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
 
     CONFIG_REGKEY.pushValue(L);                                                    // config
     // copy settings from from source to destination registry
@@ -213,7 +213,7 @@ static void copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2)
     CONFIG_REGKEY.setValue(L2, [](lua_State* L) { lua_insert(L, -2); });                                        // config
     STACK_CHECK( L2, 0);
     STACK_CHECK( L, 0);
-    DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
 }
 
 void initialize_on_state_create( Universe* U, lua_State* L)
@@ -349,8 +349,8 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
         return L;
     }
 
-    DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_newstate()\n" INDENT_END));
-    DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "luaG_newstate()\n" INDENT_END));
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
 
     // copy settings (for example because it may contain a Lua on_state_create function)
     copy_one_time_settings( U, from_, L);
@@ -423,22 +423,22 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
 
 #if 0 && USE_DEBUG_SPEW()
     // dump the lookup database contents
-    lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);                       // {}
-    lua_pushnil( L);                                                          // {} nil
-    while( lua_next( L, -2))                                                  // {} k v
+    lua_getfield(L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);                                                    // {}
+    lua_pushnil(L);                                                                                       // {} nil
+    while (lua_next(L, -2))                                                                               // {} k v
     {
-        lua_getglobal( L, "print");                                             // {} k v print
-        lua_pushlstring( L, debugspew_indent, U->debugspew_indent_depth);       // {} k v print " "
-        lua_pushvalue( L, -4);                                                  // {} k v print " " k
-        lua_pushvalue( L, -4);                                                  // {} k v print " " k v
-        lua_call( L, 3, 0);                                                     // {} k v
-        lua_pop( L, 1);                                                         // {} k
+        lua_getglobal(L, "print");                                                                        // {} k v print
+        lua_pushlstring(L, debugspew_indent, U->debugspew_indent_depth.load(std::memory_order_relaxed));  // {} k v print " "
+        lua_pushvalue(L, -4);                                                                             // {} k v print " " k
+        lua_pushvalue(L, -4);                                                                             // {} k v print " " k v
+        lua_call(L, 3, 0);                                                                                // {} k v
+        lua_pop(L, 1);                                                                                    // {} k
     }
-    lua_pop( L, 1);                                                           // {}
+    lua_pop(L, 1);                                                                                        // {}
 #endif // USE_DEBUG_SPEW()
 
-    lua_pop( L, 1);
+    lua_pop(L, 1);
     STACK_CHECK(L, 0);
-    DEBUGSPEW_CODE(--U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     return L;
 }
