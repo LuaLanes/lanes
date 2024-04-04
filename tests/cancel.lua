@@ -1,7 +1,11 @@
-local which_tests = {}
+local which_tests, remaining_tests = {}, {}
 for k,v in ipairs{...} do
+	print("got arg:", type(v), tostring(v))
 	which_tests[v] = true
+	remaining_tests[v] = true
 end
+
+--####################################################################
 
 local lanes = require "lanes" .configure{ with_timers = false}
 
@@ -10,7 +14,8 @@ local linda = lanes.linda()
 linda:set( "val", 33.0)
 
 --####################################################################
-if #which_tests and which_tests.genlock then
+if not next(which_tests) or which_tests.genlock then
+	remaining_tests.genlock = nil
 	print "\n\n####################################################################\nbegin genlock & genatomic cancel test\n"
 
 	-- get a lock and a atomic operator
@@ -125,7 +130,8 @@ end
 --####################################################################
 --####################################################################
 
-if #which_tests and which_tests.linda then
+if not next(which_tests) or which_tests.linda then
+	remaining_tests.linda = nil
 	print "\n\n####################################################################\nbegin linda cancel test\n"
 	h = lanes.gen( "*", laneBody)( "receive", nil) -- start an infinite wait on the linda
 
@@ -142,7 +148,8 @@ if #which_tests and which_tests.linda then
 	linda:cancel( "none")
 end
 
-if #which_tests and which_tests.soft then
+if not next(which_tests) or which_tests.soft then
+	remaining_tests.soft = nil
 	print "\n\n####################################################################\nbegin soft cancel test\n"
 	h = lanes.gen( "*", protectedBody)( "receive") -- start an infinite wait on the linda
 
@@ -162,20 +169,22 @@ if #which_tests and which_tests.soft then
 	waitCancellation( h, "done")
 end
 
-if #which_tests and which_tests.hook then
+if not next(which_tests) or which_tests.hook then
+	remaining_tests.hook = nil
 	print "\n\n####################################################################\nbegin hook cancel test\n"
 	h = lanes.gen( "*", protectedBody)( "get", 300000)
 	print "wait 2s"
 	linda:receive( 2, "yeah")
 
 	-- count hook cancel after some instruction instructions
-	h:cancel( "count", 300, 5.0)
+	h:cancel( "line", 300, 5.0)
 
 	-- wait until cancellation is effective. the lane will interrupt its loop and print the exit message
 	waitCancellation( h, "cancelled")
 end
 
-if #which_tests and which_tests.hard then
+if not next(which_tests) or which_tests.hard then
+	remaining_tests.hard = nil
 	print "\n\n####################################################################\nbegin hard cancel test\n"
 	h = lanes.gen( "*", protectedBody)( "receive", nil) -- infinite timeout
 
@@ -190,7 +199,8 @@ if #which_tests and which_tests.hard then
 	waitCancellation( h, "cancelled")
 end
 
-if #which_tests and which_tests.hard_unprotected then
+if not next(which_tests) or which_tests.hard_unprotected then
+	remaining_tests.hard_unprotected = nil
 	print "\n\n####################################################################\nbegin hard cancel test with unprotected lane body\n"
 	h = lanes.gen( "*", laneBody)( "receive", nil)
 
@@ -205,7 +215,8 @@ if #which_tests and which_tests.hard_unprotected then
 	waitCancellation( h, "cancelled")
 end
 
-if #which_tests and which_tests.kill then
+if not next(which_tests) or which_tests.kill then
+	remaining_tests.kill = nil
 	print "\n\n####################################################################\nbegin kill cancel test\n"
 	h = lanes.gen( "*", laneBody)( "busy", 50000000) -- start a pure Lua busy loop lane
 
@@ -221,5 +232,8 @@ if #which_tests and which_tests.kill then
 end
 --####################################################################
 
-print "\ndone"
+local unknown_test, val = next(remaining_tests)
+assert(not unknown_test, tostring(unknown_test) .. " test is unknown")
+
+print "\nTHE END"
 
