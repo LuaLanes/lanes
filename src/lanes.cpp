@@ -99,6 +99,8 @@ THE SOFTWARE.
 # include <sys/types.h>
 #endif
 
+#include <atomic>
+
 // forwarding (will do things better later)
 static void tracking_add(Lane* lane_);
 
@@ -1866,7 +1868,9 @@ static void init_once_LOCKED( void)
 
 // #################################################################################################
 
-static volatile long s_initCount = 0;
+// we are C++20, the flags are default-initialized to 'clear'
+std::atomic_flag s_insideInit;
+std::atomic_flag s_initDone;
 
 // upvalue 1: module name
 // upvalue 2: module table
@@ -1885,39 +1889,19 @@ LUAG_FUNC(configure)
     ** there is no problem. But if the host is multithreaded, we need to lock around the
     ** initializations.
     */
-#if THREADAPI == THREADAPI_WINDOWS
+    if (s_insideInit.test_and_set())
     {
-        static volatile int /*bool*/ go_ahead; // = 0
-        if (InterlockedCompareExchange(&s_initCount, 1, 0) == 0)
-        {
-            init_once_LOCKED();
-            go_ahead = 1; // let others pass
-        }
-        else
-        {
-            while (!go_ahead)
-            {
-                Sleep(1);
-            } // changes threads
-        }
+        // blocks until flag value is no longer the one passed in parameter
+        s_initDone.wait(false);
     }
-#else // THREADAPI == THREADAPI_PTHREAD
-    if (s_initCount == 0)
+    else
     {
-        static pthread_mutex_t my_lock = PTHREAD_MUTEX_INITIALIZER;
-        pthread_mutex_lock(&my_lock);
-        {
-            // Recheck now that we're within the lock
-            //
-            if (s_initCount == 0)
-            {
-                init_once_LOCKED();
-                s_initCount = 1;
-            }
-        }
-        pthread_mutex_unlock(&my_lock);
+        // we are the first to enter here, because s_insideInit was false.
+        // and we are the only one, because it's now true.
+        init_once_LOCKED();
+        std::ignore = s_initDone.test_and_set();
+        s_initDone.notify_all();
     }
-#endif // THREADAPI == THREADAPI_PTHREAD
 
     STACK_GROW(L, 4);
     STACK_CHECK_START_ABS(L, 1);                                                          // settings
