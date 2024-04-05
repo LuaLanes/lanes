@@ -72,25 +72,25 @@ rock:
 #--- Testing ---
 #
 test:
-	$(MAKE) errhangtest
-	$(MAKE) irayo_recursive
-	$(MAKE) irayo_closure
+	$(MAKE) atexit
+	$(MAKE) atomic
 	$(MAKE) basic
 	$(MAKE) cancel
-	$(MAKE) fifo
-	$(MAKE) keeper
-	$(MAKE) timer
-	$(MAKE) atomic
 	$(MAKE) cyclic
-	$(MAKE) objects
+	$(MAKE) errhangtest
 	$(MAKE) fibonacci
-	$(MAKE) recursive
+	$(MAKE) fifo
 	$(MAKE) func_is_string
-	$(MAKE) atexit
+	$(MAKE) irayo_recursive
+	$(MAKE) irayo_closure
+	$(MAKE) keeper
 	$(MAKE) linda_perf
-	$(MAKE) rupval
+	$(MAKE) objects
 	$(MAKE) package
 	$(MAKE) pingpong
+	$(MAKE) recursive
+	$(MAKE) rupval
+	$(MAKE) timer
 
 basic: tests/basic.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<

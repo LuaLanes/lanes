@@ -4,7 +4,7 @@
 -- Test program for Lua Lanes
 --
 
-local lanes = require "lanes".configure{ with_timers = false, nb_keepers = 200}
+local lanes = require "lanes".configure{ with_timers = false, nb_keepers = 1, keepers_gc_threshold = 500}
 
 do
     print "Linda names test:"
@@ -12,7 +12,20 @@ do
     local unnamedLinda2 = lanes.linda("")
     local veeeerrrryyyylooongNamedLinda= lanes.linda( "veeeerrrryyyylooongNamedLinda", 1)
     print(unnamedLinda, unnamedLinda2, veeeerrrryyyylooongNamedLinda)
+    print "GC deadlock test start"
+    -- store a linda in another linda (-> in a keeper)
+    unnamedLinda:set("here", lanes.linda("temporary linda"))
+    -- repeatedly add and remove stuff in the linda so that a GC happens during the keeper operation
+    for i = 1, 1000 do
+        for j = 1, 1000 do -- send 1000 tables
+            unnamedLinda:send("here", {"a", "table", "with", "some", "stuff"})
+        end
+        unnamedLinda:set("here") -- clear everything
+    end
 end
+print "collecting garbage"
+collectgarbage()
+print "GC deadlock test done"
 
 local print_id = 0
 local PRINT = function(...)

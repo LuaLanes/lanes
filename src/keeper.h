@@ -24,6 +24,7 @@ struct Keeper
 
 struct Keepers
 {
+    int gc_threshold{ 0 };
     int nb_keepers;
     Keeper keeper_array[1];
 };

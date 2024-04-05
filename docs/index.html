@@ -291,6 +291,18 @@
 		</tr>
 
 		<tr valign=top>
+			<td id="keepers_gc_threshold">
+				<code>.keepers_gc_threshold</code>
+			</td>
+			<td>integer</td>
+			<td>
+				If &lt;0, GC runs automatically. This is the default.<br/>
+				If 0, GC runs after *every* keeper operation.<br/>
+				If &gt;0, Keepers run GC manually with <tt>lua_gc(LUA_GCCOLLECT)</tt> whenever memory usage reported by <tt>lua_gc(LUA_GCCOUNT)</tt> reaches this threshold. Check is made after every keeper operation (see <a href="#lindas">below</a>). If memory usage remains above threshold after the GC cycle, an error is raised.
+			</td>
+		</tr>
+
+		<tr valign=top>
 			<td id="with_timers">
 				<code>.with_timers</code>
 			</td>
@@ -1784,4 +1796,4 @@ int luaD_new_clonable( lua_State* L)
 </p>
 
 </body>
-</html></pre>
+</html>

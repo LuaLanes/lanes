@@ -70,6 +70,7 @@ lanes.configure = function( settings_)
     local default_params =
     {
         nb_keepers = 1,
+        keepers_gc_threshold = -1,
         on_state_create = nil,
         shutdown_timeout = 0.25,
         with_timers = true,
@@ -90,6 +91,10 @@ lanes.configure = function( settings_)
         nb_keepers = function( val_)
             -- nb_keepers should be a number > 0
             return type( val_) == "number" and val_ > 0
+        end,
+        keepers_gc_threshold = function( val_)
+            -- keepers_gc_threshold should be a number
+            return type( val_) == "number"
         end,
         with_timers = boolean_param_checker,
         allocator = function( val_)

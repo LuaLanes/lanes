@@ -1,5 +1,5 @@
 local lanes = require "lanes"
-lanes.configure{ with_timers = false }
+lanes.configure{ with_timers = false, keepers_gc_threshold=20000 }
 
 -- set TEST1, PREFILL1, FILL1, TEST2, PREFILL2, FILL2 from the command line
 
@@ -17,6 +17,8 @@ local finalizer = function(err, stk)
 	end
 end
 
+--##################################################################################################
+
 -- this lane eats items in the linda one by one
 local eater = function( l, loop)
 	set_finalizer(finalizer)
@@ -31,6 +33,8 @@ local eater = function( l, loop)
 	key, val = l:receive( "done")
 	print("eater: done ("..val..")")
 end
+
+--##################################################################################################
 
 -- this lane eats items in the linda in batches
 local gobbler = function( l, loop, batch)
@@ -47,8 +51,12 @@ local gobbler = function( l, loop, batch)
 	print("gobbler: done ("..val..")")
 end
 
+--##################################################################################################
+
 local lane_eater_gen = lanes.gen( "*", {priority = 3}, eater)
 local lane_gobbler_gen = lanes.gen( "*", {priority = 3}, gobbler)
+
+--##################################################################################################
 
 -- main thread writes data while a lane reads it
 local function ziva( preloop, loop, batch)
@@ -94,6 +102,8 @@ local function ziva( preloop, loop, batch)
 	return lanes.now_secs() - t1
 end
 
+--##################################################################################################
+
 TEST1 = TEST1 or 1000
 PREFILL1 = PREFILL1 or 10000
 FILL1 = FILL1 or 2000000
@@ -109,6 +119,7 @@ local tests1 =
 	{ PREFILL1, FILL1, 13},
 	{ PREFILL1, FILL1, 21},
 	{ PREFILL1, FILL1, 44},
+	{ PREFILL1, FILL1, 65},
 }
 print "############################################ tests #1"
 for i, v in ipairs( tests1) do
@@ -119,38 +130,7 @@ for i, v in ipairs( tests1) do
 	print("DURATION = " .. ziva( pre, loop, batch) .. "\n")
 end
 
---[[
-	V 2.1.0:
-	ziva( 20000, 0) -> 4s   	ziva( 10000, 20000) -> 3s
-	ziva( 30000, 0) -> 8s     ziva( 20000, 30000) -> 7s
-	ziva( 40000, 0) -> 15s    ziva( 30000, 40000) -> 15s
-	ziva( 50000, 0) -> 24s    ziva( 40000, 50000) -> 23s
-	ziva( 60000, 0) -> 34s    ziva( 50000, 60000) -> 33s
-
-	SIMPLIFIED:
-	ziva( 20000, 0) -> 4s   	ziva( 10000, 20000) -> 3s
-	ziva( 30000, 0) -> 9s     ziva( 20000, 30000) -> 8s
-	ziva( 40000, 0) -> 15s    ziva( 30000, 40000) -> 15s
-	ziva( 50000, 0) -> 25s    ziva( 40000, 50000) -> 24s
-	ziva( 60000, 0) -> 35s    ziva( 50000, 60000) -> 35s
-
-	FIFO:
-	ziva( 2000000, 0) -> 9s   ziva( 1000000, 2000000) -> 33s
-	ziva( 3000000, 0) -> 14s  ziva( 2000000, 3000000) -> 40s
-	ziva( 4000000, 0) -> 20s  ziva( 3000000, 4000000) -> 27s
-	ziva( 5000000, 0) -> 24s  ziva( 4000000, 5000000) -> 42s
-	ziva( 6000000, 0) -> 29s  ziva( 5000000, 6000000) -> 55s
-
-	FIFO BATCHED:
-	ziva( 4000000, 0, 1)  -> 20s
-	ziva( 4000000, 0, 2)  -> 11s
-	ziva( 4000000, 0, 3)  -> 7s
-	ziva( 4000000, 0, 5)  -> 5s
-	ziva( 4000000, 0, 8)  -> 3s
-	ziva( 4000000, 0, 13) -> 3s
-	ziva( 4000000, 0, 21) -> 3s
-	ziva( 4000000, 0, 44) -> 2s
-]]
+--##################################################################################################
 
 -- sequential write/read (no parallelization involved)
 local function ziva2( preloop, loop, batch)
@@ -183,7 +163,7 @@ local function ziva2( preloop, loop, batch)
 	for i = 1, preloop, step do
 		batch_send()
 	end
-	print( "stored " .. (l:count( "key") or 0) .. " items in the linda before starting consumer lane")
+	print( "stored " .. (l:count( "key") or 0) .. " items in the linda before starting the alternating reads and writes")
 	-- loop that alternatively sends and reads data off the linda
 	if loop > preloop then
 		for i = preloop + 1, loop, step do
@@ -198,25 +178,14 @@ local function ziva2( preloop, loop, batch)
 	return lanes.now_secs() - t1
 end
 
+--##################################################################################################
+
 TEST2 = TEST2 or 1000
 PREFILL2 = PREFILL2 or 0
 FILL2 = FILL2 or 4000000
 
 local tests2 =
 {
-	-- prefill, then consume everything
-	--[[
-	{ 4000000, 0},
-	{ 4000000, 0, 1},
-	{ 4000000, 0, 2},
-	{ 4000000, 0, 3},
-	{ 4000000, 0, 5},
-	{ 4000000, 0, 8},
-	{ 4000000, 0, 13},
-	{ 4000000, 0, 21},
-	{ 4000000, 0, 44},
-	--]]
-	-- alternatively fill and consume
 	{ PREFILL2, FILL2},
 	{ PREFILL2, FILL2, 1},
 	{ PREFILL2, FILL2, 2},
@@ -226,6 +195,7 @@ local tests2 =
 	{ PREFILL2, FILL2, 13},
 	{ PREFILL2, FILL2, 21},
 	{ PREFILL2, FILL2, 44},
+	{ PREFILL2, FILL2, 65},
 }
 
 print "############################################ tests #2"

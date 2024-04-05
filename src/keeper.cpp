@@ -652,12 +652,18 @@ void init_keepers(Universe* U, lua_State* L)
 {
     STACK_CHECK_START_REL(L, 0);                                   // L                            K
     lua_getfield(L, 1, "nb_keepers");                              // nb_keepers
-    int nb_keepers{ static_cast<int>(lua_tointeger(L, -1)) };
+    int const nb_keepers{ static_cast<int>(lua_tointeger(L, -1)) };
     lua_pop(L, 1);                                                 //
     if (nb_keepers < 1)
     {
         std::ignore = luaL_error(L, "Bad number of keepers (%d)", nb_keepers);
     }
+    STACK_CHECK(L, 0);
+
+    lua_getfield(L, 1, "keepers_gc_threshold");                    // keepers_gc_threshold
+    int const keepers_gc_threshold{ static_cast<int>(lua_tointeger(L, -1)) };
+    lua_pop(L, 1);                                                 //
+    STACK_CHECK(L, 0);
 
     // Keepers contains an array of 1 Keeper, adjust for the actual number of keeper states
     {
@@ -668,6 +674,7 @@ void init_keepers(Universe* U, lua_State* L)
             std::ignore = luaL_error(L, "init_keepers() failed while creating keeper array; out of memory");
         }
         memset(U->keepers, 0, bytes);
+        U->keepers->gc_threshold = keepers_gc_threshold;
         U->keepers->nb_keepers = nb_keepers;
     }
     for (int i = 0; i < nb_keepers; ++i)                           // keepersUD
@@ -684,6 +691,11 @@ void init_keepers(Universe* U, lua_State* L)
         // from there, GC can collect a linda, which would acquire the keeper again, and deadlock the thread.
         // therefore, we need a recursive mutex.
         MUTEX_RECURSIVE_INIT(&U->keepers->keeper_array[i].keeper_cs);
+
+        if (U->keepers->gc_threshold >= 0)
+        {
+            lua_gc(K, LUA_GCSTOP, 0);
+        }
 
         STACK_CHECK_START_ABS(K, 0);
 
@@ -735,8 +747,12 @@ void init_keepers(Universe* U, lua_State* L)
 Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_)
 {
     int const nbKeepers{ keepers_->nb_keepers };
-    unsigned int i = (unsigned int)((magic_ >> KEEPER_MAGIC_SHIFT) % nbKeepers);
-    return &keepers_->keeper_array[i];
+    if (nbKeepers)
+    {
+        unsigned int i = (unsigned int) ((magic_ >> KEEPER_MAGIC_SHIFT) % nbKeepers);
+        return &keepers_->keeper_array[i];
+    }
+    return nullptr;
 }
 
 // ##################################################################################################
@@ -745,11 +761,7 @@ Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_)
 {
     int const nbKeepers{ keepers_->nb_keepers };
     // can be 0 if this happens during main state shutdown (lanes is being GC'ed -> no keepers)
-    if( nbKeepers == 0)
-    {
-        return nullptr;
-    }
-    else
+    if (nbKeepers)
     {
         /*
         * Any hashing will do that maps pointers to 0..GNbKeepers-1 
@@ -765,6 +777,7 @@ Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_)
         //++ K->count;
         return K;
     }
+    return nullptr;
 }
 
 // ##################################################################################################
@@ -843,5 +856,30 @@ int keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, voi
     }
     // whatever happens, restore the stack to where it was at the origin
     lua_settop(K, Ktos);
+
+    // don't do this for this particular function, as it is only called during Linda destruction, and we don't want to raise an error, ever
+    if (func_ != KEEPER_API(clear)) [[unlikely]]
+    {
+        // since keeper state GC is stopped, let's run a step once in a while if required
+        int const gc_threshold{ U->keepers->gc_threshold };
+        if (gc_threshold == 0) [[unlikely]]
+        {
+            lua_gc(K, LUA_GCSTEP, 0);
+        }
+        else if (gc_threshold > 0) [[likely]]
+        {
+            int const gc_usage{ lua_gc(K, LUA_GCCOUNT, 0) };
+            if (gc_usage >= gc_threshold)
+            {
+                lua_gc(K, LUA_GCCOLLECT, 0);
+                int const gc_usage_after{ lua_gc(K, LUA_GCCOUNT, 0) };
+                if (gc_usage_after > gc_threshold) [[unlikely]]
+                {
+                    luaL_error(L, "Keeper GC threshold is too low, need at least %d", gc_usage_after);
+                }
+            }
+        }
+    }
+
     return retvals;
 }

@@ -885,15 +885,22 @@ static void* linda_id( lua_State* L, DeepOp op_)
         {
             Linda* const linda{ lua_tolightuserdata<Linda>(L, 1) };
             ASSERT_L(linda);
-
-            // Clean associated structures in the keeper state.
-            Keeper* const K{ keeper_acquire(linda->U->keepers, linda->hashSeed()) };
-            if (K && K->L) // can be nullptr if this happens during main state shutdown (lanes is GC'ed -> no keepers -> no need to cleanup)
+            Keeper* const myK{ which_keeper(linda->U->keepers, linda->hashSeed()) };
+            // if collected after the universe, keepers are already destroyed, and there is nothing to clear
+            if (myK)
             {
+                // if collected from my own keeper, we can't acquire/release it
+                // because we are already inside a protected area, and trying to do so would deadlock!
+                bool const need_acquire_release{ myK->L != L };
+                // Clean associated structures in the keeper state.
+                Keeper* const K{ need_acquire_release ? keeper_acquire(linda->U->keepers, linda->hashSeed()) : myK };
                 // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
                 keeper_call(linda->U, K->L, KEEPER_API(clear), L, linda, 0);
+                if (need_acquire_release)
+                {
+                    keeper_release(K);
+                }
             }
-            keeper_release(K);
 
             delete linda; // operator delete overload ensures things go as expected
             return nullptr;
