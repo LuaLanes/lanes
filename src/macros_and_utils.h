@@ -11,8 +11,11 @@ extern "C" {
 #endif // __cplusplus
 
 #include <cassert>
+#include <chrono>
 #include <tuple>
 #include <type_traits>
+
+using namespace std::chrono_literals;
 
 #define USE_DEBUG_SPEW() 0
 #if USE_DEBUG_SPEW()
@@ -167,3 +170,5 @@ T* lua_newuserdatauv(lua_State* L, int nuvalue_)
     std::ignore = lua_error(L); // doesn't return
     assert(false); // we should never get here, but i'm paranoid
 }
+
+using lua_Duration = std::chrono::template duration<lua_Number>;

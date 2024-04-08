@@ -11,21 +11,23 @@ extern "C" {
 #include "threading.h"
 #include "uniquekey.h"
 
+#include <mutex>
+
 // forwards
 enum class LookupMode;
 struct Universe;
 
 struct Keeper
 {
-    MUTEX_T keeper_cs;
-    lua_State* L;
+    std::mutex m_mutex;
+    lua_State* L{ nullptr };
     // int count;
 };
 
 struct Keepers
 {
     int gc_threshold{ 0 };
-    int nb_keepers;
+    int nb_keepers{ 0 };
     Keeper keeper_array[1];
 };
 
@@ -38,7 +40,7 @@ void close_keepers(Universe* U);
 
 Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_);
 Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_);
-void keeper_release(Keeper* K);
+void keeper_release(Keeper* K_);
 void keeper_toggle_nil_sentinels(lua_State* L, int val_i_, LookupMode const mode_);
 int keeper_push_linda_storage(Universe* U, lua_State* L, void* ptr_, uintptr_t magic_);
 

@@ -425,7 +425,18 @@
 				number >= 0
 			</td>
 			<td>
-				Sets the duration in seconds Lanes will wait for graceful termination of running lanes at application shutdown. Irrelevant for builds using pthreads. Default is <tt>0.25</tt>.
+				Sets the duration in seconds Lanes will wait for graceful termination of running lanes at application shutdown. Default is <tt>0.25</tt>.
+			</td>
+		</tr>
+		<tr valign=top>
+			<td id="shutdown_mode">
+				<code>.shutdown_mode</code>
+			</td>
+			<td>
+				<tt>"hard"</tt>/<tt>"soft"</tt>/<tt>"call"</tt>/<tt>"ret"</tt>/<tt>"line"</tt>/<tt>"count"</tt>
+			</td>
+			<td>
+				Select the cancellation mode used at Lanes shutdown to request free running lane termination. See <a href="#cancelling">lane cancellation</a>. Default is <tt>"hard"</tt>.
 			</td>
 		</tr>
 	</table>
@@ -875,16 +886,6 @@
 				received <a href="#cancelling">cancellation</a> and finished itself.
 			</td>
 		</tr>
-		<tr>
-			<td/>
-			<td>
-				<tt>"killed"</tt>
-			</td>
-			<td/>
-			<td>
-				was forcefully killed by <tt>lane_h:cancel()</tt>
-			</td>
-	</tr>
 	</table>
 </p>
 
@@ -996,36 +997,33 @@
 <h2 id="cancelling">Cancelling</h2>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	bool[,reason] = lane_h:cancel( "soft" [, timeout] [, wake_bool])
-	bool[,reason] = lane_h:cancel( "hard" [, timeout] [, force [, forcekill_timeout]])
-	bool[,reason] = lane_h:cancel( [mode, hookcount] [, timeout] [, force [, forcekill_timeout]])
+	bool[,reason] = lane_h:cancel( "soft" [, timeout] [, wake_lane])
+	bool[,reason] = lane_h:cancel( "hard" [, timeout] [, wake_lane])
+	bool[,reason] = lane_h:cancel( [mode, hookcount] [, timeout] [, wake_lane])
 </pre></td></tr></table>
 
 <p>
 	<tt>cancel()</tt> sends a cancellation request to the lane.<br/>
-	First argument is a <tt>mode</tt> can be one of <tt>"hard"</tt>, <tt>"soft"</tt>, <tt>"count"</tt>, <tt>"line"</tt>, <tt>"call"</tt>, <tt>"ret"</tt>.
+	First argument is a <tt>mode</tt> can be one of <tt>"hard"</tt>, <tt>"soft"</tt>, <tt>"call"</tt>, <tt>"ret"</tt>, <tt>"line"</tt>, <tt>"count"</tt>.
 	If <tt>mode</tt> is not specified, it defaults to <tt>"hard"</tt>.
+	If <tt>wake_lane</tt> is <tt>true</tt>, the lane is also signalled so that execution returns from any pending linda operation. Linda operations detecting the cancellation request return <tt>lanes.cancel_error</tt>.
 </p>
 <p>
 	If <tt>mode</tt> is <tt>"soft"</tt>, cancellation will only cause <tt>cancel_test()</tt> to return <tt>true</tt>, so that the lane can cleanup manually.<br/>
-	If <tt>wake_bool</tt> is <tt>true</tt>, the lane is also signalled so that execution returns from any pending linda operation. Linda operations detecting the cancellation request return <tt>lanes.cancel_error</tt>.
 </p>
 <p>
 	If <tt>mode</tt> is <tt>"hard"</tt>, waits for the request to be processed, or a timeout to occur. Linda operations detecting the cancellation request will raise a special cancellation error (meaning they won't return in that case).<br/>
-	<tt>timeout</tt> defaults to 0 if not specified.
+	<tt>wake_lane</tt> defaults to <tt>true</tt>, and <tt>timeout</tt> defaults to 0 if not specified.
 </p>
 <p>
 	Other values of <tt>mode</tt> will asynchronously install the corresponding hook, then behave as <tt>"hard"</tt>.
-</p>
-<p>
-	If <tt>force_kill_bool</tt> is <tt>true</tt>, <tt>forcekill_timeout</tt> can be set to tell how long lanes will wait for the OS thread to terminate before raising an error. Windows threads always terminate immediately, but it might not always be the case with some pthread implementations.
 </p>
 <p>
 	Returns <tt>true, lane_h.status</tt> if lane was already done (in <tt>"done"</tt>, <tt>"error"</tt> or <tt>"cancelled"</tt> status), or the cancellation was fruitful within <tt>timeout_secs</tt> timeout period.<br/>
 	Returns <tt>false, "timeout"</tt> otherwise.
 </p>
 <p>
-	If the lane is still running after the timeout expired and <tt>force_kill</tt> is <tt>true</tt>, the OS thread running the lane is forcefully killed. This means no GC, probable OS resource leaks (thread stack, locks, DLL notifications), and should generally be the last resort.
+	If the lane is still running after the timeout expired, there is a chance lanes will raise an error at shutdown when failing to terminate all free-running lanes within the specified timeout.
 </p>
 <p>
 	Cancellation is tested <u>before</u> going to sleep in <tt>receive()</tt> or <tt>send()</tt> calls and after executing <tt>cancelstep</tt> Lua statements. A pending <tt>receive()</tt>or <tt>send()</tt> call is awakened.
@@ -1394,6 +1392,14 @@ events to a common Linda, but... :).</font>
 <p>
 	A very simple way of sleeping when nothing else is available. Is implemented by attempting to read some data in an unused channel of the internal linda used for timers (this linda exists even when timers aren't enabled).
 	Default duration is null, which should only cause a thread context switch.
+</p>
+
+<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
+	number = lanes.now_secs()
+</pre></td></tr></table>
+
+<p>
+	Returns the current value of the clock used by timers and lindas.
 </p>
 
 <!-- locks +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
@@ -1797,3 +1803,4 @@ int luaD_new_clonable( lua_State* L)
 
 </body>
 </html>
+</pre>

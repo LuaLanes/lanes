@@ -108,11 +108,6 @@ Lane::Lane(Universe* U_, lua_State* L_)
 : U{ U_ }
 , L{ L_ }
 {
-#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-    MUTEX_INIT(&done_lock);
-    SIGNAL_INIT(&done_signal);
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-
 #if HAVE_LANE_TRACKING()
     if (U->tracking_first)
     {
@@ -121,6 +116,29 @@ Lane::Lane(Universe* U_, lua_State* L_)
 #endif // HAVE_LANE_TRACKING()
 }
 
+bool Lane::waitForCompletion(lua_Duration duration_)
+{
+    std::chrono::time_point<std::chrono::steady_clock> until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
+    if (duration_.count() >= 0.0)
+    {
+        until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration_);
+    }
+
+    std::unique_lock lock{ m_done_mutex };
+    //std::stop_token token{ m_thread.get_stop_token() };
+    //return m_done_signal.wait_for(lock, token, secs_, [this](){ return status >= DONE; });
+    return m_done_signal.wait_until(lock, until, [this](){ return status >= DONE; });
+}
+
+static void lane_main(Lane* lane);
+void Lane::startThread(int priority_)
+{
+    m_thread = std::jthread([this]() { lane_main(this); });
+    if (priority_ != THREAD_PRIO_DEFAULT)
+    {
+        JTHREAD_SET_PRIORITY(m_thread, priority_);
+    }
+}
 
 /* Do you want full call stacks, or just the line where the error happened?
 *
@@ -144,7 +162,7 @@ static void securize_debug_threadname(lua_State* L, Lane* lane_)
 }
 
 #if ERROR_FULL_STACK
-static int lane_error( lua_State* L);
+static int lane_error(lua_State* L);
 // crc64/we of string "STACKTRACE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
 static constexpr UniqueKey STACKTRACE_REGKEY{ 0x534af7d3226a429full };
 #endif // ERROR_FULL_STACK
@@ -255,11 +273,6 @@ Lane::~Lane()
 {
     // Clean up after a (finished) thread
     //
-#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-    SIGNAL_FREE(&done_signal);
-    MUTEX_FREE(&done_lock);
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-
 #if HAVE_LANE_TRACKING()
     if (U->tracking_first != nullptr)
     {
@@ -455,26 +468,27 @@ static bool selfdestruct_remove(Lane* lane_)
 static int universe_gc( lua_State* L)
 {
     Universe* const U{ lua_tofulluserdata<Universe>(L, 1) };
+    lua_Duration const shutdown_timeout{ lua_tonumber(L, lua_upvalueindex(1)) };
+    [[maybe_unused]] char const* const op_string{ lua_tostring(L, lua_upvalueindex(2)) };
+    CancelOp const op{ which_cancel_op(op_string) };
 
-    while (U->selfdestruct_first != SELFDESTRUCT_END) // true at most once!
+    if (U->selfdestruct_first != SELFDESTRUCT_END)
     {
+
         // Signal _all_ still running threads to exit (including the timer thread)
         //
         {
             std::lock_guard<std::mutex> guard{ U->selfdestruct_cs };
             Lane* lane{ U->selfdestruct_first };
+            lua_Duration timeout{ 1us };
             while (lane != SELFDESTRUCT_END)
             {
-                // attempt a regular unforced hard cancel with a small timeout
-                bool const cancelled{ THREAD_ISNULL(lane->thread) || thread_cancel(L, lane, CancelOp::Hard, 0.0001, false, 0.0) != CancelResult::Timeout };
-                // if we failed, and we know the thread is waiting on a linda
-                if (cancelled == false && lane->status == WAITING && lane->waiting_on != nullptr)
+                // attempt the requested cancel with a small timeout.
+                // if waiting on a linda, they will raise a cancel_error.
+                // if a cancellation hook is desired, it will be installed to try to raise an error
+                if (lane->m_thread.joinable())
                 {
-                    // signal the linda to wake up the thread so that it can react to the cancel query
-                    // let us hope we never land here with a pointer on a linda that has been destroyed...
-                    SIGNAL_T* const waiting_on{ lane->waiting_on };
-                    // lane->waiting_on = nullptr; // useful, or not?
-                    SIGNAL_ALL(waiting_on);
+                    std::ignore = thread_cancel(lane, op, 1, timeout, true);
                 }
                 lane = lane->selfdestruct_next;
             }
@@ -482,46 +496,31 @@ static int universe_gc( lua_State* L)
 
         // When noticing their cancel, the lanes will remove themselves from
         // the selfdestruct chain.
-
-        // TBD: Not sure if Windows (multi core) will require the timed approach,
-        //      or single Yield. I don't have machine to test that (so leaving
-        //      for timed approach).    -- AKa 25-Oct-2008
-
-        // OS X 10.5 (Intel) needs more to avoid segfaults.
-        //
-        // "make test" is okay. 100's of "make require" are okay.
-        //
-        // Tested on MacBook Core Duo 2GHz and 10.5.5:
-        //  -- AKa 25-Oct-2008
-        //
         {
-            lua_Number const shutdown_timeout = lua_tonumber(L, lua_upvalueindex(1));
-            double const t_until = now_secs() + shutdown_timeout;
+            std::chrono::time_point<std::chrono::steady_clock> t_until{ std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(shutdown_timeout) };
 
             while (U->selfdestruct_first != SELFDESTRUCT_END)
             {
-                YIELD(); // give threads time to act on their cancel
+                // give threads time to act on their cancel
+                YIELD();
+                // count the number of cancelled thread that didn't have the time to act yet
+                int n{ 0 };
                 {
-                    // count the number of cancelled thread that didn't have the time to act yet
-                    int n = 0;
-                    double t_now = 0.0;
+                    std::lock_guard<std::mutex> guard{ U->selfdestruct_cs };
+                    Lane* lane{ U->selfdestruct_first };
+                    while (lane != SELFDESTRUCT_END)
                     {
-                        std::lock_guard<std::mutex> guard{ U->selfdestruct_cs };
-                        Lane* lane{ U->selfdestruct_first };
-                        while (lane != SELFDESTRUCT_END)
-                        {
-                            if (lane->cancel_request == CancelRequest::Hard)
-                                ++n;
-                            lane = lane->selfdestruct_next;
-                        }
+                        if (lane->cancel_request != CancelRequest::None)
+                            ++n;
+                        lane = lane->selfdestruct_next;
                     }
-                    // if timeout elapsed, or we know all threads have acted, stop waiting
-                    t_now = now_secs();
-                    if (n == 0 || (t_now >= t_until))
-                    {
-                        DEBUGSPEW_CODE(fprintf(stderr, "%d uncancelled lane(s) remain after waiting %fs at process end.\n", n, shutdown_timeout - (t_until - t_now)));
-                        break;
-                    }
+                }
+                // if timeout elapsed, or we know all threads have acted, stop waiting
+                std::chrono::time_point<std::chrono::steady_clock> t_now = std::chrono::steady_clock::now();
+                if (n == 0 || (t_now >= t_until))
+                {
+                    DEBUGSPEW_CODE(fprintf(stderr, "%d uncancelled lane(s) remain after waiting %fs at process end.\n", n, shutdown_timeout.count()));
+                    break;
                 }
             }
         }
@@ -532,48 +531,17 @@ static int universe_gc( lua_State* L)
         {
             YIELD();
         }
-
-        //---
-        // Kill the still free running threads
-        //
-        if (U->selfdestruct_first != SELFDESTRUCT_END)
-        {
-            unsigned int n = 0;
-            // first thing we did was to raise the linda signals the threads were waiting on (if any)
-            // therefore, any well-behaved thread should be in CANCELLED state
-            // these are not running, and the state can be closed
-            {
-                std::lock_guard<std::mutex> guard{ U->selfdestruct_cs };
-                Lane* lane{ U->selfdestruct_first };
-                while (lane != SELFDESTRUCT_END)
-                {
-                    Lane* const next_s{ lane->selfdestruct_next };
-                    lane->selfdestruct_next = nullptr; // detach from selfdestruct chain
-                    if (!THREAD_ISNULL(lane->thread)) // can be nullptr if previous 'soft' termination succeeded
-                    {
-                        THREAD_KILL(&lane->thread);
-#if THREADAPI == THREADAPI_PTHREAD
-                        // pthread: make sure the thread is really stopped!
-                        THREAD_WAIT(&lane->thread, -1, &lane->done_signal, &lane->done_lock, &lane->status);
-#endif // THREADAPI == THREADAPI_PTHREAD
-                    }
-                    // NO lua_close() in this case because we don't know where execution of the state was interrupted
-                    delete lane;
-                    lane = next_s;
-                    ++n;
-                }
-                U->selfdestruct_first = SELFDESTRUCT_END;
-            }
-
-            DEBUGSPEW_CODE(fprintf(stderr, "Killed %d lane(s) at process end.\n", n));
-        }
     }
 
-    // If some lanes are currently cleaning after themselves, wait until they are done.
-    // They are no longer listed in the selfdestruct chain, but they still have to lua_close().
-    while (U->selfdestructing_count.load(std::memory_order_acquire) > 0)
+    // If after all this, we still have some free-running lanes, it's an external user error, they should have stopped appropriately
     {
-        YIELD();
+        std::lock_guard<std::mutex> guard{ U->selfdestruct_cs };
+        Lane* lane{ U->selfdestruct_first };
+        if (lane != SELFDESTRUCT_END)
+        {
+            // this causes a leak because we don't call U's destructor (which could be bad if the still running lanes are accessing it)
+            std::ignore = luaL_error(L, "Zombie thread %s refuses to die!", lane->debug_name);
+        }
     }
 
     // necessary so that calling free_deep_prelude doesn't crash because linda_id expects a linda lightuserdata at absolute slot 1
@@ -874,20 +842,8 @@ static char const* get_errcode_name( int _code)
 }
 #endif // USE_DEBUG_SPEW()
 
-#if THREADWAIT_METHOD == THREADWAIT_CONDVAR // implies THREADAPI == THREADAPI_PTHREAD
-static void thread_cleanup_handler(void* opaque)
+static void lane_main(Lane* lane)
 {
-    Lane* lane{ (Lane*) opaque };
-    MUTEX_LOCK(&lane->done_lock);
-    lane->status = CANCELLED;
-    SIGNAL_ONE(&lane->done_signal); // wake up master (while 'lane->done_lock' is on)
-    MUTEX_UNLOCK(&lane->done_lock);
-}
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-
-static THREAD_RETURN_T THREAD_CALLCONV lane_main(void* vs)
-{
-    Lane* lane{ (Lane*) vs };
     lua_State* const L{ lane->L };
     // wait until the launching thread has finished preparing L
     lane->m_ready.wait();
@@ -897,8 +853,6 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main(void* vs)
         // At this point, the lane function and arguments are on the stack
         int const nargs{ lua_gettop(L) - 1 };
         DEBUGSPEW_CODE(Universe* U = universe_get(L));
-        THREAD_MAKE_ASYNCH_CANCELLABLE();
-        THREAD_CLEANUP_PUSH(thread_cleanup_handler, lane);
         lane->status = RUNNING; // PENDING -> RUNNING
 
         // Tie "set_finalizer()" to the state
@@ -949,18 +903,19 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main(void* vs)
             // the finalizer generated an error, and left its own error message [and stack trace] on the stack
             rc = rc2; // we're overruling the earlier script error or normal return
         }
-        lane->waiting_on = nullptr; // just in case
+        lane->m_waiting_on = nullptr; // just in case
         if (selfdestruct_remove(lane)) // check and remove (under lock!)
         {
             // We're a free-running thread and no-one's there to clean us up.
-            //
             lua_close(lane->L);
-
+            lane->L = nullptr; // just in case
             lane->U->selfdestruct_cs.lock();
             // done with lua_close(), terminal shutdown sequence may proceed
             lane->U->selfdestructing_count.fetch_sub(1, std::memory_order_release);
             lane->U->selfdestruct_cs.unlock();
 
+            // we destroy our jthread member from inside the thread body, so we have to detach so that we don't try to join, as this doesn't seem a good idea
+            lane->m_thread.detach();
             delete lane;
             lane = nullptr;
         }
@@ -972,21 +927,14 @@ static THREAD_RETURN_T THREAD_CALLCONV lane_main(void* vs)
         enum e_status st = (rc == 0) ? DONE : CANCEL_ERROR.equals(L, 1) ? CANCELLED : ERROR_ST;
 
         // Posix no PTHREAD_TIMEDJOIN:
-        // 'done_lock' protects the -> DONE|ERROR_ST|CANCELLED state change
+        // 'm_done_mutex' protects the -> DONE|ERROR_ST|CANCELLED state change
         //
-#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-        MUTEX_LOCK(&lane->done_lock);
         {
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
+            std::lock_guard lock{ lane->m_done_mutex };
             lane->status = st;
-#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-            SIGNAL_ONE(&lane->done_signal); // wake up master (while 'lane->done_lock' is on)
+            lane->m_done_signal.notify_one();// wake up master (while 'lane->m_done_mutex' is on)
         }
-        MUTEX_UNLOCK(&lane->done_lock);
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
     }
-    THREAD_CLEANUP_POP(false);
-    return 0; // ignored
 }
 
 // #################################################################################################
@@ -1115,13 +1063,11 @@ LUAG_FUNC(lane_new)
                 // leave a single cancel_error on the stack for the caller
                 lua_settop(m_lane->L, 0);
                 CANCEL_ERROR.pushKey(m_lane->L);
-#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-                MUTEX_LOCK(&m_lane->done_lock);
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-                m_lane->status = CANCELLED;
-#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-                MUTEX_UNLOCK(&m_lane->done_lock);
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
+                {
+                    std::lock_guard lock{ m_lane->m_done_mutex };
+                    m_lane->status = CANCELLED;
+                    m_lane->m_done_signal.notify_one(); // wake up master (while 'lane->m_done_mutex' is on)
+                }
                 // unblock the thread so that it can terminate gracefully
                 m_lane->m_ready.count_down();
             }
@@ -1170,7 +1116,7 @@ LUAG_FUNC(lane_new)
     } onExit{ L, lane, gc_cb_idx };
     // launch the thread early, it will sync with a std::latch to parallelize OS thread warmup and L2 preparation
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: launching thread\n" INDENT_END));
-    THREAD_CREATE(&lane->thread, lane_main, lane, priority);
+    lane->startThread(priority);
 
     STACK_GROW( L2, nargs + 3);                                                                                                                     //
     STACK_CHECK_START_REL(L2, 0);
@@ -1347,7 +1293,7 @@ LUAG_FUNC(lane_new)
 static int lane_gc(lua_State* L)
 {
     bool have_gc_cb{ false };
-    Lane* lane{ lua_toLane(L, 1) };                                      // ud
+    Lane* const lane{ lua_toLane(L, 1) };                                // ud
 
     // if there a gc callback?
     lua_getiuservalue(L, 1, 1);                                          // ud uservalue
@@ -1365,30 +1311,7 @@ static int lane_gc(lua_State* L)
     }
 
     // We can read 'lane->status' without locks, but not wait for it
-    // test Killed state first, as it doesn't need to enter the selfdestruct chain
-    if (lane->mstatus == Lane::Killed)
-    {
-        // Make sure a kill has proceeded, before cleaning up the data structure.
-        //
-        // NO lua_close() in this case because we don't know where execution of the state was interrupted
-        DEBUGSPEW_CODE(fprintf(stderr, "** Joining with a killed thread (needs testing) **"));
-        // make sure the thread is no longer running, just like thread_join()
-        if (!THREAD_ISNULL(lane->thread))
-        {
-            THREAD_WAIT(&lane->thread, -1, &lane->done_signal, &lane->done_lock, &lane->status);
-        }
-        if (lane->status >= DONE && lane->L)
-        {
-            // we know the thread was killed while the Lua VM was not doing anything: we should be able to close it without crashing
-            // now, thread_cancel() will not forcefully kill a lane with lane->status >= DONE, so I am not sure it can ever happen
-            lua_close(lane->L);
-            lane->L = nullptr;
-            // just in case, but s will be freed soon so...
-            lane->debug_name = "<gc>";
-        }
-        DEBUGSPEW_CODE(fprintf(stderr, "** Joined ok **"));
-    }
-    else if (lane->status < DONE)
+    if (lane->status < DONE)
     {
         // still running: will have to be cleaned up later
         selfdestruct_add(lane);
@@ -1437,7 +1360,6 @@ static char const * thread_status_string(Lane* lane_)
 {
     enum e_status const st{ lane_->status }; // read just once (volatile)
     char const* str =
-        (lane_->mstatus == Lane::Killed) ? "killed" : // new to v3.3.0!
         (st == PENDING) ? "pending" :
         (st == RUNNING) ? "running" :    // like in 'co.status()'
         (st == WAITING) ? "waiting" :
@@ -1471,9 +1393,10 @@ int push_thread_status(lua_State* L, Lane* lane_)
 LUAG_FUNC(thread_join)
 {
     Lane* const lane{ lua_toLane(L, 1) };
-    lua_Number const wait_secs{ luaL_optnumber(L, 2, -1.0) };
+    lua_Duration const duration{ luaL_optnumber(L, 2, -1.0) };
     lua_State* const L2{ lane->L };
-    bool const done{ THREAD_ISNULL(lane->thread) || THREAD_WAIT(&lane->thread, wait_secs, &lane->done_signal, &lane->done_lock, &lane->status) };
+
+    bool const done{ !lane->m_thread.joinable() || lane->waitForCompletion(duration) };
     if (!done || !L2)
     {
         STACK_GROW(L, 2);
@@ -1486,58 +1409,47 @@ LUAG_FUNC(thread_join)
     // Thread is DONE/ERROR_ST/CANCELLED; all ours now
 
     int ret{ 0 };
-    if (lane->mstatus == Lane::Killed) // OS thread was killed if thread_cancel was forced
+    Universe* const U{ lane->U };
+    // debug_name is a pointer to string possibly interned in the lane's state, that no longer exists when the state is closed
+    // so store it in the userdata uservalue at a key that can't possibly collide
+    securize_debug_threadname(L, lane);
+    switch (lane->status)
     {
-        // in that case, even if the thread was killed while DONE/ERROR_ST/CANCELLED, ignore regular return values
-        STACK_GROW(L, 2);
-        lua_pushnil(L);
-        lua_pushliteral(L, "killed");
-        ret = 2;
-    }
-    else
-    {
-        Universe* const U{ lane->U };
-        // debug_name is a pointer to string possibly interned in the lane's state, that no longer exists when the state is closed
-        // so store it in the userdata uservalue at a key that can't possibly collide
-        securize_debug_threadname(L, lane);
-        switch (lane->status)
+        case DONE:
         {
-            case DONE:
+            int const n{ lua_gettop(L2) }; // whole L2 stack
+            if ((n > 0) && (luaG_inter_move(U, L2, L, n, LookupMode::LaneBody) != 0))
             {
-                int const n{ lua_gettop(L2) }; // whole L2 stack
-                if ((n > 0) && (luaG_inter_move(U, L2, L, n, LookupMode::LaneBody) != 0))
-                {
-                    return luaL_error(L, "tried to copy unsupported types");
-                }
-                ret = n;
+                return luaL_error(L, "tried to copy unsupported types");
             }
-            break;
-
-            case ERROR_ST:
-            {
-                int const n{ lua_gettop(L2) };
-                STACK_GROW(L, 3);
-                lua_pushnil(L);
-                // even when ERROR_FULL_STACK, if the error is not LUA_ERRRUN, the handler wasn't called, and we only have 1 error message on the stack ...
-                if (luaG_inter_move(U, L2, L, n, LookupMode::LaneBody) != 0) // nil "err" [trace]
-                {
-                    return luaL_error(L, "tried to copy unsupported types: %s", lua_tostring(L, -n));
-                }
-                ret = 1 + n;
-            }
-            break;
-
-            case CANCELLED:
-            ret = 0;
-            break;
-
-            default:
-            DEBUGSPEW_CODE(fprintf(stderr, "Status: %d\n", lane->status));
-            ASSERT_L(false);
-            ret = 0;
+            ret = n;
         }
-        lua_close(L2);
+        break;
+
+        case ERROR_ST:
+        {
+            int const n{ lua_gettop(L2) };
+            STACK_GROW(L, 3);
+            lua_pushnil(L);
+            // even when ERROR_FULL_STACK, if the error is not LUA_ERRRUN, the handler wasn't called, and we only have 1 error message on the stack ...
+            if (luaG_inter_move(U, L2, L, n, LookupMode::LaneBody) != 0) // nil "err" [trace]
+            {
+                return luaL_error(L, "tried to copy unsupported types: %s", lua_tostring(L, -n));
+            }
+            ret = 1 + n;
+        }
+        break;
+
+        case CANCELLED:
+        ret = 0;
+        break;
+
+        default:
+        DEBUGSPEW_CODE(fprintf(stderr, "Status: %d\n", lane->status));
+        ASSERT_L(false);
+        ret = 0;
     }
+    lua_close(L2);
     lane->L = nullptr;
     STACK_CHECK(L, ret);
     return ret;
@@ -1596,15 +1508,12 @@ LUAG_FUNC(thread_index)
                 switch (lane->status)
                 {
                     default:
-                    if (lane->mstatus != Lane::Killed)
-                    {
-                        // this is an internal error, we probably never get here
-                        lua_settop(L, 0);
-                        lua_pushliteral(L, "Unexpected status: ");
-                        lua_pushstring(L, thread_status_string(lane));
-                        lua_concat(L, 2);
-                        raise_lua_error(L);
-                    }
+                    // this is an internal error, we probably never get here
+                    lua_settop(L, 0);
+                    lua_pushliteral(L, "Unexpected status: ");
+                    lua_pushstring(L, thread_status_string(lane));
+                    lua_concat(L, 2);
+                    raise_lua_error(L);
                     [[fallthrough]]; // fall through if we are killed, as we got nil, "killed" on the stack
 
                     case DONE: // got regular return values
@@ -1790,8 +1699,7 @@ LUAG_FUNC(wakeup_conv)
     lua_pop(L,1);
     STACK_CHECK(L, 0);
 
-    struct tm t;
-    memset(&t, 0, sizeof(t));
+    std::tm t{};
     t.tm_year = year - 1900;
     t.tm_mon= month-1;     // 0..11
     t.tm_mday= day;        // 1..31
@@ -1800,7 +1708,7 @@ LUAG_FUNC(wakeup_conv)
     t.tm_sec= sec;         // 0..60
     t.tm_isdst= isdst;     // 0/1/negative
 
-    lua_pushnumber(L, static_cast<lua_Number>(mktime(&t))); // ms=0
+    lua_pushnumber(L, static_cast<lua_Number>(std::mktime(&t))); // resolution: 1 second
     return 1;
 }
 
@@ -1909,13 +1817,14 @@ LUAG_FUNC(configure)
     DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END, L));
     DEBUGSPEW_CODE(if (U) U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
 
-    if(U == nullptr)
+    if (U == nullptr)
     {
-        U = universe_create( L);                                                          // settings universe
+        U = universe_create(L);                                                           // settings universe
         DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
         lua_newtable( L);                                                                 // settings universe mt
         lua_getfield(L, 1, "shutdown_timeout");                                           // settings universe mt shutdown_timeout
-        lua_pushcclosure(L, universe_gc, 1);                                              // settings universe mt universe_gc
+        lua_getfield(L, 1, "shutdown_mode");                                              // settings universe mt shutdown_timeout shutdown_mode
+        lua_pushcclosure(L, universe_gc, 2);                                              // settings universe mt universe_gc
         lua_setfield(L, -2, "__gc");                                                      // settings universe mt
         lua_setmetatable(L, -2);                                                          // settings universe
         lua_pop(L, 1);                                                                    // settings

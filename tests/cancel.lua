@@ -139,6 +139,7 @@ if not next(which_tests) or which_tests.linda then
 	linda:receive( 1, "yeah")
 
 	-- linda cancel: linda:receive() returns cancel_error immediately
+	print "cancelling"
 	linda:cancel( "both")
 
 	-- wait until cancellation is effective.
@@ -163,6 +164,7 @@ if not next(which_tests) or which_tests.soft then
 	waitCancellation( h, "waiting")
 
 	-- soft cancel, this time awakens waiting linda operations, which returns cancel_error immediately, no timeout.
+	print "cancelling"
 	h:cancel( "soft", true)
 
 	-- wait until cancellation is effective. the lane will interrupt its loop and print the exit message
@@ -177,6 +179,7 @@ if not next(which_tests) or which_tests.hook then
 	linda:receive( 2, "yeah")
 
 	-- count hook cancel after some instruction instructions
+	print "cancelling"
 	h:cancel( "line", 300, 5.0)
 
 	-- wait until cancellation is effective. the lane will interrupt its loop and print the exit message
@@ -193,6 +196,7 @@ if not next(which_tests) or which_tests.hard then
 	linda:receive( 2, "yeah")
 
 	-- hard cancel: the lane will be interrupted from inside its current linda:receive() and won't return from it
+	print "cancelling"
 	h:cancel()
 
 	-- wait until cancellation is effective. the lane will be stopped by the linda operation throwing an error
@@ -209,27 +213,13 @@ if not next(which_tests) or which_tests.hard_unprotected then
 	linda:receive( 2, "yeah")
 
 	-- hard cancel: the lane will be interrupted from inside its current linda:receive() and won't return from it
+	print "cancelling"
 	h:cancel()
 
 	-- wait until cancellation is effective. the lane will be stopped by the linda operation throwing an error
 	waitCancellation( h, "cancelled")
 end
 
-if not next(which_tests) or which_tests.kill then
-	remaining_tests.kill = nil
-	print "\n\n####################################################################\nbegin kill cancel test\n"
-	h = lanes.gen( "*", laneBody)( "busy", 50000000) -- start a pure Lua busy loop lane
-
-	-- wait 1/3s before cancelling the lane, before the busy loop can finish
-	print "wait 0.3s"
-	linda:receive( 0.3, "yeah")
-
-	-- hard cancel with kill: the lane thread will be forcefully terminated. kill timeout is pthread-specific
-	h:cancel( true, 1.0)
-
-	-- wait until cancellation is effective. the lane will be stopped by the linda operation throwing an error
-	waitCancellation( h, "killed")
-end
 --####################################################################
 
 local unknown_test, val = next(remaining_tests)

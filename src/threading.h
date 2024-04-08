@@ -1,13 +1,9 @@
 #pragma once
 
-/*
- * win32-pthread:
- * define HAVE_WIN32_PTHREAD and PTW32_INCLUDE_WINDOWS_H in your project configuration when building for win32-pthread.
- * link against pthreadVC2.lib, and of course have pthreadVC2.dll somewhere in your path.
- */
 #include "platform.h"
 
 #include <time.h>
+#include <thread>
 
 /* Note: ERROR is a defined entity on Win32
   PENDING: The Lua VM hasn't done anything yet.
@@ -19,7 +15,7 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
 #define THREADAPI_WINDOWS 1
 #define THREADAPI_PTHREAD 2
 
-#if( defined( PLATFORM_XBOX) || defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC)) && !defined( HAVE_WIN32_PTHREAD)
+#if( defined( PLATFORM_XBOX) || defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC))
 //#pragma message ( "THREADAPI_WINDOWS" )
 #define THREADAPI THREADAPI_WINDOWS
 #else // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
@@ -68,16 +64,9 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
     };
 
 
-    #define MUTEX_T HANDLE
-    void MUTEX_INIT( MUTEX_T* ref);
-    void MUTEX_FREE( MUTEX_T* ref);
-    void MUTEX_LOCK( MUTEX_T* ref);
-    void MUTEX_UNLOCK( MUTEX_T* ref);
-
     #else // CONDITION_VARIABLE are available, use them
 
     #define SIGNAL_T CONDITION_VARIABLE
-    #define MUTEX_T CRITICAL_SECTION
     #define MUTEX_INIT( ref) InitializeCriticalSection( ref)
     #define MUTEX_FREE( ref) DeleteCriticalSection( ref)
     #define MUTEX_LOCK( ref) EnterCriticalSection( ref)
@@ -111,7 +100,6 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   # define _MUTEX_RECURSIVE PTHREAD_MUTEX_RECURSIVE
   #endif
 
-  #define MUTEX_T            pthread_mutex_t
   #define MUTEX_INIT(ref)    pthread_mutex_init(ref, nullptr)
   #define MUTEX_RECURSIVE_INIT(ref) \
       { pthread_mutexattr_t a; pthread_mutexattr_init( &a ); \
@@ -125,8 +113,6 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   using THREAD_RETURN_T = void *;
 
   using SIGNAL_T = pthread_cond_t;
-
-  void SIGNAL_ONE( SIGNAL_T *ref );
 
   // Yield is non-portable:
   //
@@ -143,10 +129,6 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
     #define THREAD_CALLCONV
 #endif //THREADAPI == THREADAPI_PTHREAD
 
-void SIGNAL_INIT( SIGNAL_T *ref );
-void SIGNAL_FREE( SIGNAL_T *ref );
-void SIGNAL_ALL( SIGNAL_T *ref );
-
 /*
 * 'time_d': <0.0 for no timeout
 *           0.0 for instant check
@@ -155,11 +137,6 @@ void SIGNAL_ALL( SIGNAL_T *ref );
 using time_d = double;
 time_d now_secs(void);
 
-time_d SIGNAL_TIMEOUT_PREPARE( double rel_secs );
-
-bool SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
-
-
 /*---=== Threading ===---
 */
 
@@ -167,15 +144,8 @@ bool SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 
 #if THREADAPI == THREADAPI_WINDOWS
 
-    using THREAD_T = HANDLE;
-#	define THREAD_ISNULL( _h) (_h == 0)
-    void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (__stdcall *func)( void*), void* data, int prio /* -3..+3 */);
-
 #	define THREAD_PRIO_MIN (-3)
 #	define THREAD_PRIO_MAX (+3)
-
-#	define THREAD_CLEANUP_PUSH( cb_, val_)
-#	define THREAD_CLEANUP_POP( execute_)
 
 #else // THREADAPI == THREADAPI_PTHREAD
 
@@ -195,11 +165,6 @@ bool SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 #  endif
 # endif
 
-    using THREAD_T = pthread_t;
-#	define THREAD_ISNULL( _h) 0 // pthread_t may be a structure: never 'null' by itself
-
-    void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, int prio /* -3..+3 */);
-
 #	if defined(PLATFORM_LINUX)
         extern volatile bool sudo;
 #		ifdef LINUX_SCHED_RR
@@ -213,13 +178,6 @@ bool SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 #		define THREAD_PRIO_MAX (+3)
 #	endif
 
-#	if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-#		define THREAD_CLEANUP_PUSH( cb_, val_) pthread_cleanup_push( cb_, val_)
-#		define THREAD_CLEANUP_POP( execute_) pthread_cleanup_pop( execute_)
-#	else
-#		define THREAD_CLEANUP_PUSH( cb_, val_) {
-#		define THREAD_CLEANUP_POP( execute_) }
-#	endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
 #endif // THREADAPI == THREADAPI_WINDOWS
 
 /*
@@ -236,16 +194,8 @@ bool SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu, time_d timeout );
 #endif // THREADAPI == THREADAPI_WINDOWS || (defined PTHREAD_TIMEDJOIN)
 
 
-#if THREADWAIT_METHOD == THREADWAIT_TIMEOUT
-bool THREAD_WAIT_IMPL( THREAD_T *ref, double secs);
-#define THREAD_WAIT( a, b, c, d, e) THREAD_WAIT_IMPL( a, b)
-#else // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-bool THREAD_WAIT_IMPL( THREAD_T *ref, double secs, SIGNAL_T *signal_ref, MUTEX_T *mu_ref, volatile enum e_status *st_ref);
-#define THREAD_WAIT THREAD_WAIT_IMPL
-#endif // // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-
-void THREAD_KILL( THREAD_T* ref);
 void THREAD_SETNAME( char const* _name);
-void THREAD_MAKE_ASYNCH_CANCELLABLE();
 void THREAD_SET_PRIORITY( int prio);
 void THREAD_SET_AFFINITY( unsigned int aff);
+
+void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_);

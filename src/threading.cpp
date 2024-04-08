@@ -93,9 +93,6 @@ THE SOFTWARE.
 # pragma warning( disable : 4054 )
 #endif
 
-//#define THREAD_CREATE_RETRIES_MAX 20
-    // loops (maybe retry forever?)
-
 /* 
 * FAIL is for unexpected API return values - essentially programming 
 * error in _this_ code. 
@@ -196,36 +193,6 @@ time_d now_secs(void) {
 }
 
 
-/*
-*/
-time_d SIGNAL_TIMEOUT_PREPARE( double secs ) {
-    if (secs<=0.0) return secs;
-    else return now_secs() + secs;
-}
-
-
-#if THREADAPI == THREADAPI_PTHREAD
-/*
-* Prepare 'abs_secs' kind of timeout to 'timespec' format
-*/
-static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
-    assert(ts);
-    assert( abs_secs >= 0.0 );
-
-    if (abs_secs==0.0)
-        abs_secs= now_secs();
-
-    ts->tv_sec= (time_t) floor( abs_secs );
-    ts->tv_nsec= ((long)((abs_secs - ts->tv_sec) * 1000.0 +0.5)) * 1000000UL;   // 1ms = 1000000ns
-    if (ts->tv_nsec == 1000000000UL)
-    {
-        ts->tv_nsec = 0;
-        ts->tv_sec = ts->tv_sec + 1;
-    }
-}
-#endif // THREADAPI == THREADAPI_PTHREAD
-
-
 /*---=== Threading ===---*/
 
 //---
@@ -268,30 +235,6 @@ static void prepare_timeout( struct timespec *ts, time_d abs_secs ) {
 
 #if THREADAPI == THREADAPI_WINDOWS
 
-#if _WIN32_WINNT < 0x0600 // CONDITION_VARIABLE aren't available
-  //
-  void MUTEX_INIT( MUTEX_T *ref ) {
-     *ref= CreateMutex( nullptr /*security attr*/, false /*not locked*/, nullptr );
-     if (!ref) FAIL( "CreateMutex", GetLastError() );
-  }
-  void MUTEX_FREE( MUTEX_T *ref ) {
-     if (!CloseHandle(*ref)) FAIL( "CloseHandle (mutex)", GetLastError() );
-     *ref= nullptr;
-  }
-    void MUTEX_LOCK( MUTEX_T *ref )
-    {
-        DWORD rc = WaitForSingleObject( *ref, INFINITE);
-        // ERROR_WAIT_NO_CHILDREN means a thread was killed (lane terminated because of error raised during a linda transfer for example) while having grabbed this mutex
-        // this is not a big problem as we will grab it just the same, so ignore this particular error
-        if( rc != 0 && rc != ERROR_WAIT_NO_CHILDREN)
-            FAIL( "WaitForSingleObject", (rc == WAIT_FAILED) ? GetLastError() : rc);
-    }
-  void MUTEX_UNLOCK( MUTEX_T *ref ) {
-    if (!ReleaseMutex(*ref))
-        FAIL( "ReleaseMutex", GetLastError() );
-  }
-#endif // CONDITION_VARIABLE aren't available
-
 static int const gs_prio_remap[] =
 {
     THREAD_PRIORITY_IDLE,
@@ -303,37 +246,7 @@ static int const gs_prio_remap[] =
     THREAD_PRIORITY_TIME_CRITICAL
 };
 
-/* MSDN: "If you would like to use the CRT in ThreadProc, use the
-_beginthreadex function instead (of CreateThread)."
-MSDN: "you can create at most 2028 threads"
-*/
-// Note: Visual C++ requires '__stdcall' where it is
-void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (__stdcall *func)( void*), void* data, int prio /* -3..+3 */)
-{
-    HANDLE h = (HANDLE) _beginthreadex(nullptr, // security
-        _THREAD_STACK_SIZE,
-        func,
-        data,
-        0,    // flags (0/CREATE_SUSPENDED)
-        nullptr // thread id (not used)
-    );
-
-    if (h == nullptr) // _beginthreadex returns 0L on failure instead of -1L (like _beginthread)
-    {
-        FAIL( "CreateThread", GetLastError());
-    }
-
-    if (prio != THREAD_PRIO_DEFAULT)
-    {
-        if (!SetThreadPriority( h, gs_prio_remap[prio + 3]))
-        {
-            FAIL( "SetThreadPriority", GetLastError());
-        }
-    }
-
-    *ref = h;
-}
-
+// ###############################################################################################
 
 void THREAD_SET_PRIORITY( int prio)
 {
@@ -344,42 +257,26 @@ void THREAD_SET_PRIORITY( int prio)
     }
 }
 
-void THREAD_SET_AFFINITY( unsigned int aff)
+// ###############################################################################################
+
+void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_)
+{
+    // prio range [-3,+3] was checked by the caller
+    if (!SetThreadPriority(thread_.native_handle(), gs_prio_remap[prio_ + 3]))
+    {
+        FAIL("JTHREAD_SET_PRIORITY", GetLastError());
+    }
+}
+
+// ###############################################################################################
+
+void THREAD_SET_AFFINITY(unsigned int aff)
 {
     if( !SetThreadAffinityMask( GetCurrentThread(), aff))
     {
         FAIL( "THREAD_SET_AFFINITY", GetLastError());
     }
 }
-
-bool THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
-{
-    DWORD ms = (secs<0.0) ? INFINITE : (DWORD)((secs*1000.0)+0.5);
-
-    DWORD rc= WaitForSingleObject( *ref, ms /*timeout*/ );
-        //
-        // (WAIT_ABANDONED)
-        // WAIT_OBJECT_0    success (0)
-        // WAIT_TIMEOUT
-        // WAIT_FAILED      more info via GetLastError()
-
-    if (rc == WAIT_TIMEOUT) return false;
-    if( rc !=0) FAIL( "WaitForSingleObject", rc==WAIT_FAILED ? GetLastError() : rc);
-    *ref = nullptr; // thread no longer usable
-    return true;
-  }
-  //
-    void THREAD_KILL( THREAD_T *ref )
-    {
-        // nonexistent on Xbox360, simply disable until a better solution is found
-        #if !defined( PLATFORM_XBOX)
-        // in theory no-one should call this as it is very dangerous (memory and mutex leaks, no notification of DLLs, etc.)
-        if (!TerminateThread( *ref, 0 )) FAIL("TerminateThread", GetLastError());
-        #endif // PLATFORM_XBOX
-        *ref = nullptr;
-    }
-
-    void THREAD_MAKE_ASYNCH_CANCELLABLE() {} // nothing to do for windows threads, we can cancel them anytime we want
 
 #if !defined __GNUC__
     //see http://msdn.microsoft.com/en-us/library/xcb2z8hs.aspx
@@ -413,158 +310,6 @@ bool THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
         }
 #endif // !__GNUC__
     }
-
-#if _WIN32_WINNT < 0x0600 // CONDITION_VARIABLE aren't available
-
-    void SIGNAL_INIT( SIGNAL_T* ref)
-    {
-        InitializeCriticalSection( &ref->signalCS);
-        InitializeCriticalSection( &ref->countCS);
-        if( 0 == (ref->waitEvent = CreateEvent( 0, true, false, 0)))     // manual-reset
-            FAIL( "CreateEvent", GetLastError());
-        if( 0 == (ref->waitDoneEvent = CreateEvent( 0, false, false, 0)))    // auto-reset
-            FAIL( "CreateEvent", GetLastError());
-        ref->waitersCount = 0;
-    }
-
-    void SIGNAL_FREE( SIGNAL_T* ref)
-    {
-        CloseHandle( ref->waitDoneEvent);
-        CloseHandle( ref->waitEvent);
-        DeleteCriticalSection( &ref->countCS);
-        DeleteCriticalSection( &ref->signalCS);
-    }
-
-    bool SIGNAL_WAIT( SIGNAL_T* ref, MUTEX_T* mu_ref, time_d abs_secs)
-    {
-        DWORD errc;
-        DWORD ms;
-
-        if( abs_secs < 0.0)
-            ms = INFINITE;
-        else if( abs_secs == 0.0)
-            ms = 0;
-        else 
-        {
-            time_d msd = (abs_secs - now_secs()) * 1000.0 + 0.5;
-            // If the time already passed, still try once (ms==0). A short timeout
-            // may have turned negative or 0 because of the two time samples done.
-            ms = msd <= 0.0 ? 0 : (DWORD)msd;
-        }
-
-        EnterCriticalSection( &ref->signalCS);
-        EnterCriticalSection( &ref->countCS);
-        ++ ref->waitersCount;
-        LeaveCriticalSection( &ref->countCS);
-        LeaveCriticalSection( &ref->signalCS);
-
-        errc = SignalObjectAndWait( *mu_ref, ref->waitEvent, ms, false);
-
-        EnterCriticalSection( &ref->countCS);
-        if( 0 == -- ref->waitersCount)
-        {
-            // we're the last one leaving...
-            ResetEvent( ref->waitEvent);
-            SetEvent( ref->waitDoneEvent);
-        }
-        LeaveCriticalSection( &ref->countCS);
-        MUTEX_LOCK( mu_ref);
-
-        switch( errc)
-        {
-            case WAIT_TIMEOUT:
-            return false;
-            case WAIT_OBJECT_0:
-            return true;
-        }
-
-        FAIL( "SignalObjectAndWait", GetLastError());
-        return false;
-    }
-
-    void SIGNAL_ALL( SIGNAL_T* ref)
-    {
-        DWORD errc = WAIT_OBJECT_0;
-
-        EnterCriticalSection( &ref->signalCS);
-        EnterCriticalSection( &ref->countCS);
-
-        if( ref->waitersCount > 0)
-        {
-            ResetEvent( ref->waitDoneEvent);
-            SetEvent( ref->waitEvent);
-            LeaveCriticalSection( &ref->countCS);
-            errc = WaitForSingleObject( ref->waitDoneEvent, INFINITE);
-        }
-        else
-        {
-            LeaveCriticalSection( &ref->countCS);
-        }
-
-        LeaveCriticalSection( &ref->signalCS);
-
-        if( WAIT_OBJECT_0 != errc)
-            FAIL( "WaitForSingleObject", GetLastError());
-    }
-
-#else // CONDITION_VARIABLE are available, use them
-
-    //
-    void SIGNAL_INIT( SIGNAL_T *ref )
-    {
-        InitializeConditionVariable( ref);
-    }
-
-    void SIGNAL_FREE( SIGNAL_T *ref )
-    {
-        // nothing to do
-        (void)ref;
-    }
-
-    bool SIGNAL_WAIT( SIGNAL_T *ref, MUTEX_T *mu_ref, time_d abs_secs)
-    {
-        long ms;
-
-        if( abs_secs < 0.0)
-            ms = INFINITE;
-        else if( abs_secs == 0.0)
-            ms = 0;
-        else
-        {
-            ms = (long) ((abs_secs - now_secs())*1000.0 + 0.5);
-
-            // If the time already passed, still try once (ms==0). A short timeout
-            // may have turned negative or 0 because of the two time samples done.
-            //
-            if( ms < 0)
-                ms = 0;
-        }
-
-        if( !SleepConditionVariableCS( ref, mu_ref, ms))
-        {
-            if( GetLastError() == ERROR_TIMEOUT)
-            {
-                return false;
-            }
-            else
-            {
-                FAIL( "SleepConditionVariableCS", GetLastError());
-            }
-        }
-        return true;
-    }
-
-    void SIGNAL_ONE( SIGNAL_T *ref )
-    {
-        WakeConditionVariable( ref);
-    }
-
-    void SIGNAL_ALL( SIGNAL_T *ref )
-    {
-        WakeAllConditionVariable( ref);
-    }
-
-#endif // CONDITION_VARIABLE are available
 
 #else // THREADAPI == THREADAPI_PTHREAD
   // PThread (Linux, OS X, ...)
@@ -607,44 +352,6 @@ bool THREAD_WAIT_IMPL( THREAD_T *ref, double secs)
     abort();
   }
   #define PT_CALL( call ) { int rc= call; if (rc!=0) _PT_FAIL( rc, #call, __FILE__, __LINE__ ); }
-  //
-  void SIGNAL_INIT( SIGNAL_T *ref ) {
-    PT_CALL(pthread_cond_init(ref, nullptr /*attr*/));
-    }
-  void SIGNAL_FREE( SIGNAL_T *ref ) {
-    PT_CALL( pthread_cond_destroy(ref) );
-  }
-  //
-  /*
-  * Timeout is given as absolute since we may have fake wakeups during
-  * a timed out sleep. A Linda with some other key read, or just because
-  * PThread cond vars can wake up unwantedly.
-  */
-  bool SIGNAL_WAIT( SIGNAL_T *ref, pthread_mutex_t *mu, time_d abs_secs ) {
-    if (abs_secs<0.0) {
-        PT_CALL( pthread_cond_wait( ref, mu ) );  // infinite
-    } else {
-        int rc;
-        struct timespec ts;
-
-        assert( abs_secs != 0.0 );
-        prepare_timeout( &ts, abs_secs );
-
-        rc= pthread_cond_timedwait( ref, mu, &ts );
-
-        if (rc==ETIMEDOUT) return false;
-        if (rc) { _PT_FAIL( rc, "pthread_cond_timedwait()", __FILE__, __LINE__ ); }
-    }
-    return true;
-  }
-  //
-  void SIGNAL_ONE( SIGNAL_T *ref ) {
-    PT_CALL( pthread_cond_signal(ref) );     // wake up ONE (or no) waiting thread
-  }
-  //
-  void SIGNAL_ALL( SIGNAL_T *ref ) {
-    PT_CALL( pthread_cond_broadcast(ref) );     // wake up ALL waiting threads
-  }
 
 // array of 7 thread priority values, hand-tuned by platform so that we offer a uniform [-3,+3] public priority range
 static int const gs_prio_remap[] =
@@ -775,116 +482,6 @@ static int select_prio(int prio /* -3..+3 */)
     return gs_prio_remap[prio + 3];
 }
 
-void THREAD_CREATE( THREAD_T* ref, THREAD_RETURN_T (*func)( void*), void* data, int prio /* -3..+3 */)
-{
-    pthread_attr_t a;
-    bool const change_priority =
-#ifdef PLATFORM_LINUX
-    sudo && // only root-privileged process can change priorities
-#endif
-    (prio != THREAD_PRIO_DEFAULT);
-
-    PT_CALL( pthread_attr_init( &a));
-
-#ifndef PTHREAD_TIMEDJOIN
-    // We create a NON-JOINABLE thread. This is mainly due to the lack of
-    // 'pthread_timedjoin()', but does offer other benefits (s.a. earlier 
-    // freeing of the thread's resources).
-    //
-    PT_CALL( pthread_attr_setdetachstate( &a, PTHREAD_CREATE_DETACHED));
-#endif // PTHREAD_TIMEDJOIN
-
-    // Use this to find a system's default stack size (DEBUG)
-#if 0
-    {
-        size_t n;
-        pthread_attr_getstacksize( &a, &n);
-        fprintf( stderr, "Getstack: %u\n", (unsigned int)n);
-    }
-    //  524288 on OS X
-    // 2097152 on Linux x86 (Ubuntu 7.04)
-    // 1048576 on FreeBSD 6.2 SMP i386
-#endif // 0
-
-#if defined _THREAD_STACK_SIZE && _THREAD_STACK_SIZE > 0
-    PT_CALL( pthread_attr_setstacksize( &a, _THREAD_STACK_SIZE));
-#endif
-
-    if (change_priority)
-    {
-        struct sched_param sp;
-        // "The specified scheduling parameters are only used if the scheduling
-        //  parameter inheritance attribute is PTHREAD_EXPLICIT_SCHED."
-        //
-#if !defined __ANDROID__ || ( defined __ANDROID__ && __ANDROID_API__ >= 28 )
-        PT_CALL( pthread_attr_setinheritsched( &a, PTHREAD_EXPLICIT_SCHED));
-#endif
-
-#ifdef _PRIO_SCOPE
-        PT_CALL( pthread_attr_setscope( &a, _PRIO_SCOPE));
-#endif // _PRIO_SCOPE
-
-        PT_CALL( pthread_attr_setschedpolicy( &a, _PRIO_MODE));
-
-        sp.sched_priority = select_prio(prio);
-        PT_CALL( pthread_attr_setschedparam( &a, &sp));
-    }
-
-    //---
-    // Seems on OS X, _POSIX_THREAD_THREADS_MAX is some kind of system
-    // thread limit (not userland thread). Actual limit for us is way higher.
-    // PTHREAD_THREADS_MAX is not defined (even though man page refers to it!)
-    //
-# ifndef THREAD_CREATE_RETRIES_MAX
-    // Don't bother with retries; a failure is a failure
-    //
-    { 
-        int rc = pthread_create( ref, &a, func, data);
-        if( rc) _PT_FAIL( rc, "pthread_create()", __FILE__, __LINE__ - 1);
-    }
-# else
-#		error "This code deprecated"
-        /*
-        // Wait slightly if thread creation has exchausted the system
-        //
-        { int retries;
-        for( retries=0; retries<THREAD_CREATE_RETRIES_MAX; retries++ ) {
-
-        int rc= pthread_create( ref, &a, func, data );
-        //
-        // OS X / Linux:
-        //    EAGAIN: ".. lacked the necessary resources to create
-        //             another thread, or the system-imposed limit on the
-        //             total number of threads in a process 
-        //             [PTHREAD_THREADS_MAX] would be exceeded."
-        //    EINVAL: attr is invalid
-        // Linux:
-        //    EPERM: no rights for given parameters or scheduling (no sudo)
-        //    ENOMEM: (known to fail with this code, too - not listed in man)
-
-        if (rc==0) break;   // ok!
-
-        // In practise, exhaustion seems to be coming from memory, not a
-        // maximum number of threads. Keep tuning... ;)
-        //
-        if (rc==EAGAIN) {
-        //fprintf( stderr, "Looping (retries=%d) ", retries );    // DEBUG
-
-        // Try again, later.
-
-        Yield();
-        } else {
-        _PT_FAIL( rc, "pthread_create()", __FILE__, __LINE__ );
-        }
-        }
-        }
-        */
-# endif
-
-    PT_CALL( pthread_attr_destroy( &a));
-}
-
-
 void THREAD_SET_PRIORITY( int prio)
 {
 #ifdef PLATFORM_LINUX
@@ -897,6 +494,23 @@ void THREAD_SET_PRIORITY( int prio)
         PT_CALL( pthread_setschedparam( pthread_self(), _PRIO_MODE, &sp));
     }
 }
+
+// #################################################################################################
+
+void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_)
+{
+#ifdef PLATFORM_LINUX
+    if (sudo) // only root-privileged process can change priorities
+#endif // PLATFORM_LINUX
+    {
+        struct sched_param sp;
+        // prio range [-3,+3] was checked by the caller
+        sp.sched_priority = gs_prio_remap[prio_ + 3];
+        PT_CALL(pthread_setschedparam(static_cast<pthread_t>(thread_.native_handle()), _PRIO_MODE, &sp));
+    }
+}
+
+// #################################################################################################
 
 void THREAD_SET_AFFINITY( unsigned int aff)
 {
@@ -928,93 +542,6 @@ void THREAD_SET_AFFINITY( unsigned int aff)
     PT_CALL( pthread_setaffinity_np( pthread_self(), sizeof(cpu_set_t), &cpuset));
 #endif
 }
-
- /*
-  * Wait for a thread to finish.
-  *
-  * 'mu_ref' is a lock we should use for the waiting; initially unlocked.
-  * Same lock as passed to THREAD_EXIT.
-  *
-  * Returns true for successful wait, false for timed out
-  */
-bool THREAD_WAIT( THREAD_T *ref, double secs , SIGNAL_T *signal_ref, MUTEX_T *mu_ref, volatile enum e_status *st_ref)
-{
-    struct timespec ts_store;
-    const struct timespec* timeout = nullptr;
-    bool done;
-
-    // Do timeout counting before the locks
-    //
-#if THREADWAIT_METHOD == THREADWAIT_TIMEOUT
-    if (secs>=0.0)
-#else // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-    if (secs>0.0)
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-    {
-        prepare_timeout( &ts_store, now_secs()+secs );
-        timeout= &ts_store;
-    }
-
-#if THREADWAIT_METHOD == THREADWAIT_TIMEOUT
-    /* Thread is joinable
-    */
-    if (!timeout) {
-        PT_CALL(pthread_join(*ref, nullptr /*ignore exit value*/));
-        done = true;
-    } else {
-        int rc = PTHREAD_TIMEDJOIN(*ref, nullptr, timeout);
-        if ((rc!=0) && (rc!=ETIMEDOUT)) {
-            _PT_FAIL( rc, "PTHREAD_TIMEDJOIN", __FILE__, __LINE__-2 );
-        }
-        done= rc==0;
-    }
-#else // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-    /* Since we've set the thread up as PTHREAD_CREATE_DETACHED, we cannot
-     * join with it. Use the cond.var.
-    */
-    (void) ref; // unused
-    MUTEX_LOCK( mu_ref );
-    
-        // 'secs'==0.0 does not need to wait, just take the current status
-        // within the 'mu_ref' locks
-        //
-        if (secs != 0.0) {
-            while( *st_ref < DONE ) {
-                if (!timeout) {
-                    PT_CALL( pthread_cond_wait( signal_ref, mu_ref ));
-                } else {
-                    int rc= pthread_cond_timedwait( signal_ref, mu_ref, timeout );
-                    if (rc==ETIMEDOUT) break;
-                    if (rc!=0) _PT_FAIL( rc, "pthread_cond_timedwait", __FILE__, __LINE__-2 );
-                }
-            }
-        }
-        done= *st_ref >= DONE;  // DONE|ERROR_ST|CANCELLED
-
-    MUTEX_UNLOCK( mu_ref );
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-    return done;
-  }
-    //
-  void THREAD_KILL( THREAD_T *ref ) {
-#ifdef __ANDROID__
-      __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "Cannot kill thread!");
-#else
-    pthread_cancel( *ref );
-#endif
-  }
-
-    void THREAD_MAKE_ASYNCH_CANCELLABLE()
-    {
-#ifdef __ANDROID__
-    __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "Cannot make thread async cancellable!");
-#else
-        // that's the default, but just in case...
-        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, nullptr);
-        // we want cancellation to take effect immediately if possible, instead of waiting for a cancellation point (which is the default)
-        pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, nullptr);
-#endif
-    }
 
     void THREAD_SETNAME( char const* _name)
     {

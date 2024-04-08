@@ -627,7 +627,7 @@ void close_keepers(Universe* U)
         }
         for (int i = 0; i < nbKeepers; ++i)
         {
-            MUTEX_FREE(&U->keepers->keeper_array[i].keeper_cs);
+            U->keepers->keeper_array[i].~Keeper();
         }
         // free the keeper bookkeeping structure
         U->internal_allocator.free(U->keepers, sizeof(Keepers) + (nbKeepers - 1) * sizeof(Keeper));
@@ -673,9 +673,14 @@ void init_keepers(Universe* U, lua_State* L)
         {
             std::ignore = luaL_error(L, "init_keepers() failed while creating keeper array; out of memory");
         }
-        memset(U->keepers, 0, bytes);
+        U->keepers->Keepers::Keepers();
         U->keepers->gc_threshold = keepers_gc_threshold;
         U->keepers->nb_keepers = nb_keepers;
+
+        for (int i = 0; i < nb_keepers; ++i)
+        {
+            U->keepers->keeper_array[i].Keeper::Keeper();
+        }
     }
     for (int i = 0; i < nb_keepers; ++i)                           // keepersUD
     {
@@ -687,10 +692,6 @@ void init_keepers(Universe* U, lua_State* L)
         }
 
         U->keepers->keeper_array[i].L = K;
-        // we can trigger a GC from inside keeper_call(), where a keeper is acquired
-        // from there, GC can collect a linda, which would acquire the keeper again, and deadlock the thread.
-        // therefore, we need a recursive mutex.
-        MUTEX_RECURSIVE_INIT(&U->keepers->keeper_array[i].keeper_cs);
 
         if (U->keepers->gc_threshold >= 0)
         {
@@ -772,8 +773,7 @@ Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_)
         */
         unsigned int i = (unsigned int)((magic_ >> KEEPER_MAGIC_SHIFT) % nbKeepers);
         Keeper* K = &keepers_->keeper_array[i];
-
-        MUTEX_LOCK( &K->keeper_cs);
+        K->m_mutex.lock();
         //++ K->count;
         return K;
     }
@@ -787,7 +787,7 @@ void keeper_release(Keeper* K)
     //-- K->count;
     if (K)
     {
-        MUTEX_UNLOCK(&K->keeper_cs);
+        K->m_mutex.unlock();
     }
 }
 
@@ -843,7 +843,6 @@ int keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, voi
     if ((args == 0) || luaG_inter_copy(U, L, K, args, LookupMode::ToKeeper) == 0) // L->K
     {
         lua_call(K, 1 + args, LUA_MULTRET);
-
         retvals = lua_gettop(K) - Ktos;
         // note that this can raise a luaL_error while the keeper state (and its mutex) is acquired
         // this may interrupt a lane, causing the destruction of the underlying OS thread

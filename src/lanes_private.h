@@ -4,27 +4,26 @@
 #include "uniquekey.h"
 #include "universe.h"
 
+#include <chrono>
+#include <condition_variable>
 #include <latch>
+#include <stop_token>
+#include <thread>
 
 // NOTE: values to be changed by either thread, during execution, without
 //       locking, are marked "volatile"
 //
 class Lane
 {
-    private:
-
-    enum class ThreadStatus
-    {
-        Normal, // normal master side state
-        Killed // issued an OS kill
-    };
-
     public:
 
-    using enum ThreadStatus;
-
-    THREAD_T thread;
+    // the thread
+    std::jthread m_thread;
+    // a latch to wait for the lua_State to be ready
     std::latch m_ready{ 1 };
+    // to wait for stop requests through m_thread's stop_source
+    std::mutex m_done_mutex;
+    std::condition_variable m_done_signal; // use condition_variable_any if waiting for a stop_token
     //
     // M: sub-thread OS thread
     // S: not used
@@ -42,7 +41,7 @@ class Lane
     // M: sets to PENDING (before launching)
     // S: updates -> RUNNING/WAITING -> DONE/ERROR_ST/CANCELLED
 
-    SIGNAL_T* volatile waiting_on{ nullptr };
+    std::condition_variable* volatile m_waiting_on{ nullptr };
     //
     // When status is WAITING, points on the linda's signal the thread waits on, else nullptr
 
@@ -50,23 +49,6 @@ class Lane
     //
     // M: sets to false, flags true for cancel request
     // S: reads to see if cancel is requested
-
-#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-    SIGNAL_T done_signal;
-    //
-    // M: Waited upon at lane ending  (if Posix with no PTHREAD_TIMEDJOIN)
-    // S: sets the signal once cancellation is noticed (avoids a kill)
-
-    MUTEX_T done_lock;
-    // 
-    // Lock required by 'done_signal' condition variable, protecting
-    // lane status changes to DONE/ERROR_ST/CANCELLED.
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-
-    volatile ThreadStatus mstatus{ Normal };
-    //
-    // M: sets to Normal, if issued a kill changes to Killed
-    // S: not used
 
     Lane* volatile selfdestruct_next{ nullptr };
     //
@@ -88,6 +70,9 @@ class Lane
 
     Lane(Universe* U_, lua_State* L_);
     ~Lane();
+
+    bool waitForCompletion(lua_Duration duration_);
+    void startThread(int priority_);
 };
 
 // xxh64 of string "LANE_POINTER_REGKEY" generated at https://www.pelock.com/products/hash-calculator

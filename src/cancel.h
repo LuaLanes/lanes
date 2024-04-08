@@ -13,6 +13,8 @@ extern "C" {
 #include "uniquekey.h"
 #include "macros_and_utils.h"
 
+#include <chrono>
+
 // ################################################################################################
 
 class Lane; // forward
@@ -30,8 +32,7 @@ enum class CancelRequest
 enum class CancelResult
 {
     Timeout,
-    Cancelled,
-    Killed
+    Cancelled
 };
 
 enum class CancelOp
@@ -48,7 +49,8 @@ enum class CancelOp
 // crc64/we of string "CANCEL_ERROR" generated at http://www.nitrxgen.net/hashgen/
 static constexpr UniqueKey CANCEL_ERROR{ 0xe97d41626cc97577ull }; // 'raise_cancel_error' sentinel
 
-CancelResult thread_cancel(lua_State* L, Lane* lane_, CancelOp op_, double secs_, bool force_, double waitkill_timeout_);
+CancelOp which_cancel_op(char const* op_string_);
+CancelResult thread_cancel(Lane* lane_, CancelOp op_, int hook_count_, lua_Duration secs_, bool wake_lindas_);
 
 [[noreturn]] static inline void raise_cancel_error(lua_State* L)
 {
