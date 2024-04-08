@@ -33,13 +33,14 @@ THE SOFTWARE.
 ]]--
 */
 
-#include <assert.h>
-#include <string.h>
-
-#include "threading.h"
 #include "cancel.h"
-#include "tools.h"
+
+// #include <assert.h>
+//#include <string.h>
+
 #include "lanes_private.h"
+#include "threading.h"
+#include "tools.h"
 
 // ################################################################################################
 // ################################################################################################
@@ -103,7 +104,7 @@ static void cancel_hook(lua_State* L, [[maybe_unused]] lua_Debug* ar)
 // 'wake_lindas_bool': if true, signal any linda the thread is waiting on
 //                     instead of waiting for its timeout (if any)
 //
-// Returns: true if the lane was already finished (DONE/ERROR_ST/CANCELLED) or if we
+// Returns: true if the lane was already finished (Done/Error/Cancelled) or if we
 //          managed to cancel it.
 //          false if the cancellation timed out, or a kill was needed.
 //
@@ -117,7 +118,7 @@ static CancelResult thread_cancel_soft(Lane* lane_, lua_Duration duration_, bool
     if (wake_lane_) // wake the thread so that execution returns from any pending linda operation if desired
     {
         std::condition_variable* const waiting_on{ lane_->m_waiting_on };
-        if (lane_->status == WAITING && waiting_on != nullptr)
+        if (lane_->m_status == Lane::Waiting && waiting_on != nullptr)
         {
             waiting_on->notify_all();
         }
@@ -135,7 +136,7 @@ static CancelResult thread_cancel_hard(Lane* lane_, lua_Duration duration_, bool
     if (wake_lane_) // wake the thread so that execution returns from any pending linda operation if desired
     {
         std::condition_variable* waiting_on = lane_->m_waiting_on;
-        if (lane_->status == WAITING && waiting_on != nullptr)
+        if (lane_->m_status == Lane::Waiting && waiting_on != nullptr)
         {
             waiting_on->notify_all();
         }
@@ -151,7 +152,7 @@ CancelResult thread_cancel(Lane* lane_, CancelOp op_, int hook_count_, lua_Durat
 {
     // remember that lanes are not transferable: only one thread can cancel a lane, so no multithreading issue here
     // We can read 'lane_->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
-    if (lane_->status >= DONE)
+    if (lane_->m_status >= Lane::Done)
     {
         // say "ok" by default, including when lane is already done
         return CancelResult::Cancelled;

@@ -126,8 +126,8 @@ bool Lane::waitForCompletion(lua_Duration duration_)
 
     std::unique_lock lock{ m_done_mutex };
     //std::stop_token token{ m_thread.get_stop_token() };
-    //return m_done_signal.wait_for(lock, token, secs_, [this](){ return status >= DONE; });
-    return m_done_signal.wait_until(lock, until, [this](){ return status >= DONE; });
+    //return m_done_signal.wait_until(lock, token, secs_, [this](){ return m_status >= Lane::Done; });
+    return m_done_signal.wait_until(lock, until, [this](){ return m_status >= Lane::Done; });
 }
 
 static void lane_main(Lane* lane);
@@ -848,12 +848,12 @@ static void lane_main(Lane* lane)
     // wait until the launching thread has finished preparing L
     lane->m_ready.wait();
     int rc{ LUA_ERRRUN };
-    if (lane->status == PENDING) // nothing wrong happened during preparation, we can work
+    if (lane->m_status == Lane::Pending) // nothing wrong happened during preparation, we can work
     {
         // At this point, the lane function and arguments are on the stack
         int const nargs{ lua_gettop(L) - 1 };
         DEBUGSPEW_CODE(Universe* U = universe_get(L));
-        lane->status = RUNNING; // PENDING -> RUNNING
+        lane->m_status = Lane::Running; // Pending -> Running
 
         // Tie "set_finalizer()" to the state
         lua_pushcfunction(L, LG_set_finalizer);
@@ -924,14 +924,12 @@ static void lane_main(Lane* lane)
     {
         // leave results (1..top) or error message + stack trace (1..2) on the stack - master will copy them
 
-        enum e_status st = (rc == 0) ? DONE : CANCEL_ERROR.equals(L, 1) ? CANCELLED : ERROR_ST;
+        Lane::Status st = (rc == LUA_OK) ? Lane::Done : CANCEL_ERROR.equals(L, 1) ? Lane::Cancelled : Lane::Error;
 
-        // Posix no PTHREAD_TIMEDJOIN:
-        // 'm_done_mutex' protects the -> DONE|ERROR_ST|CANCELLED state change
-        //
         {
+            // 'm_done_mutex' protects the -> Done|Error|Cancelled state change
             std::lock_guard lock{ lane->m_done_mutex };
-            lane->status = st;
+            lane->m_status = st;
             lane->m_done_signal.notify_one();// wake up master (while 'lane->m_done_mutex' is on)
         }
     }
@@ -1045,13 +1043,15 @@ LUAG_FUNC(lane_new)
         lua_State* const m_L;
         Lane* m_lane{ nullptr };
         int const m_gc_cb_idx;
+        DEBUGSPEW_CODE(Universe* const U); // for DEBUGSPEW only (hence the absence of m_ prefix)
 
         public:
 
-        OnExit(lua_State* L_, Lane* lane_, int gc_cb_idx_)
+        OnExit(lua_State* L_, Lane* lane_, int gc_cb_idx_ DEBUGSPEW_COMMA_PARAM(Universe* U_))
         : m_L{ L_ }
         , m_lane{ lane_ }
         , m_gc_cb_idx{ gc_cb_idx_ }
+        DEBUGSPEW_COMMA_PARAM(U{ U_ })
         {}
 
         ~OnExit()
@@ -1065,7 +1065,7 @@ LUAG_FUNC(lane_new)
                 CANCEL_ERROR.pushKey(m_lane->L);
                 {
                     std::lock_guard lock{ m_lane->m_done_mutex };
-                    m_lane->status = CANCELLED;
+                    m_lane->m_status = Lane::Cancelled;
                     m_lane->m_done_signal.notify_one(); // wake up master (while 'lane->m_done_mutex' is on)
                 }
                 // unblock the thread so that it can terminate gracefully
@@ -1113,7 +1113,7 @@ LUAG_FUNC(lane_new)
             m_lane->m_ready.count_down();
             m_lane = nullptr;
         }
-    } onExit{ L, lane, gc_cb_idx };
+    } onExit{ L, lane, gc_cb_idx DEBUGSPEW_COMMA_PARAM(U) };
     // launch the thread early, it will sync with a std::latch to parallelize OS thread warmup and L2 preparation
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: launching thread\n" INDENT_END));
     lane->startThread(priority);
@@ -1311,7 +1311,7 @@ static int lane_gc(lua_State* L)
     }
 
     // We can read 'lane->status' without locks, but not wait for it
-    if (lane->status < DONE)
+    if (lane->m_status < Lane::Done)
     {
         // still running: will have to be cleaned up later
         selfdestruct_add(lane);
@@ -1358,14 +1358,14 @@ static int lane_gc(lua_State* L)
 //
 static char const * thread_status_string(Lane* lane_)
 {
-    enum e_status const st{ lane_->status }; // read just once (volatile)
+    Lane::Status const st{ lane_->m_status }; // read just once (volatile)
     char const* str =
-        (st == PENDING) ? "pending" :
-        (st == RUNNING) ? "running" :    // like in 'co.status()'
-        (st == WAITING) ? "waiting" :
-        (st == DONE) ? "done" :
-        (st == ERROR_ST) ? "error" :
-        (st == CANCELLED) ? "cancelled" : nullptr;
+        (st == Lane::Pending) ? "pending" :
+        (st == Lane::Running) ? "running" :    // like in 'co.status()'
+        (st == Lane::Waiting) ? "waiting" :
+        (st == Lane::Done) ? "done" :
+        (st == Lane::Error) ? "error" :
+        (st == Lane::Cancelled) ? "cancelled" : nullptr;
     return str;
 }
 
@@ -1406,16 +1406,16 @@ LUAG_FUNC(thread_join)
     }
 
     STACK_CHECK_START_REL(L, 0);
-    // Thread is DONE/ERROR_ST/CANCELLED; all ours now
+    // Thread is Done/Error/Cancelled; all ours now
 
     int ret{ 0 };
     Universe* const U{ lane->U };
     // debug_name is a pointer to string possibly interned in the lane's state, that no longer exists when the state is closed
     // so store it in the userdata uservalue at a key that can't possibly collide
     securize_debug_threadname(L, lane);
-    switch (lane->status)
+    switch (lane->m_status)
     {
-        case DONE:
+        case Lane::Done:
         {
             int const n{ lua_gettop(L2) }; // whole L2 stack
             if ((n > 0) && (luaG_inter_move(U, L2, L, n, LookupMode::LaneBody) != 0))
@@ -1426,7 +1426,7 @@ LUAG_FUNC(thread_join)
         }
         break;
 
-        case ERROR_ST:
+        case Lane::Error:
         {
             int const n{ lua_gettop(L2) };
             STACK_GROW(L, 3);
@@ -1440,12 +1440,12 @@ LUAG_FUNC(thread_join)
         }
         break;
 
-        case CANCELLED:
+        case Lane::Cancelled:
         ret = 0;
         break;
 
         default:
-        DEBUGSPEW_CODE(fprintf(stderr, "Status: %d\n", lane->status));
+        DEBUGSPEW_CODE(fprintf(stderr, "Status: %d\n", lane->m_status));
         ASSERT_L(false);
         ret = 0;
     }
@@ -1505,7 +1505,7 @@ LUAG_FUNC(thread_index)
                 lua_pushcfunction(L, LG_thread_join);
                 lua_pushvalue(L, UD);
                 lua_call(L, 1, LUA_MULTRET); // all return values are on the stack, at slots 4+
-                switch (lane->status)
+                switch (lane->m_status)
                 {
                     default:
                     // this is an internal error, we probably never get here
@@ -1516,7 +1516,7 @@ LUAG_FUNC(thread_index)
                     raise_lua_error(L);
                     [[fallthrough]]; // fall through if we are killed, as we got nil, "killed" on the stack
 
-                    case DONE: // got regular return values
+                    case Lane::Done: // got regular return values
                     {
                         int const nvalues{ lua_gettop(L) - 3 };
                         for (int i = nvalues; i > 0; --i)
@@ -1527,7 +1527,7 @@ LUAG_FUNC(thread_index)
                     }
                     break;
 
-                    case ERROR_ST: // got 3 values: nil, errstring, callstack table
+                    case Lane::Error: // got 3 values: nil, errstring, callstack table
                     // me[-2] could carry the stack table, but even
                     // me[-1] is rather unnecessary (and undocumented);
                     // use ':join()' instead.   --AKa 22-Jan-2009
@@ -1538,7 +1538,7 @@ LUAG_FUNC(thread_index)
                     lua_rawset(L, USR);
                     break;
 
-                    case CANCELLED:
+                    case Lane::Cancelled:
                      // do nothing
                     break;
                 }
@@ -1648,13 +1648,17 @@ LUAG_FUNC(threads)
  */
 
 /*
-* secs= now_secs()
+* secs = now_secs()
 *
-* Returns the current time, as seconds (millisecond resolution).
+* Returns the current time, as seconds. Resolution depends on std::system_clock implementation
+* Can't use std::chrono::steady_clock because we need the same baseline as std::mktime
 */
 LUAG_FUNC(now_secs)
 {
-    lua_pushnumber(L, now_secs());
+    auto const now{ std::chrono::system_clock::now() };
+    lua_Duration duration { now.time_since_epoch() };
+
+    lua_pushnumber(L, duration.count());
     return 1;
 }
 
@@ -1739,10 +1743,6 @@ static const struct luaL_Reg lanes_functions[] =
  */
 static void init_once_LOCKED( void)
 {
-#if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
-    now_secs();     // initialize 'now_secs()' internal offset
-#endif
-
 #if (defined PLATFORM_OSX) && (defined _UTILBINDTHREADTOCPU)
     chudInitialize();
 #endif

@@ -5,13 +5,6 @@
 #include <time.h>
 #include <thread>
 
-/* Note: ERROR is a defined entity on Win32
-  PENDING: The Lua VM hasn't done anything yet.
-  RUNNING, WAITING: Thread is inside the Lua VM. If the thread is forcefully stopped, we can't lua_close() the Lua State.
-  DONE, ERROR_ST, CANCELLED: Thread execution is outside the Lua VM. It can be lua_close()d.
-*/
-enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
-
 #define THREADAPI_WINDOWS 1
 #define THREADAPI_PTHREAD 2
 
@@ -128,14 +121,6 @@ enum e_status { PENDING, RUNNING, WAITING, DONE, ERROR_ST, CANCELLED };
   #endif
     #define THREAD_CALLCONV
 #endif //THREADAPI == THREADAPI_PTHREAD
-
-/*
-* 'time_d': <0.0 for no timeout
-*           0.0 for instant check
-*           >0.0 absolute timeout in secs + ms
-*/
-using time_d = double;
-time_d now_secs(void);
 
 /*---=== Threading ===---
 */

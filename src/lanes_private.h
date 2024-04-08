@@ -17,6 +17,22 @@ class Lane
 {
     public:
 
+    /*
+      Pending: The Lua VM hasn't done anything yet.
+      Running, Waiting: Thread is inside the Lua VM. If the thread is forcefully stopped, we can't lua_close() the Lua State.
+      Done, Error, Cancelled: Thread execution is outside the Lua VM. It can be lua_close()d.
+    */
+    enum class Status
+    {
+        Pending,
+        Running,
+        Waiting,
+        Done,
+        Error,
+        Cancelled
+    };
+    using enum Status;
+
     // the thread
     std::jthread m_thread;
     // a latch to wait for the lua_State to be ready
@@ -36,16 +52,16 @@ class Lane
     // M: prepares the state, and reads results
     // S: while S is running, M must keep out of modifying the state
 
-    volatile enum e_status status{ PENDING };
+    Status volatile m_status{ Pending };
     // 
-    // M: sets to PENDING (before launching)
-    // S: updates -> RUNNING/WAITING -> DONE/ERROR_ST/CANCELLED
+    // M: sets to Pending (before launching)
+    // S: updates -> Running/Waiting -> Done/Error/Cancelled
 
     std::condition_variable* volatile m_waiting_on{ nullptr };
     //
-    // When status is WAITING, points on the linda's signal the thread waits on, else nullptr
+    // When status is Waiting, points on the linda's signal the thread waits on, else nullptr
 
-    volatile CancelRequest cancel_request{ CancelRequest::None };
+    CancelRequest volatile cancel_request{ CancelRequest::None };
     //
     // M: sets to false, flags true for cancel request
     // S: reads to see if cancel is requested

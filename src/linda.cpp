@@ -306,13 +306,13 @@ LUAG_FUNC(linda_send)
 
             // storage limit hit, wait until timeout or signalled that we should try again
             {
-                enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
+                Lane::Status prev_status{ Lane::Error }; // prevent 'might be used uninitialized' warnings
                 if (lane != nullptr)
                 {
                     // change status of lane to "waiting"
-                    prev_status = lane->status; // RUNNING, most likely
-                    ASSERT_L(prev_status == RUNNING); // but check, just in case
-                    lane->status = WAITING;
+                    prev_status = lane->m_status; // Running, most likely
+                    ASSERT_L(prev_status == Lane::Running); // but check, just in case
+                    lane->m_status = Lane::Waiting;
                     ASSERT_L(lane->m_waiting_on == nullptr);
                     lane->m_waiting_on = &linda->m_read_happened;
                 }
@@ -324,7 +324,7 @@ LUAG_FUNC(linda_send)
                 if (lane != nullptr)
                 {
                     lane->m_waiting_on = nullptr;
-                    lane->status = prev_status;
+                    lane->m_status = prev_status;
                 }
             }
         }
@@ -470,13 +470,13 @@ LUAG_FUNC(linda_receive)
 
         // nothing received, wait until timeout or signalled that we should try again
         {
-            enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
+            Lane::Status prev_status{ Lane::Error }; // prevent 'might be used uninitialized' warnings
             if (lane != nullptr)
             {
                 // change status of lane to "waiting"
-                prev_status = lane->status; // RUNNING, most likely
-                ASSERT_L(prev_status == RUNNING); // but check, just in case
-                lane->status = WAITING;
+                prev_status = lane->m_status; // Running, most likely
+                ASSERT_L(prev_status == Lane::Running); // but check, just in case
+                lane->m_status = Lane::Waiting;
                 ASSERT_L(lane->m_waiting_on == nullptr);
                 lane->m_waiting_on = &linda->m_write_happened;
             }
@@ -488,7 +488,7 @@ LUAG_FUNC(linda_receive)
             if (lane != nullptr)
             {
                 lane->m_waiting_on = nullptr;
-                lane->status = prev_status;
+                lane->m_status = prev_status;
             }
         }
     }
