@@ -35,7 +35,7 @@ class AllocatorDefinition
     lua_Alloc m_allocF{ nullptr };
     void* m_allocUD{ nullptr };
 
-    static void* operator new(size_t size_, lua_State* L) noexcept { return lua_newuserdatauv(L, size_, 0); }
+    [[nodiscard]] static void* operator new(size_t size_, lua_State* L) noexcept { return lua_newuserdatauv(L, size_, 0); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete([[maybe_unused]] void* p_, lua_State* L) { ASSERT_L(!"should never be called") };
@@ -81,7 +81,7 @@ class ProtectedAllocator : public AllocatorDefinition
 
     std::mutex m_lock;
 
-    static void* protected_lua_Alloc(void* ud_, void* ptr_, size_t osize_, size_t nsize_)
+    [[nodiscard]] static void* protected_lua_Alloc(void* ud_, void* ptr_, size_t osize_, size_t nsize_)
     {
         ProtectedAllocator* const allocator{ static_cast<ProtectedAllocator*>(ud_) };
         std::lock_guard<std::mutex> guard{ allocator->m_lock };
@@ -91,7 +91,7 @@ class ProtectedAllocator : public AllocatorDefinition
     public:
 
     // we are not like our base class: we can't be created inside a full userdata (or we would have to install a metatable and __gc handler to destroy ourselves properly)
-    static void* operator new(size_t size_, lua_State* L) noexcept = delete;
+    [[nodiscard]] static void* operator new(size_t size_, lua_State* L) noexcept = delete;
     static void operator delete(void* p_, lua_State* L) = delete;
 
     AllocatorDefinition makeDefinition()
@@ -185,6 +185,6 @@ class Universe
 
 // ################################################################################################
 
-Universe* universe_get(lua_State* L);
-Universe* universe_create(lua_State* L);
+[[nodiscard]] Universe* universe_get(lua_State* L);
+[[nodiscard]] Universe* universe_create(lua_State* L);
 void universe_store(lua_State* L, Universe* U);

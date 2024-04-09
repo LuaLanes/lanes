@@ -51,7 +51,7 @@ THE SOFTWARE.
 * Returns CANCEL_SOFT/HARD if any locks are to be exited, and 'raise_cancel_error()' called,
 * to make execution of the lane end.
 */
-static inline CancelRequest cancel_test(lua_State* L)
+[[nodiscard]] static inline CancelRequest cancel_test(lua_State* L)
 {
     Lane* const lane{ LANE_POINTER_REGKEY.readLightUserDataValue<Lane>(L) };
     // 'lane' is nullptr for the original main state (and no-one can cancel that)
@@ -76,7 +76,7 @@ LUAG_FUNC( cancel_test)
 // ################################################################################################
 // ################################################################################################
 
-static void cancel_hook(lua_State* L, [[maybe_unused]] lua_Debug* ar)
+[[nodiscard]] static void cancel_hook(lua_State* L, [[maybe_unused]] lua_Debug* ar)
 {
     DEBUGSPEW_CODE(fprintf(stderr, "cancel_hook\n"));
     if (cancel_test(L) != CancelRequest::None)
@@ -108,7 +108,7 @@ static void cancel_hook(lua_State* L, [[maybe_unused]] lua_Debug* ar)
 
 // ################################################################################################
 
-static CancelResult thread_cancel_soft(Lane* lane_, lua_Duration duration_, bool wake_lane_)
+[[nodiscard]] static CancelResult thread_cancel_soft(Lane* lane_, lua_Duration duration_, bool wake_lane_)
 {
     lane_->cancel_request = CancelRequest::Soft; // it's now signaled to stop
     // negative timeout: we don't want to truly abort the lane, we just want it to react to cancel_test() on its own
@@ -126,7 +126,7 @@ static CancelResult thread_cancel_soft(Lane* lane_, lua_Duration duration_, bool
 
 // ################################################################################################
 
-static CancelResult thread_cancel_hard(Lane* lane_, lua_Duration duration_, bool wake_lane_)
+[[nodiscard]] static CancelResult thread_cancel_hard(Lane* lane_, lua_Duration duration_, bool wake_lane_)
 {
     lane_->cancel_request = CancelRequest::Hard; // it's now signaled to stop
     //lane_->m_thread.get_stop_source().request_stop();
@@ -204,7 +204,7 @@ CancelOp which_cancel_op(char const* op_string_)
 
 // ################################################################################################
 
-static CancelOp which_cancel_op(lua_State* L, int idx_)
+[[nodiscard]] static CancelOp which_cancel_op(lua_State* L, int idx_)
 {
     if (lua_type(L, idx_) == LUA_TSTRING)
     {
@@ -273,7 +273,7 @@ LUAG_FUNC(thread_cancel)
 
         case CancelResult::Cancelled:
         lua_pushboolean(L, 1);
-        push_thread_status(L, lane);
+        std::ignore = push_thread_status(L, lane);
         break;
     }
     // should never happen, only here to prevent the compiler from complaining of "not all control paths returning a value"

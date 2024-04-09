@@ -25,16 +25,16 @@ enum class VT
     KEY,
     METATABLE
 };
-bool inter_copy_one(Universe* U, Dest L2, int L2_cache_i, Source L, int i, VT vt_, LookupMode mode_, char const* upName_);
+[[nodiscard]] bool inter_copy_one(Universe* U, Dest L2, int L2_cache_i, Source L, int i, VT vt_, LookupMode mode_, char const* upName_);
 
 // ################################################################################################
 
-int luaG_inter_copy_package(Universe* U, Source L, Dest L2, int package_idx_, LookupMode mode_);
+[[nodiscard]] int luaG_inter_copy_package(Universe* U, Source L, Dest L2, int package_idx_, LookupMode mode_);
 
-int luaG_inter_copy(Universe* U, Source L, Dest L2, int n, LookupMode mode_);
-int luaG_inter_move(Universe* U, Source L, Dest L2, int n, LookupMode mode_);
+[[nodiscard]] int luaG_inter_copy(Universe* U, Source L, Dest L2, int n, LookupMode mode_);
+[[nodiscard]] int luaG_inter_move(Universe* U, Source L, Dest L2, int n, LookupMode mode_);
 
-int luaG_nameof(lua_State* L);
+[[nodiscard]] int luaG_nameof(lua_State* L);
 
 void populate_func_lookup_table(lua_State* L, int _i, char const* _name);
 void initialize_allocator_function(Universe* U, lua_State* L);

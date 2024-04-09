@@ -162,7 +162,7 @@ static void securize_debug_threadname(lua_State* L, Lane* lane_)
 }
 
 #if ERROR_FULL_STACK
-static int lane_error(lua_State* L);
+[[nodiscard]] static int lane_error(lua_State* L);
 // crc64/we of string "STACKTRACE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
 static constexpr UniqueKey STACKTRACE_REGKEY{ 0x534af7d3226a429full };
 #endif // ERROR_FULL_STACK
@@ -188,7 +188,7 @@ static constexpr UniqueKey FINALIZER_REGKEY{ 0x188fccb8bf348e09ull };
 * Returns: true if a table was pushed
 *          false if no table found, not created, and nothing pushed
 */
-static bool push_registry_table( lua_State* L, UniqueKey key, bool create)
+[[nodiscard]] static bool push_registry_table(lua_State* L, UniqueKey key, bool create)
 {
     STACK_GROW(L, 3);
     STACK_CHECK_START_REL(L, 0);
@@ -237,7 +237,7 @@ static void tracking_add(Lane* lane_)
 /*
  * A free-running lane has ended; remove it from tracking chain
  */
-static bool tracking_remove(Lane* lane_)
+[[nodiscard]] static bool tracking_remove(Lane* lane_)
 {
     bool found{ false };
     std::lock_guard<std::mutex> guard{ lane_->U->tracking_cs };
@@ -277,7 +277,7 @@ Lane::~Lane()
     if (U->tracking_first != nullptr)
     {
         // Lane was cleaned up, no need to handle at process termination
-        tracking_remove(this);
+        std::ignore = tracking_remove(this);
     }
 #endif // HAVE_LANE_TRACKING()
 }
@@ -300,10 +300,10 @@ LUAG_FUNC( set_finalizer)
 {
     luaL_argcheck(L, lua_isfunction(L, 1), 1, "finalizer should be a function");
     luaL_argcheck(L, lua_gettop( L) == 1, 1, "too many arguments");
-    // Get the current finalizer table (if any)
-    push_registry_table(L, FINALIZER_REGKEY, true /*do create if none*/);      // finalizer {finalisers}
+    // Get the current finalizer table (if any), create one if it doesn't exist
+    std::ignore = push_registry_table(L, FINALIZER_REGKEY, true);               // finalizer {finalisers}
     STACK_GROW(L, 2);
-    lua_pushinteger(L, lua_rawlen(L, -1) + 1);                                 // finalizer {finalisers} idx
+    lua_pushinteger(L, lua_rawlen(L, -1) + 1);                                  // finalizer {finalisers} idx
     lua_pushvalue(L, 1);                                                        // finalizer {finalisers} idx finalizer
     lua_rawset(L, -3);                                                          // finalizer {finalisers}
     lua_pop(L, 2);                                                              //
@@ -326,7 +326,7 @@ LUAG_FUNC( set_finalizer)
 //
 static void push_stack_trace( lua_State* L, int rc_, int stk_base_);
 
-static int run_finalizers( lua_State* L, int lua_rc)
+[[nodiscard]] static int run_finalizers(lua_State* L, int lua_rc)
 {
     int finalizers_index;
     int n;
@@ -430,7 +430,7 @@ static void selfdestruct_add(Lane* lane_)
 /*
  * A free-running lane has ended; remove it from selfdestruct chain
  */
-static bool selfdestruct_remove(Lane* lane_)
+[[nodiscard]] static bool selfdestruct_remove(Lane* lane_)
 {
     bool found{ false };
     std::lock_guard<std::mutex> guard{ lane_->U->selfdestruct_cs };
@@ -465,7 +465,7 @@ static bool selfdestruct_remove(Lane* lane_)
 /*
 * Process end; cancel any still free-running threads
 */
-static int universe_gc( lua_State* L)
+[[nodiscard]] static int universe_gc(lua_State* L)
 {
     Universe* const U{ lua_tofulluserdata<Universe>(L, 1) };
     lua_Duration const shutdown_timeout{ lua_tonumber(L, lua_upvalueindex(1)) };
@@ -638,7 +638,7 @@ LUAG_FUNC( set_error_reporting)
     return 0;
 }
 
-static int lane_error(lua_State* L)
+[[nodiscard]] static int lane_error(lua_State* L)
 {
     // error message (any type)
     STACK_CHECK_START_ABS(L, 1);                                                       // some_error
@@ -1176,7 +1176,10 @@ LUAG_FUNC(lane_new)
                     if (lua_pcall( L2, 1, 1, 0) != LUA_OK)                                                                                          // ret/errcode
                     {
                         // propagate error to main state if any
-                        luaG_inter_move(U, Source{ L2 }, Dest{ L }, 1, LookupMode::LaneBody); // func libs priority globals package required gc_cb [... args ...] n "modname" error
+                        std::ignore = luaG_inter_move(U
+                            , Source{ L2 }, Dest{ L }
+                            , 1, LookupMode::LaneBody
+                        );                                                  // func libs priority globals package required gc_cb [... args ...] n "modname" error
                         raise_lua_error(L);
                     }
                     // after requiring the module, register the functions it exported in our name<->function database
@@ -1209,7 +1212,7 @@ LUAG_FUNC(lane_new)
         lua_pushglobaltable(L2);                                                                                                                    // _G
         while( lua_next(L, globals_idx))                                    // func libs priority globals package required gc_cb [... args ...] k v
         {
-            luaG_inter_copy(U, Source{ L }, Dest{ L2 }, 2, LookupMode::LaneBody);                                                                   // _G k v
+            std::ignore = luaG_inter_copy(U, Source{ L }, Dest{ L2 }, 2, LookupMode::LaneBody);                                                     // _G k v
             // assign it in L2's globals table
             lua_rawset(L2, -3);                                                                                                                     // _G
             lua_pop(L, 1);                                                  // func libs priority globals package required gc_cb [... args ...] k
@@ -1290,7 +1293,7 @@ LUAG_FUNC(lane_new)
 // and the issue of canceling/killing threads at gc is not very nice, either
 // (would easily cause waits at gc cycle, which we don't want).
 //
-static int lane_gc(lua_State* L)
+[[nodiscard]] static int lane_gc(lua_State* L)
 {
     bool have_gc_cb{ false };
     Lane* const lane{ lua_toLane(L, 1) };                                // ud
@@ -1356,7 +1359,7 @@ static int lane_gc(lua_State* L)
 //                   / "error"     finished at an error, error value is there
 //                   / "cancelled"   execution cancelled by M (state gone)
 //
-static char const * thread_status_string(Lane* lane_)
+[[nodiscard]] static char const* thread_status_string(Lane* lane_)
 {
     Lane::Status const st{ lane_->m_status }; // read just once (volatile)
     char const* str =
@@ -1624,20 +1627,20 @@ LUAG_FUNC(threads)
     {
         Lane* lane{ U->tracking_first };
         int index = 0;
-        lua_newtable(L);                         // {}
+        lua_newtable(L);                                       // {}
         while (lane != TRACKING_END)
         {
             // insert a { name, status } tuple, so that several lanes with the same name can't clobber each other
-            lua_newtable(L);                     // {} {}
-            lua_pushstring(L, lane->debug_name); // {} {} "name"
-            lua_setfield(L, -2, "name");         // {} {}
-            push_thread_status(L, lane);         // {} {} "status"
-            lua_setfield(L, -2, "status");       // {} {}
-            lua_rawseti(L, -2, ++index);         // {}
+            lua_newtable(L);                                   // {} {}
+            lua_pushstring(L, lane->debug_name);               // {} {} "name"
+            lua_setfield(L, -2, "name");                       // {} {}
+            std::ignore = push_thread_status(L, lane);         // {} {} "status"
+            lua_setfield(L, -2, "status");                     // {} {}
+            lua_rawseti(L, -2, ++index);                       // {}
             lane = lane->tracking_next;
         }
     }
-    return lua_gettop(L) - top;                  // 0 or 1
+    return lua_gettop(L) - top;                                // 0 or 1
 }
 #endif // HAVE_LANE_TRACKING()
 
@@ -1723,7 +1726,7 @@ LUAG_FUNC(wakeup_conv)
  */
 
 extern int LG_linda(lua_State* L);
-static const struct luaL_Reg lanes_functions[] =
+static struct luaL_Reg const lanes_functions[] =
 {
     { "linda", LG_linda },
     { "now_secs", LG_now_secs },
@@ -2022,9 +2025,9 @@ LANES_API int luaopen_lanes_core( lua_State* L)
     return 1;
 }
 
-static int default_luaopen_lanes( lua_State* L)
+[[nodiscard]] static int default_luaopen_lanes(lua_State* L)
 {
-    int rc = luaL_loadfile(L, "lanes.lua") || lua_pcall(L, 0, 1, 0);
+    int const rc{ luaL_loadfile(L, "lanes.lua") || lua_pcall(L, 0, 1, 0) };
     if (rc != LUA_OK)
     {
         return luaL_error(L, "failed to initialize embedded Lanes");

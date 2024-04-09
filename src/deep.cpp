@@ -107,7 +107,7 @@ static void get_deep_lookup(lua_State* L)
 * Return the registered ID function for 'index' (deep userdata proxy),
 * or nullptr if 'index' is not a deep userdata proxy.
 */
-static inline luaG_IdFunction get_idfunc(lua_State* L, int index, LookupMode mode_)
+[[nodiscard]] static inline luaG_IdFunction get_idfunc(lua_State* L, int index, LookupMode mode_)
 {
     // when looking inside a keeper, we are 100% sure the object is a deep userdata
     if (mode_ == LookupMode::FromKeeper)
@@ -160,7 +160,7 @@ void free_deep_prelude(lua_State* L, DeepPrelude* prelude_)
  * End of life for a proxy object; reduce the deep reference count and clean it up if reaches 0.
  *
  */
-static int deep_userdata_gc(lua_State* L)
+[[nodiscard]] static int deep_userdata_gc(lua_State* L)
 {
     DeepPrelude** const proxy{ lua_tofulluserdata<DeepPrelude*>(L, 1) };
     DeepPrelude* p = *proxy;
@@ -470,10 +470,14 @@ bool copydeep(Universe* U, Dest L2, int L2_cache_i, Source L, int i, LookupMode 
         int const clone_i = lua_gettop( L2);
         while( nuv)
         {
-            inter_copy_one( U, L2, L2_cache_i, L,  lua_absindex( L, -1), VT::NORMAL, mode_, upName_);       // u uv
+            std::ignore = inter_copy_one(U
+                , L2, L2_cache_i
+                , L,  lua_absindex( L, -1)
+                , VT::NORMAL, mode_, upName_
+            );                                                                                              // u uv
             lua_pop( L, 1);                                                              // ... u [uv]*
             // this pops the value from the stack
-            lua_setiuservalue( L2, clone_i, nuv);                                                           // u
+            lua_setiuservalue(L2, clone_i, nuv);                                                            // u
             -- nuv;
         }
     }

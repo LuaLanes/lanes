@@ -70,7 +70,7 @@ class Linda : public DeepPrelude // Deep userdata MUST start with this header
     public:
 
     // a fifo full userdata has one uservalue, the table that holds the actual fifo contents
-    static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internal_allocator.alloc(size_); }
+    [[nodiscard]] static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internal_allocator.alloc(size_); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete(void* p_, Universe* U_) { U_->internal_allocator.free(p_, sizeof(Linda)); }
@@ -137,10 +137,10 @@ class Linda : public DeepPrelude // Deep userdata MUST start with this header
         return nullptr;
     }
 };
-static void* linda_id( lua_State*, DeepOp);
+[[nodiscard]] static void* linda_id(lua_State*, DeepOp);
 
 template<bool OPT>
-static inline Linda* lua_toLinda(lua_State* L, int idx_)
+[[nodiscard]] static inline Linda* lua_toLinda(lua_State* L, int idx_)
 {
     Linda* const linda{ static_cast<Linda*>(luaG_todeep(L, linda_id, idx_)) };
     if (!OPT)
@@ -742,7 +742,7 @@ LUAG_FUNC(linda_deep)
 */
 
 template <bool OPT>
-static int linda_tostring(lua_State* L, int idx_)
+[[nodiscard]] static int linda_tostring(lua_State* L, int idx_)
 {
     Linda* const linda{ lua_toLinda<OPT>(L, idx_) };
     if (linda != nullptr)
@@ -851,7 +851,7 @@ LUAG_FUNC(linda_towatch)
 * For any other strings, the ID function must not react at all. This allows
 * future extensions of the system. 
 */
-static void* linda_id( lua_State* L, DeepOp op_)
+[[nodiscard]] static void* linda_id(lua_State* L, DeepOp op_)
 {
     switch( op_)
     {
@@ -907,7 +907,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
                 // Clean associated structures in the keeper state.
                 Keeper* const K{ need_acquire_release ? keeper_acquire(linda->U->keepers, linda->hashSeed()) : myK };
                 // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
-                keeper_call(linda->U, K->L, KEEPER_API(clear), L, linda, 0);
+                std::ignore = keeper_call(linda->U, K->L, KEEPER_API(clear), L, linda, 0);
                 if (need_acquire_release)
                 {
                     keeper_release(K);

@@ -49,7 +49,7 @@ THE SOFTWARE.
 //
 // Upvalues: [1]: original 'require' function
 //
-static int luaG_new_require( lua_State* L)
+[[nodiscard]] static int luaG_new_require(lua_State* L)
 {
     int rc;
     int const args = lua_gettop( L);                                    // args
@@ -110,7 +110,7 @@ void serialize_require(DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L)
 
 /*---=== luaG_newstate ===---*/
 
-static int require_lanes_core( lua_State* L)
+[[nodiscard]] static int require_lanes_core(lua_State* L)
 {
     // leaves a copy of 'lanes.core' module table on the stack
     luaL_requiref( L, "lanes.core", luaopen_lanes_core, 0);
@@ -118,7 +118,7 @@ static int require_lanes_core( lua_State* L)
 }
 
 
-static const luaL_Reg libs[] =
+static luaL_Reg const libs[] =
 {
     { LUA_LOADLIBNAME, luaopen_package},
     { LUA_TABLIBNAME, luaopen_table},

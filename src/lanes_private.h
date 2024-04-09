@@ -78,7 +78,7 @@ class Lane
     //
     // For tracking only
 
-    static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internal_allocator.alloc(size_); }
+    [[nodiscard]] static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internal_allocator.alloc(size_); }
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete(void* p_, Universe* U_) { U_->internal_allocator.free(p_, sizeof(Lane)); }
     // this one is for us, to make sure memory is freed by the correct allocator
@@ -87,7 +87,7 @@ class Lane
     Lane(Universe* U_, lua_State* L_);
     ~Lane();
 
-    bool waitForCompletion(lua_Duration duration_);
+    [[nodiscard]] bool waitForCompletion(lua_Duration duration_);
     void startThread(int priority_);
 };
 
@@ -98,6 +98,9 @@ static constexpr UniqueKey LANE_POINTER_REGKEY{ 0xB3022205633743BCull }; // used
 // 'Lane' are malloc/free'd and the handle only carries a pointer.
 // This is not deep userdata since the handle's not portable among lanes.
 //
-#define lua_toLane(L, i) (*((Lane**) luaL_checkudata( L, i, "Lane")))
+[[nodiscard]] inline Lane* lua_toLane(lua_State* L, int i_)
+{
+    return *(static_cast<Lane**>(luaL_checkudata(L, i_, "Lane")));
+}
 
-int push_thread_status(lua_State* L, Lane* s);
+[[nodiscard]] int push_thread_status(lua_State* L, Lane* s);

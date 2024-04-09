@@ -15,7 +15,7 @@
 // ################################################################################################
 // ################################################################################################
 
-static int luaL_getsubtable (lua_State *L, int idx, const char *fname)
+[[nodiscard]] static int luaL_getsubtable(lua_State* L, int idx, const char* fname)
 {
     lua_getfield(L, idx, fname);
     if (lua_istable(L, -1))
@@ -33,12 +33,12 @@ static int luaL_getsubtable (lua_State *L, int idx, const char *fname)
 
 // ################################################################################################
 
-void luaL_requiref (lua_State *L, const char *modname, lua_CFunction openf, int glb)
+void luaL_requiref(lua_State *L, const char *modname, lua_CFunction openf, int glb)
 {
     lua_pushcfunction(L, openf);
     lua_pushstring(L, modname);  /* argument to open function */
     lua_call(L, 1, 1);  /* open module */
-    luaL_getsubtable(L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
+    std::ignore = luaL_getsubtable(L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
     lua_pushvalue(L, -2);  /* make copy of module (call result) */
     lua_setfield(L, -2, modname);  /* _LOADED[modname] = module */
     lua_pop(L, 1);  /* remove _LOADED table */

@@ -23,11 +23,13 @@ extern char const* debugspew_indent;
 #define INDENT_BEGIN "%.*s "
 #define INDENT_END , (U ? U->debugspew_indent_depth.load(std::memory_order_relaxed) : 0), debugspew_indent
 #define DEBUGSPEW_CODE(_code) _code
-#define DEBUGSPEW_PARAM_COMMA( param_) param_,
+#define DEBUGSPEW_OR_NOT(a_, b_) a_
+#define DEBUGSPEW_PARAM_COMMA(param_) param_,
 #define DEBUGSPEW_COMMA_PARAM( param_) , param_
 #else // USE_DEBUG_SPEW()
 #define DEBUGSPEW_CODE(_code)
-#define DEBUGSPEW_PARAM_COMMA( param_)
+#define DEBUGSPEW_OR_NOT(a_, b_) b_
+#define DEBUGSPEW_PARAM_COMMA(param_)
 #define DEBUGSPEW_COMMA_PARAM( param_)
 #endif // USE_DEBUG_SPEW()
 
@@ -130,20 +132,20 @@ inline void STACK_GROW(lua_State* L, int n_)
     }
 }
 
-#define LUAG_FUNC( func_name) int LG_##func_name( lua_State* L)
+#define LUAG_FUNC(func_name) [[nodiscard]] int LG_##func_name(lua_State* L)
 
 // #################################################################################################
 
 // a small helper to extract a full userdata pointer from the stack in a safe way
 template<typename T>
-T* lua_tofulluserdata(lua_State* L, int index_)
+[[nodiscard]] T* lua_tofulluserdata(lua_State* L, int index_)
 {
     ASSERT_L(lua_isnil(L, index_) || lua_type(L, index_) == LUA_TUSERDATA);
     return static_cast<T*>(lua_touserdata(L, index_));
 }
 
 template<typename T>
-auto lua_tolightuserdata(lua_State* L, int index_)
+[[nodiscard]] auto lua_tolightuserdata(lua_State* L, int index_)
 {
     ASSERT_L(lua_isnil(L, index_) || lua_islightuserdata(L, index_));
     if constexpr (std::is_pointer_v<T>)
@@ -157,7 +159,7 @@ auto lua_tolightuserdata(lua_State* L, int index_)
 }
 
 template <typename T>
-T* lua_newuserdatauv(lua_State* L, int nuvalue_)
+[[nodiscard]] T* lua_newuserdatauv(lua_State* L, int nuvalue_)
 {
     return static_cast<T*>(lua_newuserdatauv(L, sizeof(T), nuvalue_));
 }
@@ -175,6 +177,7 @@ using lua_Duration = std::chrono::template duration<lua_Number>;
 
 // #################################################################################################
 
+// A unique type generator
 template <typename T, auto = []{}>
 struct Unique
 {

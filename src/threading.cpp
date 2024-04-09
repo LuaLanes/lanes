@@ -209,7 +209,7 @@ void THREAD_SETNAME(char const* _name)
 // general its implementation is pretty much trivial, as on Win32 target
 // just SCHED_OTHER can be supported.
 #undef pthread_attr_setschedpolicy
-static int pthread_attr_setschedpolicy(pthread_attr_t* attr, int policy)
+[[nodiscard]] static int pthread_attr_setschedpolicy(pthread_attr_t* attr, int policy)
 {
     if (policy != SCHED_OTHER)
     {
@@ -348,7 +348,7 @@ static int const gs_prio_remap[] =
 #endif // _PRIO_0
 };
 
-static int select_prio(int prio /* -3..+3 */)
+[[nodiscard]] static int select_prio(int prio /* -3..+3 */)
 {
     if (prio == THREAD_PRIO_DEFAULT)
         prio = 0;

@@ -38,23 +38,23 @@ static constexpr UniqueKey NIL_SENTINEL{ 0x7eaafa003a1d11a1ull };
 void init_keepers(Universe* U, lua_State* L);
 void close_keepers(Universe* U);
 
-Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_);
-Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_);
+[[nodiscard]] Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_);
+[[nodiscard]] Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_);
 void keeper_release(Keeper* K_);
 void keeper_toggle_nil_sentinels(lua_State* L, int val_i_, LookupMode const mode_);
-int keeper_push_linda_storage(Universe* U, Dest L, void* ptr_, uintptr_t magic_);
+[[nodiscard]] int keeper_push_linda_storage(Universe* U, Dest L, void* ptr_, uintptr_t magic_);
 
 using keeper_api_t = lua_CFunction;
 #define KEEPER_API(_op) keepercall_##_op
 #define PUSH_KEEPER_FUNC lua_pushcfunction
 // lua_Cfunctions to run inside a keeper state
-int keepercall_clear(lua_State* L);
-int keepercall_send(lua_State* L);
-int keepercall_receive(lua_State* L);
-int keepercall_receive_batched(lua_State* L);
-int keepercall_limit(lua_State* L);
-int keepercall_get(lua_State* L);
-int keepercall_set(lua_State* L);
-int keepercall_count(lua_State* L);
+[[nodiscard]] int keepercall_clear(lua_State* L);
+[[nodiscard]] int keepercall_send(lua_State* L);
+[[nodiscard]] int keepercall_receive(lua_State* L);
+[[nodiscard]] int keepercall_receive_batched(lua_State* L);
+[[nodiscard]] int keepercall_limit(lua_State* L);
+[[nodiscard]] int keepercall_get(lua_State* L);
+[[nodiscard]] int keepercall_set(lua_State* L);
+[[nodiscard]] int keepercall_count(lua_State* L);
 
-int keeper_call(Universe* U, lua_State* K, keeper_api_t _func, lua_State* L, void* linda, int starting_index);
+[[nodiscard]] int keeper_call(Universe* U, lua_State* K, keeper_api_t _func, lua_State* L, void* linda, int starting_index);

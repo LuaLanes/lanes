@@ -20,7 +20,7 @@ extern "C" {
 #define LANES_VERSION_GREATER_THAN(MAJOR, MINOR, PATCH)     ((LANES_VERSION_MAJOR>MAJOR) || (LANES_VERSION_MAJOR==MAJOR && (LANES_VERSION_MINOR>MINOR || (LANES_VERSION_MINOR==MINOR && LANES_VERSION_PATCH>PATCH))))
 #define LANES_VERSION_GREATER_OR_EQUAL(MAJOR, MINOR, PATCH) ((LANES_VERSION_MAJOR>MAJOR) || (LANES_VERSION_MAJOR==MAJOR && (LANES_VERSION_MINOR>MINOR || (LANES_VERSION_MINOR==MINOR && LANES_VERSION_PATCH>=PATCH))))
 
-LANES_API int luaopen_lanes_core(lua_State* L);
+LANES_API [[nodiscard]] int luaopen_lanes_core(lua_State* L);
 
 // Call this to work with embedded Lanes instead of calling luaopen_lanes_core()
 LANES_API void luaopen_lanes_embedded(lua_State* L, lua_CFunction _luaopen_lanes);
