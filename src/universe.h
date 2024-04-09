@@ -119,9 +119,17 @@ class ProtectedAllocator : public AllocatorDefinition
 
 // everything regarding the Lanes universe is stored in that global structure
 // held as a full userdata in the master Lua state that required it for the first time
-// don't forget to initialize all members in LG_configure()
-struct Universe
+class Universe
 {
+    public:
+
+#ifdef PLATFORM_LINUX
+    // Linux needs to check, whether it's been run as root
+    bool const m_sudo{ geteuid() == 0 };
+#else
+    bool const m_sudo{ false };
+#endif // PLATFORM_LINUX
+
     // for verbose errors
     bool verboseErrors{ false };
 
@@ -155,6 +163,7 @@ struct Universe
     // require() serialization
     std::recursive_mutex require_cs;
 
+    // metatable unique identifiers
     std::atomic<lua_Integer> next_mt_id{ 1 };
 
 #if USE_DEBUG_SPEW()
@@ -165,6 +174,13 @@ struct Universe
     // After a lane has removed itself from the chain, it still performs some processing.
     // The terminal desinit sequence should wait for all such processing to terminate before force-killing threads
     std::atomic<int> selfdestructing_count{ 0 };
+
+    Universe();
+    ~Universe() = default;
+    Universe(Universe const&) = delete;
+    Universe(Universe&&) = delete;
+    Universe& operator=(Universe const&) = delete;
+    Universe& operator=(Universe&&) = delete;
 };
 
 // ################################################################################################

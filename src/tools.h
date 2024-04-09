@@ -6,7 +6,7 @@
 #include "macros_and_utils.h"
 
 // forwards
-struct Universe;
+class Universe;
 
 // ################################################################################################
 

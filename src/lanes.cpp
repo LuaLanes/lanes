@@ -136,7 +136,7 @@ void Lane::startThread(int priority_)
     m_thread = std::jthread([this]() { lane_main(this); });
     if (priority_ != THREAD_PRIO_DEFAULT)
     {
-        JTHREAD_SET_PRIORITY(m_thread, priority_);
+        JTHREAD_SET_PRIORITY(m_thread, priority_, U->m_sudo);
     }
 }
 
@@ -784,7 +784,7 @@ LUAG_FUNC(get_debug_threadname)
 
 LUAG_FUNC(set_thread_priority)
 {
-    int const prio{ (int) luaL_checkinteger(L, 1) };
+    lua_Integer const prio{ luaL_checkinteger(L, 1) };
     // public Lanes API accepts a generic range -3/+3
     // that will be remapped into the platform-specific scheduler priority scheme
     // On some platforms, -3 is equivalent to -2 and +3 to +2
@@ -792,7 +792,7 @@ LUAG_FUNC(set_thread_priority)
     {
         return luaL_error(L, "priority out of range: %d..+%d (%d)", THREAD_PRIO_MIN, THREAD_PRIO_MAX, prio);
     }
-    THREAD_SET_PRIORITY(prio);
+    THREAD_SET_PRIORITY(static_cast<int>(prio), universe_get(L)->m_sudo);
     return 0;
 }
 
@@ -1746,32 +1746,6 @@ static void init_once_LOCKED( void)
 #if (defined PLATFORM_OSX) && (defined _UTILBINDTHREADTOCPU)
     chudInitialize();
 #endif
-
-    //---
-    // Linux needs SCHED_RR to change thread priorities, and that is only
-    // allowed for sudo'ers. SCHED_OTHER (default) has no priorities.
-    // SCHED_OTHER threads are always lower priority than SCHED_RR.
-    //
-    // ^-- those apply to 2.6 kernel.  IF **wishful thinking** these 
-    //     constraints will change in the future, non-sudo priorities can 
-    //     be enabled also for Linux.
-    //
-#ifdef PLATFORM_LINUX
-    sudo = (geteuid() == 0); // we are root?
-
-    // If lower priorities (-2..-1) are wanted, we need to lift the main
-    // thread to SCHED_RR and 50 (medium) level. Otherwise, we're always below
-    // the launched threads (even -2).
-    //
-#ifdef LINUX_SCHED_RR
-    if (sudo)
-    {
-        struct sched_param sp;
-        sp.sched_priority = _PRIO_0;
-        PT_CALL(pthread_setschedparam(pthread_self(), SCHED_RR, &sp));
-    }
-#endif // LINUX_SCHED_RR
-#endif // PLATFORM_LINUX
 }
 
 // #################################################################################################

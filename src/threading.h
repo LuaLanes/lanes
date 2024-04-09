@@ -58,33 +58,19 @@ static constexpr int THREAD_PRIO_MAX{ +3 };
 #endif // PLATFORM_WIN32
 #include <pthread.h>
 
-// Yield is non-portable:
-//
-//    OS X 10.4.8/9 has pthread_yield_np()
-//    Linux 2.4   has pthread_yield() if _GNU_SOURCE is #defined
-//    FreeBSD 6.2 has pthread_yield()
-//    ...
-//
-
-#if defined(PLATFORM_LINUX)
-extern volatile bool sudo;
-#   ifdef LINUX_SCHED_RR
-#       define THREAD_PRIO_MIN (sudo ? -3 : 0)
-#   else
+#if defined(PLATFORM_LINUX) && !defined(LINUX_SCHED_RR)
 static constexpr int THREAD_PRIO_MIN{ 0 };
-#endif
-#       define THREAD_PRIO_MAX (sudo ? +3 : 0)
 #else
 static constexpr int THREAD_PRIO_MIN{ -3 };
-static constexpr int THREAD_PRIO_MAX{ +3 };
 #endif
+static constexpr int THREAD_PRIO_MAX{ +3 };
 
-#endif // THREADAPI == THREADAPI_WINDOWS
+#endif // THREADAPI == THREADAPI_PTHREAD
 // ##################################################################################################
 // ##################################################################################################
 
 void THREAD_SETNAME(char const* _name);
-void THREAD_SET_PRIORITY(int prio);
+void THREAD_SET_PRIORITY(int prio_, bool sudo_);
 void THREAD_SET_AFFINITY(unsigned int aff);
 
-void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_);
+void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_, bool sudo_);

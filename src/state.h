@@ -3,7 +3,7 @@
 #include "macros_and_utils.h"
 
 // forwards
-struct Universe;
+class Universe;
 
 void serialize_require(DEBUGSPEW_PARAM_COMMA(Universe* U) lua_State* L);
 

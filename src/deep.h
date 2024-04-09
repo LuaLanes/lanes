@@ -19,7 +19,7 @@ extern "C" {
 #include <atomic>
 
 // forwards
-struct Universe;
+class Universe;
 
 enum class LookupMode
 {

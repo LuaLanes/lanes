@@ -65,12 +65,6 @@ THE SOFTWARE.
 # include <unistd.h>
 #endif
 
-/* Linux needs to check, whether it's been run as root
-*/
-#ifdef PLATFORM_LINUX
-  volatile bool sudo;
-#endif
-
 #ifdef PLATFORM_OSX
 # include "threading_osx.h"
 #endif
@@ -134,10 +128,10 @@ static int const gs_prio_remap[] =
 
 // ###############################################################################################
 
-void THREAD_SET_PRIORITY(int prio)
+void THREAD_SET_PRIORITY(int prio_, [[maybe_unused]] bool sudo_)
 {
     // prio range [-3,+3] was checked by the caller
-    if (!SetThreadPriority(GetCurrentThread(), gs_prio_remap[prio + 3]))
+    if (!SetThreadPriority(GetCurrentThread(), gs_prio_remap[prio_ + 3]))
     {
         FAIL("THREAD_SET_PRIORITY", GetLastError());
     }
@@ -145,7 +139,7 @@ void THREAD_SET_PRIORITY(int prio)
 
 // ###############################################################################################
 
-void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_)
+void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_, [[maybe_unused]] bool sudo_)
 {
     // prio range [-3,+3] was checked by the caller
     if (!SetThreadPriority(thread_.native_handle(), gs_prio_remap[prio_ + 3]))
@@ -368,25 +362,25 @@ static int select_prio(int prio /* -3..+3 */)
     return gs_prio_remap[prio + 3];
 }
 
-void THREAD_SET_PRIORITY(int prio)
+void THREAD_SET_PRIORITY(int prio_, [[maybe_unused]] bool sudo_)
 {
 #ifdef PLATFORM_LINUX
-    if (!sudo) // only root-privileged process can change priorities
+    if (!sudo_) // only root-privileged process can change priorities
         return;
 #endif // PLATFORM_LINUX
 
     struct sched_param sp;
     // prio range [-3,+3] was checked by the caller
-    sp.sched_priority = gs_prio_remap[prio + 3];
+    sp.sched_priority = gs_prio_remap[prio_ + 3];
     PT_CALL(pthread_setschedparam(pthread_self(), _PRIO_MODE, &sp));
 }
 
 // #################################################################################################
 
-void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_)
+void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_, [[maybe_unused]] bool sudo_)
 {
 #ifdef PLATFORM_LINUX
-    if (!sudo) // only root-privileged process can change priorities
+    if (!sudo_) // only root-privileged process can change priorities
         return;
 #endif // PLATFORM_LINUX
 

@@ -15,7 +15,7 @@ extern "C" {
 
 // forwards
 enum class LookupMode;
-struct Universe;
+class Universe;
 
 struct Keeper
 {

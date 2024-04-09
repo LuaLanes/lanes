@@ -43,6 +43,35 @@ static constexpr UniqueKey UNIVERSE_LIGHT_REGKEY{ 0x3663C07C742CEB81ull };
 
 // ################################################################################################
 
+Universe::Universe()
+{
+    //---
+    // Linux needs SCHED_RR to change thread priorities, and that is only
+    // allowed for sudo'ers. SCHED_OTHER (default) has no priorities.
+    // SCHED_OTHER threads are always lower priority than SCHED_RR.
+    //
+    // ^-- those apply to 2.6 kernel.  IF **wishful thinking** these
+    //     constraints will change in the future, non-sudo priorities can
+    //     be enabled also for Linux.
+    //
+#ifdef PLATFORM_LINUX
+    // If lower priorities (-2..-1) are wanted, we need to lift the main
+    // thread to SCHED_RR and 50 (medium) level. Otherwise, we're always below
+    // the launched threads (even -2).
+    //
+#ifdef LINUX_SCHED_RR
+    if (m_sudo)
+    {
+        struct sched_param sp;
+        sp.sched_priority = _PRIO_0;
+        PT_CALL(pthread_setschedparam(pthread_self(), SCHED_RR, &sp));
+    }
+#endif // LINUX_SCHED_RR
+#endif // PLATFORM_LINUX
+}
+
+// ################################################################################################
+
 // only called from the master state
 Universe* universe_create(lua_State* L)
 {
