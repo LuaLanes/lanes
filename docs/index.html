@@ -64,13 +64,13 @@
 		<font size="-1">
 			<p>
 				<br/>
-				<i>Copyright &copy; 2007-23 Asko Kauppi, Benoit Germain. All rights reserved.</i>
+				<i>Copyright &copy; 2007-24 Asko Kauppi, Benoit Germain. All rights reserved.</i>
 				<br/>
 				Lua Lanes is published under the same <a href="http://en.wikipedia.org/wiki/MIT_License">MIT license</a> as Lua 5.1, 5.2, 5.3 and 5.4.
 			</p>
 
 			<p>
-				This document was revised on 29-Mar-24, and applies to version <tt>4.0.0</tt>.
+				This document was revised on 9-Apr-24, and applies to version <tt>4.0.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -178,14 +178,14 @@
 <table border=1 bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 	<tr>
 		<td>
-			<pre>	extern void LANES_API luaopen_lanes_embedded( lua_State* L, lua_CFunction _luaopen_lanes);</pre>
+			<pre>	extern void LANES_API luaopen_lanes_embedded(lua_State* L, lua_CFunction _luaopen_lanes);</pre>
 		</td>
 	</tr>
 </table>
 <p>
 	<tt>luaopen_lanes_embedded</tt> leaves the module table on the stack. <tt>lanes.configure()</tt> must still be called in order to use Lanes.
 	<br/>
-	If <tt>_luaopen_lanes</tt> is <tt>NULL</tt>, a default loader will simply attempt the equivalent of <tt>luaL_dofile( L, "lanes.lua")</tt>.
+	If <tt>_luaopen_lanes</tt> is <tt>NULL</tt>, a default loader will simply attempt the equivalent of <tt>luaL_dofile(L, "lanes.lua")</tt>.
 </p>
 
 <p>
@@ -198,30 +198,30 @@
 			<td>
 				<pre>	#include "lanes.h"</pre>
 				<br/>
-				<pre>	int load_lanes_lua( lua_State* L)</pre>
+				<pre>	int load_lanes_lua(lua_State* L)</pre>
 				<pre>	{</pre>
 				<pre>		// retrieve lanes.lua from wherever it is stored and return the result of its execution</pre>
 				<pre>		// trivial example 1:</pre>
-				<pre>		luaL_dofile( L, "lanes.lua");</pre>
+				<pre>		luaL_dofile(L, "lanes.lua");</pre>
 				<br/>
 				<pre>		// trivial example 2:</pre>
-				<pre>		luaL_dostring( L, bin2c_lanes_lua);</pre>
+				<pre>		luaL_dostring(L, bin2c_lanes_lua);</pre>
 				<pre>	}</pre>
 				<br/>
-				<pre>	void embed_lanes( lua_State* L)</pre>
+				<pre>	void embed_lanes(lua_State* L)</pre>
 				<pre>	{</pre>
 				<pre>		// we need base libraries for Lanes for work</pre>
-				<pre>		luaL_openlibs( L);</pre>
+				<pre>		luaL_openlibs(L);</pre>
 				<pre>		...</pre>
-				<pre>		// will attempt luaL_dofile( L, "lanes.lua");</pre>
-				<pre>		luaopen_lanes_embedded( L, NULL);</pre>
-				<pre>		lua_pop( L, 1);</pre>
+				<pre>		// will attempt luaL_dofile(L, "lanes.lua");</pre>
+				<pre>		luaopen_lanes_embedded(L, nullptr);</pre>
+				<pre>		lua_pop(L, 1);</pre>
 				<pre>		// another example with a custom loader</pre>
-				<pre>		luaopen_lanes_embedded( L, load_lanes_lua);</pre>
-				<pre>		lua_pop( L, 1);</pre>
+				<pre>		luaopen_lanes_embedded(L, load_lanes_lua);</pre>
+				<pre>		lua_pop(L, 1);</pre>
 				<br/>
 				<pre>		// a little test to make sure things work as expected</pre>
-				<pre>		luaL_dostring( L, "local lanes = require 'lanes'.configure{with_timers = false}; local l = lanes.linda()");</pre>
+				<pre>		luaL_dostring(L, "local lanes = require 'lanes'.configure{with_timers = false}; local l = lanes.linda()");</pre>
 				<pre>	}</pre>
 			</td>
 		</tr>
@@ -266,7 +266,7 @@
 	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 		<tr>
 			<td>
-				<pre>	lanes.configure( [opt_tbl])</pre>
+				<pre>	lanes.configure([opt_tbl])</pre>
 			</td>
 		</tr>
 	</table>
@@ -454,7 +454,7 @@
 	<tr>
 		<td>
 			<pre>	local m = lanes.require "modname"</pre>
-			<pre>	lanes.register( "modname", module)</pre>
+			<pre>	lanes.register("modname", module)</pre>
 		</td>
 	</tr>
 </table>
@@ -471,11 +471,11 @@
 		<td>
 			<pre>	local lanes = require "lanes".configure()</pre>
 			<br/>
-			<pre>	f = lanes.gen( function( n) return 2 * n end)</pre>
-			<pre>	a = f( 1)</pre>
-			<pre>	b = f( 2)</pre>
+			<pre>	f = lanes.gen(function(n) return 2 * n end)</pre>
+			<pre>	a = f(1)</pre>
+			<pre>	b = f(2)</pre>
 			<br/>
-			<pre>	print( a[1], b[1] )     -- 2    4</pre>
+			<pre>	print(a[1], b[1])     -- 2    4</pre>
 		</td>
 	</tr>
 </table>
@@ -483,8 +483,8 @@
 <table border=1 bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 	<tr>
 		<td>
-			<pre>	func = lanes.gen( [libs_str | opt_tbl [, ...],] lane_func)</pre>
-			<pre>	lane_h = func( ...)</pre>
+			<pre>	func = lanes.gen([libs_str | opt_tbl [, ...],] lane_func)</pre>
+			<pre>	lane_h = func(...)</pre>
 		</td>
 	</tr>
 </table>
@@ -751,7 +751,7 @@
 	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 		<tr>
 			<td>
-				<pre>	"type", "name" = lanes.nameof( o)</pre>
+				<pre>	"type", "name" = lanes.nameof(o)</pre>
 			</td>
 		</tr>
 	</table>
@@ -765,7 +765,7 @@
 	<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%">
 		<tr>
 			<td>
-				<pre>	lanes.gen( function( params) ... end ) ( ...)</pre>
+				<pre>	lanes.gen(function(params) ... end ) (...)</pre>
 			</td>
 		</tr>
 	</table>
@@ -781,7 +781,7 @@
 	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 		<tr>
 			<td>
-				<pre>	lanes.set_thread_priority( prio)</pre>
+				<pre>	lanes.set_thread_priority(prio)</pre>
 			</td>
 		</tr>
 	</table>
@@ -799,7 +799,7 @@
 	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 		<tr>
 			<td>
-				<pre>	lanes.set_thread_affinity( affinity)</pre>
+				<pre>	lanes.set_thread_affinity(affinity)</pre>
 			</td>
 		</tr>
 	</table>
@@ -901,7 +901,7 @@
 	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 		<tr>
 			<td>
-				<pre>	{{name = "name", status = "status", ...}|nil = lanes.threads()</pre>
+				<pre>	{name = "name", status = "status", ...}|nil = lanes.threads()</pre>
 			</td>
 		</tr>
 	</table>
@@ -918,7 +918,7 @@
 <h2 id="results">Results and errors</h2>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	set_error_reporting( "basic"|"extended")
+	set_error_reporting("basic"|"extended")
 </pre></td></tr></table>
 
 <p>
@@ -940,7 +940,7 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	[...]|[nil,err,stack_tbl]= lane_h:join( [timeout_secs] )
+	[...]|[nil,err,stack_tbl]= lane_h:join([timeout_secs])
 </pre></td></tr></table>
 
 <p>
@@ -965,14 +965,14 @@
 <table border=1 bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 	require "lanes".configure()
 
-	f = lanes.gen( function() error "!!!" end)
-	a = f( 1)
+	f = lanes.gen(function() error "!!!" end)
+	a = f(1)
 
-	--print( a[1])   -- propagates error
+	--print(a[1])   -- propagates error
 
 	v, err = a:join()   -- no propagation
 	if v == nil then
-		error( "'a' faced error"..tostring(err))   -- manual propagation
+		error("'a' faced error"..tostring(err))   -- manual propagation
 	end
 </pre></td></tr></table>
 
@@ -984,12 +984,12 @@
 	require "lanes".configure()
 
 	local sync_linda = lanes.linda()
-	f = lanes.gen( function() dostuff() sync_linda:send( "done", true) end)
+	f = lanes.gen(function() dostuff() sync_linda:send("done", true) end)
 	a = f()
 	b = f()
 	c = f()
 
-	sync_linda:receive( nil, sync_linda.batched, "done", 3) -- wait for 3 lanes to write something in "done" slot of sync_linda
+	sync_linda:receive(nil, sync_linda.batched, "done", 3) -- wait for 3 lanes to write something in "done" slot of sync_linda
 </pre></td></tr></table>
 
 <!-- cancelling +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
@@ -997,9 +997,9 @@
 <h2 id="cancelling">Cancelling</h2>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	bool[,reason] = lane_h:cancel( "soft" [, timeout] [, wake_lane])
-	bool[,reason] = lane_h:cancel( "hard" [, timeout] [, wake_lane])
-	bool[,reason] = lane_h:cancel( [mode, hookcount] [, timeout] [, wake_lane])
+	bool[,reason] = lane_h:cancel("soft" [, timeout] [, wake_lane])
+	bool[,reason] = lane_h:cancel("hard" [, timeout] [, wake_lane])
+	bool[,reason] = lane_h:cancel([mode, hookcount] [, timeout] [, wake_lane])
 </pre></td></tr></table>
 
 <p>
@@ -1041,9 +1041,9 @@
 <h2 id="finalizers">Finalizers</h2>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	set_finalizer( finalizer_func)
+	set_finalizer(finalizer_func)
 
-	void = finalizer_func( [err, stack_tbl])
+	void = finalizer_func([err, stack_tbl])
 </pre></td></tr></table>
 
 <p>
@@ -1063,16 +1063,16 @@
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 	local lane_body = function()
-		set_finalizer( function( err, stk)
-			if err and type( err) ~= "userdata" then
+		set_finalizer(function(err, stk)
+			if err and type(err) ~= "userdata" then
 				-- no special error: true error
-				print( " error: "..tostring(err))
-			elseif type( err) == "userdata" then
+				print(" error: "..tostring(err))
+			elseif type(err) == "userdata" then
 				-- lane <a href="#cancelling">cancellation</a> is performed by throwing a special userdata as error
-				print( "after cancel")
+				print("after cancel")
 			else
 				-- no error: we just got finalized
-				print( "finalized")
+				print("finalized")
 			end
 		end)
 	end
@@ -1098,22 +1098,22 @@
 
 	local linda = lanes.linda()
 
-	local function loop( max)
+	local function loop(max)
 		for i = 1, max do
-			print( "sending: " .. i)
-			linda:send( "x", i)    -- linda as upvalue
+			print("sending: " .. i)
+			linda:send("x", i)    -- linda as upvalue
 		end
 	end
 
-	a = lanes.gen( "", loop)( 10000)
+	a = lanes.gen("", loop)(10000)
 
 	while true do
-		local key, val = linda:receive( 3.0, "x")    -- timeout in seconds
+		local key, val = linda:receive(3.0, "x")    -- timeout in seconds
 		if val == nil then
-			print( "timed out")
+			print("timed out")
 			break
 		end
-		print( tostring( linda) .. " received: " .. val)
+		print(tostring(linda) .. " received: " .. val)
 	end
 </pre></td></tr></table>
 
@@ -1128,23 +1128,23 @@
 		<li>two producer-side methods: <tt>:send</tt> and <tt>:set</tt> (not out).</li>
 		<li><tt>send</tt> allows for sending multiple values -atomically- to a given key.</li>
 		<li><tt>receive</tt> can wait for multiple keys at once.</li>
-		<li><tt>receive</tt> has a batched mode to consume more than one value from a single key, as in <tt>linda:receive( 1.0, linda.batched, "key", 3, 6).</tt></li>
+		<li><tt>receive</tt> has a batched mode to consume more than one value from a single key, as in <tt>linda:receive(1.0, linda.batched, "key", 3, 6).</tt></li>
 		<li>individual keys' queue length can be limited, balancing speed differences in a producer/consumer scenario (making <tt>:send</tt> wait).</li>
-		<li><tt>tostring( linda)</tt> returns a string of the form <tt>"Linda: &lt;opt_name&gt;"</tt></li>
+		<li><tt>tostring(linda)</tt> returns a string of the form <tt>"Linda: &lt;opt_name&gt;"</tt></li>
 		<li>several lindas may share the same keeper state. State assignation can be controlled with the linda's group (an integer). All lindas belonging to the same group will share the same keeper state. One keeper state may be shared by several groups.</li>
 	</ul>
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	h = lanes.linda( [opt_name, [opt_group]])
+	h = lanes.linda([opt_name, [opt_group]])
 
-	[true|lanes.cancel_error] = h:send( [timeout_secs,] [h.null,] key, ...)
+	[true|lanes.cancel_error] = h:send([timeout_secs,] [h.null,] key, ...)
 
-	[key, val]|[lanes.cancel_error] = h:receive( [timeout_secs,] key [, ...])
+	[key, val]|[lanes.cancel_error] = h:receive([timeout_secs,] key [, ...])
 
-	[key, val [, ...]]|[lanes.cancel_error] = h:receive( timeout, h.batched, key, n_uint_min[, n_uint_max])
+	[key, val [, ...]]|[lanes.cancel_error] = h:receive(timeout, h.batched, key, n_uint_min[, n_uint_max])
 
-	[true|lanes.cancel_error] = h:limit( key, n_uint)
+	[true|lanes.cancel_error] = h:limit(key, n_uint)
 </pre></td></tr></table>
 
 <p>
@@ -1193,9 +1193,9 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	bool|lanes.cancel_error = linda_h:set( key [, val [, ...]])
+	bool|lanes.cancel_error = linda_h:set(key [, val [, ...]])
 
-	[[val [, ...]]|lanes.cancel_error] = linda_h:get( key [, count = 1])
+	[[val [, ...]]|lanes.cancel_error] = linda_h:get(key [, count = 1])
 </pre></td></tr></table>
 
 <p>
@@ -1225,7 +1225,7 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	[val] = linda_h:count( [key[,...]])
+	[val] = linda_h:count([key[,...]])
 </pre></td></tr></table>
 
 <p>
@@ -1315,7 +1315,7 @@ events to a common Linda, but... :).</font>
 <h2 id="timers">Timers</h2>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	void = lanes.timer( linda_h, key, date_tbl|first_secs [,period_secs])
+	void = lanes.timer(linda_h, key, date_tbl|first_secs [,period_secs])
 </pre></td></tr></table>
 
 <p>
@@ -1342,18 +1342,18 @@ events to a common Linda, but... :).</font>
 
 	-- First timer once a second, not synchronized to wall clock
 	--
-	lanes.timer( linda, "sec", 1, 1)
+	lanes.timer(linda, "sec", 1, 1)
 
 	-- Timer to a future event (next even minute); wall clock synchronized
 	--
-	local t = os.date( "*t", os.time() + 60)    -- now + 1min
+	local t = os.date("*t", os.time() + 60)    -- now + 1min
 	t.sec = 0
 
-	lanes.timer( linda, "min", t, 60)   -- reoccur every minute (sharp)
+	lanes.timer(linda, "min", t, 60)   -- reoccur every minute (sharp)
 
 	while true do
-		local key, v = linda:receive( "sec", "min")
-		print( "Timer "..key..": "..v)
+		local key, v = linda:receive("sec", "min")
+		print("Timer "..key..": "..v)
 	end
 </pre></td></tr></table>
 
@@ -1367,7 +1367,7 @@ events to a common Linda, but... :).</font>
 		<td>
 			<font size="-1">
 			Having the API as <tt>lanes.timer()</tt> is intentional. Another alternative would be <tt>linda_h:timer()</tt> but timers are not traditionally seen to be part of Lindas. Also, it would mean any lane getting a Linda handle would be able to modify timers on it.
-			A third choice could be abstracting the timers out of Linda realm altogether (<tt>timer_h= lanes.timer( date|first_secs, period_secs )</tt>) but that would mean separate waiting functions for timers, and lindas.
+			A third choice could be abstracting the timers out of Linda realm altogether (<tt>timer_h= lanes.timer(date|first_secs, period_secs )</tt>) but that would mean separate waiting functions for timers, and lindas.
 			Even if a linda object and key was returned, that key couldn't be waited upon simultaneously with one's general linda events.
 			The current system gives maximum capabilities with minimum API, and any smoothenings can easily be crafted in Lua at the application level.
 			</font>
@@ -1386,7 +1386,7 @@ events to a common Linda, but... :).</font>
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	void = lanes.sleep( [seconds|false])
+	void = lanes.sleep([seconds|false])
 </pre></td></tr></table>
 
 <p>
@@ -1411,11 +1411,11 @@ events to a common Linda, but... :).</font>
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	lock_func|lanes.cancel_error = lanes.genlock( linda_h, key [,N_uint=1])
+	lock_func|lanes.cancel_error = lanes.genlock(linda_h, key [,N_uint=1])
 
-	bool|lanes.cancel_error = lock_func( M_uint [, "try"] )     -- acquire
+	bool|lanes.cancel_error = lock_func(M_uint [, "try"] )     -- acquire
 	..
-	bool|lanes.cancel_error = lock_func( -M_uint)    -- release
+	bool|lanes.cancel_error = lock_func(-M_uint)    -- release
 </pre></td></tr></table>
 
 <p>
@@ -1437,9 +1437,9 @@ events to a common Linda, but... :).</font>
 <p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	atomic_func|lanes.cancel_error = lanes.genatomic( linda_h, key [,initial_num=0.0])
+	atomic_func|lanes.cancel_error = lanes.genatomic(linda_h, key [,initial_num=0.0])
 
-	new_num|lanes.cancel_error = atomic_func( [diff_num=+1.0])
+	new_num|lanes.cancel_error = atomic_func([diff_num=+1.0])
 </pre></td></tr></table>
 
 <p>
@@ -1505,14 +1505,14 @@ events to a common Linda, but... :).</font>
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 	// expects a C function on top of the source Lua stack
-	copy_func( lua_State *dest, lua_State* source)
+	copy_func(lua_State *dest, lua_State* source)
 	{
 		// extract C function pointer from source
-		lua_CFunction func = lua_tocfunction( source, -1);
+		lua_CFunction func = lua_tocfunction(source, -1);
 		// transfer upvalues
-		int nup = transfer_upvalues( dest, source);
+		int nup = transfer_upvalues(dest, source);
 		// dest Lua stack contains a copy of all upvalues
-		lua_pushcfunction( dest, func, nup);
+		lua_pushcfunction(dest, func, nup);
 	}
 </pre></td></tr></table>
 
@@ -1524,12 +1524,12 @@ events to a common Linda, but... :).</font>
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 	// expects a C function on top of the source Lua stack
-	copy_func( lua_State *dest, lua_State* source)
+	copy_func(lua_State *dest, lua_State* source)
 	{
 		// fetch function 'name' from source lookup database
-		char const* funcname = lookup_func_name( source, -1);
+		char const* funcname = lookup_func_name(source, -1);
 		// lookup a function bound to this name in the destination state, and push it on the stack
-		push_resolved_func( dest, funcname);
+		push_resolved_func(dest, funcname);
 	}
 </pre></td></tr></table>
 
@@ -1590,7 +1590,7 @@ events to a common Linda, but... :).</font>
 </p>
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
-	int luaopen_module( lua_State *L )
+	int luaopen_module(lua_State *L )
 	{
 		static char been_here;  /* 0 by ANSI C */
 
@@ -1607,26 +1607,26 @@ events to a common Linda, but... :).</font>
 <h3 id="clonable_userdata">Clonable full userdata in your own apps</h3>
 <p>
 	An alternative way of passing full userdata across lanes uses a new <tt>__lanesclone</tt> metamethod.
-	When a deep userdata is cloned, Lanes calls <tt>__lanesclone</tt> once, in the context of the source lane.</br>
-	The call receives the clone and original as light userdata, plus the actual userdata size, as in <tt>clone:__lanesclone(original,size)</tt>, and should perform the actual cloning.</br>
+	When a deep userdata is cloned, Lanes calls <tt>__lanesclone</tt> once, in the context of the source lane.<br/>
+	The call receives the clone and original as light userdata, plus the actual userdata size, as in <tt>clone:__lanesclone(original,size)</tt>, and should perform the actual cloning.<br/>
 	A typical implementation would look like:
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
-static int clonable_lanesclone( lua_State* L)
+static int clonable_lanesclone(lua_State* L)
 {
-	switch( lua_gettop( L))
+	switch(lua_gettop(L))
 	{
 		case 3:
 		{
-			struct s_MyClonableUserdata* self = lua_touserdata( L, 1);
-			struct s_MyClonableUserdata* from = lua_touserdata( L, 2);
-			size_t len = lua_tointeger( L, 3);
-			assert( len == sizeof(struct s_MyClonableUserdata));
+			struct s_MyClonableUserdata* self = lua_touserdata(L, 1);
+			struct s_MyClonableUserdata* from = lua_touserdata(L, 2);
+			size_t len = lua_tointeger(L, 3);
+			assert(len == sizeof(struct s_MyClonableUserdata));
 			*self = *from;
 		}
 		return 0;
 
 		default:
-		(void) luaL_error( L, "Lanes called clonable_lanesclone with unexpected parameters");
+		std::ignore = luaL_error(L, "Lanes called clonable_lanesclone with unexpected parameters");
 	}
 	return 0;
 }
@@ -1639,20 +1639,20 @@ static int clonable_lanesclone( lua_State* L)
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 int luaopen_deep_test(lua_State* L)
 {
-	luaL_newlib( L, deep_module);
+	luaL_newlib(L, deep_module);
 
 	// preregister the metatables for the types we can instanciate so that Lanes can know about them
-	if( luaL_newmetatable( L, "clonable"))
+	if (luaL_newmetatable(L, "clonable"))
 	{
-		luaL_setfuncs( L, clonable_mt, 0);
+		luaL_setfuncs(L, clonable_mt, 0);
 		lua_pushvalue(L, -1);
 		lua_setfield(L, -2, "__index");
 	}
 	lua_setfield(L, -2, "__clonableMT"); // actual name is not important
 
-	if( luaL_newmetatable( L, "deep"))
+	if (luaL_newmetatable(L, "deep"))
 	{
-		luaL_setfuncs( L, deep_mt, 0);
+		luaL_setfuncs(L, deep_mt, 0);
 		lua_pushvalue(L, -1);
 		lua_setfield(L, -2, "__index");
 	}
@@ -1666,10 +1666,10 @@ int luaopen_deep_test(lua_State* L)
 <p>
 	Then a new clonable userdata instance can just do like any non-Lanes aware userdata, as long as its metatable contains the aforementionned <tt>__lanesclone</tt> method.
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
-int luaD_new_clonable( lua_State* L)
+int luaD_new_clonable(lua_State* L)
 {
-	lua_newuserdata( L, sizeof( struct s_MyClonableUserdata));
-	luaL_setmetatable( L, "clonable");
+	lua_newuserdata(L, sizeof(struct s_MyClonableUserdata));
+	luaL_setmetatable(L, "clonable");
 	return 1;
 }
 </pre></td></tr></table>
@@ -1684,7 +1684,7 @@ int luaD_new_clonable( lua_State* L)
 <ol>
 	<li>
 		Provide an <i>identity function</i> for your userdata, in C. This function is used for creation and deletion of your deep userdata (the shared resource), and for making metatables for the state-specific proxies for accessing it. The prototype is
-		<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>	void* idfunc( lua_State* L, DeepOp op_);</pre></td></tr></table>
+		<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>	void* idfunc(lua_State* L, DeepOp op_);</pre></td></tr></table>
 		<tt>op_</tt> can be one of:
 		<ul>
 			<li><tt>DeepOp::New</tt>: requests the creation of a new object, whose pointer is returned. Said object must derive from <tt>DeepPrelude</tt>.</li>
@@ -1735,8 +1735,8 @@ int luaD_new_clonable( lua_State* L)
 	In multithreaded scenarios, giving multiple parameters to <tt>print()</tt> or <tt>file:write()</tt> may cause them to be overlapped in the output, something like this:
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
-	A:  print( 1, 2, 3, 4 )
-	B:  print( 'a', 'b', 'c', 'd' )
+	A:  print(1, 2, 3, 4 )
+	B:  print('a', 'b', 'c', 'd' )
 
 	1   a   b   2   3   c   d   4
 </pre></td></tr></table>
@@ -1803,4 +1803,3 @@ int luaD_new_clonable( lua_State* L)
 
 </body>
 </html>
-</pre>
