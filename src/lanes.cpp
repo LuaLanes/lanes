@@ -1736,54 +1736,31 @@ static const struct luaL_Reg lanes_functions[] =
     { nullptr, nullptr }
 };
 
-/*
- * One-time initializations
- * settings table it at position 1 on the stack
- * pushes an error string on the stack in case of problem
- */
-static void init_once_LOCKED( void)
-{
-#if (defined PLATFORM_OSX) && (defined _UTILBINDTHREADTOCPU)
-    chudInitialize();
-#endif
-}
-
 // #################################################################################################
-
-// we are C++20, the flags are default-initialized to 'clear'
-std::atomic_flag s_insideInit;
-std::atomic_flag s_initDone;
 
 // upvalue 1: module name
 // upvalue 2: module table
 // param 1: settings table
 LUAG_FUNC(configure)
 {
+    // start with one-time initializations.
+    {
+        // C++ guarantees that the static variable initialization is threadsafe.
+        static auto _ = std::invoke(
+            []()
+            {
+#if (defined PLATFORM_OSX) && (defined _UTILBINDTHREADTOCPU)
+                chudInitialize();
+#endif
+                return false;
+            }
+        );
+    }
+
     Universe* U = universe_get(L);
     bool const from_master_state{ U == nullptr };
     char const* name = luaL_checkstring(L, lua_upvalueindex(1));
     ASSERT_L(lua_type(L, 1) == LUA_TTABLE);
-
-    /*
-    ** Making one-time initializations.
-    **
-    ** When the host application is single-threaded (and all threading happens via Lanes)
-    ** there is no problem. But if the host is multithreaded, we need to lock around the
-    ** initializations.
-    */
-    if (s_insideInit.test_and_set())
-    {
-        // blocks until flag value is no longer the one passed in parameter
-        s_initDone.wait(false);
-    }
-    else
-    {
-        // we are the first to enter here, because s_insideInit was false.
-        // and we are the only one, because it's now true.
-        init_once_LOCKED();
-        std::ignore = s_initDone.test_and_set();
-        s_initDone.notify_all();
-    }
 
     STACK_GROW(L, 4);
     STACK_CHECK_START_ABS(L, 1);                                                          // settings
