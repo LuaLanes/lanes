@@ -98,6 +98,6 @@ static constexpr UniqueKey LANE_POINTER_REGKEY{ 0xB3022205633743BCull }; // used
 // 'Lane' are malloc/free'd and the handle only carries a pointer.
 // This is not deep userdata since the handle's not portable among lanes.
 //
-#define lua_toLane( L, i) (*((Lane**) luaL_checkudata( L, i, "Lane")))
+#define lua_toLane(L, i) (*((Lane**) luaL_checkudata( L, i, "Lane")))
 
-int push_thread_status( lua_State* L, Lane* s);
+int push_thread_status(lua_State* L, Lane* s);

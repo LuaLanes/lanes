@@ -54,8 +54,8 @@ struct DeepPrelude
     std::atomic<int> m_refcount{ 0 };
 };
 
-char const* push_deep_proxy(lua_State* L, DeepPrelude* prelude, int nuv_, LookupMode mode_);
+char const* push_deep_proxy(Dest L, DeepPrelude* prelude, int nuv_, LookupMode mode_);
 void free_deep_prelude( lua_State* L, DeepPrelude* prelude_);
 
-LANES_API int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_);
+LANES_API int luaG_newdeepuserdata(Dest L, luaG_IdFunction idfunc, int nuv_);
 LANES_API DeepPrelude* luaG_todeep(lua_State* L, luaG_IdFunction idfunc, int index);

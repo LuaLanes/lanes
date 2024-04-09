@@ -1,6 +1,6 @@
 /*
- * THREADING.C                        Copyright (c) 2007-08, Asko Kauppi
- *                                    Copyright (C) 2009-19, Benoit Germain
+ * THREADING.CPP                      Copyright (c) 2007-08, Asko Kauppi
+ *                                    Copyright (C) 2009-24, Benoit Germain
  *
  * Lua Lanes OS threading specific code.
  *
@@ -12,7 +12,7 @@
 ===============================================================================
 
 Copyright (C) 2007-10 Asko Kauppi <akauppi@gmail.com>
-Copyright (C) 2009-14, Benoit Germain <bnt.germain@gmail.com>
+Copyright (C) 2009-24, Benoit Germain <bnt.germain@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -46,12 +46,6 @@ THE SOFTWARE.
 # endif // __ANDROID__
 
 #endif // __linux__
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <errno.h>
-#include <math.h>
 
 #include "threading.h"
 

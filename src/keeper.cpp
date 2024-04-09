@@ -14,7 +14,7 @@
  --[[
  ===============================================================================
 
- Copyright (C) 2011-2023 Benoit Germain <bnt.germain@gmail.com>
+ Copyright (C) 2011-2024 Benoit Germain <bnt.germain@gmail.com>
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -207,10 +207,10 @@ static void push_table(lua_State* L, int idx_)
 
 // ##################################################################################################
 
-int keeper_push_linda_storage(Universe* U, lua_State* L, void* ptr_, uintptr_t magic_)
+int keeper_push_linda_storage(Universe* U, Dest L, void* ptr_, uintptr_t magic_)
 {
     Keeper* const K{ which_keeper(U->keepers, magic_) };
-    lua_State* const KL{ K ? K->L : nullptr };
+    Source const KL{ K ? K->L : nullptr };
     if (KL == nullptr)
         return 0;
     STACK_GROW(KL, 4);
@@ -412,7 +412,7 @@ int keepercall_limit(lua_State* L)
     // set the new limit
     fifo->limit = limit;
     // return 0 or 1 value
-    return lua_gettop( L);
+    return lua_gettop(L);
 }
 
 // ##################################################################################################
@@ -485,7 +485,7 @@ int keepercall_set(lua_State* L)
         lua_insert(L, 3);                                  // fifos key fifotbl [val [, ...]]
         fifo_push(L, fifo, count);                         // fifos key fifotbl
     }
-    return should_wake_writers ? (lua_pushboolean( L, 1), 1) : 0;
+    return should_wake_writers ? (lua_pushboolean(L, 1), 1) : 0;
 }
 
 // ##################################################################################################
@@ -717,7 +717,7 @@ void init_keepers(Universe* U, lua_State* L)
         if (!lua_isnil(L, -1))
         {
             // when copying with mode LookupMode::ToKeeper, error message is pushed at the top of the stack, not raised immediately
-            if (luaG_inter_copy_package(U, L, K, -1, LookupMode::ToKeeper))
+            if (luaG_inter_copy_package(U, Source{ L }, Dest{ K }, -1, LookupMode::ToKeeper))
             {
                 // if something went wrong, the error message is at the top of the stack
                 lua_remove(L, -2);                                 // error_msg
@@ -840,7 +840,7 @@ int keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, voi
 
     lua_pushlightuserdata(K, linda);
 
-    if ((args == 0) || luaG_inter_copy(U, L, K, args, LookupMode::ToKeeper) == 0) // L->K
+    if ((args == 0) || luaG_inter_copy(U, Source{ L }, Dest{ K }, args, LookupMode::ToKeeper) == 0) // L->K
     {
         lua_call(K, 1 + args, LUA_MULTRET);
         retvals = lua_gettop(K) - Ktos;
@@ -848,7 +848,7 @@ int keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, voi
         // this may interrupt a lane, causing the destruction of the underlying OS thread
         // after this, another lane making use of this keeper can get an error code from the mutex-locking function
         // when attempting to grab the mutex again (WINVER <= 0x400 does this, but locks just fine, I don't know about pthread)
-        if ((retvals > 0) && luaG_inter_move(U, K, L, retvals, LookupMode::FromKeeper) != 0) // K->L
+        if ((retvals > 0) && luaG_inter_move(U, Source{ K }, Dest{ L }, retvals, LookupMode::FromKeeper) != 0) // K->L
         {
             retvals = -1;
         }

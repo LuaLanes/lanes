@@ -1027,7 +1027,7 @@ LUAG_FUNC(lane_new)
     DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
 
     // populate with selected libraries at the same time
-    lua_State* const L2{ luaG_newstate(U, L, libs_str) };                   // L                                                                    // L2
+    lua_State* const L2{ luaG_newstate(U, Source{ L }, libs_str) };         // L                                                                    // L2
 
     // 'lane' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
     Lane* const lane{ new (U) Lane{ U, L2 } };
@@ -1134,7 +1134,7 @@ LUAG_FUNC(lane_new)
     {
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: update 'package'\n" INDENT_END));
         // when copying with mode LookupMode::LaneBody, should raise an error in case of problem, not leave it one the stack
-        (void) luaG_inter_copy_package(U, L, L2, package_idx, LookupMode::LaneBody);
+        std::ignore = luaG_inter_copy_package(U, Source{ L }, Dest{ L2 }, package_idx, LookupMode::LaneBody);
     }
 
     // modules to require in the target lane *before* the function is transfered!
@@ -1150,7 +1150,7 @@ LUAG_FUNC(lane_new)
         }
 
         lua_pushnil(L);                                                     // func libs priority globals package required gc_cb [... args ...] nil
-        while( lua_next(L, required_idx) != 0)                              // func libs priority globals package required gc_cb [... args ...] n "modname"
+        while (lua_next(L, required_idx) != 0)                              // func libs priority globals package required gc_cb [... args ...] n "modname"
         {
             if (lua_type(L, -1) != LUA_TSTRING || lua_type(L, -2) != LUA_TNUMBER || lua_tonumber(L, -2) != nbRequired)
             {
@@ -1176,7 +1176,7 @@ LUAG_FUNC(lane_new)
                     if (lua_pcall( L2, 1, 1, 0) != LUA_OK)                                                                                          // ret/errcode
                     {
                         // propagate error to main state if any
-                        luaG_inter_move(U, L2, L, 1, LookupMode::LaneBody); // func libs priority globals package required gc_cb [... args ...] n "modname" error
+                        luaG_inter_move(U, Source{ L2 }, Dest{ L }, 1, LookupMode::LaneBody); // func libs priority globals package required gc_cb [... args ...] n "modname" error
                         raise_lua_error(L);
                     }
                     // after requiring the module, register the functions it exported in our name<->function database
@@ -1209,7 +1209,7 @@ LUAG_FUNC(lane_new)
         lua_pushglobaltable(L2);                                                                                                                    // _G
         while( lua_next(L, globals_idx))                                    // func libs priority globals package required gc_cb [... args ...] k v
         {
-            luaG_inter_copy(U, L, L2, 2, LookupMode::LaneBody);                                                                                     // _G k v
+            luaG_inter_copy(U, Source{ L }, Dest{ L2 }, 2, LookupMode::LaneBody);                                                                   // _G k v
             // assign it in L2's globals table
             lua_rawset(L2, -3);                                                                                                                     // _G
             lua_pop(L, 1);                                                  // func libs priority globals package required gc_cb [... args ...] k
@@ -1227,7 +1227,7 @@ LUAG_FUNC(lane_new)
         DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane body\n" INDENT_END));
         DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
         lua_pushvalue(L, 1);                                                // func libs priority globals package required gc_cb [... args ...] func
-        int const res{ luaG_inter_move(U, L, L2, 1, LookupMode::LaneBody) };// func libs priority globals package required gc_cb [... args ...]     // func
+        int const res{ luaG_inter_move(U, Source{ L }, Dest{ L2 }, 1, LookupMode::LaneBody) }; // func libs priority globals package required gc_cb [... args ...]     // func
         DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
         if (res != 0)
         {
@@ -1253,7 +1253,7 @@ LUAG_FUNC(lane_new)
         int res;
         DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane arguments\n" INDENT_END));
         DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
-        res = luaG_inter_move(U, L, L2, nargs, LookupMode::LaneBody);       // func libs priority globals package required gc_cb                    // func [... args ...]
+        res = luaG_inter_move(U, Source{ L }, Dest{ L2 }, nargs, LookupMode::LaneBody);  // func libs priority globals package required gc_cb                    // func [... args ...]
         DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
         if (res != 0)
         {
@@ -1418,7 +1418,7 @@ LUAG_FUNC(thread_join)
         case Lane::Done:
         {
             int const n{ lua_gettop(L2) }; // whole L2 stack
-            if ((n > 0) && (luaG_inter_move(U, L2, L, n, LookupMode::LaneBody) != 0))
+                if ((n > 0) && (luaG_inter_move(U, Source{ L2 }, Dest{ L }, n, LookupMode::LaneBody) != 0))
             {
                 return luaL_error(L, "tried to copy unsupported types");
             }
@@ -1432,7 +1432,7 @@ LUAG_FUNC(thread_join)
             STACK_GROW(L, 3);
             lua_pushnil(L);
             // even when ERROR_FULL_STACK, if the error is not LUA_ERRRUN, the handler wasn't called, and we only have 1 error message on the stack ...
-            if (luaG_inter_move(U, L2, L, n, LookupMode::LaneBody) != 0) // nil "err" [trace]
+            if (luaG_inter_move(U, Source{ L2 }, Dest{ L }, n, LookupMode::LaneBody) != 0) // nil "err" [trace]
             {
                 return luaL_error(L, "tried to copy unsupported types: %s", lua_tostring(L, -n));
             }
@@ -1832,7 +1832,7 @@ LUAG_FUNC(configure)
     STACK_CHECK(L, 2);
 
     {
-        char const* errmsg{ push_deep_proxy(L, U->timer_deep, 0, LookupMode::LaneBody) }; // settings M timer_deep
+        char const* errmsg{ push_deep_proxy(Dest{ L }, U->timer_deep, 0, LookupMode::LaneBody) }; // settings M timer_deep
         if (errmsg != nullptr)
         {
             return luaL_error(L, errmsg);

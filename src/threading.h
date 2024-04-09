@@ -2,7 +2,6 @@
 
 #include "platform.h"
 
-#include <time.h>
 #include <thread>
 
 #define THREADAPI_WINDOWS 1

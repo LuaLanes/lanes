@@ -44,8 +44,8 @@ extern char const* debugspew_indent;
 
 #else // NDEBUG
 
-#define _ASSERT_L( L, cond_) if( (cond_) == 0) { (void) luaL_error( L, "ASSERT failed: %s:%d '%s'", __FILE__, __LINE__, #cond_);}
-#define STACK_DUMP( L)    luaG_dump( L)
+#define _ASSERT_L(L, cond_) if( (cond_) == 0) { (void) luaL_error(L, "ASSERT failed: %s:%d '%s'", __FILE__, __LINE__, #cond_);}
+#define STACK_DUMP(L)    luaG_dump(L)
 
 class StackChecker
 {
@@ -172,3 +172,17 @@ T* lua_newuserdatauv(lua_State* L, int nuvalue_)
 }
 
 using lua_Duration = std::chrono::template duration<lua_Number>;
+
+// #################################################################################################
+
+template <typename T, auto = []{}>
+struct Unique
+{
+    T m_val;
+    Unique() = default;
+    operator T() const { return m_val; }
+    explicit Unique(T b_) : m_val{ b_ } {}
+};
+
+using Source = Unique<lua_State*>;
+using Dest = Unique<lua_State*>;

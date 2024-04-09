@@ -1,5 +1,5 @@
 /*
- * DEEP.C                         Copyright (c) 2017, Benoit Germain
+ * DEEP.CPP                         Copyright (c) 2024, Benoit Germain
  *
  * Deep userdata support, separate in its own source file to help integration
  * without enforcing a Lanes dependency
@@ -9,7 +9,7 @@
 ===============================================================================
 
 Copyright (C) 2002-10 Asko Kauppi <akauppi@gmail.com>
-              2011-17 Benoit Germain <bnt.germain@gmail.com>
+              2011-24 Benoit Germain <bnt.germain@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -41,13 +41,6 @@ THE SOFTWARE.
 
 #include <bit>
 #include <cassert>
-#include <ctype.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#if !defined(__APPLE__)
-#include <malloc.h>
-#endif
 
 /*-- Metatable copying --*/
 
@@ -73,7 +66,7 @@ static constexpr UniqueKey DEEP_PROXY_CACHE_KEY{ 0x05773d6fc26be106ull };
 * Sets up [-1]<->[-2] two-way lookups, and ensures the lookup table exists.
 * Pops the both values off the stack.
 */
-static void set_deep_lookup( lua_State* L)
+static void set_deep_lookup(lua_State* L)
 {
     STACK_GROW( L, 3);
     STACK_CHECK_START_REL(L, 2);                             // a b
@@ -88,11 +81,13 @@ static void set_deep_lookup( lua_State* L)
     STACK_CHECK( L, 0);
 }
 
+// ################################################################################################
+
 /*
 * Pops the key (metatable or idfunc) off the stack, and replaces with the
 * deep lookup value (idfunc/metatable/nil).
 */
-static void get_deep_lookup( lua_State* L)
+static void get_deep_lookup(lua_State* L)
 {
     STACK_GROW( L, 1);
     STACK_CHECK_START_REL(L, 1);                             // a
@@ -106,11 +101,13 @@ static void get_deep_lookup( lua_State* L)
     STACK_CHECK( L, 1);
 }
 
+// ################################################################################################
+
 /*
 * Return the registered ID function for 'index' (deep userdata proxy),
 * or nullptr if 'index' is not a deep userdata proxy.
 */
-static inline luaG_IdFunction get_idfunc( lua_State* L, int index, LookupMode mode_)
+static inline luaG_IdFunction get_idfunc(lua_State* L, int index, LookupMode mode_)
 {
     // when looking inside a keeper, we are 100% sure the object is a deep userdata
     if (mode_ == LookupMode::FromKeeper)
@@ -142,8 +139,9 @@ static inline luaG_IdFunction get_idfunc( lua_State* L, int index, LookupMode mo
     }
 }
 
+// ################################################################################################
 
-void free_deep_prelude( lua_State* L, DeepPrelude* prelude_)
+void free_deep_prelude(lua_State* L, DeepPrelude* prelude_)
 {
     ASSERT_L(prelude_->idfunc);
     STACK_CHECK_START_REL(L, 0);
@@ -154,6 +152,7 @@ void free_deep_prelude( lua_State* L, DeepPrelude* prelude_)
     STACK_CHECK(L, 0);
 }
 
+// ################################################################################################
 
 /*
  * void= mt.__gc( proxy_ud )
@@ -161,7 +160,7 @@ void free_deep_prelude( lua_State* L, DeepPrelude* prelude_)
  * End of life for a proxy object; reduce the deep reference count and clean it up if reaches 0.
  *
  */
-static int deep_userdata_gc( lua_State* L)
+static int deep_userdata_gc(lua_State* L)
 {
     DeepPrelude** const proxy{ lua_tofulluserdata<DeepPrelude*>(L, 1) };
     DeepPrelude* p = *proxy;
@@ -193,6 +192,7 @@ static int deep_userdata_gc( lua_State* L)
     return 0;
 }
 
+// ################################################################################################
 
 /*
  * Push a proxy userdata on the stack.
@@ -203,7 +203,7 @@ static int deep_userdata_gc( lua_State* L)
  * used in this Lua state (metatable, registring it). Otherwise, increments the
  * reference count.
  */
-char const* push_deep_proxy(lua_State* L, DeepPrelude* prelude, int nuv_, LookupMode mode_)
+char const* push_deep_proxy(Dest L, DeepPrelude* prelude, int nuv_, LookupMode mode_)
 {
     // Check if a proxy already exists
     push_registry_subtable_mode( L, DEEP_PROXY_CACHE_KEY, "v");                                        // DPC
@@ -278,7 +278,7 @@ char const* push_deep_proxy(lua_State* L, DeepPrelude* prelude, int nuv_, Lookup
         // this is needed because we must make sure the shared library is still loaded as long as we hold a pointer on the idfunc
         {
             int oldtop_module = lua_gettop( L);
-            modname = (char const*) prelude->idfunc( L, DeepOp::Module);                                   // DPC proxy metatable
+            modname = (char const*) prelude->idfunc( L, DeepOp::Module);                               // DPC proxy metatable
             // make sure the function pushed nothing on the stack!
             if( lua_gettop( L) - oldtop_module != 0)
             {
@@ -348,6 +348,8 @@ char const* push_deep_proxy(lua_State* L, DeepPrelude* prelude, int nuv_, Lookup
     return nullptr;
 }
 
+// ################################################################################################
+
 /*
 * Create a deep userdata
 *
@@ -370,7 +372,7 @@ char const* push_deep_proxy(lua_State* L, DeepPrelude* prelude, int nuv_, Lookup
 *
 * Returns:  'proxy' userdata for accessing the deep data via 'luaG_todeep()'
 */
-int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_)
+int luaG_newdeepuserdata(Dest L, luaG_IdFunction idfunc, int nuv_)
 {
     STACK_GROW( L, 1);
     STACK_CHECK_START_REL(L, 0);
@@ -409,6 +411,7 @@ int luaG_newdeepuserdata( lua_State* L, luaG_IdFunction idfunc, int nuv_)
     return 1;
 }
 
+// ################################################################################################
 
 /*
 * Access deep userdata through a proxy.
@@ -430,6 +433,7 @@ DeepPrelude* luaG_todeep(lua_State* L, luaG_IdFunction idfunc, int index)
     return *proxy;
 }
 
+// ################################################################################################
 
 /*
  * Copy deep userdata between two separate Lua states (from L to L2)
@@ -438,7 +442,7 @@ DeepPrelude* luaG_todeep(lua_State* L, luaG_IdFunction idfunc, int index)
  *   the id function of the copied value, or nullptr for non-deep userdata
  *   (not copied)
  */
-bool copydeep(Universe* U, lua_State* L2, int L2_cache_i, lua_State* L, int i, LookupMode mode_, char const* upName_)
+bool copydeep(Universe* U, Dest L2, int L2_cache_i, Source L, int i, LookupMode mode_, char const* upName_)
 {
     luaG_IdFunction const idfunc { get_idfunc(L, i, mode_) };
     if (idfunc == nullptr)

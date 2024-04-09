@@ -1,5 +1,5 @@
 /*
-* STATE.C
+* STATE.CPP
 *
 * Lua tools to support Lanes.
 */
@@ -31,20 +31,11 @@ THE SOFTWARE.
 ===============================================================================
 */
 
-#include <stdio.h>
-#include <assert.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdlib.h>
-#if !defined(__APPLE__)
-#include <malloc.h>
-#endif // __APPLE__
+#include "state.h"
 
-#include "compat.h"
-#include "macros_and_utils.h"
-#include "universe.h"
-#include "tools.h"
 #include "lanes.h"
+#include "tools.h"
+#include "universe.h"
 
 // ################################################################################################
 
@@ -194,9 +185,9 @@ static void open1lib( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L, char con
 
 
 // just like lua_xmove, args are (from, to)
-static void copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2)
+static void copy_one_time_settings(Universe* U, Source L, Dest L2)
 {
-    STACK_GROW( L, 2);
+    STACK_GROW(L, 2);
     STACK_CHECK_START_REL(L, 0);
     STACK_CHECK_START_REL(L2, 0);
 
@@ -326,11 +317,11 @@ void call_on_state_create(Universe* U, lua_State* L, lua_State* from_, LookupMod
 * *NOT* called for keeper states!
 *
 */
-lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
+lua_State* luaG_newstate(Universe* U, Source from_, char const* libs_)
 {
-    lua_State* L = create_state( U, from_);
+    Dest const L{ create_state(U, from_) };
 
-    STACK_GROW( L, 2);
+    STACK_GROW(L, 2);
     STACK_CHECK_START_ABS(L, 0);
 
     // copy the universe as a light userdata (only the master state holds the full userdata)

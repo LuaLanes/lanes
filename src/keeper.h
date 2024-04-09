@@ -42,7 +42,7 @@ Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_);
 Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_);
 void keeper_release(Keeper* K_);
 void keeper_toggle_nil_sentinels(lua_State* L, int val_i_, LookupMode const mode_);
-int keeper_push_linda_storage(Universe* U, lua_State* L, void* ptr_, uintptr_t magic_);
+int keeper_push_linda_storage(Universe* U, Dest L, void* ptr_, uintptr_t magic_);
 
 using keeper_api_t = lua_CFunction;
 #define KEEPER_API(_op) keepercall_##_op

@@ -804,7 +804,7 @@ LUAG_FUNC(linda_concat)
 LUAG_FUNC(linda_dump)
 {
     Linda* const linda{ lua_toLinda<false>(L, 1) };
-    return keeper_push_linda_storage(linda->U, L, linda, linda->hashSeed());
+    return keeper_push_linda_storage(linda->U, Dest{ L }, linda, linda->hashSeed());
 }
 
 // #################################################################################################
@@ -816,7 +816,7 @@ LUAG_FUNC(linda_dump)
 LUAG_FUNC(linda_towatch)
 {
     Linda* const linda{ lua_toLinda<false>(L, 1) };
-    int pushed{ keeper_push_linda_storage(linda->U, L, linda, linda->hashSeed()) };
+    int pushed{ keeper_push_linda_storage(linda->U, Dest{ L }, linda, linda->hashSeed()) };
     if (pushed == 0)
     {
         // if the linda is empty, don't return nil
@@ -1009,11 +1009,11 @@ static void* linda_id( lua_State* L, DeepOp op_)
  */
 LUAG_FUNC(linda)
 {
-    int const top = lua_gettop(L);
+    int const top{ lua_gettop(L) };
     luaL_argcheck(L, top <= 2, top, "too many arguments");
     if (top == 1)
     {
-        int const t = lua_type(L, 1);
+        int const t{ lua_type(L, 1) };
         luaL_argcheck(L, t == LUA_TSTRING || t == LUA_TNUMBER, 1, "wrong parameter (should be a string or a number)");
     }
     else if (top == 2)
@@ -1021,5 +1021,5 @@ LUAG_FUNC(linda)
         luaL_checktype(L, 1, LUA_TSTRING);
         luaL_checktype(L, 2, LUA_TNUMBER);
     }
-    return luaG_newdeepuserdata(L, linda_id, 0);
+    return luaG_newdeepuserdata(Dest{ L }, linda_id, 0);
 }
