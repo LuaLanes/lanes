@@ -502,7 +502,7 @@ static int universe_gc( lua_State* L)
             while (U->selfdestruct_first != SELFDESTRUCT_END)
             {
                 // give threads time to act on their cancel
-                YIELD();
+                std::this_thread::yield();
                 // count the number of cancelled thread that didn't have the time to act yet
                 int n{ 0 };
                 {
@@ -529,7 +529,7 @@ static int universe_gc( lua_State* L)
         // They are no longer listed in the selfdestruct chain, but they still have to lua_close().
         while (U->selfdestructing_count.load(std::memory_order_acquire) > 0)
         {
-            YIELD();
+            std::this_thread::yield();
         }
     }
 
