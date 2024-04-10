@@ -656,7 +656,7 @@ void init_keepers(Universe* U, lua_State* L)
     lua_pop(L, 1);                                                 //
     if (nb_keepers < 1)
     {
-        std::ignore = luaL_error(L, "Bad number of keepers (%d)", nb_keepers); // doesn't return
+        luaL_error(L, "Bad number of keepers (%d)", nb_keepers); // doesn't return
     }
     STACK_CHECK(L, 0);
 
@@ -671,7 +671,7 @@ void init_keepers(Universe* U, lua_State* L)
         U->keepers = static_cast<Keepers*>(U->internal_allocator.alloc(bytes));
         if (U->keepers == nullptr)
         {
-            std::ignore = luaL_error(L, "init_keepers() failed while creating keeper array; out of memory"); // doesn't return
+            luaL_error(L, "init_keepers() failed while creating keeper array; out of memory"); // doesn't return
         }
         U->keepers->Keepers::Keepers();
         U->keepers->gc_threshold = keepers_gc_threshold;
@@ -688,7 +688,7 @@ void init_keepers(Universe* U, lua_State* L)
         lua_State* const K{ create_state(U, L) };
         if (K == nullptr)
         {
-            std::ignore = luaL_error(L, "init_keepers() failed while creating keeper states; out of memory"); // doesn't return
+            luaL_error(L, "init_keepers() failed while creating keeper states; out of memory"); // doesn't return
         }
 
         U->keepers->keeper_array[i].L = K;
@@ -717,7 +717,7 @@ void init_keepers(Universe* U, lua_State* L)
         if (!lua_isnil(L, -1))
         {
             // when copying with mode LookupMode::ToKeeper, error message is pushed at the top of the stack, not raised immediately
-            if (luaG_inter_copy_package(U, Source{ L }, Dest{ K }, -1, LookupMode::ToKeeper))
+            if (luaG_inter_copy_package(U, Source{ L }, Dest{ K }, -1, LookupMode::ToKeeper) != InterCopyResult::Success)
             {
                 // if something went wrong, the error message is at the top of the stack
                 lua_remove(L, -2);                                 // error_msg
@@ -840,7 +840,7 @@ int keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, voi
 
     lua_pushlightuserdata(K, linda);
 
-    if ((args == 0) || luaG_inter_copy(U, Source{ L }, Dest{ K }, args, LookupMode::ToKeeper) == 0) // L->K
+    if ((args == 0) || luaG_inter_copy(U, Source{ L }, Dest{ K }, args, LookupMode::ToKeeper) == InterCopyResult::Success) // L->K
     {
         lua_call(K, 1 + args, LUA_MULTRET);
         retvals = lua_gettop(K) - Ktos;
@@ -848,7 +848,7 @@ int keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, voi
         // this may interrupt a lane, causing the destruction of the underlying OS thread
         // after this, another lane making use of this keeper can get an error code from the mutex-locking function
         // when attempting to grab the mutex again (WINVER <= 0x400 does this, but locks just fine, I don't know about pthread)
-        if ((retvals > 0) && luaG_inter_move(U, Source{ K }, Dest{ L }, retvals, LookupMode::FromKeeper) != 0) // K->L
+        if ((retvals > 0) && luaG_inter_move(U, Source{ K }, Dest{ L }, retvals, LookupMode::FromKeeper) != InterCopyResult::Success) // K->L
         {
             retvals = -1;
         }

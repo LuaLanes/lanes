@@ -77,7 +77,7 @@ class StackChecker
         if ((offset_ < 0) || (m_oldtop < 0))
         {
             assert(false);
-            std::ignore = luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%d", lua_gettop(m_L), offset_, file_, line_);
+            luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%d", lua_gettop(m_L), offset_, file_, line_); // doesn't return
         }
     }
 
@@ -88,7 +88,7 @@ class StackChecker
         if (lua_gettop(m_L) != pos_)
         {
             assert(false);
-            std::ignore = luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%d", lua_gettop(m_L), pos_, file_, line_);
+            luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%d", lua_gettop(m_L), pos_, file_, line_); // doesn't return
         }
     }
 
@@ -108,7 +108,7 @@ class StackChecker
             if (actual != expected_)
             {
                 assert(false);
-                std::ignore = luaL_error(m_L, "STACK ASSERT failed (%d not %d): %s:%d", actual, expected_, file_, line_);
+                luaL_error(m_L, "STACK ASSERT failed (%d not %d): %s:%d", actual, expected_, file_, line_); // doesn't return
             }
         }
     }
@@ -128,7 +128,7 @@ inline void STACK_GROW(lua_State* L, int n_)
 {
     if (!lua_checkstack(L, n_))
     {
-        std::ignore = luaL_error(L, "Cannot grow stack!");
+        luaL_error(L, "Cannot grow stack!"); // doesn't return
     }
 }
 

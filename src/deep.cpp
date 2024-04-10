@@ -488,7 +488,7 @@ bool copydeep(Universe* U, Dest L2, int L2_cache_i, Source L, int i, LookupMode 
     {
         // raise the error in the proper state (not the keeper)
         lua_State* const errL{ (mode_ == LookupMode::FromKeeper) ? L2 : L };
-        std::ignore = luaL_error(errL, errmsg); // doesn't return
+        luaL_error(errL, errmsg); // doesn't return
     }
     return true;
 }

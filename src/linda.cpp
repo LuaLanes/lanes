@@ -162,7 +162,7 @@ static void check_key_types(lua_State* L, int start_, int end_)
         {
             continue;
         }
-        std::ignore = luaL_error(L, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", i);
+        luaL_error(L, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", i); // doesn't return
     }
 }
 

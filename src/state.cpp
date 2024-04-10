@@ -8,7 +8,7 @@
 ===============================================================================
 
 Copyright (C) 2002-10 Asko Kauppi <akauppi@gmail.com>
-2011-21 benoit Germain <bnt.germain@gmail.com>
+2011-24 benoit Germain <bnt.germain@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -79,6 +79,8 @@ THE SOFTWARE.
     return lua_gettop(L);                                           // result(s)
 }
 
+// #################################################################################################
+
 /*
 * Serialize calls to 'require', if it exists
 */
@@ -117,6 +119,7 @@ void serialize_require(DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L)
     return 1;
 }
 
+// #################################################################################################
 
 static luaL_Reg const libs[] =
 {
@@ -154,7 +157,9 @@ static luaL_Reg const libs[] =
     { nullptr, nullptr }
 };
 
-static void open1lib( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L, char const* name_, size_t len_)
+// #################################################################################################
+
+static void open1lib(DEBUGSPEW_PARAM_COMMA(Universe* U) lua_State* L, char const* name_, size_t len_)
 {
     int i;
     for( i = 0; libs[i].name; ++ i)
@@ -183,6 +188,7 @@ static void open1lib( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L, char con
     }
 }
 
+// #################################################################################################
 
 // just like lua_xmove, args are (from, to)
 static void copy_one_time_settings(Universe* U, Source L, Dest L2)
@@ -194,18 +200,20 @@ static void copy_one_time_settings(Universe* U, Source L, Dest L2)
     DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "copy_one_time_settings()\n" INDENT_END));
     DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
 
-    CONFIG_REGKEY.pushValue(L);                                                    // config
+    CONFIG_REGKEY.pushValue(L);                                                         // config
     // copy settings from from source to destination registry
-    if( luaG_inter_move( U, L, L2, 1, LookupMode::LaneBody) < 0)                   //                           // config
+    if (luaG_inter_move(U, L, L2, 1, LookupMode::LaneBody) != InterCopyResult::Success) //                           // config
     {
-        (void) luaL_error( L, "failed to copy settings when loading lanes.core");
+        luaL_error( L, "failed to copy settings when loading lanes.core"); // doesn't return
     }
     // set L2:_R[CONFIG_REGKEY] = settings
-    CONFIG_REGKEY.setValue(L2, [](lua_State* L) { lua_insert(L, -2); });                                        // config
-    STACK_CHECK( L2, 0);
-    STACK_CHECK( L, 0);
+    CONFIG_REGKEY.setValue(L2, [](lua_State* L) { lua_insert(L, -2); });                                             // config
+    STACK_CHECK(L2, 0);
+    STACK_CHECK(L, 0);
     DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
 }
+
+// #################################################################################################
 
 void initialize_on_state_create( Universe* U, lua_State* L)
 {
@@ -238,7 +246,9 @@ void initialize_on_state_create( Universe* U, lua_State* L)
     STACK_CHECK(L, 1);
 }
 
-lua_State* create_state( Universe* U, lua_State* from_)
+// #################################################################################################
+
+lua_State* create_state(Universe* U, lua_State* from_)
 {
     lua_State* L;
 #if LUAJIT_FLAVOR() == 64
@@ -264,10 +274,12 @@ lua_State* create_state( Universe* U, lua_State* from_)
 
     if (L == nullptr)
     {
-        std::ignore = luaL_error( from_, "luaG_newstate() failed while creating state; out of memory");
+        luaL_error(from_, "luaG_newstate() failed while creating state; out of memory"); // doesn't return
     }
     return L;
 }
+
+// #################################################################################################
 
 void call_on_state_create(Universe* U, lua_State* L, lua_State* from_, LookupMode mode_)
 {
@@ -303,6 +315,8 @@ void call_on_state_create(Universe* U, lua_State* L, lua_State* from_, LookupMod
         STACK_CHECK(L, 0);
     }
 }
+
+// #################################################################################################
 
 /*
 * Like 'luaL_openlibs()' but allows the set of libraries be selected

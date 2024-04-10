@@ -213,7 +213,7 @@ CancelOp which_cancel_op(char const* op_string_)
         lua_remove(L, idx_); // argument is processed, remove it
         if (op == CancelOp::Invalid)
         {
-            std::ignore = luaL_error(L, "invalid hook option %s", str); // doesn't return
+            luaL_error(L, "invalid hook option %s", str); // doesn't return
         }
         return op;
     }

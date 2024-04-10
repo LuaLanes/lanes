@@ -1415,7 +1415,7 @@ static void copy_cached_func(Universe* U, Dest L2, int L2_cache_i, Source L, int
         lua_pop(L2, 1);                                                                                 // _R[REG_MTID]
         if (!inter_copy_one(U, L2, L2_cache_i, L, lua_gettop(L), VT::METATABLE, mode_, upName_))        // _R[REG_MTID] mt?
         {
-            std::ignore = luaL_error(L, "Error copying a metatable"); // doesn't return
+            luaL_error(L, "Error copying a metatable"); // doesn't return
         }
 
         STACK_CHECK(L2, 2);                                                                             // _R[REG_MTID] mt
@@ -1600,7 +1600,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
         {
             if (!inter_copy_one(U, L2, L2_cache_i, L, lua_absindex(L, -1), VT::NORMAL, mode_, upName_))      // ... u uv
             {
-                std::ignore = luaL_error(L, "Cannot copy upvalue type '%s'", luaL_typename(L, -1)); // doesn't return
+                luaL_error(L, "Cannot copy upvalue type '%s'", luaL_typename(L, -1)); // doesn't return
             }
             lua_pop( L, 1);                                                      // ... mt __lanesclone [uv]*
             // this pops the value from the stack
@@ -1670,7 +1670,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
     }
     else // raise an error
     {
-        std::ignore = luaL_error(L, "can't copy non-deep full userdata across lanes"); // doesn't return
+        luaL_error(L, "can't copy non-deep full userdata across lanes"); // doesn't return
     }
 
     STACK_CHECK(L2, 1);
@@ -1739,7 +1739,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
             {
                 if (!inter_copy_one(U, L2, L2_cache_i, L, lua_absindex(L, -1), vt_, mode_, upName_))            // ... mt u uv
                 {
-                    std::ignore = luaL_error(L, "Cannot copy upvalue type '%s'", luaL_typename(L, -1)); // doesn't return
+                    luaL_error(L, "Cannot copy upvalue type '%s'", luaL_typename(L, -1)); // doesn't return
                 }
                 lua_pop(L, 1);                                                    // ... u [uv]*
                 // this pops the value from the stack
@@ -1973,7 +1973,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
 *
 * Note: Parameters are in this order ('L' = from first) to be same as 'lua_xmove'.
 */
-[[nodiscard]] int luaG_inter_copy(Universe* U, Source L, Dest L2, int n, LookupMode mode_)
+[[nodiscard]] InterCopyResult luaG_inter_copy(Universe* U, Source L, Dest L2, int n, LookupMode mode_)
 {
     int const top_L{ lua_gettop(L) };                             // ... {}n
     int const top_L2{ lua_gettop(L2) };                                                             // ...
@@ -1988,7 +1988,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
         // requesting to copy more than is available?
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "nothing to copy()\n" INDENT_END));
         DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
-        return -1;
+        return InterCopyResult::NotEnoughValues;
     }
 
     STACK_CHECK_START_REL(L2, 0);
@@ -2025,25 +2025,31 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
         // Remove the cache table. Persistent caching would cause i.e. multiple
         // messages passed in the same table to use the same table also in receiving end.
         lua_remove(L2, top_L2 + 1);
-        return 0;
+        return InterCopyResult::Success;
     }
 
     // error -> pop everything from the target state stack
     lua_settop(L2, top_L2);
     STACK_CHECK(L2, 0);
-    return -2;
+    return InterCopyResult::Error;
 }
 
 // #################################################################################################
 
-[[nodiscard]] int luaG_inter_move(Universe* U, Source L, Dest L2, int n, LookupMode mode_)
+[[nodiscard]] InterCopyResult luaG_inter_move(Universe* U, Source L, Dest L2, int n_, LookupMode mode_)
 {
-    int const ret{ luaG_inter_copy(U, L, L2, n, mode_) };
-    lua_pop( L, n);
+    InterCopyResult const ret{ luaG_inter_copy(U, L, L2, n_, mode_) };
+    lua_pop( L, n_);
     return ret;
 }
 
-[[nodiscard]] int luaG_inter_copy_package(Universe* U, Source L, Dest L2, int package_idx_, LookupMode mode_)
+// #################################################################################################
+
+// transfers stuff from L->_G["package"] to L2->_G["package"]
+// returns InterCopyResult::Success if everything is fine
+// returns InterCopyResult::Error if pushed an error message in L
+// else raise an error in L
+[[nodiscard]] InterCopyResult luaG_inter_copy_package(Universe* U, Source L, Dest L2, int package_idx_, LookupMode mode_)
 {
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "luaG_inter_copy_package()\n" INDENT_END));
     DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
@@ -2056,7 +2062,11 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
         lua_pushfstring(L, "expected package as table, got %s", luaL_typename(L, package_idx_));
         STACK_CHECK(L, 1);
         // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
-        return (mode_ == LookupMode::LaneBody) ? lua_error(L) : 1;
+        if (mode_ == LookupMode::LaneBody)
+        {
+            lua_error(L); // doesn't return
+        }
+        return InterCopyResult::Error;
     }
     lua_getglobal(L2, "package");
     if (!lua_isnil(L2, -1)) // package library not loaded: do nothing
@@ -2095,5 +2105,5 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
     STACK_CHECK(L2, 0);
     STACK_CHECK(L, 0);
     DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
-    return 0;
+    return InterCopyResult::Success;
 }
