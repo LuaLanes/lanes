@@ -656,7 +656,7 @@ void init_keepers(Universe* U, lua_State* L)
     lua_pop(L, 1);                                                 //
     if (nb_keepers < 1)
     {
-        std::ignore = luaL_error(L, "Bad number of keepers (%d)", nb_keepers);
+        std::ignore = luaL_error(L, "Bad number of keepers (%d)", nb_keepers); // doesn't return
     }
     STACK_CHECK(L, 0);
 
@@ -671,7 +671,7 @@ void init_keepers(Universe* U, lua_State* L)
         U->keepers = static_cast<Keepers*>(U->internal_allocator.alloc(bytes));
         if (U->keepers == nullptr)
         {
-            std::ignore = luaL_error(L, "init_keepers() failed while creating keeper array; out of memory");
+            std::ignore = luaL_error(L, "init_keepers() failed while creating keeper array; out of memory"); // doesn't return
         }
         U->keepers->Keepers::Keepers();
         U->keepers->gc_threshold = keepers_gc_threshold;
@@ -688,7 +688,7 @@ void init_keepers(Universe* U, lua_State* L)
         lua_State* const K{ create_state(U, L) };
         if (K == nullptr)
         {
-            std::ignore = luaL_error(L, "init_keepers() failed while creating keeper states; out of memory");
+            std::ignore = luaL_error(L, "init_keepers() failed while creating keeper states; out of memory"); // doesn't return
         }
 
         U->keepers->keeper_array[i].L = K;

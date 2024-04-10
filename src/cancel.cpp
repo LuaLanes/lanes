@@ -213,7 +213,7 @@ CancelOp which_cancel_op(char const* op_string_)
         lua_remove(L, idx_); // argument is processed, remove it
         if (op == CancelOp::Invalid)
         {
-            std::ignore = luaL_error(L, "invalid hook option %s", str);
+            std::ignore = luaL_error(L, "invalid hook option %s", str); // doesn't return
         }
         return op;
     }
@@ -260,6 +260,7 @@ LUAG_FUNC(thread_cancel)
         wake_lane = lua_toboolean(L, 2);
         lua_remove(L, 2); // argument is processed, remove it
     }
+    STACK_CHECK_START_REL(L, 0);
     switch (thread_cancel(lane, op, hook_count, wait_timeout, wake_lane))
     {
         default: // should never happen unless we added a case and forgot to handle it
@@ -267,15 +268,15 @@ LUAG_FUNC(thread_cancel)
         break;
 
         case CancelResult::Timeout:
-        lua_pushboolean(L, 0);
-        lua_pushstring(L, "timeout");
+        lua_pushboolean(L, 0);                // false
+        lua_pushstring(L, "timeout");         // false "timeout"
         break;
 
         case CancelResult::Cancelled:
-        lua_pushboolean(L, 1);
-        std::ignore = push_thread_status(L, lane);
+        lua_pushboolean(L, 1);                // true
+        push_thread_status(L, lane);          // true status
         break;
     }
-    // should never happen, only here to prevent the compiler from complaining of "not all control paths returning a value"
+    STACK_CHECK(L, 2);
     return 2;
 }

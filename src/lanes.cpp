@@ -540,7 +540,7 @@ static void selfdestruct_add(Lane* lane_)
         if (lane != SELFDESTRUCT_END)
         {
             // this causes a leak because we don't call U's destructor (which could be bad if the still running lanes are accessing it)
-            std::ignore = luaL_error(L, "Zombie thread %s refuses to die!", lane->debug_name);
+            std::ignore = luaL_error(L, "Zombie thread %s refuses to die!", lane->debug_name); // doesn't return
         }
     }
 
@@ -1374,13 +1374,12 @@ LUAG_FUNC(lane_new)
 
 // #################################################################################################
 
-int push_thread_status(lua_State* L, Lane* lane_)
+void push_thread_status(lua_State* L, Lane* lane_)
 {
     char const* const str{ thread_status_string(lane_) };
     ASSERT_L(str);
 
-    lua_pushstring(L, str);
-    return 1;
+    std::ignore = lua_pushstring(L, str);
 }
 
 // #################################################################################################
@@ -1583,11 +1582,12 @@ LUAG_FUNC(thread_index)
     }
     if (lua_type(L, KEY) == LUA_TSTRING)
     {
-        char const * const keystr = lua_tostring(L, KEY);
+        char const* const keystr{ lua_tostring(L, KEY) };
         lua_settop(L, 2); // keep only our original arguments on the stack
         if (strcmp( keystr, "status") == 0)
         {
-            return push_thread_status(L, lane); // push the string representing the status
+            push_thread_status(L, lane); // push the string representing the status
+            return 1;
         }
         // return UD.metatable[key]
         lua_getmetatable(L, UD); // UD KEY mt
@@ -1634,7 +1634,7 @@ LUAG_FUNC(threads)
             lua_newtable(L);                                   // {} {}
             lua_pushstring(L, lane->debug_name);               // {} {} "name"
             lua_setfield(L, -2, "name");                       // {} {}
-            std::ignore = push_thread_status(L, lane);         // {} {} "status"
+            push_thread_status(L, lane);                       // {} {} "status"
             lua_setfield(L, -2, "status");                     // {} {}
             lua_rawseti(L, -2, ++index);                       // {}
             lane = lane->tracking_next;

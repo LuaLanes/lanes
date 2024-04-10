@@ -1393,50 +1393,49 @@ static void copy_cached_func(Universe* U, Dest L2, int L2_cache_i, Source L, int
 [[nodiscard]] static bool push_cached_metatable(Universe* U, Dest L2, int L2_cache_i, Source L, int i, LookupMode mode_, char const* upName_)
 {
     STACK_CHECK_START_REL(L, 0);
-    if( lua_getmetatable( L, i))                                                 // ... mt
+    if (!lua_getmetatable(L, i))                                                // ... mt
     {
-        lua_Integer const mt_id = get_mt_id( U, L, -1);    // Unique id for the metatable
-
-        STACK_CHECK_START_REL(L2, 0);
-        STACK_GROW( L2, 4);
-        // do we already know this metatable?
-        push_registry_subtable( L2, REG_MTID);                                                                   // _R[REG_MTID]
-        lua_pushinteger( L2, mt_id);                                                                             // _R[REG_MTID] id
-        lua_rawget( L2, -2);                                                                                     // _R[REG_MTID] mt?
-
-        STACK_CHECK( L2, 2);
-
-        if( lua_isnil( L2, -1))
-        {   // L2 did not know the metatable
-            lua_pop( L2, 1);                                                                                       // _R[REG_MTID]
-            if (inter_copy_one(U, L2, L2_cache_i, L, lua_gettop( L), VT::METATABLE, mode_, upName_))               // _R[REG_MTID] mt
-            {
-                STACK_CHECK( L2, 2);
-                // mt_id -> metatable
-                lua_pushinteger( L2, mt_id);                                                                         // _R[REG_MTID] mt id
-                lua_pushvalue( L2, -2);                                                                              // _R[REG_MTID] mt id mt
-                lua_rawset( L2, -4);                                                                                 // _R[REG_MTID] mt
-
-                // metatable -> mt_id
-                lua_pushvalue( L2, -1);                                                                              // _R[REG_MTID] mt mt
-                lua_pushinteger( L2, mt_id);                                                                         // _R[REG_MTID] mt mt id
-                lua_rawset( L2, -4);                                                                                 // _R[REG_MTID] mt
-            }
-            else
-            {
-                (void) luaL_error( L, "Error copying a metatable");
-            }
-            STACK_CHECK( L2, 2);
-        }
-        lua_remove( L2, -2);                                                                                     // mt
-
-        lua_pop( L, 1);                                                            // ...
-        STACK_CHECK( L2, 1);
         STACK_CHECK( L, 0);
-        return true;
+        return false;
     }
-    STACK_CHECK( L, 0);
-    return false;
+    STACK_CHECK(L, 1);
+
+    lua_Integer const mt_id{ get_mt_id(U, L, -1) }; // Unique id for the metatable
+
+    STACK_CHECK_START_REL(L2, 0);
+    STACK_GROW(L2, 4);
+    // do we already know this metatable?
+    push_registry_subtable(L2, REG_MTID);                                                               // _R[REG_MTID]
+    lua_pushinteger(L2, mt_id);                                                                         // _R[REG_MTID] id
+    lua_rawget(L2, -2);                                                                                 // _R[REG_MTID] mt|nil
+    STACK_CHECK(L2, 2);
+
+    if (lua_isnil(L2, -1))
+    {   // L2 did not know the metatable
+        lua_pop(L2, 1);                                                                                 // _R[REG_MTID]
+        if (!inter_copy_one(U, L2, L2_cache_i, L, lua_gettop(L), VT::METATABLE, mode_, upName_))        // _R[REG_MTID] mt?
+        {
+            std::ignore = luaL_error(L, "Error copying a metatable"); // doesn't return
+        }
+
+        STACK_CHECK(L2, 2);                                                                             // _R[REG_MTID] mt
+        // mt_id -> metatable
+        lua_pushinteger(L2, mt_id);                                                                     // _R[REG_MTID] mt id
+        lua_pushvalue(L2, -2);                                                                          // _R[REG_MTID] mt id mt
+        lua_rawset(L2, -4);                                                                             // _R[REG_MTID] mt
+
+        // metatable -> mt_id
+        lua_pushvalue(L2, -1);                                                                          // _R[REG_MTID] mt mt
+        lua_pushinteger(L2, mt_id);                                                                     // _R[REG_MTID] mt mt id
+        lua_rawset(L2, -4);                                                                             // _R[REG_MTID] mt
+        STACK_CHECK(L2, 2);
+    }
+    lua_remove(L2, -2);                                                                                 // mt
+
+    lua_pop(L, 1);                                                          // ...
+    STACK_CHECK(L2, 1);
+    STACK_CHECK(L, 0);
+    return true;
 }
 
 // #################################################################################################
@@ -1599,11 +1598,10 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
         // assign uservalues
         while( uvi > 0)
         {
-            std::ignore = inter_copy_one(U
-                , L2, L2_cache_i
-                , L, lua_absindex(L, -1)
-                , VT::NORMAL, mode_, upName_
-            );                                                                                               // ... u uv
+            if (!inter_copy_one(U, L2, L2_cache_i, L, lua_absindex(L, -1), VT::NORMAL, mode_, upName_))      // ... u uv
+            {
+                std::ignore = luaL_error(L, "Cannot copy upvalue type '%s'", luaL_typename(L, -1)); // doesn't return
+            }
             lua_pop( L, 1);                                                      // ... mt __lanesclone [uv]*
             // this pops the value from the stack
             lua_setiuservalue( L2, -2, uvi);                                                                 // ... u
@@ -1644,39 +1642,39 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
     // try clonable userdata first
     if( copyclone( U, L2, L2_cache_i, L, i, mode_, upName_))
     {
-        STACK_CHECK( L, 0);
-        STACK_CHECK( L2, 1);
+        STACK_CHECK(L, 0);
+        STACK_CHECK(L2, 1);
         return true;
     }
 
-    STACK_CHECK( L, 0);
-    STACK_CHECK( L2, 0);
+    STACK_CHECK(L, 0);
+    STACK_CHECK(L2, 0);
 
     // Allow only deep userdata entities to be copied across
-    DEBUGSPEW_CODE( fprintf( stderr, "USERDATA\n"));
-    if( copydeep( U, L2, L2_cache_i, L, i, mode_, upName_))
+    DEBUGSPEW_CODE(fprintf(stderr, "USERDATA\n"));
+    if (copydeep(U, L2, L2_cache_i, L, i, mode_, upName_))
     {
-        STACK_CHECK( L, 0);
-        STACK_CHECK( L2, 1);
+        STACK_CHECK(L, 0);
+        STACK_CHECK(L2, 1);
         return true;
     }
 
-    STACK_CHECK( L, 0);
-    STACK_CHECK( L2, 0);
+    STACK_CHECK(L, 0);
+    STACK_CHECK(L2, 0);
 
     // Not a deep or clonable full userdata
-    if( U->demoteFullUserdata) // attempt demotion to light userdata
+    if (U->demoteFullUserdata) // attempt demotion to light userdata
     {
-        void* lud = lua_touserdata( L, i);
-        lua_pushlightuserdata( L2, lud);
+        void* lud = lua_touserdata(L, i);
+        lua_pushlightuserdata(L2, lud);
     }
     else // raise an error
     {
-        (void) luaL_error( L, "can't copy non-deep full userdata across lanes");
+        std::ignore = luaL_error(L, "can't copy non-deep full userdata across lanes"); // doesn't return
     }
 
-    STACK_CHECK( L2, 1);
-    STACK_CHECK( L, 0);
+    STACK_CHECK(L2, 1);
+    STACK_CHECK(L, 0);
     return true;
 }
 
@@ -1689,91 +1687,90 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
         return false;
     }
 
-    STACK_CHECK_START_REL(L, 0);                                                   // L (source)                 // L2 (destination)
+    STACK_CHECK_START_REL(L, 0);                                                  // L (source)                 // L2 (destination)
     STACK_CHECK_START_REL(L2, 0);
-    DEBUGSPEW_CODE( fprintf( stderr, "FUNCTION %s\n", upName_));
+    DEBUGSPEW_CODE(fprintf(stderr, "FUNCTION %s\n", upName_));
 
-    if( lua_tocfunction( L, source_i_) == userdata_clone_sentinel) // we are actually copying a clonable full userdata from a keeper
+    if (lua_tocfunction(L, source_i_) == userdata_clone_sentinel) // we are actually copying a clonable full userdata from a keeper
     {
         // clone the full userdata again
 
         // let's see if we already restored this userdata
-        lua_getupvalue( L, source_i_, 2);                                          // ... u
-        void* source = lua_touserdata( L, -1);
-        lua_pushlightuserdata( L2, source);                                                                      // ... source
-        lua_rawget( L2, L2_cache_i);                                                                             // ... u?
-        if( !lua_isnil( L2, -1))
+        lua_getupvalue(L, source_i_, 2);                                          // ... u
+        void* source = lua_touserdata(L, -1);
+        lua_pushlightuserdata(L2, source);                                                                      // ... source
+        lua_rawget(L2, L2_cache_i);                                                                             // ... u?
+        if (!lua_isnil(L2, -1))
         {
-            lua_pop( L, 1);                                                        // ...
-            STACK_CHECK( L, 0);
-            STACK_CHECK( L2, 1);
+            lua_pop(L, 1);                                                        // ...
+            STACK_CHECK(L, 0);
+            STACK_CHECK(L2, 1);
             return true;
         }
-        lua_pop( L2, 1);                                                                                         // ...
+        lua_pop(L2, 1);                                                                                         // ...
 
         // this function has 2 upvalues: the fqn of its metatable, and the userdata itself
-        std::ignore = lookup_table( L2, L, source_i_, mode_, upName_);                                           // ... mt
+        std::ignore = lookup_table(L2, L, source_i_, mode_, upName_);                                           // ... mt
         // originally 'source_i_' slot was the proxy closure, but from now on it indexes the actual userdata we extracted from it
-        source_i_ = lua_gettop( L);
-        source = lua_touserdata( L, -1);
+        source_i_ = lua_gettop(L);
+        source = lua_touserdata(L, -1);
         void* clone{ nullptr };
         // get the number of bytes to allocate for the clone
-        size_t const userdata_size { lua_rawlen(L, -1) };
+        size_t const userdata_size{ lua_rawlen(L, -1) };
         {
             // extract uservalues (don't transfer them yet)
             int uvi = 0;
-            while( lua_getiuservalue( L, source_i_, ++ uvi) != LUA_TNONE) {}       // ... u uv
+            while (lua_getiuservalue(L, source_i_, ++uvi) != LUA_TNONE) {}        // ... u uv
             // when lua_getiuservalue() returned LUA_TNONE, it pushed a nil. pop it now
-            lua_pop( L, 1);                                                        // ... u [uv]*
-            -- uvi;
-            STACK_CHECK( L, uvi + 1);
+            lua_pop(L, 1);                                                        // ... u [uv]*
+            --uvi;
+            STACK_CHECK(L, uvi + 1);
             // create the clone userdata with the required number of uservalue slots
-            clone = lua_newuserdatauv( L2, userdata_size, uvi);                                                  // ... mt u
+            clone = lua_newuserdatauv(L2, userdata_size, uvi);                                                  // ... mt u
             // add it in the cache
-            lua_pushlightuserdata( L2, source);                                                                  // ... mt u source
-            lua_pushvalue( L2, -2);                                                                              // ... mt u source u
-            lua_rawset( L2, L2_cache_i);                                                                         // ... mt u
+            lua_pushlightuserdata(L2, source);                                                                  // ... mt u source
+            lua_pushvalue(L2, -2);                                                                              // ... mt u source u
+            lua_rawset(L2, L2_cache_i);                                                                         // ... mt u
             // set metatable
-            lua_pushvalue( L2, -2);                                                                              // ... mt u mt
-            lua_setmetatable( L2, -2);                                                                           // ... mt u
+            lua_pushvalue(L2, -2);                                                                              // ... mt u mt
+            lua_setmetatable(L2, -2);                                                                           // ... mt u
             // transfer and assign uservalues
-            while( uvi > 0)
+            while (uvi > 0)
             {
-                std::ignore = inter_copy_one(U
-                    , L2, L2_cache_i
-                    , L, lua_absindex(L, -1)
-                    , vt_, mode_, upName_
-                );                                                                                               // ... mt u uv
-                lua_pop( L, 1);                                                    // ... u [uv]*
+                if (!inter_copy_one(U, L2, L2_cache_i, L, lua_absindex(L, -1), vt_, mode_, upName_))            // ... mt u uv
+                {
+                    std::ignore = luaL_error(L, "Cannot copy upvalue type '%s'", luaL_typename(L, -1)); // doesn't return
+                }
+                lua_pop(L, 1);                                                    // ... u [uv]*
                 // this pops the value from the stack
-                lua_setiuservalue( L2, -2, uvi);                                                                 // ... mt u
+                lua_setiuservalue(L2, -2, uvi);                                                                 // ... mt u
                 -- uvi;
             }
             // when we are done, all uservalues are popped from the stack, we can pop the source as well
-            lua_pop( L, 1);                                                        // ...
-            STACK_CHECK( L, 0);
-            STACK_CHECK( L2, 2);                                                                                   // ... mt u
+            lua_pop(L, 1);                                                        // ...
+            STACK_CHECK(L, 0);
+            STACK_CHECK(L2, 2);                                                                                 // ... mt u
         }
         // perform the custom cloning part
-        lua_insert( L2, -2);                                                                                     // ... u mt
+        lua_insert(L2, -2);                                                                                     // ... u mt
         // __lanesclone should always exist because we wouldn't be restoring data from a userdata_clone_sentinel closure to begin with
-        lua_getfield(L2, -1, "__lanesclone");                                                                    // ... u mt __lanesclone
-        lua_remove( L2, -2);                                                                                     // ... u __lanesclone
-        lua_pushlightuserdata( L2, clone);                                                                       // ... u __lanesclone clone
-        lua_pushlightuserdata( L2, source);                                                                      // ... u __lanesclone clone source
-        lua_pushinteger( L2, userdata_size);                                                                     // ... u __lanesclone clone source size
+        lua_getfield(L2, -1, "__lanesclone");                                                                   // ... u mt __lanesclone
+        lua_remove(L2, -2);                                                                                     // ... u __lanesclone
+        lua_pushlightuserdata(L2, clone);                                                                       // ... u __lanesclone clone
+        lua_pushlightuserdata(L2, source);                                                                      // ... u __lanesclone clone source
+        lua_pushinteger(L2, userdata_size);                                                                     // ... u __lanesclone clone source size
         // clone:__lanesclone(dest, source, size)
-        lua_call( L2, 3, 0);                                                                                     // ... u
+        lua_call(L2, 3, 0);                                                                                     // ... u
     }
     else // regular function
     {
         DEBUGSPEW_CODE(fprintf( stderr, "FUNCTION %s\n", upName_));
         DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
-        copy_cached_func( U, L2, L2_cache_i, L, source_i_, mode_, upName_);                                      // ... f
+        copy_cached_func(U, L2, L2_cache_i, L, source_i_, mode_, upName_);                                      // ... f
         DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     }
-    STACK_CHECK( L2, 1);
-    STACK_CHECK( L, 0);
+    STACK_CHECK(L2, 1);
+    STACK_CHECK(L, 0);
     return true;
 }
 
@@ -1788,15 +1785,15 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
 
     STACK_CHECK_START_REL(L, 0);
     STACK_CHECK_START_REL(L2, 0);
-    DEBUGSPEW_CODE( fprintf( stderr, "TABLE %s\n", upName_));
+    DEBUGSPEW_CODE(fprintf(stderr, "TABLE %s\n", upName_));
 
     /*
-        * First, let's try to see if this table is special (aka is it some table that we registered in our lookup databases during module registration?)
-        * Note that this table CAN be a module table, but we just didn't register it, in which case we'll send it through the table cloning mechanism
-        */
-    if( lookup_table( L2, L, i, mode_, upName_))
+     * First, let's try to see if this table is special (aka is it some table that we registered in our lookup databases during module registration?)
+     * Note that this table CAN be a module table, but we just didn't register it, in which case we'll send it through the table cloning mechanism
+     */
+    if (lookup_table(L2, L, i, mode_, upName_))
     {
-        ASSERT_L( lua_istable( L2, -1) || (lua_tocfunction( L2, -1) == table_lookup_sentinel));    // from lookup datables // can also be table_lookup_sentinel if this is a table we know
+        ASSERT_L(lua_istable(L2, -1) || (lua_tocfunction(L2, -1) == table_lookup_sentinel));  // from lookup data. can also be table_lookup_sentinel if this is a table we know
         return true;
     }
 
@@ -1809,33 +1806,33 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
     * Note: Even metatables need to go through this test; to detect
     *       loops such as those in required module tables (getmetatable(lanes).lanes == lanes)
     */
-    if( push_cached_table( L2, L2_cache_i, L, i))
+    if (push_cached_table(L2, L2_cache_i, L, i))
     {
-        ASSERT_L( lua_istable( L2, -1));    // from cache
+        ASSERT_L(lua_istable(L2, -1));    // from cache
         return true;
     }
-    ASSERT_L( lua_istable( L2, -1));
+    ASSERT_L(lua_istable(L2, -1));
 
-    STACK_GROW( L, 2);
-    STACK_GROW( L2, 2);
+    STACK_GROW(L, 2);
+    STACK_GROW(L2, 2);
 
-    lua_pushnil( L);    // start iteration
-    while( lua_next( L, i))
+    lua_pushnil(L); // start iteration
+    while (lua_next(L, i))
     {
         // need a function to prevent overflowing the stack with verboseErrors-induced alloca()
         inter_copy_keyvaluepair(U, L2, L2_cache_i, L, vt_, mode_, upName_);
-        lua_pop( L, 1);    // pop value (next round)
+        lua_pop(L, 1);    // pop value (next round)
     }
-    STACK_CHECK( L, 0);
-    STACK_CHECK( L2, 1);
+    STACK_CHECK(L, 0);
+    STACK_CHECK(L2, 1);
 
     // Metatables are expected to be immutable, and copied only once.
-    if( push_cached_metatable( U, L2, L2_cache_i, L, i, mode_, upName_))                                   // ... t mt?
+    if (push_cached_metatable(U, L2, L2_cache_i, L, i, mode_, upName_))                                   // ... t mt?
     {
-        lua_setmetatable( L2, -2);                                                                           // ... t
+        lua_setmetatable(L2, -2);                                                                         // ... t
     }
-    STACK_CHECK( L2, 1);
-    STACK_CHECK( L, 0);
+    STACK_CHECK(L2, 1);
+    STACK_CHECK(L, 0);
     return true;
 }
 

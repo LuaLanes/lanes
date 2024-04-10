@@ -470,11 +470,10 @@ bool copydeep(Universe* U, Dest L2, int L2_cache_i, Source L, int i, LookupMode 
         int const clone_i = lua_gettop( L2);
         while( nuv)
         {
-            std::ignore = inter_copy_one(U
-                , L2, L2_cache_i
-                , L,  lua_absindex( L, -1)
-                , VT::NORMAL, mode_, upName_
-            );                                                                                              // u uv
+            if (!inter_copy_one(U, L2, L2_cache_i, L, lua_absindex(L, -1), VT::NORMAL, mode_, upName_))     // u uv
+            {
+                return luaL_error(L, "Cannot copy upvalue type '%s'", luaL_typename(L, -1));
+            }
             lua_pop( L, 1);                                                              // ... u [uv]*
             // this pops the value from the stack
             lua_setiuservalue(L2, clone_i, nuv);                                                            // u
@@ -482,14 +481,14 @@ bool copydeep(Universe* U, Dest L2, int L2_cache_i, Source L, int i, LookupMode 
         }
     }
 
-    STACK_CHECK( L2, 1);
-    STACK_CHECK( L, 0);
+    STACK_CHECK(L2, 1);
+    STACK_CHECK(L, 0);
 
     if (errmsg != nullptr)
     {
         // raise the error in the proper state (not the keeper)
         lua_State* const errL{ (mode_ == LookupMode::FromKeeper) ? L2 : L };
-        std::ignore = luaL_error(errL, errmsg);
+        std::ignore = luaL_error(errL, errmsg); // doesn't return
     }
     return true;
 }

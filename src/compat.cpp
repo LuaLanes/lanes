@@ -15,7 +15,7 @@
 // ################################################################################################
 // ################################################################################################
 
-[[nodiscard]] static int luaL_getsubtable(lua_State* L, int idx, const char* fname)
+static int luaL_getsubtable(lua_State* L, int idx, const char* fname)
 {
     lua_getfield(L, idx, fname);
     if (lua_istable(L, -1))
@@ -38,7 +38,7 @@ void luaL_requiref(lua_State *L, const char *modname, lua_CFunction openf, int g
     lua_pushcfunction(L, openf);
     lua_pushstring(L, modname);  /* argument to open function */
     lua_call(L, 1, 1);  /* open module */
-    std::ignore = luaL_getsubtable(L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
+    luaL_getsubtable(L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
     lua_pushvalue(L, -2);  /* make copy of module (call result) */
     lua_setfield(L, -2, modname);  /* _LOADED[modname] = module */
     lua_pop(L, 1);  /* remove _LOADED table */
@@ -93,7 +93,8 @@ int lua_getiuservalue(lua_State* L, int idx, int n)
 
 // ################################################################################################
 
-// pop stack top, sets it a uservalue #n of full userdata at idx
+// Pops a value from the stack and sets it as the new n-th user value associated to the full userdata at the given index.
+// Returns 0 if the userdata does not have that value.
 int lua_setiuservalue(lua_State* L, int idx, int n)
 {
     if( n > 1
@@ -106,7 +107,7 @@ int lua_setiuservalue(lua_State* L, int idx, int n)
         return 0;
     }
 
-    std::ignore = lua_setuservalue(L, idx);
+    lua_setuservalue(L, idx);
     return 1; // I guess anything non-0 is ok
 }
 

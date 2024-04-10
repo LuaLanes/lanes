@@ -103,4 +103,4 @@ static constexpr UniqueKey LANE_POINTER_REGKEY{ 0xB3022205633743BCull }; // used
     return *(static_cast<Lane**>(luaL_checkudata(L, i_, "Lane")));
 }
 
-[[nodiscard]] int push_thread_status(lua_State* L, Lane* s);
+void push_thread_status(lua_State* L, Lane* lane_);
