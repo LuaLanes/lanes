@@ -98,3 +98,30 @@ int lua_setiuservalue( lua_State* L, int idx, int n);
 #define LUA_ERRGCMM 666 // doesn't exist in Lua 5.4, we don't care about the actual value
 
 #endif // LUA_VERSION_NUM == 504
+
+// #################################################################################################
+
+// a wrapper over lua types to see them easier in a debugger
+enum class LuaType
+{
+    NONE = LUA_TNONE,
+    NIL = LUA_TNIL,
+    BOOLEAN = LUA_TBOOLEAN,
+    LIGHTUSERDATA = LUA_TLIGHTUSERDATA,
+    NUMBER = LUA_TNUMBER,
+    STRING = LUA_TSTRING,
+    TABLE = LUA_TTABLE,
+    FUNCTION = LUA_TFUNCTION,
+    USERDATA = LUA_TUSERDATA,
+    THREAD = LUA_TTHREAD,
+    CDATA = 10 // LuaJIT CDATA
+};
+
+inline LuaType lua_type_as_enum(lua_State* L, int idx_)
+{
+    return static_cast<LuaType>(lua_type(L, idx_));
+}
+inline char const* lua_typename(lua_State* L, LuaType t_)
+{
+    return lua_typename(L, static_cast<int>(t_));
+}

@@ -104,7 +104,7 @@ void luaG_dump( lua_State* L)
 
     for( i = 1; i <= top; ++ i)
     {
-        int type = lua_type( L, i);
+        LuaType type{ lua_type_as_enum(L, i) };
 
         fprintf( stderr, "\t[%d]= (%s) ", i, lua_typename( L, type));
 
@@ -1851,8 +1851,8 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
 [[nodiscard]] bool inter_copy_one(Universe* U, Dest L2, int L2_cache_i, Source L, int i, VT vt_, LookupMode mode_, char const* upName_)
 {
     bool ret{ true };
-    int val_type = lua_type( L, i);
-    static int const pod_mask = (1 << LUA_TNIL) | (1 << LUA_TBOOLEAN) | (1 << LUA_TLIGHTUSERDATA) | (1 << LUA_TNUMBER) | (1 << LUA_TSTRING);
+    LuaType val_type{ lua_type_as_enum(L, i) };
+    static constexpr int pod_mask = (1 << LUA_TNIL) | (1 << LUA_TBOOLEAN) | (1 << LUA_TLIGHTUSERDATA) | (1 << LUA_TNUMBER) | (1 << LUA_TSTRING);
     STACK_GROW( L2, 1);
     STACK_CHECK_START_REL(L, 0);                                                       // L                          // L2
     STACK_CHECK_START_REL(L2, 0);                                                      // L                          // L2
@@ -1862,7 +1862,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%s %s: " INDENT_END, lua_type_names[val_type], vt_names[static_cast<int>(vt_)]));
 
     // Non-POD can be skipped if its metatable contains { __lanesignore = true }
-    if( ((1 << val_type) & pod_mask) == 0)
+    if( ((1 << static_cast<int>(val_type)) & pod_mask) == 0)
     {
         if( lua_getmetatable( L, i))                                               // ... mt
         {
@@ -1870,7 +1870,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
             if( lua_isboolean( L, -1) && lua_toboolean( L, -1))
             {
                 DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "__lanesignore -> LUA_TNIL\n" INDENT_END));
-                val_type = LUA_TNIL;
+                val_type = LuaType::NIL;
             }
             lua_pop( L, 2);                                                          // ...
         }
@@ -1882,7 +1882,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
     {
         /* Basic types allowed both as values, and as table keys */
 
-        case LUA_TBOOLEAN:
+        case LuaType::BOOLEAN:
         {
             int const v{ lua_toboolean(L, i) };
             DEBUGSPEW_CODE( fprintf( stderr, "%s\n", v ? "true" : "false"));
@@ -1890,7 +1890,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
         }
         break;
 
-        case LUA_TNUMBER:
+        case LuaType::NUMBER:
         /* LNUM patch support (keeping integer accuracy) */
 #if defined LUA_LNUM || LUA_VERSION_NUM >= 503
         if( lua_isinteger( L, i))
@@ -1909,7 +1909,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
         }
         break;
 
-        case LUA_TSTRING:
+        case LuaType::STRING:
         {
             size_t len;
             char const* s = lua_tolstring( L, i, &len);
@@ -1918,7 +1918,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
         }
         break;
 
-        case LUA_TLIGHTUSERDATA:
+        case LuaType::LIGHTUSERDATA:
         {
             void* p = lua_touserdata( L, i);
             DEBUGSPEW_CODE( fprintf( stderr, "%p\n", p));
@@ -1928,11 +1928,11 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
 
         /* The following types are not allowed as table keys */
 
-        case LUA_TUSERDATA:
+        case LuaType::USERDATA:
         ret = inter_copy_userdata(U, L2, L2_cache_i, L, i, vt_, mode_, upName_);
         break;
 
-        case LUA_TNIL:
+        case LuaType::NIL:
         if (vt_ == VT::KEY)
         {
             ret = false;
@@ -1941,18 +1941,18 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
         lua_pushnil( L2);
         break;
 
-        case LUA_TFUNCTION:
+        case LuaType::FUNCTION:
         ret = inter_copy_function(U, L2, L2_cache_i, L, i, vt_, mode_, upName_);
         break;
 
-        case LUA_TTABLE:
+        case LuaType::TABLE:
         ret = inter_copy_table(U, L2, L2_cache_i, L, i, vt_, mode_, upName_);
         break;
 
         /* The following types cannot be copied */
 
-        case 10: // LuaJIT CDATA
-        case LUA_TTHREAD:
+        case LuaType::CDATA:
+        case LuaType::THREAD:
         ret = false;
         break;
     }

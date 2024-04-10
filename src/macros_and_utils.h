@@ -182,10 +182,12 @@ template <typename T, auto = []{}>
 struct Unique
 {
     T m_val;
-    Unique() = default;
-    operator T() const { return m_val; }
-    explicit Unique(T b_) : m_val{ b_ } {}
+    constexpr Unique() = default;
+    constexpr operator T() const { return m_val; }
+    constexpr explicit Unique(T b_) : m_val{ b_ } {}
 };
+
+// #################################################################################################
 
 using Source = Unique<lua_State*>;
 using Dest = Unique<lua_State*>;

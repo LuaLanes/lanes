@@ -967,10 +967,10 @@ LUAG_FUNC(require)
 LUAG_FUNC(register)
 {
     char const* name = luaL_checkstring(L, 1);
-    int const mod_type = lua_type(L, 2);
+    LuaType const mod_type{ lua_type_as_enum(L, 2) };
     // ignore extra parameters, just in case
     lua_settop(L, 2);
-    luaL_argcheck(L, (mod_type == LUA_TTABLE) || (mod_type == LUA_TFUNCTION), 2, "unexpected module type");
+    luaL_argcheck(L, (mod_type == LuaType::TABLE) || (mod_type == LuaType::FUNCTION), 2, "unexpected module type");
     DEBUGSPEW_CODE(Universe* U = universe_get(L));
     STACK_CHECK_START_REL(L, 0); // "name" mod_table
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.register %s BEGIN\n" INDENT_END, name));
@@ -1226,7 +1226,8 @@ LUAG_FUNC(lane_new)
     STACK_CHECK(L2, 0);
 
     // Lane main function
-    if (lua_type(L, 1) == LUA_TFUNCTION)
+    LuaType const func_type{ lua_type_as_enum(L, 1) };
+    if (func_type == LuaType::FUNCTION)
     {
         DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane body\n" INDENT_END));
         DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
@@ -1238,7 +1239,7 @@ LUAG_FUNC(lane_new)
             luaL_error(L, "tried to copy unsupported types"); // doesn't return
         }
     }
-    else if (lua_type(L, 1) == LUA_TSTRING)
+    else if (func_type == LuaType::STRING)
     {
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: compile lane body\n" INDENT_END));
         // compile the string
@@ -1246,6 +1247,10 @@ LUAG_FUNC(lane_new)
         {
             luaL_error(L, "error when parsing lane function code"); // doesn't return
         }
+    }
+    else
+    {
+        luaL_error(L, "Expected function, got %s", lua_typename(L, func_type)); // doesn't return
     }
     STACK_CHECK(L, 0);
     STACK_CHECK(L2, 1);
