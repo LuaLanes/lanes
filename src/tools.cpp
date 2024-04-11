@@ -1446,7 +1446,7 @@ static void copy_cached_func(Universe* U, Dest L2, int L2_cache_i, Source L, int
     int key_i = val_i - 1;
 
     // Only basic key types are copied over; others ignored
-    if (inter_copy_one(U, L2, 0 /*key*/, L, key_i, VT::KEY, mode_, upName_))
+    if (inter_copy_one(U, L2, L2_cache_i, L, key_i, VT::KEY, mode_, upName_))
     {
         char* valPath = (char*) upName_;
         if( U->verboseErrors)

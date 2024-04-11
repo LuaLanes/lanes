@@ -81,8 +81,8 @@ test:
 	$(MAKE) fibonacci
 	$(MAKE) fifo
 	$(MAKE) func_is_string
-	$(MAKE) irayo_recursive
 	$(MAKE) irayo_closure
+	$(MAKE) irayo_recursive
 	$(MAKE) keeper
 	$(MAKE) linda_perf
 	$(MAKE) objects
@@ -104,8 +104,8 @@ cancel: tests/cancel.lua $(_TARGET_SO)
 REP_ARGS=-llanes -e "print'say aaa'; for i=1,10 do print(i) end"
 repetitive: $(_TARGET_SO)
 	for i in 1 2 3 4 5 6 7 8 9 10 a b c d e f g h i j k l m n o p q r s t u v w x y z; \
-	   do $(_PREFIX) $(LUA) $(REP_ARGS); \
-    done
+		do $(_PREFIX) $(LUA) $(REP_ARGS); \
+	done
 
 repetitive1: $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $(REP_ARGS)
@@ -236,9 +236,9 @@ else
 	-rm -rf $(MODULE)-$(VERSION)
 	mkdir $(MODULE)-$(VERSION)
 	tar c * --exclude=.svn --exclude=.DS_Store --exclude="_*" \
-	        --exclude="*.tgz" --exclude="*.rockspec" \
-	        --exclude=lanes.dev --exclude="$(MODULE)-*" --exclude=xcode \
-		    --exclude="*.obj" --exclude="*.dll" --exclude=timeit.dat \
+			--exclude="*.tgz" --exclude="*.rockspec" \
+			--exclude=lanes.dev --exclude="$(MODULE)-*" --exclude=xcode \
+			--exclude="*.obj" --exclude="*.dll" --exclude=timeit.dat \
 	   | (cd $(MODULE)-$(VERSION) && tar x)
 	tar czvf $(MODULE)-$(VERSION).tgz $(MODULE)-$(VERSION)
 	rm -rf $(MODULE)-$(VERSION)
