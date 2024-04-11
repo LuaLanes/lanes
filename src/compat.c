@@ -1,6 +1,6 @@
 /*
  * ###############################################################################################
- * ######################################### Lua 5.1/5.2 #########################################
+ * ####################################### Lua 5.1/5.2/5.3 #######################################
  * ###############################################################################################
  */
 #include "compat.h"
@@ -9,7 +9,11 @@
 /*
 ** Copied from Lua 5.2 loadlib.c
 */
+// ################################################################################################
+// ################################################################################################
 #if LUA_VERSION_NUM == 501
+// ################################################################################################
+// ################################################################################################
 static int luaL_getsubtable (lua_State *L, int idx, const char *fname)
 {
     lua_getfield(L, idx, fname);
@@ -25,6 +29,8 @@ static int luaL_getsubtable (lua_State *L, int idx, const char *fname)
         return 0;  /* false, because did not find table there */
     }
 }
+
+// ################################################################################################
 
 void luaL_requiref (lua_State *L, const char *modname, lua_CFunction openf, int glb)
 {
@@ -43,7 +49,11 @@ void luaL_requiref (lua_State *L, const char *modname, lua_CFunction openf, int 
 }
 #endif // LUA_VERSION_NUM
 
+// ################################################################################################
+// ################################################################################################
 #if LUA_VERSION_NUM < 504
+// ################################################################################################
+// ################################################################################################
 
 void* lua_newuserdatauv( lua_State* L, size_t sz, int nuvalue)
 {
@@ -51,8 +61,12 @@ void* lua_newuserdatauv( lua_State* L, size_t sz, int nuvalue)
     return lua_newuserdata( L, sz);
 }
 
+// ################################################################################################
+
+// push on stack uservalue #n of full userdata at idx
 int lua_getiuservalue( lua_State* L, int idx, int n)
 {
+    // full userdata can have only 1 uservalue before 5.4
     if( n > 1)
     {
         lua_pushnil( L);
@@ -76,6 +90,10 @@ int lua_getiuservalue( lua_State* L, int idx, int n)
     return lua_type( L, -1);
 }
 
+// ################################################################################################
+
+// Pops a value from the stack and sets it as the new n-th user value associated to the full userdata at the given index.
+// Returns 0 if the userdata does not have that value.
 int lua_setiuservalue( lua_State* L, int idx, int n)
 {
     if( n > 1

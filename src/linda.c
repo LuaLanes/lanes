@@ -52,11 +52,11 @@ struct s_Linda
     SIGNAL_T read_happened;
     SIGNAL_T write_happened;
     Universe* U; // the universe this linda belongs to
-    ptrdiff_t group; // a group to control keeper allocation between lindas
+    uintptr_t group; // a group to control keeper allocation between lindas
     enum e_cancel_request simulate_cancel;
     char name[1];
 };
-#define LINDA_KEEPER_HASHSEED( linda) (linda->group ? linda->group : (ptrdiff_t)linda)
+#define LINDA_KEEPER_HASHSEED( linda) (linda->group ? linda->group : (uintptr_t)linda)
 
 static void* linda_id( lua_State*, DeepOp);
 
@@ -125,7 +125,7 @@ LUAG_FUNC( linda_send)
     enum e_cancel_request cancel = CANCEL_NONE;
     int pushed;
     time_d timeout = -1.0;
-    uint_t key_i = 2; // index of first key, if timeout not there
+    int key_i = 2; // index of first key, if timeout not there
     bool_t as_nil_sentinel; // if not NULL, send() will silently send a single nil if nothing is provided
 
     if( lua_type( L, 2) == LUA_TNUMBER) // we don't want to use lua_isnumber() because of autocoercion
@@ -151,7 +151,7 @@ LUAG_FUNC( linda_send)
     STACK_GROW( L, 1);
 
     // make sure there is something to send
-    if( (uint_t)lua_gettop( L) == key_i)
+    if( lua_gettop( L) == key_i)
     {
         if( as_nil_sentinel)
         {
@@ -270,16 +270,17 @@ LUAG_FUNC( linda_send)
  * returns the actual consumed values, or nil if there weren't enough values to consume
  *
  */
-#define BATCH_SENTINEL "270e6c9d-280f-4983-8fee-a7ecdda01475"
+ // xxh64 of string "BATCH_SENTINEL" generated at https://www.pelock.com/products/hash-calculator
+DECLARE_CONST_UNIQUE_KEY(BATCH_SENTINEL, 0x2DDFEE0968C62AA7);
 LUAG_FUNC( linda_receive)
 {
     struct s_Linda* linda = lua_toLinda( L, 1);
     int pushed, expected_pushed_min, expected_pushed_max;
     enum e_cancel_request cancel = CANCEL_NONE;
-    keeper_api_t keeper_receive;
+    keeper_api_t selected_keeper_receive;
     
     time_d timeout = -1.0;
-    uint_t key_i = 2;
+    int key_i = 2;
 
     if( lua_type( L, 2) == LUA_TNUMBER) // we don't want to use lua_isnumber() because of autocoercion
     {
@@ -294,7 +295,7 @@ LUAG_FUNC( linda_receive)
     // are we in batched mode?
     {
         int is_batched;
-        lua_pushliteral( L, BATCH_SENTINEL);
+        push_unique_key( L, BATCH_SENTINEL);
         is_batched = lua501_equal( L, key_i, -1);
         lua_pop( L, 1);
         if( is_batched)
@@ -304,7 +305,7 @@ LUAG_FUNC( linda_receive)
             // make sure the keys are of a valid type
             check_key_types( L, key_i, key_i);
             // receive multiple values from a single slot
-            keeper_receive = KEEPER_API( receive_batched);
+            selected_keeper_receive = KEEPER_API( receive_batched);
             // we expect a user-defined amount of return value
             expected_pushed_min = (int)luaL_checkinteger( L, key_i + 1);
             expected_pushed_max = (int)luaL_optinteger( L, key_i + 2, expected_pushed_min);
@@ -321,7 +322,7 @@ LUAG_FUNC( linda_receive)
             // make sure the keys are of a valid type
             check_key_types( L, key_i, lua_gettop( L));
             // receive a single value, checking multiple slots
-            keeper_receive = KEEPER_API( receive);
+            selected_keeper_receive = KEEPER_API( receive);
             // we expect a single (value, key) pair of returned values
             expected_pushed_min = expected_pushed_max = 2;
         }
@@ -347,7 +348,7 @@ LUAG_FUNC( linda_receive)
             }
 
             // all arguments of receive() but the first are passed to the keeper's receive function
-            pushed = keeper_call( linda->U, K->L, keeper_receive, L, linda, key_i);
+            pushed = keeper_call( linda->U, K->L, selected_keeper_receive, L, linda, key_i);
             if( pushed < 0)
             {
                 break;
@@ -511,28 +512,26 @@ LUAG_FUNC( linda_get)
 
     // make sure the key is of a valid type (throws an error if not the case)
     check_key_types( L, 2, 2);
-    {
-        Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
 
-        if( linda->simulate_cancel == CANCEL_NONE)
+    if( linda->simulate_cancel == CANCEL_NONE)
+    {
+        Keeper* const K = which_keeper(linda->U->keepers, LINDA_KEEPER_HASHSEED(linda));
+        pushed = keeper_call( linda->U, K->L, KEEPER_API( get), L, linda, 2);
+        if( pushed > 0)
         {
-            pushed = keeper_call( linda->U, K->L, KEEPER_API( get), L, linda, 2);
-            if( pushed > 0)
-            {
-                keeper_toggle_nil_sentinels( L, lua_gettop( L) - pushed, eLM_FromKeeper);
-            }
+            keeper_toggle_nil_sentinels( L, lua_gettop( L) - pushed, eLM_FromKeeper);
         }
-        else // linda is cancelled
-        {
-            // do nothing and return lanes.cancel_error
-            push_unique_key( L, CANCEL_ERROR);
-            pushed = 1;
-        }
-        // an error can be raised if we attempt to read an unregistered function
-        if( pushed < 0)
-        {
-            return luaL_error( L, "tried to copy unsupported types");
-        }
+    }
+    else // linda is cancelled
+    {
+        // do nothing and return lanes.cancel_error
+        push_unique_key( L, CANCEL_ERROR);
+        pushed = 1;
+    }
+    // an error can be raised if we attempt to read an unregistered function
+    if( pushed < 0)
+    {
+        return luaL_error( L, "tried to copy unsupported types");
     }
 
     return pushed;
@@ -557,25 +556,22 @@ LUAG_FUNC( linda_limit)
     // make sure the key is of a valid type
     check_key_types( L, 2, 2);
 
+    if( linda->simulate_cancel == CANCEL_NONE)
     {
-        Keeper* K = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
-
-        if( linda->simulate_cancel == CANCEL_NONE)
+        Keeper* const K = which_keeper(linda->U->keepers, LINDA_KEEPER_HASHSEED(linda));
+        pushed = keeper_call( linda->U, K->L, KEEPER_API( limit), L, linda, 2);
+        ASSERT_L( pushed == 0 || pushed == 1); // no error, optional boolean value saying if we should wake blocked writer threads
+        if( pushed == 1)
         {
-            pushed = keeper_call( linda->U, K->L, KEEPER_API( limit), L, linda, 2);
-            ASSERT_L( pushed == 0 || pushed == 1); // no error, optional boolean value saying if we should wake blocked writer threads
-            if( pushed == 1)
-            {
-                ASSERT_L( lua_type( L, -1) == LUA_TBOOLEAN && lua_toboolean( L, -1) == 1);
-                SIGNAL_ALL( &linda->read_happened); // To be done from within the 'K' locking area
-            }
+            ASSERT_L( lua_type( L, -1) == LUA_TBOOLEAN && lua_toboolean( L, -1) == 1);
+            SIGNAL_ALL( &linda->read_happened); // To be done from within the 'K' locking area
         }
-        else // linda is cancelled
-        {
-            // do nothing and return lanes.cancel_error
-            push_unique_key( L, CANCEL_ERROR);
-            pushed = 1;
-        }
+    }
+    else // linda is cancelled
+    {
+        // do nothing and return lanes.cancel_error
+        push_unique_key( L, CANCEL_ERROR);
+        pushed = 1;
     }
     // propagate pushed boolean if any
     return pushed;
@@ -762,6 +758,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
     {
         case eDO_new:
         {
+            Universe* const U = universe_get(L);
             struct s_Linda* s;
             size_t name_len = 0;
             char const* linda_name = NULL;
@@ -795,7 +792,6 @@ static void* linda_id( lua_State* L, DeepOp op_)
             * just don't use L's allocF because we don't know which state will get the honor of GCing the linda
             */
             {
-                Universe* const U = universe_get(L);
                 AllocatorDefinition* const allocD = &U->internal_allocator;
                 s = (struct s_Linda*) allocD->allocF(allocD->allocUD, NULL, 0, sizeof(struct s_Linda) + name_len); // terminating 0 is already included
             }
@@ -804,7 +800,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
                 s->prelude.magic.value = DEEP_VERSION.value;
                 SIGNAL_INIT( &s->read_happened);
                 SIGNAL_INIT( &s->write_happened);
-                s->U = universe_get( L);
+                s->U = U;
                 s->simulate_cancel = CANCEL_NONE;
                 s->group = linda_group << KEEPER_MAGIC_SHIFT;
                 s->name[0] = 0;
@@ -815,25 +811,32 @@ static void* linda_id( lua_State* L, DeepOp op_)
 
         case eDO_delete:
         {
-            Keeper* K;
+            Keeper* myK;
             struct s_Linda* linda = lua_touserdata( L, 1);
             ASSERT_L( linda);
 
             // Clean associated structures in the keeper state.
-            K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
-            if( K && K->L) // can be NULL if this happens during main state shutdown (lanes is GC'ed -> no keepers -> no need to cleanup)
+            myK = which_keeper( linda->U->keepers, LINDA_KEEPER_HASHSEED( linda));
+            if (myK)
             {
+                // if collected from my own keeper, we can't acquire/release it
+                // because we are already inside a protected area, and trying to do so would deadlock!
+                bool_t const need_acquire_release = (myK->L != L);
+                // Clean associated structures in the keeper state.
+                Keeper* const K = need_acquire_release ? keeper_acquire(linda->U->keepers, LINDA_KEEPER_HASHSEED(linda)) : myK;
                 // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
-                keeper_call( linda->U, K->L, KEEPER_API( clear), L, linda, 0);
+                keeper_call(linda->U, K->L, KEEPER_API(clear), L, linda, 0);
+                if(need_acquire_release)
+                {
+                    keeper_release(K);
+                }
             }
-            keeper_release( K);
 
             // There aren't any lanes waiting on these lindas, since all proxies have been gc'ed. Right?
             SIGNAL_FREE( &linda->read_happened);
             SIGNAL_FREE( &linda->write_happened);
             {
-                Universe* const U = universe_get(L);
-                AllocatorDefinition* const allocD = &U->internal_allocator;
+                AllocatorDefinition* const allocD = &linda->U->internal_allocator;
                 (void) allocD->allocF(allocD->allocUD, linda, sizeof(struct s_Linda) + strlen(linda->name), 0);
             }
             return NULL;
@@ -901,7 +904,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             lua_setfield( L, -2, "dump");
 
             // some constants
-            lua_pushliteral( L, BATCH_SENTINEL);
+            push_unique_key( L, BATCH_SENTINEL);
             lua_setfield( L, -2, "batched");
 
             push_unique_key( L, NIL_SENTINEL);

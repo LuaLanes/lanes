@@ -1,36 +1,47 @@
+local which_tests, remaining_tests = {}, {}
+for k,v in ipairs{...} do
+	print("got arg:", type(v), tostring(v))
+	which_tests[v] = true
+	remaining_tests[v] = true
+end
+
+--####################################################################
+
 local lanes = require "lanes" .configure{ with_timers = false}
 
 local linda = lanes.linda()
-
---####################################################################
-print "\n\n####################################################################\nbegin genlock & genatomic cancel test\n"
-
--- get a lock and a atomic operator
-local lock = lanes.genlock( linda, "lock", 1)
-local atomic = lanes.genatomic( linda, "atomic")
-
--- check that cancelled lindas give cancel_error as they should
-linda:cancel()
-assert( linda:get( "empty") == lanes.cancel_error)
-assert( lanes.genlock( linda, "any", 1) == lanes.cancel_error)
-assert( lanes.genatomic( linda, "any") == lanes.cancel_error)
-
--- check that lock and atomic functions return cancel_error if the linda was cancelled
-assert( lock( 1) == lanes.cancel_error)
-assert( lock( -1) == lanes.cancel_error)
-assert( atomic( 1) == lanes.cancel_error)
-
--- reset the linda so that the other tests work
-linda:cancel( "none")
-linda:limit( "lock", -1)
-linda:set( "lock")
-linda:limit( "atomic", -1)
-linda:set( "atomic")
-
 -- a numeric value to read
 linda:set( "val", 33.0)
 
-print "test OK"
+--####################################################################
+if not next(which_tests) or which_tests.genlock then
+	remaining_tests.genlock = nil
+	print "\n\n####################################################################\nbegin genlock & genatomic cancel test\n"
+
+	-- get a lock and a atomic operator
+	local lock = lanes.genlock( linda, "lock", 1)
+	local atomic = lanes.genatomic( linda, "atomic")
+
+	-- check that cancelled lindas give cancel_error as they should
+	linda:cancel()
+	assert( linda:get( "empty") == lanes.cancel_error)
+	assert( lanes.genlock( linda, "any", 1) == lanes.cancel_error)
+	assert( lanes.genatomic( linda, "any") == lanes.cancel_error)
+
+	-- check that lock and atomic functions return cancel_error if the linda was cancelled
+	assert( lock( 1) == lanes.cancel_error)
+	assert( lock( -1) == lanes.cancel_error)
+	assert( atomic( 1) == lanes.cancel_error)
+
+	-- reset the linda so that the other tests work
+	linda:cancel( "none")
+	linda:limit( "lock", -1)
+	linda:set( "lock")
+	linda:limit( "atomic", -1)
+	linda:set( "atomic")
+
+	print "test OK"
+end
 --####################################################################
 
 local waitCancellation = function( h, expected_status)
@@ -119,92 +130,115 @@ end
 --####################################################################
 --####################################################################
 
-print "\n\n####################################################################\nbegin linda cancel test\n"
-h = lanes.gen( "*", laneBody)( "receive", nil) -- start an infinite wait on the linda
+if not next(which_tests) or which_tests.linda then
+	remaining_tests.linda = nil
+	print "\n\n####################################################################\nbegin linda cancel test\n"
+	h = lanes.gen( "*", laneBody)( "receive", nil) -- start an infinite wait on the linda
 
-print "wait 1s"
-linda:receive( 1, "yeah")
+	print "wait 1s"
+	linda:receive( 1, "yeah")
 
--- linda cancel: linda:receive() returns cancel_error immediately
-linda:cancel( "both")
+	-- linda cancel: linda:receive() returns cancel_error immediately
+	print "cancelling"
+	linda:cancel( "both")
 
--- wait until cancellation is effective.
-waitCancellation( h, "done")
+	-- wait until cancellation is effective.
+	waitCancellation( h, "done")
 
--- reset the linda so that the other tests work
-linda:cancel( "none")
+	-- reset the linda so that the other tests work
+	linda:cancel( "none")
+end
 
-print "\n\n####################################################################\nbegin soft cancel test\n"
-h = lanes.gen( "*", protectedBody)( "receive") -- start an infinite wait on the linda
+if not next(which_tests) or which_tests.soft then
+	remaining_tests.soft = nil
+	print "\n\n####################################################################\nbegin soft cancel test\n"
+	h = lanes.gen( "*", protectedBody)( "receive") -- start an infinite wait on the linda
 
-print "wait 1s"
-linda:receive( 1, "yeah")
+	print "wait 1s"
+	linda:receive( 1, "yeah")
 
--- soft cancel, no awakening of waiting linda operations, should timeout
-local a, b = h:cancel( "soft", 1, false)
--- cancellation should fail as the lane is still waiting on its linda
-assert( a == false and b == "timeout")
-waitCancellation( h, "waiting")
+	-- soft cancel, no awakening of waiting linda operations, should timeout
+	local a, b = h:cancel( "soft", 1, false)
+	-- cancellation should fail as the lane is still waiting on its linda
+	assert( a == false and b == "timeout")
+	waitCancellation( h, "waiting")
 
--- soft cancel, this time awakens waiting linda operations, which returns cancel_error immediately, no timeout.
-h:cancel( "soft", true)
+	-- soft cancel, this time awakens waiting linda operations, which returns cancel_error immediately, no timeout.
+	print "cancelling"
+	h:cancel( "soft", true)
 
--- wait until cancellation is effective. the lane will interrupt its loop and print the exit message
-waitCancellation( h, "done")
+	-- wait until cancellation is effective. the lane will interrupt its loop and print the exit message
+	waitCancellation( h, "done")
+end
 
--- do return end
+if not next(which_tests) or which_tests.hook then
+	remaining_tests.hook = nil
+	print "\n\n####################################################################\nbegin hook cancel test\n"
+	h = lanes.gen( "*", protectedBody)( "get", 300000)
+	print "wait 2s"
+	linda:receive( 2, "yeah")
 
-print "\n\n####################################################################\nbegin hook cancel test\n"
-h = lanes.gen( "*", protectedBody)( "get", 300000)
-print "wait 2s"
-linda:receive( 2, "yeah")
+	-- count hook cancel after some instruction instructions
+	print "cancelling"
+	h:cancel( "line", 300, 5.0)
 
--- count hook cancel after 3 instructions
-h:cancel( "count", 300, 5.0)
+	-- wait until cancellation is effective. the lane will interrupt its loop and print the exit message
+	waitCancellation( h, "cancelled")
+end
 
--- wait until cancellation is effective. the lane will interrupt its loop and print the exit message
-waitCancellation( h, "cancelled")
+if not next(which_tests) or which_tests.hard then
+	remaining_tests.hard = nil
+	print "\n\n####################################################################\nbegin hard cancel test\n"
+	h = lanes.gen( "*", protectedBody)( "receive", nil) -- infinite timeout
 
-print "\n\n####################################################################\nbegin hard cancel test\n"
-h = lanes.gen( "*", protectedBody)( "receive", nil) -- infinite timeout
+	-- wait 2s before cancelling the lane
+	print "wait 2s"
+	linda:receive( 2, "yeah")
 
--- wait 2s before cancelling the lane
-print "wait 2s"
-linda:receive( 2, "yeah")
+	-- hard cancel: the lane will be interrupted from inside its current linda:receive() and won't return from it
+	print "cancelling"
+	h:cancel()
 
--- hard cancel: the lane will be interrupted from inside its current linda:receive() and won't return from it
-h:cancel()
+	-- wait until cancellation is effective. the lane will be stopped by the linda operation throwing an error
+	waitCancellation( h, "cancelled")
+end
 
--- wait until cancellation is effective. the lane will be stopped by the linda operation throwing an error
-waitCancellation( h, "cancelled")
+if not next(which_tests) or which_tests.hard_unprotected then
+	remaining_tests.hard_unprotected = nil
+	print "\n\n####################################################################\nbegin hard cancel test with unprotected lane body\n"
+	h = lanes.gen( "*", laneBody)( "receive", nil)
 
-print "\n\n####################################################################\nbegin hard cancel test with unprotected lane body\n"
-h = lanes.gen( "*", laneBody)( "receive", nil)
+	-- wait 2s before cancelling the lane
+	print "wait 2s"
+	linda:receive( 2, "yeah")
 
--- wait 2s before cancelling the lane
-print "wait 2s"
-linda:receive( 2, "yeah")
+	-- hard cancel: the lane will be interrupted from inside its current linda:receive() and won't return from it
+	print "cancelling"
+	h:cancel()
 
--- hard cancel: the lane will be interrupted from inside its current linda:receive() and won't return from it
-h:cancel()
+	-- wait until cancellation is effective. the lane will be stopped by the linda operation throwing an error
+	waitCancellation( h, "cancelled")
+end
 
--- wait until cancellation is effective. the lane will be stopped by the linda operation throwing an error
-waitCancellation( h, "cancelled")
+if not next(which_tests) or which_tests.kill then
+	remaining_tests.kill = nil
+	print "\n\n####################################################################\nbegin kill cancel test\n"
+	h = lanes.gen( "*", laneBody)( "busy", 50000000) -- start a pure Lua busy loop lane
 
-print "\n\n####################################################################\nbegin kill cancel test\n"
-h = lanes.gen( "*", laneBody)( "busy", 50000000) -- start a pure Lua busy loop lane
+	-- wait 1/3s before cancelling the lane, before the busy loop can finish
+	print "wait 0.3s"
+	linda:receive( 0.3, "yeah")
 
--- wait 1/3s before cancelling the lane, before the busy loop can finish
-print "wait 0.3s"
-linda:receive( 0.3, "yeah")
+	-- hard cancel with kill: the lane thread will be forcefully terminated. kill timeout is pthread-specific
+	print "cancelling"
+	h:cancel( true, 1.0)
 
--- hard cancel with kill: the lane thread will be forcefully terminated
-h:cancel( true)
-
--- wait until cancellation is effective. the lane will be stopped by the linda operation throwing an error
-waitCancellation( h, "killed")
-
+	-- wait until cancellation is effective. the lane will be stopped by the linda operation throwing an error
+	waitCancellation( h, "killed")
+end
 --####################################################################
 
-print "\ndone"
+local unknown_test, val = next(remaining_tests)
+assert(not unknown_test, tostring(unknown_test) .. " test is unknown")
 
+print "\nTHE END"

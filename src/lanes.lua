@@ -70,6 +70,7 @@ lanes.configure = function( settings_)
     local default_params =
     {
         nb_keepers = 1,
+        keepers_gc_threshold = -1,
         on_state_create = nil,
         shutdown_timeout = 0.25,
         with_timers = true,
@@ -90,6 +91,10 @@ lanes.configure = function( settings_)
         nb_keepers = function( val_)
             -- nb_keepers should be a number > 0
             return type( val_) == "number" and val_ > 0
+        end,
+        keepers_gc_threshold = function( val_)
+            -- keepers_gc_threshold should be a number
+            return type( val_) == "number"
         end,
         with_timers = boolean_param_checker,
         allocator = function( val_)
@@ -363,261 +368,263 @@ lanes.configure = function( settings_)
 
     if settings.with_timers ~= false then
 
-    --
-    -- On first 'require "lanes"', a timer lane is spawned that will maintain
-    -- timer tables and sleep in between the timer events. All interaction with
-    -- the timer lane happens via a 'timer_gateway' Linda, which is common to
-    -- all that 'require "lanes"'.
-    --
-    -- Linda protocol to timer lane:
-    --
-    --  TGW_KEY: linda_h, key, [wakeup_at_secs], [repeat_secs]
-    --
-    local TGW_KEY= "(timer control)"    -- the key does not matter, a 'weird' key may help debugging
-    local TGW_QUERY, TGW_REPLY = "(timer query)", "(timer reply)"
-    local first_time_key= "first time"
+        --
+        -- On first 'require "lanes"', a timer lane is spawned that will maintain
+        -- timer tables and sleep in between the timer events. All interaction with
+        -- the timer lane happens via a 'timer_gateway' Linda, which is common to
+        -- all that 'require "lanes"'.
+        --
+        -- Linda protocol to timer lane:
+        --
+        --  TGW_KEY: linda_h, key, [wakeup_at_secs], [repeat_secs]
+        --
+        local TGW_KEY= "(timer control)"    -- the key does not matter, a 'weird' key may help debugging
+        local TGW_QUERY, TGW_REPLY = "(timer query)", "(timer reply)"
+        local first_time_key= "first time"
 
-    local first_time = timer_gateway:get( first_time_key) == nil
-    timer_gateway:set( first_time_key, true)
-
-    --
-    -- Timer lane; initialize only on the first 'require "lanes"' instance (which naturally
-    -- has 'table' always declared)
-    --
-    if first_time then
+        local first_time = timer_gateway:get( first_time_key) == nil
+        timer_gateway:set( first_time_key, true)
 
         local now_secs = core.now_secs
-        assert( type( now_secs) == "function")
-        -----
-        -- Snore loop (run as a lane on the background)
+        local wakeup_conv = core.wakeup_conv
+
         --
-        -- High priority, to get trustworthy timings.
+        -- Timer lane; initialize only on the first 'require "lanes"' instance (which naturally
+        -- has 'table' always declared)
         --
-        -- We let the timer lane be a "free running" thread; no handle to it
-        -- remains.
-        --
-        local timer_body = function()
-            set_debug_threadname( "LanesTimer")
-            --
-            -- { [deep_linda_lightuserdata]= { [deep_linda_lightuserdata]=linda_h,
-            --                                 [key]= { wakeup_secs [,period_secs] } [, ...] },
-            -- }
-            --
-            -- Collection of all running timers, indexed with linda's & key.
-            --
-            -- Note that we need to use the deep lightuserdata identifiers, instead
-            -- of 'linda_h' themselves as table indices. Otherwise, we'd get multiple
-            -- entries for the same timer.
-            --
-            -- The 'hidden' reference to Linda proxy is used in 'check_timers()' but
-            -- also important to keep the Linda alive, even if all outside world threw
-            -- away pointers to it (which would ruin uniqueness of the deep pointer).
-            -- Now we're safe.
-            --
-            local collection = {}
-            local table_insert = assert( table.insert)
+        if first_time then
 
-            local get_timers = function()
-                local r = {}
-                for deep, t in pairs( collection) do
-                    -- WR( tostring( deep))
-                    local l = t[deep]
-                    for key, timer_data in pairs( t) do
-                        if key ~= deep then
-                            table_insert( r, {l, key, timer_data})
-                        end
-                    end
-                end
-                return r
-            end -- get_timers()
-
-            --
-            -- set_timer( linda_h, key [,wakeup_at_secs [,period_secs]] )
-            --
-            local set_timer = function( linda, key, wakeup_at, period)
-                assert( wakeup_at == nil or wakeup_at > 0.0)
-                assert( period == nil or period > 0.0)
-
-                local linda_deep = linda:deep()
-                assert( linda_deep)
-
-                -- Find or make a lookup for this timer
-                --
-                local t1 = collection[linda_deep]
-                if not t1 then
-                    t1 = { [linda_deep] = linda}     -- proxy to use the Linda
-                    collection[linda_deep] = t1
-                end
-
-                if wakeup_at == nil then
-                    -- Clear the timer
-                    --
-                    t1[key]= nil
-
-                    -- Remove empty tables from collection; speeds timer checks and
-                    -- lets our 'safety reference' proxy be gc:ed as well.
-                    --
-                    local empty = true
-                    for k, _ in pairs( t1) do
-                        if k ~= linda_deep then
-                            empty = false
-                            break
-                        end
-                    end
-                    if empty then
-                        collection[linda_deep] = nil
-                    end
-
-                    -- Note: any unread timer value is left at 'linda[key]' intensionally;
-                    --       clearing a timer just stops it.
-                else
-                    -- New timer or changing the timings
-                    --
-                    local t2 = t1[key]
-                    if not t2 then
-                        t2= {}
-                        t1[key]= t2
-                    end
-
-                    t2[1] = wakeup_at
-                    t2[2] = period   -- can be 'nil'
-                end
-            end -- set_timer()
-
+            assert( type( now_secs) == "function")
             -----
-            -- [next_wakeup_at]= check_timers()
-            -- Check timers, and wake up the ones expired (if any)
-            -- Returns the closest upcoming (remaining) wakeup time (or 'nil' if none).
-            local check_timers = function()
-                local now = now_secs()
-                local next_wakeup
+            -- Snore loop (run as a lane on the background)
+            --
+            -- High priority, to get trustworthy timings.
+            --
+            -- We let the timer lane be a "free running" thread; no handle to it
+            -- remains.
+            --
+            local timer_body = function()
+                set_debug_threadname( "LanesTimer")
+                --
+                -- { [deep_linda_lightuserdata]= { [deep_linda_lightuserdata]=linda_h,
+                --                                 [key]= { wakeup_secs [,period_secs] } [, ...] },
+                -- }
+                --
+                -- Collection of all running timers, indexed with linda's & key.
+                --
+                -- Note that we need to use the deep lightuserdata identifiers, instead
+                -- of 'linda_h' themselves as table indices. Otherwise, we'd get multiple
+                -- entries for the same timer.
+                --
+                -- The 'hidden' reference to Linda proxy is used in 'check_timers()' but
+                -- also important to keep the Linda alive, even if all outside world threw
+                -- away pointers to it (which would ruin uniqueness of the deep pointer).
+                -- Now we're safe.
+                --
+                local collection = {}
+                local table_insert = assert( table.insert)
 
-                for linda_deep,t1 in pairs(collection) do
-                    for key,t2 in pairs(t1) do
+                local get_timers = function()
+                    local r = {}
+                    for deep, t in pairs( collection) do
+                        -- WR( tostring( deep))
+                        local l = t[deep]
+                        for key, timer_data in pairs( t) do
+                            if key ~= deep then
+                                table_insert( r, {l, key, timer_data})
+                            end
+                        end
+                    end
+                    return r
+                end -- get_timers()
+
+                --
+                -- set_timer( linda_h, key [,wakeup_at_secs [,period_secs]] )
+                --
+                local set_timer = function( linda, key, wakeup_at, period)
+                    assert( wakeup_at == nil or wakeup_at > 0.0)
+                    assert( period == nil or period > 0.0)
+
+                    local linda_deep = linda:deep()
+                    assert( linda_deep)
+
+                    -- Find or make a lookup for this timer
+                    --
+                    local t1 = collection[linda_deep]
+                    if not t1 then
+                        t1 = { [linda_deep] = linda}     -- proxy to use the Linda
+                        collection[linda_deep] = t1
+                    end
+
+                    if wakeup_at == nil then
+                        -- Clear the timer
                         --
-                        if key==linda_deep then
-                            -- no 'continue' in Lua :/
-                        else
-                            -- 't2': { wakeup_at_secs [,period_secs] }
+                        t1[key]= nil
+
+                        -- Remove empty tables from collection; speeds timer checks and
+                        -- lets our 'safety reference' proxy be gc:ed as well.
+                        --
+                        local empty = true
+                        for k, _ in pairs( t1) do
+                            if k ~= linda_deep then
+                                empty = false
+                                break
+                            end
+                        end
+                        if empty then
+                            collection[linda_deep] = nil
+                        end
+
+                        -- Note: any unread timer value is left at 'linda[key]' intensionally;
+                        --       clearing a timer just stops it.
+                    else
+                        -- New timer or changing the timings
+                        --
+                        local t2 = t1[key]
+                        if not t2 then
+                            t2= {}
+                            t1[key]= t2
+                        end
+
+                        t2[1] = wakeup_at
+                        t2[2] = period   -- can be 'nil'
+                    end
+                end -- set_timer()
+
+                -----
+                -- [next_wakeup_at]= check_timers()
+                -- Check timers, and wake up the ones expired (if any)
+                -- Returns the closest upcoming (remaining) wakeup time (or 'nil' if none).
+                local check_timers = function()
+                    local now = now_secs()
+                    local next_wakeup
+
+                    for linda_deep,t1 in pairs(collection) do
+                        for key,t2 in pairs(t1) do
                             --
-                            local wakeup_at= t2[1]
-                            local period= t2[2]     -- may be 'nil'
+                            if key==linda_deep then
+                                -- no 'continue' in Lua :/
+                            else
+                                -- 't2': { wakeup_at_secs [,period_secs] }
+                                --
+                                local wakeup_at= t2[1]
+                                local period= t2[2]     -- may be 'nil'
 
-                            if wakeup_at <= now then
-                                local linda= t1[linda_deep]
-                                assert(linda)
+                                if wakeup_at <= now then
+                                    local linda= t1[linda_deep]
+                                    assert(linda)
 
-                                linda:set( key, now )
+                                    linda:set( key, now )
 
-                                -- 'pairs()' allows the values to be modified (and even
-                                -- removed) as far as keys are not touched
+                                    -- 'pairs()' allows the values to be modified (and even
+                                    -- removed) as far as keys are not touched
 
-                                if not period then
-                                    -- one-time timer; gone
-                                    --
-                                    t1[key]= nil
-                                    wakeup_at= nil   -- no 'continue' in Lua :/
-                                else
-                                    -- repeating timer; find next wakeup (may jump multiple repeats)
-                                    --
-                                    repeat
-                                            wakeup_at= wakeup_at+period
-                                    until wakeup_at > now
+                                    if not period then
+                                        -- one-time timer; gone
+                                        --
+                                        t1[key]= nil
+                                        wakeup_at= nil   -- no 'continue' in Lua :/
+                                    else
+                                        -- repeating timer; find next wakeup (may jump multiple repeats)
+                                        --
+                                        repeat
+                                                wakeup_at= wakeup_at+period
+                                        until wakeup_at > now
 
-                                    t2[1]= wakeup_at
+                                        t2[1]= wakeup_at
+                                    end
+                                end
+
+                                if wakeup_at and ((not next_wakeup) or (wakeup_at < next_wakeup)) then
+                                    next_wakeup= wakeup_at
                                 end
                             end
+                        end -- t2 loop
+                    end -- t1 loop
 
-                            if wakeup_at and ((not next_wakeup) or (wakeup_at < next_wakeup)) then
-                                next_wakeup= wakeup_at
-                            end
-                        end
-                    end -- t2 loop
-                end -- t1 loop
+                    return next_wakeup  -- may be 'nil'
+                end -- check_timers()
 
-                return next_wakeup  -- may be 'nil'
-            end -- check_timers()
-
-            local timer_gateway_batched = timer_gateway.batched
-            set_finalizer( function( err, stk)
-                if err and type( err) ~= "userdata" then
-                    WR( "LanesTimer error: "..tostring(err))
-                --elseif type( err) == "userdata" then
-                --	WR( "LanesTimer after cancel" )
-                --else
-                --	WR("LanesTimer finalized")
-                end
-            end)
-            while true do
-                local next_wakeup = check_timers()
-
-                -- Sleep until next timer to wake up, or a set/clear command
-                --
-                local secs
-                if next_wakeup then
-                    secs =  next_wakeup - now_secs()
-                    if secs < 0 then secs = 0 end
-                end
-                local key, what = timer_gateway:receive( secs, TGW_KEY, TGW_QUERY)
-
-                if key == TGW_KEY then
-                    assert( getmetatable( what) == "Linda") -- 'what' should be a linda on which the client sets a timer
-                    local _, key, wakeup_at, period = timer_gateway:receive( 0, timer_gateway_batched, TGW_KEY, 3)
-                    assert( key)
-                    set_timer( what, key, wakeup_at, period and period > 0 and period or nil)
-                elseif key == TGW_QUERY then
-                    if what == "get_timers" then
-                        timer_gateway:send( TGW_REPLY, get_timers())
-                    else
-                        timer_gateway:send( TGW_REPLY, "unknown query " .. what)
+                local timer_gateway_batched = timer_gateway.batched
+                set_finalizer( function( err, stk)
+                    if err and type( err) ~= "userdata" then
+                        WR( "LanesTimer error: "..tostring(err))
+                    --elseif type( err) == "userdata" then
+                    --	WR( "LanesTimer after cancel" )
+                    --else
+                    --	WR("LanesTimer finalized")
                     end
-                --elseif secs == nil then -- got no value while block-waiting?
-                --	WR( "timer lane: no linda, aborted?")
+                end)
+                while true do
+                    local next_wakeup = check_timers()
+
+                    -- Sleep until next timer to wake up, or a set/clear command
+                    --
+                    local secs
+                    if next_wakeup then
+                        secs =  next_wakeup - now_secs()
+                        if secs < 0 then secs = 0 end
+                    end
+                    local key, what = timer_gateway:receive( secs, TGW_KEY, TGW_QUERY)
+
+                    if key == TGW_KEY then
+                        assert( getmetatable( what) == "Linda") -- 'what' should be a linda on which the client sets a timer
+                        local _, key, wakeup_at, period = timer_gateway:receive( 0, timer_gateway_batched, TGW_KEY, 3)
+                        assert( key)
+                        set_timer( what, key, wakeup_at, period and period > 0 and period or nil)
+                    elseif key == TGW_QUERY then
+                        if what == "get_timers" then
+                            timer_gateway:send( TGW_REPLY, get_timers())
+                        else
+                            timer_gateway:send( TGW_REPLY, "unknown query " .. what)
+                        end
+                    --elseif secs == nil then -- got no value while block-waiting?
+                    --	WR( "timer lane: no linda, aborted?")
+                    end
                 end
-            end
-        end -- timer_body()
-        timer_lane = gen( "*", { package= {}, priority = max_prio}, timer_body)() -- "*" instead of "io,package" for LuaJIT compatibility...
-    end -- first_time
+            end -- timer_body()
+            timer_lane = gen( "*", { package= {}, priority = max_prio}, timer_body)() -- "*" instead of "io,package" for LuaJIT compatibility...
+        end -- first_time
 
-    -----
-    -- = timer( linda_h, key_val, date_tbl|first_secs [,period_secs] )
-    --
-    -- PUBLIC LANES API
-    timer = function( linda, key, a, period )
-        if getmetatable( linda) ~= "Linda" then
-            error "expecting a Linda"
-        end
-        if a == 0.0 then
-            -- Caller expects to get current time stamp in Linda, on return
-            -- (like the timer had expired instantly); it would be good to set this
-            -- as late as possible (to give most current time) but also we want it
-            -- to precede any possible timers that might start striking.
-            --
-            linda:set( key, core.now_secs())
-
-            if not period or period==0.0 then
-                timer_gateway:send( TGW_KEY, linda, key, nil, nil )   -- clear the timer
-                return  -- nothing more to do
-            end
-            a= period
-        end
-
-        local wakeup_at= type(a)=="table" and core.wakeup_conv(a)    -- given point of time
-                                           or (a and core.now_secs()+a or nil)
-        -- queue to timer
+        -----
+        -- = timer( linda_h, key_val, date_tbl|first_secs [,period_secs] )
         --
-        timer_gateway:send( TGW_KEY, linda, key, wakeup_at, period )
-    end
+        -- PUBLIC LANES API
+        timer = function( linda, key, a, period )
+            if getmetatable( linda) ~= "Linda" then
+                error "expecting a Linda"
+            end
+            if a == 0.0 then
+                -- Caller expects to get current time stamp in Linda, on return
+                -- (like the timer had expired instantly); it would be good to set this
+                -- as late as possible (to give most current time) but also we want it
+                -- to precede any possible timers that might start striking.
+                --
+                linda:set( key, now_secs())
 
-    -----
-    -- {[{linda, slot, when, period}[,...]]} = timers()
-    --
-    -- PUBLIC LANES API
-    timers = function()
-        timer_gateway:send( TGW_QUERY, "get_timers")
-        local _, r = timer_gateway:receive( TGW_REPLY)
-        return r
-    end
+                if not period or period==0.0 then
+                    timer_gateway:send( TGW_KEY, linda, key, nil, nil )   -- clear the timer
+                    return  -- nothing more to do
+                end
+                a= period
+            end
+
+            local wakeup_at= type(a)=="table" and wakeup_conv(a)    -- given point of time
+                                               or (a and now_secs()+a or nil)
+            -- queue to timer
+            --
+            timer_gateway:send( TGW_KEY, linda, key, wakeup_at, period )
+        end -- timer()
+
+        -----
+        -- {[{linda, slot, when, period}[,...]]} = timers()
+        --
+        -- PUBLIC LANES API
+        timers = function()
+            timer_gateway:send( TGW_QUERY, "get_timers")
+            local _, r = timer_gateway:receive( TGW_REPLY)
+            return r
+        end -- timers()
 
     end -- settings.with_timers
 

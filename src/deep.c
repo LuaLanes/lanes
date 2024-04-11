@@ -236,7 +236,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
     *proxy = prelude;
 
     // Get/create metatable for 'idfunc' (in this state)
-    lua_pushlightuserdata( L, (void*)(ptrdiff_t)(prelude->idfunc));                                    // DPC proxy idfunc
+    lua_pushlightuserdata( L, (void*)(uintptr_t)(prelude->idfunc));                                    // DPC proxy idfunc
     get_deep_lookup( L);                                                                               // DPC proxy metatable?
 
     if( lua_isnil( L, -1)) // // No metatable yet.
@@ -278,7 +278,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
 
         // Memorize for later rounds
         lua_pushvalue( L, -1);                                                                           // DPC proxy metatable metatable
-        lua_pushlightuserdata( L, (void*)(ptrdiff_t)(prelude->idfunc));                                  // DPC proxy metatable metatable idfunc
+        lua_pushlightuserdata( L, (void*)(uintptr_t)(prelude->idfunc));                                  // DPC proxy metatable metatable idfunc
         set_deep_lookup( L);                                                                             // DPC proxy metatable
 
         // 2 - cause the target state to require the module that exported the idfunc
@@ -473,15 +473,18 @@ bool_t copydeep( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, ui
     lua_pop( L, 1);                                                                      // ... u [uv]*
     STACK_MID( L, nuv);
 
-    errmsg = push_deep_proxy( U, L2, *(DeepPrelude**) lua_touserdata( L, i), nuv, mode_);               // u
+    errmsg = push_deep_proxy( U, L2, *(DeepPrelude**) lua_touserdata( L, i), nuv, mode_);                   // u
 
     // transfer all uservalues of the source in the destination
     {
         int const clone_i = lua_gettop( L2);
         while( nuv)
         {
-            inter_copy_one( U, L2, L2_cache_i, L,  lua_absindex( L, -1), VT_NORMAL, mode_, upName_);        // u uv
-            lua_pop( L, 1);                                                                  // ... u [uv]*
+            if(!inter_copy_one( U, L2, L2_cache_i, L,  lua_absindex( L, -1), VT_NORMAL, mode_, upName_))    // u uv
+            {
+                return luaL_error(L, "Cannot copy upvalue type '%s'", luaL_typename(L, -1));
+            }
+            lua_pop( L, 1);                                                              // ... u [uv]*
             // this pops the value from the stack
             lua_setiuservalue( L2, clone_i, nuv);                                                           // u
             -- nuv;

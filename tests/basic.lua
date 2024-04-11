@@ -154,7 +154,7 @@ PRINT(" "..st)
 assert( st == "cancelled" )
 
 -- cancellation of lanes waiting on a linda
-local limited = lanes.linda()
+local limited = lanes.linda("limited")
 limited:limit( "key", 1)
 -- [[################################################
 limited:send( "key", "hello") -- saturate linda
@@ -234,7 +234,7 @@ local chunk= function( linda )
     WR( "Lane ends!\n" )
 end
 
-local linda= lanes_linda()
+local linda= lanes_linda("communications")
 assert( type(linda) == "userdata" )
     --
     -- ["->"] master -> slave
@@ -278,10 +278,12 @@ local complex_table = RECEIVE(); WR( type(complex_table).." received\n" )
 assert( complex_table[1] == complex_table[3] and complex_table[2] == complex_table[4])
 WR( table.concat( {complex_table[1][1],complex_table[2][1],complex_table[3][1],complex_table[4][1]},", "))
 
+WR("collectgarbage")
 t = nil
 collectgarbage()
 -- wait
-linda: receive( 1, "wait")
+WR("waiting 1s")
+linda:receive( 1, "wait")
 
 --##############################################################
 --##############################################################
@@ -336,6 +338,7 @@ for _, t in ipairs( stdlib_naming_tests) do
     assert( f(t[1])[1] )
 end
 
+WR("collectgarbage")
 collectgarbage()
 
 --##############################################################
@@ -361,12 +364,13 @@ local tc= lanes_gen( "io", {gc_cb = gc_cb},
   end
 )
 
-local linda= lanes_linda()
+local linda= lanes_linda("criss cross")
 
 local a,b= tc(linda, "A","B"), tc(linda, "B","A")   -- launching two lanes, twisted comms
 
 local _= a[1],b[1]  -- waits until they are both ready
 
+WR("collectgarbage")
 a, b = nil
 collectgarbage()
 
@@ -408,7 +412,7 @@ local function chunk2( linda )
     linda:send( "up", function() return ":)" end, "ok2" )
 end
 
-local linda= lanes.linda()
+local linda= lanes.linda("linda")
 local t2= lanes_gen( "debug,string,io", {gc_cb = gc_cb}, chunk2 )(linda)     -- prepare & launch
 linda:send( "down", function(linda) linda:send( "up", "ready!" ) end,
                     "ok" )

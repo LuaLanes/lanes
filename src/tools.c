@@ -242,8 +242,14 @@ void initialize_allocator_function( Universe* U, lua_State* L)
             U->internal_allocator.allocF = libc_lua_Alloc;
             U->internal_allocator.allocUD = NULL;
         }
+        else if (U->provide_allocator == luaG_provide_protected_allocator)
+        {
+            // user wants mutex protection on the state's allocator. Use protection for our own allocations too, just in case.
+            U->internal_allocator.allocF = lua_getallocf(L, &U->internal_allocator.allocUD);
+        }
         else
         {
+            // no protection required, just use whatever we have as-is.
             U->internal_allocator = U->protected_allocator.definition;
         }
     }
@@ -844,8 +850,8 @@ static bool_t lookup_table( lua_State* L2, lua_State* L, uint_t i, LookupMode mo
  */
 static bool_t push_cached_table( lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t i)
 {
-    bool_t not_found_in_cache;                                                                     // L2
-    DECLARE_CONST_UNIQUE_KEY( p, lua_topointer( L, i));
+    bool_t not_found_in_cache;                                                                       // L2
+    void const* p = lua_topointer( L, i);
 
     ASSERT_L( L2_cache_i != 0);
     STACK_GROW( L2, 3);
@@ -854,17 +860,17 @@ static bool_t push_cached_table( lua_State* L2, uint_t L2_cache_i, lua_State* L,
     // We don't need to use the from state ('L') in ID since the life span
     // is only for the duration of a copy (both states are locked).
     // push a light userdata uniquely representing the table
-    push_unique_key( L2, p);                                                                       // ... p
+    lua_pushlightuserdata( L2, (void*) p);                                                           // ... p
 
     //fprintf( stderr, "<< ID: %s >>\n", lua_tostring( L2, -1));
 
-    lua_rawget( L2, L2_cache_i);                                                                   // ... {cached|nil}
+    lua_rawget( L2, L2_cache_i);                                                                     // ... {cached|nil}
     not_found_in_cache = lua_isnil( L2, -1);
     if( not_found_in_cache)
     {
         lua_pop( L2, 1);                                                                             // ...
         lua_newtable( L2);                                                                           // ... {}
-        push_unique_key( L2, p);                                                                     // ... {} p
+        lua_pushlightuserdata( L2, (void*) p);                                                       // ... {} p
         lua_pushvalue( L2, -2);                                                                      // ... {} p {}
         lua_rawset( L2, L2_cache_i);                                                                 // ... {}
     }
@@ -1446,7 +1452,7 @@ static void inter_copy_keyvaluepair( Universe* U, lua_State* L2, uint_t L2_cache
     uint_t key_i = val_i - 1;
 
     // Only basic key types are copied over; others ignored
-    if( inter_copy_one( U, L2, 0 /*key*/, L, key_i, VT_KEY, mode_, upName_))
+    if( inter_copy_one( U, L2, L2_cache_i, L, key_i, VT_KEY, mode_, upName_))
     {
         char* valPath = (char*) upName_;
         if( U->verboseErrors)
@@ -1596,7 +1602,10 @@ static bool_t copyclone( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_Stat
         // assign uservalues
         while( uvi > 0)
         {
-            inter_copy_one( U, L2, L2_cache_i, L, lua_absindex( L, -1), VT_NORMAL, mode_, upName_);          // ... u uv
+            if(!inter_copy_one( U, L2, L2_cache_i, L, lua_absindex( L, -1), VT_NORMAL, mode_, upName_))      // ... u uv
+            {
+                (void) luaL_error(L, "Cannot copy upvalue type '%s'", luaL_typename(L, -1));
+            }
             lua_pop( L, 1);                                                  // ... mt __lanesclone [uv]*
             // this pops the value from the stack
             lua_setiuservalue( L2, -2, uvi);                                                                 // ... u
@@ -1730,7 +1739,10 @@ static bool_t inter_copy_function( Universe* U, lua_State* L2, uint_t L2_cache_i
             // transfer and assign uservalues
             while( uvi > 0)
             {
-                inter_copy_one( U, L2, L2_cache_i, L, lua_absindex( L, -1), vt, mode_, upName_);                 // ... mt u uv
+                if(!inter_copy_one( U, L2, L2_cache_i, L, lua_absindex( L, -1), vt, mode_, upName_))             // ... mt u uv
+                {
+                    (void) luaL_error(L, "Cannot copy upvalue type '%s'", luaL_typename(L, -1));
+                }
                 lua_pop( L, 1);                                                    // ... u [uv]*
                 // this pops the value from the stack
                 lua_setiuservalue( L2, -2, uvi);                                                                 // ... mt u
@@ -1957,7 +1969,7 @@ bool_t inter_copy_one( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State*
 *
 * Note: Parameters are in this order ('L' = from first) to be same as 'lua_xmove'.
 */
-int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupMode mode_)
+InterCopyResult luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupMode mode_)
 {
     uint_t top_L = lua_gettop( L);                                    // ... {}n
     uint_t top_L2 = lua_gettop( L2);                                                               // ...
@@ -1974,7 +1986,7 @@ int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupM
         // requesting to copy more than is available?
         DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "nothing to copy()\n" INDENT_END));
         DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
-        return -1;
+        return eICR_NotEnoughValues;
     }
 
     STACK_CHECK( L2, 0);
@@ -2010,24 +2022,24 @@ int luaG_inter_copy( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupM
         // Remove the cache table. Persistent caching would cause i.e. multiple
         // messages passed in the same table to use the same table also in receiving end.
         lua_remove( L2, top_L2 + 1);
-        return 0;
+        return eICR_Success;
     }
 
     // error -> pop everything from the target state stack
     lua_settop( L2, top_L2);
     STACK_END( L2, 0);
-    return -2;
+    return eICR_Error;
 }
 
 
-int luaG_inter_move( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupMode mode_)
+InterCopyResult luaG_inter_move( Universe* U, lua_State* L, lua_State* L2, uint_t n, LookupMode mode_)
 {
-    int ret = luaG_inter_copy( U, L, L2, n, mode_);
+    InterCopyResult ret = luaG_inter_copy( U, L, L2, n, mode_);
     lua_pop( L, (int) n);
     return ret;
 }
 
-int luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int package_idx_, LookupMode mode_)
+InterCopyResult luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int package_idx_, LookupMode mode_)
 {
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_inter_copy_package()\n" INDENT_END));
     DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
@@ -2040,7 +2052,11 @@ int luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int packa
         lua_pushfstring( L, "expected package as table, got %s", luaL_typename( L, package_idx_));
         STACK_MID( L, 1);
         // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
-        return ( mode_ == eLM_LaneBody) ? lua_error( L) : 1;
+        if (mode_ == eLM_LaneBody)
+        {
+            lua_error(L); // doesn't return
+        }
+        return eICR_Error;
     }
     lua_getglobal( L2, "package");
     if( !lua_isnil( L2, -1)) // package library not loaded: do nothing
@@ -2076,5 +2092,5 @@ int luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int packa
     STACK_END( L2, 0);
     STACK_END( L, 0);
     DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
-    return 0;
+    return eICR_Success;
 }

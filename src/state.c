@@ -205,7 +205,7 @@ static void copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2)
 
     REGISTRY_GET( L, CONFIG_REGKEY);                                               // config
                                                                                                                                                                  // copy settings from from source to destination registry
-    if( luaG_inter_move( U, L, L2, 1, eLM_LaneBody) < 0)                           //                           // config
+    if( luaG_inter_move( U, L, L2, 1, eLM_LaneBody) != eICR_Success)               //                           // config
     {
         (void) luaL_error( L, "failed to copy settings when loading lanes.core");
     }

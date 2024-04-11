@@ -442,7 +442,7 @@ static bool_t selfdestruct_remove( Lane* s)
 /*
 * Process end; cancel any still free-running threads
 */
-static int selfdestruct_gc( lua_State* L)
+static int universe_gc( lua_State* L)
 {
     Universe* U = (Universe*) lua_touserdata( L, 1);
 
@@ -456,7 +456,7 @@ static int selfdestruct_gc( lua_State* L)
             while( s != SELFDESTRUCT_END)
             {
                 // attempt a regular unforced hard cancel with a small timeout
-                bool_t cancelled = THREAD_ISNULL( s->thread) || thread_cancel( L, s, CO_Hard, 0.0001, FALSE, 0.0);
+                bool_t cancelled = THREAD_ISNULL( s->thread) || (thread_cancel( L, s, CO_Hard, 0.0001, FALSE, 0.0) != CR_Timeout);
                 // if we failed, and we know the thread is waiting on a linda
                 if( cancelled == FALSE && s->status == WAITING && s->waiting_on != NULL)
                 {
@@ -609,7 +609,7 @@ static int selfdestruct_gc( lua_State* L)
 //
 LUAG_FUNC( set_singlethreaded)
 {
-    uint_t cores = luaG_optunsigned( L, 1, 1);
+    lua_Integer cores = luaG_optunsigned( L, 1, 1);
     (void) cores; // prevent "unused" warning
 
 #ifdef PLATFORM_OSX
@@ -653,24 +653,16 @@ static DECLARE_CONST_UNIQUE_KEY( EXTENDED_STACKTRACE_REGKEY, 0x2357c69a7c92c936)
 
 LUAG_FUNC( set_error_reporting)
 {
-    bool_t equal;
-    luaL_checktype( L, 1, LUA_TSTRING);
-    lua_pushliteral( L, "extended");
-    equal = lua_rawequal( L, -1, 1);
-    lua_pop( L, 1);
-    if( equal)
+    luaL_checktype(L, 1, LUA_TSTRING);
+    char const* mode = lua_tostring(L, 1);
+    bool_t const extended = (strcmp(mode, "extended") == 0);
+    bool_t const basic = (strcmp(mode, "basic") == 0);
+    if (!extended && !basic)
     {
-        goto done;
+        return luaL_error(L, "unsupported error reporting model %s", mode);
     }
-    lua_pushliteral( L, "basic");
-    equal = !lua_rawequal( L, -1, 1);
-    lua_pop( L, 1);
-    if( equal)
-    {
-        return luaL_error( L, "unsupported error reporting model");
-    }
-done:
-    REGISTRY_SET( L, EXTENDED_STACKTRACE_REGKEY, lua_pushboolean( L, equal));
+
+    REGISTRY_SET( L, EXTENDED_STACKTRACE_REGKEY, lua_pushboolean( L, extended ? 1 : 0));
     return 0;
 }
 
@@ -788,7 +780,8 @@ static void push_stack_trace( lua_State* L, int rc_, int stk_base_)
 
 LUAG_FUNC( set_debug_threadname)
 {
-    DECLARE_CONST_UNIQUE_KEY( hidden_regkey, LG_set_debug_threadname);
+    // fnv164 of string "debug_threadname" generated at https://www.pelock.com/products/hash-calculator
+    static DECLARE_CONST_UNIQUE_KEY( hidden_regkey, 0x79C0669AAAE04440);
     // C s_lane structure is a light userdata upvalue
     Lane* s = lua_touserdata( L, lua_upvalueindex( 1));
     luaL_checktype( L, -1, LUA_TSTRING);                           // "name"
@@ -1049,10 +1042,10 @@ LUAG_FUNC( lane_new)
     char const* libs_str = lua_tostring( L, 2);
     bool_t const have_priority = !lua_isnoneornil( L, 3);
     int const priority = have_priority ? (int) lua_tointeger( L, 3) : THREAD_PRIO_DEFAULT;
-    uint_t const globals_idx = lua_isnoneornil( L, 4) ? 0 : 4;
-    uint_t const package_idx = lua_isnoneornil( L, 5) ? 0 : 5;
-    uint_t const required_idx = lua_isnoneornil( L, 6) ? 0 : 6;
-    uint_t const gc_cb_idx = lua_isnoneornil( L, 7) ? 0 : 7;
+    int const globals_idx = lua_isnoneornil( L, 4) ? 0 : 4;
+    int const package_idx = lua_isnoneornil( L, 5) ? 0 : 5;
+    int const required_idx = lua_isnoneornil( L, 6) ? 0 : 6;
+    int const gc_cb_idx = lua_isnoneornil( L, 7) ? 0 : 7;
 
 #define FIXED_ARGS 7
     int const nargs = lua_gettop(L) - FIXED_ARGS;
@@ -1090,7 +1083,8 @@ LUAG_FUNC( lane_new)
     if( package_idx != 0)
     {
         // when copying with mode eLM_LaneBody, should raise an error in case of problem, not leave it one the stack
-        (void) luaG_inter_copy_package( U, L, L2, package_idx, eLM_LaneBody);
+        InterCopyResult const ret = luaG_inter_copy_package( U, L, L2, package_idx, eLM_LaneBody);
+        ASSERT_L(ret == eICR_Success); // either all went well, or we should not even get here
     }
 
     // modules to require in the target lane *before* the function is transfered!
@@ -1179,25 +1173,32 @@ LUAG_FUNC( lane_new)
     STACK_MID( L2, 0);
 
     // Lane main function
-    if( lua_type( L, 1) == LUA_TFUNCTION)
     {
-        int res;
-        DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane body\n" INDENT_END));
-        DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
-        lua_pushvalue( L, 1);                                        // func libs priority globals package required gc_cb [... args ...] func
-        res = luaG_inter_move( U, L, L2, 1, eLM_LaneBody);           // func libs priority globals package required gc_cb [... args ...]       // func
-        DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
-        if( res != 0)
+        int const func_type = lua_type(L, 1);
+        if (func_type == LUA_TFUNCTION)
         {
-            return luaL_error( L, "tried to copy unsupported types");
+            InterCopyResult res;
+            DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: transfer lane body\n" INDENT_END));
+            DEBUGSPEW_CODE(++U->debugspew_indent_depth);
+            lua_pushvalue(L, 1);                                     // func libs priority globals package required gc_cb [... args ...] func
+            res = luaG_inter_move(U, L, L2, 1, eLM_LaneBody);        // func libs priority globals package required gc_cb [... args ...]       // func
+            DEBUGSPEW_CODE(--U->debugspew_indent_depth);
+            if (res != eICR_Success)
+            {
+                return luaL_error(L, "tried to copy unsupported types");
+            }
         }
-    }
-    else if( lua_type( L, 1) == LUA_TSTRING)
-    {
-        // compile the string
-        if( luaL_loadstring( L2, lua_tostring( L, 1)) != 0)                                                                                    // func
+        else if (func_type == LUA_TSTRING)
         {
-            return luaL_error( L, "error when parsing lane function code");
+            // compile the string
+            if (luaL_loadstring(L2, lua_tostring(L, 1)) != 0)                                                                                  // func
+            {
+                return luaL_error(L, "error when parsing lane function code");
+            }
+        }
+        else
+        {
+            luaL_error(L, "Expected function, got %s", lua_typename(L, func_type)); // doesn't return
         }
     }
     STACK_MID( L, 0);
@@ -1207,12 +1208,12 @@ LUAG_FUNC( lane_new)
     // revive arguments
     if( nargs > 0)
     {
-        int res;
+        InterCopyResult res;
         DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane arguments\n" INDENT_END));
         DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
         res = luaG_inter_move( U, L, L2, nargs, eLM_LaneBody);       // func libs priority globals package required gc_cb                      // func [... args ...]
         DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
-        if( res != 0)
+        if( res != eICR_Success)
         {
             return luaL_error( L, "tried to copy unsupported types");
         }
@@ -1277,7 +1278,7 @@ LUAG_FUNC( lane_new)
     lua_setiuservalue( L, -2, 1);                                    // func libs priority globals package required gc_cb lane
 
     // Store 's' in the lane's registry, for 'cancel_test()' (we do cancel tests at pending send/receive).
-    REGISTRY_SET( L2, CANCEL_TEST_KEY, lua_pushlightuserdata( L2, s));                                                                         // func [... args ...]
+    REGISTRY_SET( L2, LANE_POINTER_REGKEY, lua_pushlightuserdata( L2, s));                                                                     // func [... args ...]
 
     STACK_END( L, 1);
     STACK_END( L2, 1 + nargs);
@@ -1457,8 +1458,8 @@ LUAG_FUNC( thread_join)
         {
             case DONE:
             {
-                uint_t n = lua_gettop( L2);       // whole L2 stack
-                if( (n > 0) && (luaG_inter_move( U, L2, L, n, eLM_LaneBody) != 0))
+                int n = lua_gettop( L2);       // whole L2 stack
+                if( (n > 0) && (luaG_inter_move( U, L2, L, n, eLM_LaneBody) != eICR_Success))
                 {
                     return luaL_error( L, "tried to copy unsupported types");
                 }
@@ -1472,7 +1473,7 @@ LUAG_FUNC( thread_join)
                 STACK_GROW( L, 3);
                 lua_pushnil( L);
                 // even when ERROR_FULL_STACK, if the error is not LUA_ERRRUN, the handler wasn't called, and we only have 1 error message on the stack ...
-                if( luaG_inter_move( U, L2, L, n, eLM_LaneBody) != 0)  // nil "err" [trace]
+                if( luaG_inter_move( U, L2, L, n, eLM_LaneBody) != eICR_Success)  // nil "err" [trace]
                 {
                     return luaL_error( L, "tried to copy unsupported types: %s", lua_tostring( L, -n));
                 }
@@ -1874,7 +1875,7 @@ LUAG_FUNC( configure)
         DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
         lua_newtable( L);                                                                  // settings universe mt
         lua_getfield( L, 1, "shutdown_timeout");                                           // settings universe mt shutdown_timeout
-        lua_pushcclosure( L, selfdestruct_gc, 1);                                          // settings universe mt selfdestruct_gc
+        lua_pushcclosure( L, universe_gc, 1);                                              // settings universe mt universe_gc
         lua_setfield( L, -2, "__gc");                                                      // settings universe mt
         lua_setmetatable( L, -2);                                                          // settings universe
         lua_pop( L, 1);                                                                    // settings
@@ -2051,16 +2052,20 @@ static void EnableCrashingOnCrashes( void)
         const DWORD EXCEPTION_SWALLOWING = 0x1;
 
         HMODULE kernel32 = LoadLibraryA("kernel32.dll");
-        tGetPolicy pGetPolicy = (tGetPolicy)GetProcAddress(kernel32, "GetProcessUserModeExceptionPolicy");
-        tSetPolicy pSetPolicy = (tSetPolicy)GetProcAddress(kernel32, "SetProcessUserModeExceptionPolicy");
-        if( pGetPolicy && pSetPolicy)
+        if (kernel32)
         {
-            DWORD dwFlags;
-            if( pGetPolicy( &dwFlags))
+            tGetPolicy pGetPolicy = (tGetPolicy)GetProcAddress(kernel32, "GetProcessUserModeExceptionPolicy");
+            tSetPolicy pSetPolicy = (tSetPolicy)GetProcAddress(kernel32, "SetProcessUserModeExceptionPolicy");
+            if( pGetPolicy && pSetPolicy)
             {
-                // Turn off the filter
-                pSetPolicy( dwFlags & ~EXCEPTION_SWALLOWING);
+                DWORD dwFlags;
+                if( pGetPolicy( &dwFlags))
+                {
+                    // Turn off the filter
+                    pSetPolicy( dwFlags & ~EXCEPTION_SWALLOWING);
+                }
             }
+            FreeLibrary(kernel32);
         }
         //typedef void (* SignalHandlerPointer)( int);
         /*SignalHandlerPointer previousHandler =*/ signal( SIGABRT, signal_handler);
@@ -2072,7 +2077,7 @@ static void EnableCrashingOnCrashes( void)
         while( !s_ecoc_go_ahead) { Sleep(1); } // changes threads
     }
 }
-#endif // PLATFORM_WIN32
+#endif // PLATFORM_WIN32 && !defined NDEBUG
 
 int LANES_API luaopen_lanes_core( lua_State* L)
 {

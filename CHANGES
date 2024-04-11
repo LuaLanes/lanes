@@ -1,5 +1,12 @@
 CHANGES:
 
+CHANGE 160: BGe 11-Apr-24
+   * add manual control over GC behavior in keeper states
+   * update a bunch of test scripts
+   * minor internal fixes
+   * probably the last C implementation update, unless a critical bug creeps up
+   * internal version bumped to 3.17.0
+
 CHANGE 159: BGe 19-Mar-24
    * fix small internal issue with when hitting timeout on thread kill during thread_cancel() in pthread implementation
 

@@ -122,7 +122,7 @@ static void fifo_push( lua_State* L, keeper_fifo* fifo_, lua_Integer count_)
 static void fifo_peek( lua_State* L, keeper_fifo* fifo_, lua_Integer count_)
 {
     lua_Integer i;
-    STACK_GROW( L, count_);
+    STACK_GROW( L, (int) count_);
     for( i = 0; i < count_; ++ i)
     {
         lua_rawgeti( L, 1, (int)( fifo_->first + i));
@@ -136,7 +136,7 @@ static void fifo_pop( lua_State* L, keeper_fifo* fifo_, lua_Integer count_)
     int const fifo_idx = lua_gettop( L);     // ... fifo
     int i;
     // each iteration pushes a value on the stack!
-    STACK_GROW( L, count_ + 2);
+    STACK_GROW( L, (int) count_ + 2);
     // skip first item, we will push it last
     for( i = 1; i < count_; ++ i)
     {
@@ -169,7 +169,7 @@ static void fifo_pop( lua_State* L, keeper_fifo* fifo_, lua_Integer count_)
 static DECLARE_CONST_UNIQUE_KEY( FIFOS_KEY, 0xdce50bbc351cd465);
 static void push_table( lua_State* L, int idx_)
 {
-    STACK_GROW( L, 4);
+    STACK_GROW( L, 5);
     STACK_CHECK( L, 0);
     idx_ = lua_absindex( L, idx_);
     REGISTRY_GET( L, FIFOS_KEY);                 // ud fifos
@@ -189,7 +189,7 @@ static void push_table( lua_State* L, int idx_)
     STACK_END( L, 1);
 }
 
-int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, ptrdiff_t magic_)
+int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, uintptr_t magic_)
 {
     Keeper* const K = which_keeper( U->keepers, magic_);
     lua_State* const KL = K ? K->L : NULL;
@@ -557,7 +557,7 @@ int keepercall_count( lua_State* L)
             {
                 lua_pop( L, 1);                                // out fifos keys
             }
-        }
+        } // all keys are exhausted                            // out fifos
         lua_pop( L, 1);                                    // out
     }
     ASSERT_L( lua_gettop( L) == 1);
@@ -633,6 +633,7 @@ void init_keepers( Universe* U, lua_State* L)
 {
     int i;
     int nb_keepers;
+    int keepers_gc_threshold;
 
     STACK_CHECK( L, 0);                                    // L                            K
     lua_getfield( L, 1, "nb_keepers");                     // nb_keepers
@@ -642,6 +643,12 @@ void init_keepers( Universe* U, lua_State* L)
     {
         (void) luaL_error( L, "Bad number of keepers (%d)", nb_keepers);
     }
+    STACK_MID(L, 0);
+
+    lua_getfield(L, 1, "keepers_gc_threshold");            // keepers_gc_threshold
+    keepers_gc_threshold = (int) lua_tointeger(L, -1);
+    lua_pop(L, 1);                                         //
+    STACK_MID(L, 0);
 
     // Keepers contains an array of 1 s_Keeper, adjust for the actual number of keeper states
     {
@@ -656,6 +663,7 @@ void init_keepers( Universe* U, lua_State* L)
             return;
         }
         memset( U->keepers, 0, bytes);
+        U->keepers->gc_threshold = keepers_gc_threshold;
         U->keepers->nb_keepers = nb_keepers;
     }
     for( i = 0; i < nb_keepers; ++ i)                      // keepersUD
@@ -669,10 +677,12 @@ void init_keepers( Universe* U, lua_State* L)
         }
 
         U->keepers->keeper_array[i].L = K;
-        // we can trigger a GC from inside keeper_call(), where a keeper is acquired
-        // from there, GC can collect a linda, which would acquire the keeper again, and deadlock the thread.
-        // therefore, we need a recursive mutex.
-        MUTEX_RECURSIVE_INIT( &U->keepers->keeper_array[i].keeper_cs);
+        MUTEX_INIT( &U->keepers->keeper_array[i].keeper_cs);
+
+        if (U->keepers->gc_threshold >= 0)
+        {
+            lua_gc(K, LUA_GCSTOP, 0);
+        }
 
         STACK_CHECK( K, 0);
 
@@ -693,7 +703,7 @@ void init_keepers( Universe* U, lua_State* L)
         if( !lua_isnil( L, -1))
         {
             // when copying with mode eLM_ToKeeper, error message is pushed at the top of the stack, not raised immediately
-            if( luaG_inter_copy_package( U, L, K, -1, eLM_ToKeeper))
+            if( luaG_inter_copy_package( U, L, K, -1, eLM_ToKeeper) != eICR_Success)
             {
                 // if something went wrong, the error message is at the top of the stack
                 lua_remove( L, -2);                              // error_msg
@@ -721,22 +731,22 @@ void init_keepers( Universe* U, lua_State* L)
 }
 
 // should be called only when inside a keeper_acquire/keeper_release pair (see linda_protected_call)
-Keeper* which_keeper(Keepers* keepers_, ptrdiff_t magic_)
+Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_)
 {
     int const nbKeepers = keepers_->nb_keepers;
-    unsigned int i = (unsigned int)((magic_ >> KEEPER_MAGIC_SHIFT) % nbKeepers);
-    return &keepers_->keeper_array[i];
+    if (nbKeepers)
+    {
+        unsigned int i = (unsigned int)((magic_ >> KEEPER_MAGIC_SHIFT) % nbKeepers);
+        return &keepers_->keeper_array[i];
+    }
+    return NULL;
 }
 
-Keeper* keeper_acquire( Keepers* keepers_, ptrdiff_t magic_)
+Keeper* keeper_acquire( Keepers* keepers_, uintptr_t magic_)
 {
     int const nbKeepers = keepers_->nb_keepers;
     // can be 0 if this happens during main state shutdown (lanes is being GC'ed -> no keepers)
-    if( nbKeepers == 0)
-    {
-        return NULL;
-    }
-    else
+    if( nbKeepers)
     {
         /*
         * Any hashing will do that maps pointers to 0..GNbKeepers-1 
@@ -752,12 +762,13 @@ Keeper* keeper_acquire( Keepers* keepers_, ptrdiff_t magic_)
         //++ K->count;
         return K;
     }
+    return NULL;
 }
 
-void keeper_release( Keeper* K)
+void keeper_release( Keeper* K_)
 {
     //-- K->count;
-    if( K) MUTEX_UNLOCK( &K->keeper_cs);
+    if( K_) MUTEX_UNLOCK( &K_->keeper_cs);
 }
 
 void keeper_toggle_nil_sentinels( lua_State* L, int val_i_, LookupMode const mode_)
@@ -805,7 +816,7 @@ int keeper_call( Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, vo
 
     lua_pushlightuserdata( K, linda);
 
-    if( (args == 0) || luaG_inter_copy( U, L, K, args, eLM_ToKeeper) == 0) // L->K
+    if( (args == 0) || luaG_inter_copy( U, L, K, args, eLM_ToKeeper) == eICR_Success) // L->K
     {
         lua_call( K, 1 + args, LUA_MULTRET);
 
@@ -814,12 +825,38 @@ int keeper_call( Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, vo
         // this may interrupt a lane, causing the destruction of the underlying OS thread
         // after this, another lane making use of this keeper can get an error code from the mutex-locking function
         // when attempting to grab the mutex again (WINVER <= 0x400 does this, but locks just fine, I don't know about pthread)
-        if( (retvals > 0) && luaG_inter_move( U, K, L, retvals, eLM_FromKeeper) != 0) // K->L
+        if( (retvals > 0) && luaG_inter_move( U, K, L, retvals, eLM_FromKeeper) != eICR_Success) // K->L
         {
             retvals = -1;
         }
     }
     // whatever happens, restore the stack to where it was at the origin
     lua_settop( K, Ktos);
+
+
+    // don't do this for this particular function, as it is only called during Linda destruction, and we don't want to raise an error, ever
+    if (func_ != KEEPER_API(clear))
+    {
+        // since keeper state GC is stopped, let's run a step once in a while if required
+        int const gc_threshold = U->keepers->gc_threshold;
+        if (gc_threshold == 0)
+        {
+            lua_gc(K, LUA_GCSTEP, 0);
+        }
+        else if (gc_threshold > 0)
+        {
+            int const gc_usage = lua_gc(K, LUA_GCCOUNT, 0);
+            if (gc_usage >= gc_threshold)
+            {
+                lua_gc(K, LUA_GCCOLLECT, 0);
+                int const gc_usage_after = lua_gc(K, LUA_GCCOUNT, 0);
+                if (gc_usage_after > gc_threshold)
+                {
+                    luaL_error(L, "Keeper GC threshold is too low, need at least %d", gc_usage_after);
+                }
+            }
+        }
+    }
+
     return retvals;
 }

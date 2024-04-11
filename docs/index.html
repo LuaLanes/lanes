@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 23-Feb-24, and applies to version <tt>3.16.3</tt>.
+				This document was revised on 11-Apr-24, and applies to version <tt>3.17.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -291,6 +291,19 @@
 		</tr>
 
 		<tr valign=top>
+			<td id="keepers_gc_threshold">
+				<code>.keepers_gc_threshold</code>
+			</td>
+			<td>integer</td>
+			<td>
+				(Since v3.17.0)<br/>
+				If &lt;0, GC runs automatically. This is the default.<br />
+				If 0, GC runs after *every* keeper operation.<br />
+				If &gt;0, Keepers run GC manually with <tt>lua_gc(LUA_GCCOLLECT)</tt> whenever memory usage reported by <tt>lua_gc(LUA_GCCOUNT)</tt> reaches this threshold. Check is made after every keeper operation (see <a href="#lindas">below</a>). If memory usage remains above threshold after the GC cycle, an error is raised.
+			</td>
+		</tr>
+
+		<tr valign=top>
 			<td id="with_timers">
 				<code>.with_timers</code>
 			</td>
@@ -351,7 +364,6 @@
 				</table>
 				The contents will be used to create the state with <tt>lua_newstate( allocF, allocUD)</tt>.
 				This option is mostly useful for embedders that want to provide different allocators to each lane, for example to have each one work in a different memory pool thus preventing the need for the allocator itself to be threadsafe.
-				Note however that linda deep proxy are allocated with the allocator from the master state, because they are not tied to a particular state.
 			</td>
 		</tr>
 
@@ -364,7 +376,7 @@
 			</td>
 			<td>
 				(Since v3.16.1)<br />
-				Controls which allocator is used for Lanest internal allocations (for keeper and deep userdata management).
+				Controls which allocator is used for Lanes internal allocations (for keeper, linda and lane management).
 				If <tt>"libc"</tt>, Lanes uses <tt>realloc</tt> and <tt>free</tt>.<br />
 				If <tt>"allocator"</tt>, Lanes uses whatever was obtained from the <tt>"allocator"</tt> setting.<br />
 				This option is mostly useful for embedders that want control all memory allocations, but have issues when Lanes tries to use the Lua State allocator for internal purposes (especially with LuaJIT).
@@ -911,7 +923,7 @@
 	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 		<tr>
 			<td>
-				<pre>	{{name = "name", status = "status", ...}|nil = lanes.threads()</pre>
+				<pre>	{name = "name", status = "status", ...}|nil = lanes.threads()</pre>
 			</td>
 		</tr>
 	</table>
@@ -1617,8 +1629,8 @@ events to a common Linda, but... :).</font>
 <h3 id="clonable_userdata">Clonable full userdata in your own apps</h3>
 <p>
 	Starting with version 3.13.0, a new way of passing full userdata across lanes uses a new <tt>__lanesclone</tt> metamethod.
-	When a deep userdata is cloned, Lanes calls <tt>__lanesclone</tt> once, in the context of the source lane.</br>
-	The call receives the clone and original as light userdata, plus the actual userdata size, as in <tt>clone:__lanesclone(original,size)</tt>, and should perform the actual cloning.</br>
+	When a deep userdata is cloned, Lanes calls <tt>__lanesclone</tt> once, in the context of the source lane.<br/>
+	The call receives the clone and original as light userdata, plus the actual userdata size, as in <tt>clone:__lanesclone(original,size)</tt>, and should perform the actual cloning.<br/>
 	A typical implementation would look like (BEWARE, THIS CHANGED WITH VERSION 3.16.0):
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 static int clonable_lanesclone( lua_State* L)

@@ -18,13 +18,14 @@ end
 
 local T1= "1s"  -- these keys can be anything...
 local T2= "5s"
+local PING_DURATION = 20
 
 local step= {}
 
 lanes.timer( linda, T1, 1.0, 1.0 )
 step[T1]= 1.0
 
-PRINT( "\n*** Timers every second (not synced to wall clock) ***\n" )
+PRINT( "\n*** Starting 1s Timer (not synced to wall clock) ***\n" )
 
 local v_first
 local v_last= {}     -- { [channel]= num }
@@ -46,14 +47,15 @@ while true do
             -- do not make measurements, first round is not 5secs due to wall clock adjustment
             T2_first_round= false
         else
-            assert( math.abs(v-v_last[channel]- step[channel]) < 0.02 )
+            local dt = math.abs(v-v_last[channel]- step[channel])
+            assert( dt < 0.02, "channel " .. channel .. " is late: " .. dt)
         end
     end
     
     if not v_first then
         v_first= v
     elseif v-v_first > 3.0 and (not step[T2]) then
-        PRINT( "\n*** Adding timers every 5 second (synced to wall clock) ***\n" )
+        PRINT( "\n*** Starting 5s timer (synced to wall clock) ***\n" )
 
         -- The first event can be in the past (just cut seconds down to 5s)
         --
@@ -63,7 +65,7 @@ while true do
         lanes.timer( linda, T2, date, 5.0 )
         step[T2]= 5.0
 
-    elseif v-v_first > 10 then    -- exit condition
+    elseif v-v_first > PING_DURATION then    -- exit condition
         break
     end
     v_last[channel]= v
@@ -80,7 +82,7 @@ PRINT( "\n*** Listing timers ***\n" )
 local r = lanes.timers() -- list of {linda, key, {}}
 for _,t in ipairs( r) do
     local linda, key, timer = t[1], t[2], t[3]
-	print( tostring( linda), key, timer[1], timer[2])
+    print( tostring( linda), key, timer[1], timer[2])
 end
 
 
