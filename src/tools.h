@@ -1,23 +1,21 @@
 #pragma once
 
-#include "threading.h"
 #include "deep.h"
-
 #include "macros_and_utils.h"
 
 // forwards
-struct Universe;
+class Universe;
 
 // ################################################################################################
 
 #ifdef _DEBUG
-void luaG_dump( lua_State* L);
+void luaG_dump(lua_State* L);
 #endif // _DEBUG
 
 // ################################################################################################
 
-void push_registry_subtable_mode( lua_State* L, UniqueKey key_, const char* mode_);
-void push_registry_subtable( lua_State* L, UniqueKey key_);
+void push_registry_subtable_mode(lua_State* L, UniqueKey key_, const char* mode_);
+void push_registry_subtable(lua_State* L, UniqueKey key_);
 
 enum class VT
 {
@@ -25,19 +23,26 @@ enum class VT
     KEY,
     METATABLE
 };
-bool inter_copy_one(Universe* U, lua_State* L2, int L2_cache_i, lua_State* L, int i, VT vt_, LookupMode mode_, char const* upName_);
+
+enum class InterCopyResult
+{
+    Success,
+    NotEnoughValues,
+    Error
+};
+
+[[nodiscard]] bool inter_copy_one(Universe* U, Dest L2, int L2_cache_i, Source L, int i, VT vt_, LookupMode mode_, char const* upName_);
 
 // ################################################################################################
 
-int luaG_inter_copy_package( Universe* U, lua_State* L, lua_State* L2, int package_idx_, LookupMode mode_);
+[[nodiscard]] InterCopyResult luaG_inter_copy_package(Universe* U, Source L, Dest L2, int package_idx_, LookupMode mode_);
+[[nodiscard]] InterCopyResult luaG_inter_copy(Universe* U, Source L, Dest L2, int n, LookupMode mode_);
+[[nodiscard]] InterCopyResult luaG_inter_move(Universe* U, Source L, Dest L2, int n, LookupMode mode_);
 
-int luaG_inter_copy(Universe* U, lua_State* L, lua_State* L2, int n, LookupMode mode_);
-int luaG_inter_move(Universe* U, lua_State* L, lua_State* L2, int n, LookupMode mode_);
+[[nodiscard]] int luaG_nameof(lua_State* L);
 
-int luaG_nameof( lua_State* L);
-
-void populate_func_lookup_table( lua_State* L, int _i, char const* _name);
-void initialize_allocator_function( Universe* U, lua_State* L);
+void populate_func_lookup_table(lua_State* L, int _i, char const* _name);
+void initialize_allocator_function(Universe* U, lua_State* L);
 
 // ################################################################################################
 

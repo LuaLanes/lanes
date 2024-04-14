@@ -43,6 +43,35 @@ static constexpr UniqueKey UNIVERSE_LIGHT_REGKEY{ 0x3663C07C742CEB81ull };
 
 // ################################################################################################
 
+Universe::Universe()
+{
+    //---
+    // Linux needs SCHED_RR to change thread priorities, and that is only
+    // allowed for sudo'ers. SCHED_OTHER (default) has no priorities.
+    // SCHED_OTHER threads are always lower priority than SCHED_RR.
+    //
+    // ^-- those apply to 2.6 kernel.  IF **wishful thinking** these
+    //     constraints will change in the future, non-sudo priorities can
+    //     be enabled also for Linux.
+    //
+#ifdef PLATFORM_LINUX
+    // If lower priorities (-2..-1) are wanted, we need to lift the main
+    // thread to SCHED_RR and 50 (medium) level. Otherwise, we're always below
+    // the launched threads (even -2).
+    //
+#ifdef LINUX_SCHED_RR
+    if (m_sudo)
+    {
+        struct sched_param sp;
+        sp.sched_priority = _PRIO_0;
+        PT_CALL(pthread_setschedparam(pthread_self(), SCHED_RR, &sp));
+    }
+#endif // LINUX_SCHED_RR
+#endif // PLATFORM_LINUX
+}
+
+// ################################################################################################
+
 // only called from the master state
 Universe* universe_create(lua_State* L)
 {
@@ -51,7 +80,7 @@ Universe* universe_create(lua_State* L)
     U->Universe::Universe();
     STACK_CHECK_START_REL(L, 1);
     UNIVERSE_FULL_REGKEY.setValue(L, [](lua_State* L) { lua_pushvalue(L, -2); });
-    UNIVERSE_LIGHT_REGKEY.setValue(L, [U](lua_State* L) { lua_pushlightuserdata( L, U); });
+    UNIVERSE_LIGHT_REGKEY.setValue(L, [U](lua_State* L) { lua_pushlightuserdata(L, U); });
     STACK_CHECK(L, 1);
     return U;
 }
@@ -62,8 +91,8 @@ void universe_store(lua_State* L, Universe* U)
 {
     ASSERT_L(!U || universe_get(L) == nullptr);
     STACK_CHECK_START_REL(L, 0);
-    UNIVERSE_LIGHT_REGKEY.setValue(L, [U](lua_State* L) { U ? lua_pushlightuserdata( L, U) : lua_pushnil( L); });
-    STACK_CHECK( L, 0);
+    UNIVERSE_LIGHT_REGKEY.setValue(L, [U](lua_State* L) { U ? lua_pushlightuserdata(L, U) : lua_pushnil(L); });
+    STACK_CHECK(L, 0);
 }
 
 // ################################################################################################
@@ -72,6 +101,6 @@ Universe* universe_get(lua_State* L)
 {
     STACK_CHECK_START_REL(L, 0);
     Universe* const universe{ UNIVERSE_LIGHT_REGKEY.readLightUserDataValue<Universe>(L) };
-    STACK_CHECK( L, 0);
+    STACK_CHECK(L, 0);
     return universe;
 }

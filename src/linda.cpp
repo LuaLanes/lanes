@@ -61,8 +61,8 @@ class Linda : public DeepPrelude // Deep userdata MUST start with this header
 
     public:
 
-    SIGNAL_T read_happened;
-    SIGNAL_T write_happened;
+    std::condition_variable m_read_happened;
+    std::condition_variable m_write_happened;
     Universe* const U; // the universe this linda belongs to
     uintptr_t const group; // a group to control keeper allocation between lindas
     CancelRequest simulate_cancel{ CancelRequest::None };
@@ -70,7 +70,7 @@ class Linda : public DeepPrelude // Deep userdata MUST start with this header
     public:
 
     // a fifo full userdata has one uservalue, the table that holds the actual fifo contents
-    static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internal_allocator.alloc(size_); }
+    [[nodiscard]] static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internal_allocator.alloc(size_); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete(void* p_, Universe* U_) { U_->internal_allocator.free(p_, sizeof(Linda)); }
@@ -81,17 +81,11 @@ class Linda : public DeepPrelude // Deep userdata MUST start with this header
     : U{ U_ }
     , group{ group_ << KEEPER_MAGIC_SHIFT }
     {
-        SIGNAL_INIT(&read_happened);
-        SIGNAL_INIT(&write_happened);
-
         setName(name_, len_);
     }
 
     ~Linda()
     {
-        // There aren't any lanes waiting on these lindas, since all proxies have been gc'ed. Right?
-        SIGNAL_FREE(&read_happened);
-        SIGNAL_FREE(&write_happened);
         if (std::holds_alternative<AllocatedName>(m_name))
         {
             AllocatedName& name = std::get<AllocatedName>(m_name);
@@ -143,10 +137,10 @@ class Linda : public DeepPrelude // Deep userdata MUST start with this header
         return nullptr;
     }
 };
-static void* linda_id( lua_State*, DeepOp);
+[[nodiscard]] static void* linda_id(lua_State*, DeepOp);
 
 template<bool OPT>
-static inline Linda* lua_toLinda(lua_State* L, int idx_)
+[[nodiscard]] static inline Linda* lua_toLinda(lua_State* L, int idx_)
 {
     Linda* const linda{ static_cast<Linda*>(luaG_todeep(L, linda_id, idx_)) };
     if (!OPT)
@@ -168,7 +162,7 @@ static void check_key_types(lua_State* L, int start_, int end_)
         {
             continue;
         }
-        std::ignore = luaL_error(L, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", i);
+        luaL_error(L, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", i); // doesn't return
     }
 }
 
@@ -216,15 +210,19 @@ LUAG_FUNC(linda_protected_call)
 LUAG_FUNC(linda_send)
 {
     Linda* const linda{ lua_toLinda<false>(L, 1) };
-    time_d timeout{ -1.0 };
+    std::chrono::time_point<std::chrono::steady_clock> until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
     int key_i{ 2 }; // index of first key, if timeout not there
 
     if (lua_type(L, 2) == LUA_TNUMBER) // we don't want to use lua_isnumber() because of autocoercion
     {
-        timeout = SIGNAL_TIMEOUT_PREPARE(lua_tonumber(L, 2));
+        lua_Duration const duration{ lua_tonumber(L, 2) };
+        if (duration.count() >= 0.0)
+        {
+            until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration);
+        }
         ++key_i;
     }
-    else if (lua_isnil(L, 2)) // alternate explicit "no timeout" by passing nil before the key
+    else if (lua_isnil(L, 2)) // alternate explicit "infinite timeout" by passing nil before the key
     {
         ++key_i;
     }
@@ -266,6 +264,7 @@ LUAG_FUNC(linda_send)
         lua_State* const KL{ K ? K->L : nullptr };
         if (KL == nullptr)
             return 0;
+
         STACK_CHECK_START_REL(KL, 0);
         for (bool try_again{ true };;)
         {
@@ -295,34 +294,37 @@ LUAG_FUNC(linda_send)
             if (ret)
             {
                 // Wake up ALL waiting threads
-                SIGNAL_ALL(&linda->write_happened);
+                linda->m_write_happened.notify_all();
                 break;
             }
 
             // instant timout to bypass the wait syscall
-            if (timeout == 0.0)
+            if (std::chrono::steady_clock::now() >= until)
             {
                 break; /* no wait; instant timeout */
             }
 
             // storage limit hit, wait until timeout or signalled that we should try again
             {
-                enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
+                Lane::Status prev_status{ Lane::Error }; // prevent 'might be used uninitialized' warnings
                 if (lane != nullptr)
                 {
                     // change status of lane to "waiting"
-                    prev_status = lane->status; // RUNNING, most likely
-                    ASSERT_L(prev_status == RUNNING); // but check, just in case
-                    lane->status = WAITING;
-                    ASSERT_L(lane->waiting_on == nullptr);
-                    lane->waiting_on = &linda->read_happened;
+                    prev_status = lane->m_status; // Running, most likely
+                    ASSERT_L(prev_status == Lane::Running); // but check, just in case
+                    lane->m_status = Lane::Waiting;
+                    ASSERT_L(lane->m_waiting_on == nullptr);
+                    lane->m_waiting_on = &linda->m_read_happened;
                 }
                 // could not send because no room: wait until some data was read before trying again, or until timeout is reached
-                try_again = SIGNAL_WAIT(&linda->read_happened, &K->keeper_cs, timeout);
+                std::unique_lock<std::mutex> keeper_lock{ K->m_mutex, std::adopt_lock };
+                std::cv_status const status{ linda->m_read_happened.wait_until(keeper_lock, until) };
+                keeper_lock.release(); // we don't want to release the lock!
+                try_again = (status == std::cv_status::no_timeout); // detect spurious wakeups
                 if (lane != nullptr)
                 {
-                    lane->waiting_on = nullptr;
-                    lane->status = prev_status;
+                    lane->m_waiting_on = nullptr;
+                    lane->m_status = prev_status;
                 }
             }
         }
@@ -369,21 +371,24 @@ static constexpr UniqueKey BATCH_SENTINEL{ 0x2DDFEE0968C62AA7ull };
 LUAG_FUNC(linda_receive)
 {
     Linda* const linda{ lua_toLinda<false>(L, 1) };
-
-    time_d timeout{ -1.0 };
-    int key_i{ 2 };
+    std::chrono::time_point<std::chrono::steady_clock> until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
+    int key_i{ 2 }; // index of first key, if timeout not there
 
     if (lua_type(L, 2) == LUA_TNUMBER) // we don't want to use lua_isnumber() because of autocoercion
     {
-        timeout = SIGNAL_TIMEOUT_PREPARE(lua_tonumber(L, 2));
+        lua_Duration const duration{ lua_tonumber(L, 2) };
+        if (duration.count() >= 0.0)
+        {
+            until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration);
+        }
         ++key_i;
     }
-    else if (lua_isnil(L, 2)) // alternate explicit "no timeout" by passing nil before the key
+    else if (lua_isnil(L, 2)) // alternate explicit "infinite timeout" by passing nil before the key
     {
         ++key_i;
     }
 
-    keeper_api_t keeper_receive;
+    keeper_api_t selected_keeper_receive{ nullptr };
     int expected_pushed_min{ 0 }, expected_pushed_max{ 0 };
     // are we in batched mode?
     BATCH_SENTINEL.pushKey(L);
@@ -396,7 +401,7 @@ LUAG_FUNC(linda_receive)
         // make sure the keys are of a valid type
         check_key_types(L, key_i, key_i);
         // receive multiple values from a single slot
-        keeper_receive = KEEPER_API(receive_batched);
+        selected_keeper_receive = KEEPER_API(receive_batched);
         // we expect a user-defined amount of return value
         expected_pushed_min = (int) luaL_checkinteger(L, key_i + 1);
         expected_pushed_max = (int) luaL_optinteger(L, key_i + 2, expected_pushed_min);
@@ -413,17 +418,20 @@ LUAG_FUNC(linda_receive)
         // make sure the keys are of a valid type
         check_key_types(L, key_i, lua_gettop(L));
         // receive a single value, checking multiple slots
-        keeper_receive = KEEPER_API(receive);
+        selected_keeper_receive = KEEPER_API(receive);
         // we expect a single (value, key) pair of returned values
         expected_pushed_min = expected_pushed_max = 2;
     }
 
     Lane* const lane{ LANE_POINTER_REGKEY.readLightUserDataValue<Lane>(L) };
     Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
-    if (K == nullptr)
+    lua_State* const KL{ K ? K->L : nullptr };
+    if (KL == nullptr)
         return 0;
+
     CancelRequest cancel{ CancelRequest::None };
     int pushed{ 0 };
+    STACK_CHECK_START_REL(KL, 0);
     for (bool try_again{ true };;)
     {
         if (lane != nullptr)
@@ -439,7 +447,7 @@ LUAG_FUNC(linda_receive)
         }
 
         // all arguments of receive() but the first are passed to the keeper's receive function
-        pushed = keeper_call(linda->U, K->L, keeper_receive, L, linda, key_i);
+        pushed = keeper_call(linda->U, KL, selected_keeper_receive, L, linda, key_i);
         if (pushed < 0)
         {
             break;
@@ -451,36 +459,40 @@ LUAG_FUNC(linda_receive)
             keeper_toggle_nil_sentinels(L, lua_gettop(L) - pushed, LookupMode::FromKeeper);
             // To be done from within the 'K' locking area
             //
-            SIGNAL_ALL(&linda->read_happened);
+            linda->m_read_happened.notify_all();
             break;
         }
 
-        if (timeout == 0.0)
+        if (std::chrono::steady_clock::now() >= until)
         {
             break; /* instant timeout */
         }
 
         // nothing received, wait until timeout or signalled that we should try again
         {
-            enum e_status prev_status = ERROR_ST; // prevent 'might be used uninitialized' warnings
+            Lane::Status prev_status{ Lane::Error }; // prevent 'might be used uninitialized' warnings
             if (lane != nullptr)
             {
                 // change status of lane to "waiting"
-                prev_status = lane->status; // RUNNING, most likely
-                ASSERT_L(prev_status == RUNNING); // but check, just in case
-                lane->status = WAITING;
-                ASSERT_L(lane->waiting_on == nullptr);
-                lane->waiting_on = &linda->write_happened;
+                prev_status = lane->m_status; // Running, most likely
+                ASSERT_L(prev_status == Lane::Running); // but check, just in case
+                lane->m_status = Lane::Waiting;
+                ASSERT_L(lane->m_waiting_on == nullptr);
+                lane->m_waiting_on = &linda->m_write_happened;
             }
             // not enough data to read: wakeup when data was sent, or when timeout is reached
-            try_again = SIGNAL_WAIT(&linda->write_happened, &K->keeper_cs, timeout);
+            std::unique_lock<std::mutex> keeper_lock{ K->m_mutex, std::adopt_lock };
+            std::cv_status const status{ linda->m_write_happened.wait_until(keeper_lock, until) };
+            keeper_lock.release(); // we don't want to release the lock!
+            try_again = (status == std::cv_status::no_timeout); // detect spurious wakeups
             if (lane != nullptr)
             {
-                lane->waiting_on = nullptr;
-                lane->status = prev_status;
+                lane->m_waiting_on = nullptr;
+                lane->m_status = prev_status;
             }
         }
     }
+    STACK_CHECK(KL, 0);
 
     if (pushed < 0)
     {
@@ -537,13 +549,13 @@ LUAG_FUNC(linda_set)
             if (has_value)
             {
                 // we put some data in the slot, tell readers that they should wake
-                SIGNAL_ALL(&linda->write_happened); // To be done from within the 'K' locking area
+                linda->m_write_happened.notify_all(); // To be done from within the 'K' locking area
             }
             if (pushed == 1)
             {
                 // the key was full, but it is no longer the case, tell writers they should wake
                 ASSERT_L(lua_type(L, -1) == LUA_TBOOLEAN && lua_toboolean(L, -1) == 1);
-                SIGNAL_ALL(&linda->read_happened); // To be done from within the 'K' locking area
+                linda->m_read_happened.notify_all(); // To be done from within the 'K' locking area
             }
         }
     }
@@ -648,7 +660,7 @@ LUAG_FUNC( linda_limit)
         if( pushed == 1)
         {
             ASSERT_L( lua_type( L, -1) == LUA_TBOOLEAN && lua_toboolean( L, -1) == 1);
-            SIGNAL_ALL( &linda->read_happened); // To be done from within the 'K' locking area
+            linda->m_read_happened.notify_all(); // To be done from within the 'K' locking area
         }
     }
     else // linda is cancelled
@@ -678,8 +690,8 @@ LUAG_FUNC(linda_cancel)
     linda->simulate_cancel = CancelRequest::Soft;
     if (strcmp(who, "both") == 0) // tell everyone writers to wake up
     {
-        SIGNAL_ALL(&linda->write_happened);
-        SIGNAL_ALL(&linda->read_happened);
+        linda->m_write_happened.notify_all();
+        linda->m_read_happened.notify_all();
     }
     else if (strcmp(who, "none") == 0) // reset flag
     {
@@ -687,11 +699,11 @@ LUAG_FUNC(linda_cancel)
     }
     else if (strcmp(who, "read") == 0) // tell blocked readers to wake up
     {
-        SIGNAL_ALL(&linda->write_happened);
+        linda->m_write_happened.notify_all();
     }
     else if (strcmp(who, "write") == 0) // tell blocked writers to wake up
     {
-        SIGNAL_ALL(&linda->read_happened);
+        linda->m_read_happened.notify_all();
     }
     else
     {
@@ -730,7 +742,7 @@ LUAG_FUNC(linda_deep)
 */
 
 template <bool OPT>
-static int linda_tostring(lua_State* L, int idx_)
+[[nodiscard]] static int linda_tostring(lua_State* L, int idx_)
 {
     Linda* const linda{ lua_toLinda<OPT>(L, idx_) };
     if (linda != nullptr)
@@ -792,7 +804,7 @@ LUAG_FUNC(linda_concat)
 LUAG_FUNC(linda_dump)
 {
     Linda* const linda{ lua_toLinda<false>(L, 1) };
-    return keeper_push_linda_storage(linda->U, L, linda, linda->hashSeed());
+    return keeper_push_linda_storage(linda->U, Dest{ L }, linda, linda->hashSeed());
 }
 
 // #################################################################################################
@@ -804,7 +816,7 @@ LUAG_FUNC(linda_dump)
 LUAG_FUNC(linda_towatch)
 {
     Linda* const linda{ lua_toLinda<false>(L, 1) };
-    int pushed{ keeper_push_linda_storage(linda->U, L, linda, linda->hashSeed()) };
+    int pushed{ keeper_push_linda_storage(linda->U, Dest{ L }, linda, linda->hashSeed()) };
     if (pushed == 0)
     {
         // if the linda is empty, don't return nil
@@ -839,7 +851,7 @@ LUAG_FUNC(linda_towatch)
 * For any other strings, the ID function must not react at all. This allows
 * future extensions of the system. 
 */
-static void* linda_id( lua_State* L, DeepOp op_)
+[[nodiscard]] static void* linda_id(lua_State* L, DeepOp op_)
 {
     switch( op_)
     {
@@ -885,15 +897,22 @@ static void* linda_id( lua_State* L, DeepOp op_)
         {
             Linda* const linda{ lua_tolightuserdata<Linda>(L, 1) };
             ASSERT_L(linda);
-
-            // Clean associated structures in the keeper state.
-            Keeper* const K{ keeper_acquire(linda->U->keepers, linda->hashSeed()) };
-            if (K && K->L) // can be nullptr if this happens during main state shutdown (lanes is GC'ed -> no keepers -> no need to cleanup)
+            Keeper* const myK{ which_keeper(linda->U->keepers, linda->hashSeed()) };
+            // if collected after the universe, keepers are already destroyed, and there is nothing to clear
+            if (myK)
             {
+                // if collected from my own keeper, we can't acquire/release it
+                // because we are already inside a protected area, and trying to do so would deadlock!
+                bool const need_acquire_release{ myK->L != L };
+                // Clean associated structures in the keeper state.
+                Keeper* const K{ need_acquire_release ? keeper_acquire(linda->U->keepers, linda->hashSeed()) : myK };
                 // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
-                keeper_call(linda->U, K->L, KEEPER_API(clear), L, linda, 0);
+                std::ignore = keeper_call(linda->U, K->L, KEEPER_API(clear), L, linda, 0);
+                if (need_acquire_release)
+                {
+                    keeper_release(K);
+                }
             }
-            keeper_release(K);
 
             delete linda; // operator delete overload ensures things go as expected
             return nullptr;
@@ -990,11 +1009,11 @@ static void* linda_id( lua_State* L, DeepOp op_)
  */
 LUAG_FUNC(linda)
 {
-    int const top = lua_gettop(L);
+    int const top{ lua_gettop(L) };
     luaL_argcheck(L, top <= 2, top, "too many arguments");
     if (top == 1)
     {
-        int const t = lua_type(L, 1);
+        int const t{ lua_type(L, 1) };
         luaL_argcheck(L, t == LUA_TSTRING || t == LUA_TNUMBER, 1, "wrong parameter (should be a string or a number)");
     }
     else if (top == 2)
@@ -1002,5 +1021,5 @@ LUAG_FUNC(linda)
         luaL_checktype(L, 1, LUA_TSTRING);
         luaL_checktype(L, 2, LUA_TNUMBER);
     }
-    return luaG_newdeepuserdata(L, linda_id, 0);
+    return luaG_newdeepuserdata(Dest{ L }, linda_id, 0);
 }

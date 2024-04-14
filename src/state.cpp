@@ -1,5 +1,5 @@
 /*
-* STATE.C
+* STATE.CPP
 *
 * Lua tools to support Lanes.
 */
@@ -8,7 +8,7 @@
 ===============================================================================
 
 Copyright (C) 2002-10 Asko Kauppi <akauppi@gmail.com>
-2011-21 benoit Germain <bnt.germain@gmail.com>
+2011-24 benoit Germain <bnt.germain@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -31,20 +31,11 @@ THE SOFTWARE.
 ===============================================================================
 */
 
-#include <stdio.h>
-#include <assert.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdlib.h>
-#if !defined(__APPLE__)
-#include <malloc.h>
-#endif // __APPLE__
+#include "state.h"
 
-#include "compat.h"
-#include "macros_and_utils.h"
-#include "universe.h"
-#include "tools.h"
 #include "lanes.h"
+#include "tools.h"
+#include "universe.h"
 
 // ################################################################################################
 
@@ -58,7 +49,7 @@ THE SOFTWARE.
 //
 // Upvalues: [1]: original 'require' function
 //
-static int luaG_new_require( lua_State* L)
+[[nodiscard]] static int luaG_new_require(lua_State* L)
 {
     int rc;
     int const args = lua_gettop( L);                                    // args
@@ -87,6 +78,8 @@ static int luaG_new_require( lua_State* L)
     // should be 1 for Lua <= 5.3, 1 or 2 starting with Lua 5.4
     return lua_gettop(L);                                           // result(s)
 }
+
+// #################################################################################################
 
 /*
 * Serialize calls to 'require', if it exists
@@ -119,15 +112,16 @@ void serialize_require(DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L)
 
 /*---=== luaG_newstate ===---*/
 
-static int require_lanes_core( lua_State* L)
+[[nodiscard]] static int require_lanes_core(lua_State* L)
 {
     // leaves a copy of 'lanes.core' module table on the stack
     luaL_requiref( L, "lanes.core", luaopen_lanes_core, 0);
     return 1;
 }
 
+// #################################################################################################
 
-static const luaL_Reg libs[] =
+static luaL_Reg const libs[] =
 {
     { LUA_LOADLIBNAME, luaopen_package},
     { LUA_TABLIBNAME, luaopen_table},
@@ -163,7 +157,9 @@ static const luaL_Reg libs[] =
     { nullptr, nullptr }
 };
 
-static void open1lib( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L, char const* name_, size_t len_)
+// #################################################################################################
+
+static void open1lib(DEBUGSPEW_PARAM_COMMA(Universe* U) lua_State* L, char const* name_, size_t len_)
 {
     int i;
     for( i = 0; libs[i].name; ++ i)
@@ -192,29 +188,32 @@ static void open1lib( DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L, char con
     }
 }
 
+// #################################################################################################
 
 // just like lua_xmove, args are (from, to)
-static void copy_one_time_settings( Universe* U, lua_State* L, lua_State* L2)
+static void copy_one_time_settings(Universe* U, Source L, Dest L2)
 {
-    STACK_GROW( L, 2);
+    STACK_GROW(L, 2);
     STACK_CHECK_START_REL(L, 0);
     STACK_CHECK_START_REL(L2, 0);
 
-    DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "copy_one_time_settings()\n" INDENT_END));
-    DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "copy_one_time_settings()\n" INDENT_END));
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
 
-    CONFIG_REGKEY.pushValue(L);                                                    // config
+    CONFIG_REGKEY.pushValue(L);                                                         // config
     // copy settings from from source to destination registry
-    if( luaG_inter_move( U, L, L2, 1, LookupMode::LaneBody) < 0)                   //                           // config
+    if (luaG_inter_move(U, L, L2, 1, LookupMode::LaneBody) != InterCopyResult::Success) //                           // config
     {
-        (void) luaL_error( L, "failed to copy settings when loading lanes.core");
+        luaL_error( L, "failed to copy settings when loading lanes.core"); // doesn't return
     }
     // set L2:_R[CONFIG_REGKEY] = settings
-    CONFIG_REGKEY.setValue(L2, [](lua_State* L) { lua_insert(L, -2); });                                        // config
-    STACK_CHECK( L2, 0);
-    STACK_CHECK( L, 0);
-    DEBUGSPEW_CODE( -- U->debugspew_indent_depth);
+    CONFIG_REGKEY.setValue(L2, [](lua_State* L) { lua_insert(L, -2); });                                             // config
+    STACK_CHECK(L2, 0);
+    STACK_CHECK(L, 0);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
 }
+
+// #################################################################################################
 
 void initialize_on_state_create( Universe* U, lua_State* L)
 {
@@ -247,7 +246,9 @@ void initialize_on_state_create( Universe* U, lua_State* L)
     STACK_CHECK(L, 1);
 }
 
-lua_State* create_state( Universe* U, lua_State* from_)
+// #################################################################################################
+
+lua_State* create_state(Universe* U, lua_State* from_)
 {
     lua_State* L;
 #if LUAJIT_FLAVOR() == 64
@@ -273,10 +274,12 @@ lua_State* create_state( Universe* U, lua_State* from_)
 
     if (L == nullptr)
     {
-        std::ignore = luaL_error( from_, "luaG_newstate() failed while creating state; out of memory");
+        luaL_error(from_, "luaG_newstate() failed while creating state; out of memory"); // doesn't return
     }
     return L;
 }
+
+// #################################################################################################
 
 void call_on_state_create(Universe* U, lua_State* L, lua_State* from_, LookupMode mode_)
 {
@@ -313,6 +316,8 @@ void call_on_state_create(Universe* U, lua_State* L, lua_State* from_, LookupMod
     }
 }
 
+// #################################################################################################
+
 /*
 * Like 'luaL_openlibs()' but allows the set of libraries be selected
 *
@@ -326,11 +331,11 @@ void call_on_state_create(Universe* U, lua_State* L, lua_State* from_, LookupMod
 * *NOT* called for keeper states!
 *
 */
-lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
+lua_State* luaG_newstate(Universe* U, Source from_, char const* libs_)
 {
-    lua_State* L = create_state( U, from_);
+    Dest const L{ create_state(U, from_) };
 
-    STACK_GROW( L, 2);
+    STACK_GROW(L, 2);
     STACK_CHECK_START_ABS(L, 0);
 
     // copy the universe as a light userdata (only the master state holds the full userdata)
@@ -349,8 +354,8 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
         return L;
     }
 
-    DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "luaG_newstate()\n" INDENT_END));
-    DEBUGSPEW_CODE( ++ U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "luaG_newstate()\n" INDENT_END));
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
 
     // copy settings (for example because it may contain a Lua on_state_create function)
     copy_one_time_settings( U, from_, L);
@@ -423,22 +428,22 @@ lua_State* luaG_newstate( Universe* U, lua_State* from_, char const* libs_)
 
 #if 0 && USE_DEBUG_SPEW()
     // dump the lookup database contents
-    lua_getfield( L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);                       // {}
-    lua_pushnil( L);                                                          // {} nil
-    while( lua_next( L, -2))                                                  // {} k v
+    lua_getfield(L, LUA_REGISTRYINDEX, LOOKUP_REGKEY);                                                    // {}
+    lua_pushnil(L);                                                                                       // {} nil
+    while (lua_next(L, -2))                                                                               // {} k v
     {
-        lua_getglobal( L, "print");                                             // {} k v print
-        lua_pushlstring( L, debugspew_indent, U->debugspew_indent_depth);       // {} k v print " "
-        lua_pushvalue( L, -4);                                                  // {} k v print " " k
-        lua_pushvalue( L, -4);                                                  // {} k v print " " k v
-        lua_call( L, 3, 0);                                                     // {} k v
-        lua_pop( L, 1);                                                         // {} k
+        lua_getglobal(L, "print");                                                                        // {} k v print
+        lua_pushlstring(L, debugspew_indent, U->debugspew_indent_depth.load(std::memory_order_relaxed));  // {} k v print " "
+        lua_pushvalue(L, -4);                                                                             // {} k v print " " k
+        lua_pushvalue(L, -4);                                                                             // {} k v print " " k v
+        lua_call(L, 3, 0);                                                                                // {} k v
+        lua_pop(L, 1);                                                                                    // {} k
     }
-    lua_pop( L, 1);                                                           // {}
+    lua_pop(L, 1);                                                                                        // {}
 #endif // USE_DEBUG_SPEW()
 
-    lua_pop( L, 1);
+    lua_pop(L, 1);
     STACK_CHECK(L, 0);
-    DEBUGSPEW_CODE(--U->debugspew_indent_depth);
+    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     return L;
 }

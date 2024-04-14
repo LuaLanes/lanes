@@ -13,7 +13,7 @@ class UniqueKey
 
     public:
 
-    constexpr UniqueKey(uint64_t val_)
+    constexpr explicit UniqueKey(uint64_t val_)
 #if LUAJIT_FLAVOR() == 64 // building against LuaJIT headers for 64 bits, light userdata is restricted to 47 significant bits, because LuaJIT uses the other bits for internal optimizations
     : m_storage{ static_cast<uintptr_t>(val_ & 0x7fffffffffffull) }
 #else // LUAJIT_FLAVOR()

@@ -4,27 +4,42 @@
 #include "uniquekey.h"
 #include "universe.h"
 
+#include <chrono>
+#include <condition_variable>
 #include <latch>
+#include <stop_token>
+#include <thread>
 
 // NOTE: values to be changed by either thread, during execution, without
 //       locking, are marked "volatile"
 //
 class Lane
 {
-    private:
-
-    enum class ThreadStatus
-    {
-        Normal, // normal master side state
-        Killed // issued an OS kill
-    };
-
     public:
 
-    using enum ThreadStatus;
+    /*
+      Pending: The Lua VM hasn't done anything yet.
+      Running, Waiting: Thread is inside the Lua VM. If the thread is forcefully stopped, we can't lua_close() the Lua State.
+      Done, Error, Cancelled: Thread execution is outside the Lua VM. It can be lua_close()d.
+    */
+    enum class Status
+    {
+        Pending,
+        Running,
+        Waiting,
+        Done,
+        Error,
+        Cancelled
+    };
+    using enum Status;
 
-    THREAD_T thread;
+    // the thread
+    std::jthread m_thread;
+    // a latch to wait for the lua_State to be ready
     std::latch m_ready{ 1 };
+    // to wait for stop requests through m_thread's stop_source
+    std::mutex m_done_mutex;
+    std::condition_variable m_done_signal; // use condition_variable_any if waiting for a stop_token
     //
     // M: sub-thread OS thread
     // S: not used
@@ -37,36 +52,19 @@ class Lane
     // M: prepares the state, and reads results
     // S: while S is running, M must keep out of modifying the state
 
-    volatile enum e_status status{ PENDING };
+    Status volatile m_status{ Pending };
     // 
-    // M: sets to PENDING (before launching)
-    // S: updates -> RUNNING/WAITING -> DONE/ERROR_ST/CANCELLED
+    // M: sets to Pending (before launching)
+    // S: updates -> Running/Waiting -> Done/Error/Cancelled
 
-    SIGNAL_T* volatile waiting_on{ nullptr };
+    std::condition_variable* volatile m_waiting_on{ nullptr };
     //
-    // When status is WAITING, points on the linda's signal the thread waits on, else nullptr
+    // When status is Waiting, points on the linda's signal the thread waits on, else nullptr
 
-    volatile CancelRequest cancel_request{ CancelRequest::None };
+    CancelRequest volatile cancel_request{ CancelRequest::None };
     //
     // M: sets to false, flags true for cancel request
     // S: reads to see if cancel is requested
-
-#if THREADWAIT_METHOD == THREADWAIT_CONDVAR
-    SIGNAL_T done_signal;
-    //
-    // M: Waited upon at lane ending  (if Posix with no PTHREAD_TIMEDJOIN)
-    // S: sets the signal once cancellation is noticed (avoids a kill)
-
-    MUTEX_T done_lock;
-    // 
-    // Lock required by 'done_signal' condition variable, protecting
-    // lane status changes to DONE/ERROR_ST/CANCELLED.
-#endif // THREADWAIT_METHOD == THREADWAIT_CONDVAR
-
-    volatile ThreadStatus mstatus{ Normal };
-    //
-    // M: sets to Normal, if issued a kill changes to Killed
-    // S: not used
 
     Lane* volatile selfdestruct_next{ nullptr };
     //
@@ -80,7 +78,7 @@ class Lane
     //
     // For tracking only
 
-    static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internal_allocator.alloc(size_); }
+    [[nodiscard]] static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internal_allocator.alloc(size_); }
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete(void* p_, Universe* U_) { U_->internal_allocator.free(p_, sizeof(Lane)); }
     // this one is for us, to make sure memory is freed by the correct allocator
@@ -88,6 +86,9 @@ class Lane
 
     Lane(Universe* U_, lua_State* L_);
     ~Lane();
+
+    [[nodiscard]] bool waitForCompletion(lua_Duration duration_);
+    void startThread(int priority_);
 };
 
 // xxh64 of string "LANE_POINTER_REGKEY" generated at https://www.pelock.com/products/hash-calculator
@@ -97,6 +98,9 @@ static constexpr UniqueKey LANE_POINTER_REGKEY{ 0xB3022205633743BCull }; // used
 // 'Lane' are malloc/free'd and the handle only carries a pointer.
 // This is not deep userdata since the handle's not portable among lanes.
 //
-#define lua_toLane( L, i) (*((Lane**) luaL_checkudata( L, i, "Lane")))
+[[nodiscard]] inline Lane* lua_toLane(lua_State* L, int i_)
+{
+    return *(static_cast<Lane**>(luaL_checkudata(L, i_, "Lane")));
+}
 
-int push_thread_status( lua_State* L, Lane* s);
+void push_thread_status(lua_State* L, Lane* lane_);
