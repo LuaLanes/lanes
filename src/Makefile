@@ -7,7 +7,7 @@
 
 MODULE=lanes
 
-SRC=lanes.c cancel.c compat.c threading.c tools.c state.c linda.c deep.c keeper.c universe.c
+SRC=lanes.c cancel.cpp compat.cpp threading.cpp tools.cpp state.cpp linda.cpp deep.cpp keeper.cpp universe.cpp
 
 OBJ=$(SRC:.c=.o)
 
@@ -15,7 +15,7 @@ OBJ=$(SRC:.c=.o)
 #
 LIBFLAG=-shared
 
-OPT_FLAGS=-O2
+OPT_FLAGS=-O2 -std=c++20
     # -O0 -g
 
 _SO=so
