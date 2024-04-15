@@ -93,10 +93,88 @@ test:
 	$(MAKE) rupval
 	$(MAKE) timer
 
+appendud: tests/appendud.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+atexit: tests/atexit.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+atomic: tests/atomic.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
 basic: tests/basic.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 cancel: tests/cancel.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+cyclic: tests/cyclic.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+deadlock: tests/deadlock.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+ehynes: tests/ehynes.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+errhangtest: tests/errhangtest.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+error-test: tests/error.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+fibonacci: tests/fibonacci.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+fifo: tests/fifo.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+finalizer: tests/finalizer.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+func_is_string: tests/func_is_string.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+hangtest: tests/hangtest.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+irayo_closure: tests/irayo_closure.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+irayo_recursive: tests/irayo_recursive.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+keeper: tests/keeper.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+launchtest: tests/launchtest.lua $(_TARGET_SO)
+	$(MAKE) _perftest ARGS="$< $(N)"
+
+linda_perf: tests/linda_perf.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+objects: tests/objects.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+package: tests/package.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+perftest: tests/perftest.lua $(_TARGET_SO)
+	$(MAKE) _perftest ARGS="$< $(N)"
+
+perftest-even: tests/perftest.lua $(_TARGET_SO)
+	$(MAKE) _perftest ARGS="$< $(N) -prio=-2"
+
+perftest-odd: tests/perftest.lua $(_TARGET_SO)
+	$(MAKE) _perftest ARGS="$< $(N) -prio=+2"
+
+perftest-plain: tests/perftest.lua $(_TARGET_SO)
+	$(MAKE) _perftest ARGS="$< $(N) -plain"
+
+pingpong: tests/pingpong.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+recursive: tests/recursive.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 #
@@ -111,92 +189,17 @@ repetitive: $(_TARGET_SO)
 repetitive1: $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $(REP_ARGS)
 
-fifo: tests/fifo.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
+#require: tests/require.lua $(_TARGET_SO)
+#	$(_PREFIX) $(LUA) $<
 
-keeper: tests/keeper.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-fibonacci: tests/fibonacci.lua $(_TARGET_SO)
+rupval: tests/rupval.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 timer: tests/timer.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
-atomic: tests/atomic.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-cyclic: tests/cyclic.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-recursive: tests/recursive.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-hangtest: tests/hangtest.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-ehynes: tests/ehynes.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-#require: tests/require.lua $(_TARGET_SO)
-#	$(_PREFIX) $(LUA) $<
-
-objects: tests/objects.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-irayo_recursive: tests/irayo_recursive.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-irayo_closure: tests/irayo_closure.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-finalizer: tests/finalizer.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-errhangtest: tests/errhangtest.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-error-test: tests/error.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-appendud: tests/appendud.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-func_is_string: tests/func_is_string.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-linda_perf: tests/linda_perf.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-atexit: tests/atexit.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-rupval: tests/rupval.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-package: tests/package.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-pingpong: tests/pingpong.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
 #---
-perftest-plain: tests/perftest.lua $(_TARGET_SO)
-	$(MAKE) _perftest ARGS="$< $(N) -plain"
-
-perftest: tests/perftest.lua $(_TARGET_SO)
-	$(MAKE) _perftest ARGS="$< $(N)"
-
-perftest-odd: tests/perftest.lua $(_TARGET_SO)
-	$(MAKE) _perftest ARGS="$< $(N) -prio=+2"
-
-perftest-even: tests/perftest.lua $(_TARGET_SO)
-	$(MAKE) _perftest ARGS="$< $(N) -prio=-2"
-
 #---
-launchtest: tests/launchtest.lua $(_TARGET_SO)
-	$(MAKE) _perftest ARGS="$< $(N)"
-
 _perftest:
 	$(_PREFIX) $(TIME) $(LUA) $(ARGS)
 

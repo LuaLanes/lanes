@@ -223,13 +223,13 @@ char const* DeepFactory::PushDeepProxy(Dest L, DeepPrelude* prelude, int nuv_, L
 
     if( lua_isnil( L, -1)) // // No metatable yet.
     {
-        int oldtop = lua_gettop( L);                                                                   // DPC proxy nil
-        lua_pop( L, 1);                                                                                // DPC proxy
+        lua_pop(L, 1);                                                                                 // DPC proxy
+        int const oldtop{ lua_gettop(L) };
         // 1 - make one and register it
         if (mode_ != LookupMode::ToKeeper)
         {
             factory.createMetatable(L);                                                                // DPC proxy metatable
-            if (lua_gettop(L) - oldtop != 0 || !lua_istable(L, -1))
+            if (lua_gettop(L) - oldtop != 1 || !lua_istable(L, -1))
             {
                 // factory didn't push exactly 1 value, or the value it pushed is not a table: ERROR!
                 lua_settop( L, oldtop);                                                                // DPC proxy X

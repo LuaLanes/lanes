@@ -744,7 +744,7 @@ void init_keepers(Universe* U, lua_State* L)
 
 // ##################################################################################################
 
-// should be called only when inside a keeper_acquire/keeper_release pair (see linda_protected_call)
+// should be called only when inside a keeper_acquire/keeper_release pair (see Linda::ProtectedCall)
 Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_)
 {
     int const nbKeepers{ keepers_->nb_keepers };
