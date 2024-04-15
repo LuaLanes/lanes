@@ -810,7 +810,9 @@ int keeper_call( Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, vo
     int const Ktos = lua_gettop( K);
     int retvals = -1;
 
-    STACK_GROW( K, 2);
+    // if we didn't do anything wrong, the keeper stack should be clean
+    ASSERT_L(Ktos == 0);
+    STACK_GROW(K, 2);
 
     PUSH_KEEPER_FUNC( K, func_);
 

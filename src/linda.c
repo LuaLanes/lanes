@@ -90,12 +90,16 @@ LUAG_FUNC( linda_protected_call)
     Keeper* K = keeper_acquire( linda->U->keepers, LINDA_KEEPER_HASHSEED(linda));
     lua_State* KL = K ? K->L : NULL; // need to do this for 'STACK_CHECK'
     if( KL == NULL) return 0;
+    // if we didn't do anything wrong, the keeper stack should be clean
+    ASSERT_L(lua_gettop(KL) == 0);
 
     // retrieve the actual function to be called and move it before the arguments
     lua_pushvalue( L, lua_upvalueindex( 1));
     lua_insert( L, 1);
     // do a protected call
     rc = lua_pcall( L, lua_gettop( L) - 1, LUA_MULTRET, 0);
+    // whatever happens, the keeper state stack must be empty when we are done
+    lua_settop(KL, 0);
 
     // release the keeper
     keeper_release( K);

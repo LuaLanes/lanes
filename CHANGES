@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 161: BGe 15-Apr-24
+   * fix keeper state stack accumulating garbage in case of transfer errors
+
 CHANGE 160: BGe 11-Apr-24
    * add manual control over GC behavior in keeper states
    * update a bunch of test scripts
