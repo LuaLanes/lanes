@@ -411,39 +411,41 @@ DeepPrelude* DeepFactory::toDeep(lua_State* L, int index) const
  *   the id function of the copied value, or nullptr for non-deep userdata
  *   (not copied)
  */
-bool copydeep(Universe* U, Dest L2, int L2_cache_i, Source L, int i, LookupMode mode_, char const* upName_)
+[[nodiscard]] bool InterCopyContext::copydeep() const
 {
-    DeepFactory* const factory { get_factory(L, i, mode_) };
+    DeepFactory* const factory { get_factory(L1, L1_i, mode) };
     if (factory == nullptr)
     {
         return false;   // not a deep userdata
     }
 
-    STACK_CHECK_START_REL(L, 0);
+    STACK_CHECK_START_REL(L1, 0);
     STACK_CHECK_START_REL(L2, 0);
 
     // extract all uservalues of the source
     int nuv = 0;
-    while (lua_getiuservalue(L, i, nuv + 1) != LUA_TNONE)                                // ... u [uv]* nil
+    while (lua_getiuservalue(L1, L1_i, nuv + 1) != LUA_TNONE)                            // ... u [uv]* nil
     {
         ++ nuv;
     }
     // last call returned TNONE and pushed nil, that we don't need
-    lua_pop( L, 1);                                                                      // ... u [uv]*
-    STACK_CHECK( L, nuv);
+    lua_pop(L1, 1);                                                                      // ... u [uv]*
+    STACK_CHECK(L1, nuv);
 
-    char const* errmsg{ DeepFactory::PushDeepProxy(L2, *lua_tofulluserdata<DeepPrelude*>(L, i), nuv, mode_) }; // u
+    char const* errmsg{ DeepFactory::PushDeepProxy(L2, *lua_tofulluserdata<DeepPrelude*>(L1, L1_i), nuv, mode) }; // u
 
     // transfer all uservalues of the source in the destination
     {
-        int const clone_i = lua_gettop( L2);
-        while( nuv)
+        InterCopyContext c{ U, L2, L1, L2_cache_i, {}, VT::NORMAL, mode, name };
+        int const clone_i{ lua_gettop(L2) };
+        while (nuv)
         {
-            if (!inter_copy_one(U, L2, L2_cache_i, L, lua_absindex(L, -1), VT::NORMAL, mode_, upName_))     // u uv
+            c.L1_i = SourceIndex{ lua_absindex(L1, -1) };
+            if (!c.inter_copy_one())                                                                        // u uv
             {
-                return luaL_error(L, "Cannot copy upvalue type '%s'", luaL_typename(L, -1));
+                luaL_error(L1, "Cannot copy upvalue type '%s'", luaL_typename(L1, -1)); // doesn't return
             }
-            lua_pop( L, 1);                                                              // ... u [uv]*
+            lua_pop(L1, 1);                                                              // ... u [uv]*
             // this pops the value from the stack
             lua_setiuservalue(L2, clone_i, nuv);                                                            // u
             -- nuv;
@@ -451,12 +453,12 @@ bool copydeep(Universe* U, Dest L2, int L2_cache_i, Source L, int i, LookupMode 
     }
 
     STACK_CHECK(L2, 1);
-    STACK_CHECK(L, 0);
+    STACK_CHECK(L1, 0);
 
     if (errmsg != nullptr)
     {
         // raise the error in the proper state (not the keeper)
-        lua_State* const errL{ (mode_ == LookupMode::FromKeeper) ? L2 : L };
+        lua_State* const errL{ (mode == LookupMode::FromKeeper) ? L2 : L1 };
         luaL_error(errL, errmsg); // doesn't return
     }
     return true;

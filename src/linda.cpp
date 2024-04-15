@@ -1020,8 +1020,8 @@ LUAG_FUNC(linda)
     luaL_argcheck(L, top <= 2, top, "too many arguments");
     if (top == 1)
     {
-        int const t{ lua_type(L, 1) };
-        luaL_argcheck(L, t == LUA_TSTRING || t == LUA_TNUMBER, 1, "wrong parameter (should be a string or a number)");
+        LuaType const t{ lua_type_as_enum(L, 1) };
+        luaL_argcheck(L, t == LuaType::STRING || t == LuaType::NUMBER, 1, "wrong parameter (should be a string or a number)");
     }
     else if (top == 2)
     {

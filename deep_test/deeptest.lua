@@ -24,7 +24,7 @@ end
 local printDeep = function( prefix_, obj_, t_)
 	print( prefix_, obj_)
 	for uvi = 1, nupvals do
-		local uservalue = obj_:getuv( 1)
+		local uservalue = obj_:getuv(uvi)
 		print ( "uv #" .. uvi, uservalue, type( uservalue) == "function" and uservalue() or "")
 	end
 	if t_ then

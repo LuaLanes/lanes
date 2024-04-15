@@ -10,6 +10,8 @@ extern "C" {
 
 #include "lanesconf.h"
 
+#include <type_traits>
+
 #define LANES_VERSION_MAJOR 4
 #define LANES_VERSION_MINOR 0
 #define LANES_VERSION_PATCH 0
@@ -24,3 +26,5 @@ LANES_API [[nodiscard]] int luaopen_lanes_core(lua_State* L);
 
 // Call this to work with embedded Lanes instead of calling luaopen_lanes_core()
 LANES_API void luaopen_lanes_embedded(lua_State* L, lua_CFunction _luaopen_lanes);
+using luaopen_lanes_embedded_t = void (*)(lua_State* L, lua_CFunction luaopen_lanes_);
+static_assert(std::is_same_v<decltype(&luaopen_lanes_embedded), luaopen_lanes_embedded_t>, "signature changed: check all uses of luaopen_lanes_embedded_t");

@@ -1382,7 +1382,7 @@ void push_thread_status(lua_State* L, Lane* lane_)
     char const* const str{ thread_status_string(lane_) };
     ASSERT_L(str);
 
-    std::ignore = lua_pushstring(L, str);
+    lua_pushstring(L, str);
 }
 
 // #################################################################################################

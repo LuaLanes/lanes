@@ -31,7 +31,36 @@ enum class InterCopyResult
     Error
 };
 
-[[nodiscard]] bool inter_copy_one(Universe* U, Dest L2, int L2_cache_i, Source L, int i, VT vt_, LookupMode mode_, char const* upName_);
+// ################################################################################################
+
+using CacheIndex = Unique<int>;
+using SourceIndex = Unique<int>;
+struct InterCopyContext
+{
+
+    Universe* const U;
+    Dest const L2;
+    Source const L1;
+    CacheIndex const L2_cache_i;
+    SourceIndex L1_i; // that one can change when we reuse the context
+    VT vt; // that one can change when we reuse the context
+    LookupMode const mode;
+    char const* name; // that one can change when we reuse the context
+
+    [[nodiscard]] bool inter_copy_one() const;
+
+    private:
+
+    [[nodiscard]] bool inter_copy_userdata() const;
+    [[nodiscard]] bool inter_copy_function() const;
+    [[nodiscard]] bool inter_copy_table() const;
+    [[nodiscard]] bool copyclone() const;
+    [[nodiscard]] bool copydeep() const;
+    [[nodiscard]] bool push_cached_metatable() const;
+    void copy_func() const;
+    void copy_cached_func() const;
+    void inter_copy_keyvaluepair() const;
+};
 
 // ################################################################################################
 
