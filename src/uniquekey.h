@@ -13,12 +13,15 @@ class UniqueKey
 
     public:
 
-    constexpr explicit UniqueKey(uint64_t val_)
+    char const* m_debugName{ nullptr };
+
+    constexpr explicit UniqueKey(uint64_t val_, char const* debugName_ = nullptr)
 #if LUAJIT_FLAVOR() == 64 // building against LuaJIT headers for 64 bits, light userdata is restricted to 47 significant bits, because LuaJIT uses the other bits for internal optimizations
     : m_storage{ static_cast<uintptr_t>(val_ & 0x7fffffffffffull) }
 #else // LUAJIT_FLAVOR()
     : m_storage{ static_cast<uintptr_t>(val_) }
 #endif // LUAJIT_FLAVOR()
+    , m_debugName{ debugName_ }
     {
     }
     constexpr UniqueKey(UniqueKey const& rhs_) = default;

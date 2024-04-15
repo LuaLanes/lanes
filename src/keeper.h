@@ -11,6 +11,7 @@ extern "C" {
 #include "threading.h"
 #include "uniquekey.h"
 
+#include <optional>
 #include <mutex>
 
 // forwards
@@ -33,7 +34,7 @@ struct Keepers
 
 static constexpr uintptr_t KEEPER_MAGIC_SHIFT{ 3 };
 // crc64/we of string "NIL_SENTINEL" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey NIL_SENTINEL{ 0x7eaafa003a1d11a1ull };
+static constexpr UniqueKey NIL_SENTINEL{ 0x7eaafa003a1d11a1ull, "internal nil sentinel" };
 
 void init_keepers(Universe* U, lua_State* L);
 void close_keepers(Universe* U);
@@ -57,4 +58,5 @@ using keeper_api_t = lua_CFunction;
 [[nodiscard]] int keepercall_set(lua_State* L);
 [[nodiscard]] int keepercall_count(lua_State* L);
 
-[[nodiscard]] int keeper_call(Universe* U, lua_State* K, keeper_api_t _func, lua_State* L, void* linda, int starting_index);
+using KeeperCallResult = Unique<std::optional<int>>;
+[[nodiscard]] KeeperCallResult keeper_call(Universe* U, lua_State* K, keeper_api_t _func, lua_State* L, void* linda, int starting_index);

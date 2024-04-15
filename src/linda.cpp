@@ -39,7 +39,11 @@ THE SOFTWARE.
 #include "universe.h"
 
 #include <array>
+#include <functional>
 #include <variant>
+
+// xxh64 of string "CANCEL_ERROR" generated at https://www.pelock.com/products/hash-calculator
+static constexpr UniqueKey BATCH_SENTINEL{ 0x2DDFEE0968C62AA7ull, "linda.batched" };
 
 /*
 * Actual data is kept within a keeper state, which is hashed by the 'Linda'
@@ -140,14 +144,14 @@ class Linda : public DeepPrelude // Deep userdata MUST start with this header
 [[nodiscard]] static void* linda_id(lua_State*, DeepOp);
 
 template<bool OPT>
-[[nodiscard]] static inline Linda* lua_toLinda(lua_State* L, int idx_)
+[[nodiscard]] static inline Linda* ToLinda(lua_State* L, int idx_)
 {
     Linda* const linda{ static_cast<Linda*>(luaG_todeep(L, linda_id, idx_)) };
-    if (!OPT)
+    if constexpr (!OPT)
     {
         luaL_argcheck(L, linda != nullptr, idx_, "expecting a linda object");
+        ASSERT_L(linda->U == universe_get(L));
     }
-    ASSERT_L(linda->U == universe_get(L));
     return linda;
 }
 
@@ -157,10 +161,28 @@ static void check_key_types(lua_State* L, int start_, int end_)
 {
     for (int i{ start_ }; i <= end_; ++i)
     {
-        int const t{ lua_type(L, i) };
-        if (t == LUA_TBOOLEAN || t == LUA_TNUMBER || t == LUA_TSTRING || t == LUA_TLIGHTUSERDATA)
+        LuaType const t{ lua_type_as_enum(L, i) };
+        switch (t)
         {
+            case LuaType::BOOLEAN:
+            case LuaType::NUMBER:
+            case LuaType::STRING:
             continue;
+
+            case LuaType::LIGHTUSERDATA:
+            {
+                // NIL_SENTINEL isn't publicly exposed, but it doesn't hurt to check
+                static constexpr std::array<std::reference_wrapper<UniqueKey const>, 3> to_check{ BATCH_SENTINEL, CANCEL_ERROR, NIL_SENTINEL };
+                for (UniqueKey const& key : to_check)
+                {
+                    if (key.equals(L, i))
+                    {
+                        luaL_error(L, "argument #%d: can't use %s as a key", i, key.m_debugName); // doesn't return
+                        break;
+                    }
+                }
+            }
+            break;
         }
         luaL_error(L, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", i); // doesn't return
     }
@@ -170,7 +192,7 @@ static void check_key_types(lua_State* L, int start_, int end_)
 
 LUAG_FUNC(linda_protected_call)
 {
-    Linda* const linda{ lua_toLinda<false>(L, 1) };
+    Linda* const linda{ ToLinda<false>(L, 1) };
 
     // acquire the keeper
     Keeper* const K{ keeper_acquire(linda->U->keepers, linda->hashSeed()) };
@@ -209,7 +231,7 @@ LUAG_FUNC(linda_protected_call)
 */
 LUAG_FUNC(linda_send)
 {
-    Linda* const linda{ lua_toLinda<false>(L, 1) };
+    Linda* const linda{ ToLinda<false>(L, 1) };
     std::chrono::time_point<std::chrono::steady_clock> until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
     int key_i{ 2 }; // index of first key, if timeout not there
 
@@ -257,7 +279,7 @@ LUAG_FUNC(linda_send)
     keeper_toggle_nil_sentinels(L, key_i + 1, LookupMode::ToKeeper);
     bool ret{ false };
     CancelRequest cancel{ CancelRequest::None };
-    int pushed{ 0 };
+    KeeperCallResult pushed;
     {
         Lane* const lane{ LANE_POINTER_REGKEY.readLightUserDataValue<Lane>(L) };
         Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
@@ -276,17 +298,17 @@ LUAG_FUNC(linda_send)
             // if user wants to cancel, or looped because of a timeout, the call returns without sending anything
             if (!try_again || cancel != CancelRequest::None)
             {
-                pushed = 0;
+                pushed.emplace(0);
                 break;
             }
 
             STACK_CHECK(KL, 0);
             pushed = keeper_call(linda->U, KL, KEEPER_API(send), L, linda, key_i);
-            if (pushed < 0)
+            if (!pushed.has_value())
             {
                 break;
             }
-            ASSERT_L(pushed == 1);
+            ASSERT_L(pushed.value() == 1);
 
             ret = lua_toboolean(L, -1) ? true : false;
             lua_pop(L, 1);
@@ -331,9 +353,9 @@ LUAG_FUNC(linda_send)
         STACK_CHECK(KL, 0);
     }
 
-    if (pushed < 0)
+    if (!pushed.has_value())
     {
-        return luaL_error(L, "tried to copy unsupported types");
+        luaL_error(L, "tried to copy unsupported types"); // doesn't return
     }
 
     switch (cancel)
@@ -366,11 +388,9 @@ LUAG_FUNC(linda_send)
  * returns the actual consumed values, or nil if there weren't enough values to consume
  *
  */
-// xxh64 of string "CANCEL_ERROR" generated at https://www.pelock.com/products/hash-calculator
-static constexpr UniqueKey BATCH_SENTINEL{ 0x2DDFEE0968C62AA7ull };
 LUAG_FUNC(linda_receive)
 {
-    Linda* const linda{ lua_toLinda<false>(L, 1) };
+    Linda* const linda{ ToLinda<false>(L, 1) };
     std::chrono::time_point<std::chrono::steady_clock> until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
     int key_i{ 2 }; // index of first key, if timeout not there
 
@@ -430,7 +450,7 @@ LUAG_FUNC(linda_receive)
         return 0;
 
     CancelRequest cancel{ CancelRequest::None };
-    int pushed{ 0 };
+    KeeperCallResult pushed;
     STACK_CHECK_START_REL(KL, 0);
     for (bool try_again{ true };;)
     {
@@ -442,21 +462,21 @@ LUAG_FUNC(linda_receive)
         // if user wants to cancel, or looped because of a timeout, the call returns without sending anything
         if (!try_again || cancel != CancelRequest::None)
         {
-            pushed = 0;
+            pushed.emplace(0);
             break;
         }
 
         // all arguments of receive() but the first are passed to the keeper's receive function
         pushed = keeper_call(linda->U, KL, selected_keeper_receive, L, linda, key_i);
-        if (pushed < 0)
+        if (!pushed.has_value())
         {
             break;
         }
-        if (pushed > 0)
+        if (pushed.value() > 0)
         {
-            ASSERT_L(pushed >= expected_pushed_min && pushed <= expected_pushed_max);
+            ASSERT_L(pushed.value() >= expected_pushed_min && pushed.value() <= expected_pushed_max);
             // replace sentinels with real nils
-            keeper_toggle_nil_sentinels(L, lua_gettop(L) - pushed, LookupMode::FromKeeper);
+            keeper_toggle_nil_sentinels(L, lua_gettop(L) - pushed.value(), LookupMode::FromKeeper);
             // To be done from within the 'K' locking area
             //
             linda->m_read_happened.notify_all();
@@ -494,7 +514,7 @@ LUAG_FUNC(linda_receive)
     }
     STACK_CHECK(KL, 0);
 
-    if (pushed < 0)
+    if (!pushed.has_value())
     {
         return luaL_error(L, "tried to copy unsupported types");
     }
@@ -511,7 +531,7 @@ LUAG_FUNC(linda_receive)
         raise_cancel_error(L); // raises an error and doesn't return
 
         default:
-        return pushed;
+        return pushed.value();
     }
 }
 
@@ -527,13 +547,13 @@ LUAG_FUNC(linda_receive)
 */
 LUAG_FUNC(linda_set)
 {
-    Linda* const linda{ lua_toLinda<false>(L, 1) };
+    Linda* const linda{ ToLinda<false>(L, 1) };
     bool const has_value{ lua_gettop(L) > 2 };
     // make sure the key is of a valid type (throws an error if not the case)
     check_key_types(L, 2, 2);
 
     Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
-    int pushed{ 0 };
+    KeeperCallResult pushed;
     if (linda->simulate_cancel == CancelRequest::None)
     {
         if (has_value)
@@ -542,16 +562,16 @@ LUAG_FUNC(linda_set)
             keeper_toggle_nil_sentinels(L, 3, LookupMode::ToKeeper);
         }
         pushed = keeper_call(linda->U, K->L, KEEPER_API(set), L, linda, 2);
-        if (pushed >= 0) // no error?
+        if (pushed.has_value()) // no error?
         {
-            ASSERT_L(pushed == 0 || pushed == 1);
+            ASSERT_L(pushed.value() == 0 || pushed.value() == 1);
 
             if (has_value)
             {
                 // we put some data in the slot, tell readers that they should wake
                 linda->m_write_happened.notify_all(); // To be done from within the 'K' locking area
             }
-            if (pushed == 1)
+            if (pushed.value() == 1)
             {
                 // the key was full, but it is no longer the case, tell writers they should wake
                 ASSERT_L(lua_type(L, -1) == LUA_TBOOLEAN && lua_toboolean(L, -1) == 1);
@@ -563,11 +583,11 @@ LUAG_FUNC(linda_set)
     {
         // do nothing and return lanes.cancel_error
         CANCEL_ERROR.pushKey(L);
-        pushed = 1;
+        pushed.emplace(1);
     }
 
     // must trigger any error after keeper state has been released
-    return (pushed < 0) ? luaL_error(L, "tried to copy unsupported types") : pushed;
+    return OptionalValue(pushed, L, "tried to copy unsupported types");
 }
 
 // #################################################################################################
@@ -579,17 +599,13 @@ LUAG_FUNC(linda_set)
  */
 LUAG_FUNC(linda_count)
 {
-    Linda* const linda{ lua_toLinda<false>(L, 1) };
+    Linda* const linda{ ToLinda<false>(L, 1) };
     // make sure the keys are of a valid type
     check_key_types(L, 2, lua_gettop(L));
 
     Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
-    int const pushed{ keeper_call(linda->U, K->L, KEEPER_API(count), L, linda, 2) };
-    if (pushed < 0)
-    {
-        return luaL_error(L, "tried to count an invalid key");
-    }
-    return pushed;
+    KeeperCallResult const pushed{ keeper_call(linda->U, K->L, KEEPER_API(count), L, linda, 2) };
+    return OptionalValue(pushed, L, "tried to count an invalid key");
 }
 
 // #################################################################################################
@@ -601,36 +617,31 @@ LUAG_FUNC(linda_count)
 */
 LUAG_FUNC(linda_get)
 {
-    Linda* const linda{ lua_toLinda<false>(L, 1) };
+    Linda* const linda{ ToLinda<false>(L, 1) };
     lua_Integer const count{ luaL_optinteger(L, 3, 1) };
     luaL_argcheck(L, count >= 1, 3, "count should be >= 1");
     luaL_argcheck(L, lua_gettop(L) <= 3, 4, "too many arguments");
     // make sure the key is of a valid type (throws an error if not the case)
     check_key_types(L, 2, 2);
 
-    int pushed{ 0 };
+    KeeperCallResult pushed;
     if (linda->simulate_cancel == CancelRequest::None)
     {
         Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
         pushed = keeper_call(linda->U, K->L, KEEPER_API(get), L, linda, 2);
-        if (pushed > 0)
+        if (pushed.value_or(0) > 0)
         {
-            keeper_toggle_nil_sentinels(L, lua_gettop(L) - pushed, LookupMode::FromKeeper);
+            keeper_toggle_nil_sentinels(L, lua_gettop(L) - pushed.value(), LookupMode::FromKeeper);
         }
     }
     else // linda is cancelled
     {
         // do nothing and return lanes.cancel_error
         CANCEL_ERROR.pushKey(L);
-        pushed = 1;
+        pushed.emplace(1);
     }
     // an error can be raised if we attempt to read an unregistered function
-    if (pushed < 0)
-    {
-        return luaL_error(L, "tried to copy unsupported types");
-    }
-
-    return pushed;
+    return OptionalValue(pushed, L, "tried to copy unsupported types");
 }
 
 // #################################################################################################
@@ -641,9 +652,9 @@ LUAG_FUNC(linda_get)
 * Set limit to 1 Linda keys.
 * Optionally wake threads waiting to write on the linda, in case the limit enables them to do so
 */
-LUAG_FUNC( linda_limit)
+LUAG_FUNC(linda_limit)
 {
-    Linda* const linda{ lua_toLinda<false>(L, 1) };
+    Linda* const linda{ ToLinda<false>(L, 1) };
     // make sure we got 3 arguments: the linda, a key and a limit
     luaL_argcheck( L, lua_gettop( L) == 3, 2, "wrong number of arguments");
     // make sure we got a numeric limit
@@ -651,13 +662,13 @@ LUAG_FUNC( linda_limit)
     // make sure the key is of a valid type
     check_key_types( L, 2, 2);
 
-    int pushed{ 0 };
+    KeeperCallResult pushed;
     if (linda->simulate_cancel == CancelRequest::None)
     {
         Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
         pushed = keeper_call(linda->U, K->L, KEEPER_API(limit), L, linda, 2);
-        ASSERT_L( pushed == 0 || pushed == 1); // no error, optional boolean value saying if we should wake blocked writer threads
-        if( pushed == 1)
+        ASSERT_L( pushed.has_value() && (pushed.value() == 0 || pushed.value() == 1)); // no error, optional boolean value saying if we should wake blocked writer threads
+        if (pushed.value() == 1)
         {
             ASSERT_L( lua_type( L, -1) == LUA_TBOOLEAN && lua_toboolean( L, -1) == 1);
             linda->m_read_happened.notify_all(); // To be done from within the 'K' locking area
@@ -667,10 +678,10 @@ LUAG_FUNC( linda_limit)
     {
         // do nothing and return lanes.cancel_error
         CANCEL_ERROR.pushKey(L);
-        pushed = 1;
+        pushed.emplace(1);
     }
     // propagate pushed boolean if any
-    return pushed;
+    return pushed.value();
 }
 
 // #################################################################################################
@@ -682,7 +693,7 @@ LUAG_FUNC( linda_limit)
 */
 LUAG_FUNC(linda_cancel)
 {
-    Linda* const linda{ lua_toLinda<false>(L, 1) };
+    Linda* const linda{ ToLinda<false>(L, 1) };
     char const* who = luaL_optstring(L, 2, "both");
     // make sure we got 3 arguments: the linda, a key and a limit
     luaL_argcheck(L, lua_gettop(L) <= 2, 2, "wrong number of arguments");
@@ -726,7 +737,7 @@ LUAG_FUNC(linda_cancel)
 */
 LUAG_FUNC(linda_deep)
 {
-    Linda* const linda{ lua_toLinda<false>(L, 1) };
+    Linda* const linda{ ToLinda<false>(L, 1) };
     lua_pushlightuserdata(L, linda); // just the address
     return 1;
 }
@@ -742,9 +753,9 @@ LUAG_FUNC(linda_deep)
 */
 
 template <bool OPT>
-[[nodiscard]] static int linda_tostring(lua_State* L, int idx_)
+[[nodiscard]] static int LindaToString(lua_State* L, int idx_)
 {
-    Linda* const linda{ lua_toLinda<OPT>(L, idx_) };
+    Linda* const linda{ ToLinda<OPT>(L, idx_) };
     if (linda != nullptr)
     {
         char text[128];
@@ -761,7 +772,7 @@ template <bool OPT>
 
 LUAG_FUNC(linda_tostring)
 {
-    return linda_tostring<false>(L, 1);
+    return LindaToString<false>(L, 1);
 }
 
 // #################################################################################################
@@ -777,12 +788,12 @@ LUAG_FUNC(linda_concat)
 { // linda1? linda2?
     bool atLeastOneLinda{ false };
     // Lua semantics enforce that one of the 2 arguments is a Linda, but not necessarily both.
-    if (linda_tostring<true>(L, 1))
+    if (LindaToString<true>(L, 1))
     {
         atLeastOneLinda = true;
         lua_replace(L, 1);
     }
-    if (linda_tostring<true>(L, 2))
+    if (LindaToString<true>(L, 2))
     {
         atLeastOneLinda = true;
         lua_replace(L, 2);
@@ -803,7 +814,7 @@ LUAG_FUNC(linda_concat)
  */
 LUAG_FUNC(linda_dump)
 {
-    Linda* const linda{ lua_toLinda<false>(L, 1) };
+    Linda* const linda{ ToLinda<false>(L, 1) };
     return keeper_push_linda_storage(linda->U, Dest{ L }, linda, linda->hashSeed());
 }
 
@@ -815,12 +826,12 @@ LUAG_FUNC(linda_dump)
  */
 LUAG_FUNC(linda_towatch)
 {
-    Linda* const linda{ lua_toLinda<false>(L, 1) };
+    Linda* const linda{ ToLinda<false>(L, 1) };
     int pushed{ keeper_push_linda_storage(linda->U, Dest{ L }, linda, linda->hashSeed()) };
     if (pushed == 0)
     {
         // if the linda is empty, don't return nil
-        pushed = linda_tostring<false>(L, 1);
+        pushed = LindaToString<false>(L, 1);
     }
     return pushed;
 }
@@ -907,7 +918,8 @@ LUAG_FUNC(linda_towatch)
                 // Clean associated structures in the keeper state.
                 Keeper* const K{ need_acquire_release ? keeper_acquire(linda->U->keepers, linda->hashSeed()) : myK };
                 // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
-                std::ignore = keeper_call(linda->U, K->L, KEEPER_API(clear), L, linda, 0);
+                [[maybe_unused]] KeeperCallResult const result{ keeper_call(linda->U, K->L, KEEPER_API(clear), L, linda, 0) };
+                ASSERT_L(result.has_value() && result.value() == 0);
                 if (need_acquire_release)
                 {
                     keeper_release(K);
@@ -943,6 +955,7 @@ LUAG_FUNC(linda_towatch)
             // protected calls, to ensure associated keeper is always released even in case of error
             // all function are the protected call wrapper, where the actual operation is provided as upvalue
             // note that this kind of thing can break function lookup as we use the function pointer here and there
+            // TODO: change that and use different functions!
 
             lua_pushcfunction(L, LG_linda_send);
             lua_pushcclosure(L, LG_linda_protected_call, 1);

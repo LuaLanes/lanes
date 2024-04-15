@@ -418,7 +418,7 @@ int keepercall_limit(lua_State* L)
 // ##################################################################################################
 
 // in: linda_ud key [[val] ...]
-//out: true or nil
+//out: true if the linda was full but it's no longer the case, else nothing
 int keepercall_set(lua_State* L)
 {
     bool should_wake_writers{ false };
@@ -826,35 +826,35 @@ void keeper_toggle_nil_sentinels(lua_State* L, int val_i_, LookupMode const mode
 * 'linda':          deep Linda pointer (used only as a unique table key, first parameter)
 * 'starting_index': first of the rest of parameters (none if 0)
 *
-* Returns: number of return values (pushed to 'L') or -1 in case of error
+* Returns: number of return values (pushed to 'L'), unset in case of error
 */
-int keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, void* linda, int starting_index)
+KeeperCallResult keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, void* linda, int starting_index)
 {
+    KeeperCallResult result;
     int const args{ starting_index ? (lua_gettop(L) - starting_index + 1) : 0 };
-    int const Ktos{ lua_gettop(K) };
-    int retvals = -1;
+    int const top_K{ lua_gettop(K) };
 
     STACK_GROW(K, 2);
 
-    PUSH_KEEPER_FUNC(K, func_);
+    PUSH_KEEPER_FUNC(K, func_);                                                                                            // func_
 
-    lua_pushlightuserdata(K, linda);
+    lua_pushlightuserdata(K, linda);                                                                                       // func_ linda
 
-    if ((args == 0) || luaG_inter_copy(U, Source{ L }, Dest{ K }, args, LookupMode::ToKeeper) == InterCopyResult::Success) // L->K
+    if ((args == 0) || luaG_inter_copy(U, Source{ L }, Dest{ K }, args, LookupMode::ToKeeper) == InterCopyResult::Success) // func_ linda args...
     {
-        lua_call(K, 1 + args, LUA_MULTRET);
-        retvals = lua_gettop(K) - Ktos;
+        lua_call(K, 1 + args, LUA_MULTRET);                                                                                // result...
+        int const retvals{ lua_gettop(K) - top_K };
         // note that this can raise a luaL_error while the keeper state (and its mutex) is acquired
         // this may interrupt a lane, causing the destruction of the underlying OS thread
         // after this, another lane making use of this keeper can get an error code from the mutex-locking function
         // when attempting to grab the mutex again (WINVER <= 0x400 does this, but locks just fine, I don't know about pthread)
-        if ((retvals > 0) && luaG_inter_move(U, Source{ K }, Dest{ L }, retvals, LookupMode::FromKeeper) != InterCopyResult::Success) // K->L
+        if ((retvals == 0) || (luaG_inter_move(U, Source{ K }, Dest{ L }, retvals, LookupMode::FromKeeper) == InterCopyResult::Success)) // K->L
         {
-            retvals = -1;
+            result.emplace(retvals);
         }
     }
     // whatever happens, restore the stack to where it was at the origin
-    lua_settop(K, Ktos);
+    lua_settop(K, top_K);
 
     // don't do this for this particular function, as it is only called during Linda destruction, and we don't want to raise an error, ever
     if (func_ != KEEPER_API(clear)) [[unlikely]]
@@ -880,5 +880,5 @@ int keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_State* L, voi
         }
     }
 
-    return retvals;
+    return result;
 }
