@@ -1,7 +1,7 @@
 -- this script tests the fix of a bug that could cause the mutex of a keeper state to remain locked
 -- see https://github.com/LuaLanes/lanes/commit/0cc1c9c9dcea5955f7dab921d9a2fff78c4e1729
 
-local lanes = require('lanes').configure()
+local lanes = require('lanes').configure{with_timers=false}
 local linda = lanes.linda "deadlock_linda"
 
 print "let's begin"

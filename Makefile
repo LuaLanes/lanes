@@ -77,6 +77,7 @@ test:
 	$(MAKE) basic
 	$(MAKE) cancel
 	$(MAKE) cyclic
+	$(MAKE) deadlock
 	$(MAKE) errhangtest
 	$(MAKE) fibonacci
 	$(MAKE) fifo
