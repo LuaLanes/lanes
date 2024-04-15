@@ -544,14 +544,12 @@ static void selfdestruct_add(Lane* lane_)
         }
     }
 
-    // necessary so that calling free_deep_prelude doesn't crash because linda_id expects a linda lightuserdata at absolute slot 1
-    lua_settop(L, 0);
     // no need to mutex-protect this as all threads in the universe are gone at that point
     if (U->timer_deep != nullptr) // test ins case some early internal error prevented Lanes from creating the deep timer
     {
         [[maybe_unused]] int const prev_ref_count{ U->timer_deep->m_refcount.fetch_sub(1, std::memory_order_relaxed) };
         ASSERT_L(prev_ref_count == 1); // this should be the last reference
-        free_deep_prelude(L, U->timer_deep);
+        DeepFactory::DeleteDeepObject(L, U->timer_deep);
         U->timer_deep = nullptr;
     }
 
@@ -1840,7 +1838,7 @@ LUAG_FUNC(configure)
     STACK_CHECK(L, 2);
 
     {
-        char const* errmsg{ push_deep_proxy(Dest{ L }, U->timer_deep, 0, LookupMode::LaneBody) }; // settings M timer_deep
+        char const* errmsg{ DeepFactory::PushDeepProxy(Dest{ L }, U->timer_deep, 0, LookupMode::LaneBody) }; // settings M timer_deep
         if (errmsg != nullptr)
         {
             return luaL_error(L, errmsg);

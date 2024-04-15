@@ -833,6 +833,8 @@ KeeperCallResult keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_
     KeeperCallResult result;
     int const args{ starting_index ? (lua_gettop(L) - starting_index + 1) : 0 };
     int const top_K{ lua_gettop(K) };
+    // if we didn't do anything wrong, the keeper stack should be clean
+    ASSERT_L(lua_gettop(K) == 0);
 
     STACK_GROW(K, 2);
 

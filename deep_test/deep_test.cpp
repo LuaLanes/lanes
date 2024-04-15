@@ -5,6 +5,21 @@
 #include <memory.h>
 #include <assert.h>
 
+class MyDeepFactory : public DeepFactory
+{
+    private:
+
+    DeepPrelude* newDeepObjectInternal(lua_State* L) const override;
+    void deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const override;
+    void createMetatable(lua_State* L) const override
+    {
+        luaL_getmetatable(L, "deep");
+    }
+    char const* moduleName() const override { return "deep_test"; }
+};
+
+static MyDeepFactory g_MyDeepFactory;
+
 // ################################################################################################
 
 // a lanes-deep userdata. needs DeepPrelude and luaG_newdeepuserdata from Lanes code.
@@ -15,44 +30,25 @@ struct MyDeepUserdata : public DeepPrelude // Deep userdata MUST start with a De
 
 // ################################################################################################
 
-[[nodiscard]] static void* deep_test_id(lua_State* L, DeepOp op_)
+DeepPrelude* MyDeepFactory::newDeepObjectInternal(lua_State* L) const
 {
-    switch( op_)
-    {
-        case DeepOp::New:
-        {
-            MyDeepUserdata* deep_test = new MyDeepUserdata;
-            return deep_test;
-        }
+    MyDeepUserdata* deep_test = new MyDeepUserdata{ g_MyDeepFactory };
+    return deep_test;
+}
 
-        case DeepOp::Delete:
-        {
-            MyDeepUserdata* deep_test = static_cast<MyDeepUserdata*>(lua_touserdata( L, 1));
-            delete deep_test;
-            return nullptr;
-        }
+// ################################################################################################
 
-        case DeepOp::Metatable:
-        {
-            luaL_getmetatable( L, "deep");             // mt
-            return nullptr;
-        }
-
-        case DeepOp::Module:
-        return (void*)"deep_test";
-
-        default:
-        {
-            return nullptr;
-        }
-    }
+void MyDeepFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const
+{
+    MyDeepUserdata* deep_test = static_cast<MyDeepUserdata*>(o_);
+    delete deep_test;
 }
 
 // ################################################################################################
 
 [[nodiscard]] static int deep_set(lua_State* L)
 {
-    MyDeepUserdata* self = static_cast<MyDeepUserdata*>(luaG_todeep(L, deep_test_id, 1));
+    MyDeepUserdata* const self{ static_cast<MyDeepUserdata*>(g_MyDeepFactory.toDeep(L, 1)) };
     lua_Integer i = lua_tointeger( L, 2);
     self->val = i;
     return 0;
@@ -60,10 +56,9 @@ struct MyDeepUserdata : public DeepPrelude // Deep userdata MUST start with a De
 
 // ################################################################################################
 
-// won't actually do anything as deep userdata don't have uservalue slots
 [[nodiscard]] static int deep_setuv(lua_State* L)
 {
-    MyDeepUserdata* self = static_cast<MyDeepUserdata*>(luaG_todeep(L, deep_test_id, 1));
+    MyDeepUserdata* const self{ static_cast<MyDeepUserdata*>(g_MyDeepFactory.toDeep(L, 1)) };
     int uv = (int) luaL_optinteger(L, 2, 1);
     lua_settop( L, 3);
     lua_pushboolean( L, lua_setiuservalue( L, 1, uv) != 0);
@@ -75,7 +70,7 @@ struct MyDeepUserdata : public DeepPrelude // Deep userdata MUST start with a De
 // won't actually do anything as deep userdata don't have uservalue slots
 [[nodiscard]] static int deep_getuv(lua_State* L)
 {
-    MyDeepUserdata* self = static_cast<MyDeepUserdata*>(luaG_todeep(L, deep_test_id, 1));
+    MyDeepUserdata* const self{ static_cast<MyDeepUserdata*>(g_MyDeepFactory.toDeep(L, 1)) };
     int uv = (int) luaL_optinteger(L, 2, 1);
     lua_getiuservalue( L, 1, uv);
     return 1;
@@ -85,7 +80,7 @@ struct MyDeepUserdata : public DeepPrelude // Deep userdata MUST start with a De
 
 [[nodiscard]] static int deep_tostring(lua_State* L)
 {
-    MyDeepUserdata* self = static_cast<MyDeepUserdata*>(luaG_todeep(L, deep_test_id, 1));
+    MyDeepUserdata* const self{ static_cast<MyDeepUserdata*>(g_MyDeepFactory.toDeep(L, 1)) };
     lua_pushfstring(L, "%p:deep(%d)", lua_topointer(L, 1), self->val);
     return 1;
 }
@@ -94,7 +89,7 @@ struct MyDeepUserdata : public DeepPrelude // Deep userdata MUST start with a De
 
 [[nodiscard]] static int deep_gc(lua_State* L)
 {
-    MyDeepUserdata* self = static_cast<MyDeepUserdata*>(luaG_todeep(L, deep_test_id, 1));
+    MyDeepUserdata* const self{ static_cast<MyDeepUserdata*>(g_MyDeepFactory.toDeep(L, 1)) };
     return 0;
 }
 
@@ -115,9 +110,8 @@ static luaL_Reg const deep_mt[] =
 int luaD_new_deep( lua_State* L)
 {
     int const nuv{ static_cast<int>(luaL_optinteger(L, 1, 0)) };
-    // no additional parameter to luaG_newdeepuserdata!
     lua_settop(L, 0);
-    return luaG_newdeepuserdata(Dest{ L }, deep_test_id, nuv);
+    return g_MyDeepFactory.pushDeepUserdata(Dest{ L }, nuv);
 }
 
 // ################################################################################################

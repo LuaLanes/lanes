@@ -45,6 +45,18 @@ THE SOFTWARE.
 // xxh64 of string "CANCEL_ERROR" generated at https://www.pelock.com/products/hash-calculator
 static constexpr UniqueKey BATCH_SENTINEL{ 0x2DDFEE0968C62AA7ull, "linda.batched" };
 
+class LindaFactory : public DeepFactory
+{
+    private:
+
+    DeepPrelude* newDeepObjectInternal(lua_State* L) const override;
+    void deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const override;
+    void createMetatable(lua_State* L) const override;
+    char const* moduleName() const override;
+};
+// I'm not totally happy with having a global variable. But since it's stateless, it will do for the time being.
+static LindaFactory g_LindaFactory;
+
 /*
 * Actual data is kept within a keeper state, which is hashed by the 'Linda'
 * pointer (which is same to all userdatas pointing to it).
@@ -82,7 +94,8 @@ class Linda : public DeepPrelude // Deep userdata MUST start with this header
     static void operator delete(void* p_) { static_cast<Linda*>(p_)->U->internal_allocator.free(p_, sizeof(Linda)); }
 
     Linda(Universe* U_, uintptr_t group_, char const* name_, size_t len_)
-    : U{ U_ }
+    : DeepPrelude{ g_LindaFactory }
+    , U{ U_ }
     , group{ group_ << KEEPER_MAGIC_SHIFT }
     {
         setName(name_, len_);
@@ -141,12 +154,13 @@ class Linda : public DeepPrelude // Deep userdata MUST start with this header
         return nullptr;
     }
 };
-[[nodiscard]] static void* linda_id(lua_State*, DeepOp);
 
-template<bool OPT>
+// #################################################################################################
+
+template <bool OPT>
 [[nodiscard]] static inline Linda* ToLinda(lua_State* L, int idx_)
 {
-    Linda* const linda{ static_cast<Linda*>(luaG_todeep(L, linda_id, idx_)) };
+    Linda* const linda{ static_cast<Linda*>(g_LindaFactory.toDeep(L, idx_)) };
     if constexpr (!OPT)
     {
         luaL_argcheck(L, linda != nullptr, idx_, "expecting a linda object");
@@ -171,7 +185,6 @@ static void check_key_types(lua_State* L, int start_, int end_)
 
             case LuaType::LIGHTUSERDATA:
             {
-                // NIL_SENTINEL isn't publicly exposed, but it doesn't hurt to check
                 static constexpr std::array<std::reference_wrapper<UniqueKey const>, 3> to_check{ BATCH_SENTINEL, CANCEL_ERROR, NIL_SENTINEL };
                 for (UniqueKey const& key : to_check)
                 {
@@ -199,12 +212,16 @@ LUAG_FUNC(linda_protected_call)
     lua_State* const KL{ K ? K->L : nullptr };
     if (KL == nullptr)
         return 0;
+    // if we didn't do anything wrong, the keeper stack should be clean
+    ASSERT_L(lua_gettop(KL) == 0);
 
     // retrieve the actual function to be called and move it before the arguments
     lua_pushvalue(L, lua_upvalueindex(1));
     lua_insert(L, 1);
     // do a protected call
     int const rc{ lua_pcall(L, lua_gettop(L) - 1, LUA_MULTRET, 0) };
+    // whatever happens, the keeper state stack must be empty when we are done
+    lua_settop(KL, 0);
 
     // release the keeper
     keeper_release(K);
@@ -838,179 +855,152 @@ LUAG_FUNC(linda_towatch)
 
 // #################################################################################################
 
-/*
-* Identity function of a shared userdata object.
-* 
-*   lightuserdata= linda_id( "new" [, ...] )
-*   = linda_id( "delete", lightuserdata )
-*
-* Creation and cleanup of actual 'deep' objects. 'luaG_...' will wrap them into
-* regular userdata proxies, per each state using the deep data.
-*
-*   tbl= linda_id( "metatable" )
-*
-* Returns a metatable for the proxy objects ('__gc' method not needed; will
-* be added by 'luaG_...')
-*
-*   string= linda_id( "module")
-*
-* Returns the name of the module that a state should require
-* in order to keep a handle on the shared library that exported the idfunc
-*
-*   = linda_id( str, ... )
-*
-* For any other strings, the ID function must not react at all. This allows
-* future extensions of the system. 
-*/
-[[nodiscard]] static void* linda_id(lua_State* L, DeepOp op_)
+DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* L) const
 {
-    switch( op_)
+    size_t name_len = 0;
+    char const* linda_name = nullptr;
+    unsigned long linda_group = 0;
+    // should have a string and/or a number of the stack as parameters (name and group)
+    switch (lua_gettop(L))
     {
-        case DeepOp::New:
+        default: // 0
+        break;
+
+        case 1: // 1 parameter, either a name or a group
+        if (lua_type(L, -1) == LUA_TSTRING)
         {
-            size_t name_len = 0;
-            char const* linda_name = nullptr;
-            unsigned long linda_group = 0;
-            // should have a string and/or a number of the stack as parameters (name and group)
-            switch (lua_gettop(L))
-            {
-                default: // 0
-                break;
-
-                case 1: // 1 parameter, either a name or a group
-                if (lua_type(L, -1) == LUA_TSTRING)
-                {
-                    linda_name = lua_tolstring(L, -1, &name_len);
-                }
-                else
-                {
-                    linda_group = (unsigned long) lua_tointeger(L, -1);
-                }
-                break;
-
-                case 2: // 2 parameters, a name and group, in that order
-                linda_name = lua_tolstring(L, -2, &name_len);
-                linda_group = (unsigned long) lua_tointeger(L, -1);
-                break;
-            }
-
-            /* The deep data is allocated separately of Lua stack; we might no
-             * longer be around when last reference to it is being released.
-             * One can use any memory allocation scheme.
-             * just don't use L's allocF because we don't know which state will get the honor of GCing the linda
-             */
-            Universe* const U{ universe_get(L) };
-            Linda* linda{ new (U) Linda{ U, linda_group, linda_name, name_len } };
-            return linda;
+            linda_name = lua_tolstring(L, -1, &name_len);
         }
-
-        case DeepOp::Delete:
+        else
         {
-            Linda* const linda{ lua_tolightuserdata<Linda>(L, 1) };
-            ASSERT_L(linda);
-            Keeper* const myK{ which_keeper(linda->U->keepers, linda->hashSeed()) };
-            // if collected after the universe, keepers are already destroyed, and there is nothing to clear
-            if (myK)
-            {
-                // if collected from my own keeper, we can't acquire/release it
-                // because we are already inside a protected area, and trying to do so would deadlock!
-                bool const need_acquire_release{ myK->L != L };
-                // Clean associated structures in the keeper state.
-                Keeper* const K{ need_acquire_release ? keeper_acquire(linda->U->keepers, linda->hashSeed()) : myK };
-                // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
-                [[maybe_unused]] KeeperCallResult const result{ keeper_call(linda->U, K->L, KEEPER_API(clear), L, linda, 0) };
-                ASSERT_L(result.has_value() && result.value() == 0);
-                if (need_acquire_release)
-                {
-                    keeper_release(K);
-                }
-            }
-
-            delete linda; // operator delete overload ensures things go as expected
-            return nullptr;
+            linda_group = (unsigned long) lua_tointeger(L, -1);
         }
+        break;
 
-        case DeepOp::Metatable:
+        case 2: // 2 parameters, a name and group, in that order
+        linda_name = lua_tolstring(L, -2, &name_len);
+        linda_group = (unsigned long) lua_tointeger(L, -1);
+        break;
+    }
+
+    /* The deep data is allocated separately of Lua stack; we might no
+        * longer be around when last reference to it is being released.
+        * One can use any memory allocation scheme.
+        * just don't use L's allocF because we don't know which state will get the honor of GCing the linda
+        */
+    Universe* const U{ universe_get(L) };
+    Linda* linda{ new (U) Linda{ U, linda_group, linda_name, name_len } };
+    return linda;
+}
+
+// #################################################################################################
+
+void LindaFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const
+{
+    Linda* const linda{ static_cast<Linda*>(o_) };
+    ASSERT_L(linda);
+    Keeper* const myK{ which_keeper(linda->U->keepers, linda->hashSeed()) };
+    // if collected after the universe, keepers are already destroyed, and there is nothing to clear
+    if (myK)
+    {
+        // if collected from my own keeper, we can't acquire/release it
+        // because we are already inside a protected area, and trying to do so would deadlock!
+        bool const need_acquire_release{ myK->L != L };
+        // Clean associated structures in the keeper state.
+        Keeper* const K{ need_acquire_release ? keeper_acquire(linda->U->keepers, linda->hashSeed()) : myK };
+        // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
+        [[maybe_unused]] KeeperCallResult const result{ keeper_call(linda->U, K->L, KEEPER_API(clear), L, linda, 0) };
+        ASSERT_L(result.has_value() && result.value() == 0);
+        if (need_acquire_release)
         {
-            STACK_CHECK_START_REL(L, 0);
-            lua_newtable(L);
-            // metatable is its own index
-            lua_pushvalue(L, -1);
-            lua_setfield(L, -2, "__index");
-
-            // protect metatable from external access
-            lua_pushliteral(L, "Linda");
-            lua_setfield(L, -2, "__metatable");
-
-            lua_pushcfunction(L, LG_linda_tostring);
-            lua_setfield(L, -2, "__tostring");
-
-            // Decoda __towatch support
-            lua_pushcfunction(L, LG_linda_towatch);
-            lua_setfield(L, -2, "__towatch");
-
-            lua_pushcfunction(L, LG_linda_concat);
-            lua_setfield(L, -2, "__concat");
-
-            // protected calls, to ensure associated keeper is always released even in case of error
-            // all function are the protected call wrapper, where the actual operation is provided as upvalue
-            // note that this kind of thing can break function lookup as we use the function pointer here and there
-            // TODO: change that and use different functions!
-
-            lua_pushcfunction(L, LG_linda_send);
-            lua_pushcclosure(L, LG_linda_protected_call, 1);
-            lua_setfield(L, -2, "send");
-
-            lua_pushcfunction(L, LG_linda_receive);
-            lua_pushcclosure(L, LG_linda_protected_call, 1);
-            lua_setfield(L, -2, "receive");
-
-            lua_pushcfunction(L, LG_linda_limit);
-            lua_pushcclosure(L, LG_linda_protected_call, 1);
-            lua_setfield(L, -2, "limit");
-
-            lua_pushcfunction(L, LG_linda_set);
-            lua_pushcclosure(L, LG_linda_protected_call, 1);
-            lua_setfield(L, -2, "set");
-
-            lua_pushcfunction(L, LG_linda_count);
-            lua_pushcclosure(L, LG_linda_protected_call, 1);
-            lua_setfield(L, -2, "count");
-
-            lua_pushcfunction(L, LG_linda_get);
-            lua_pushcclosure(L, LG_linda_protected_call, 1);
-            lua_setfield(L, -2, "get");
-
-            lua_pushcfunction(L, LG_linda_cancel);
-            lua_setfield(L, -2, "cancel");
-
-            lua_pushcfunction(L, LG_linda_deep);
-            lua_setfield(L, -2, "deep");
-
-            lua_pushcfunction(L, LG_linda_dump);
-            lua_pushcclosure(L, LG_linda_protected_call, 1);
-            lua_setfield(L, -2, "dump");
-
-            // some constants
-            BATCH_SENTINEL.pushKey(L);
-            lua_setfield(L, -2, "batched");
-
-            NIL_SENTINEL.pushKey(L);
-            lua_setfield(L, -2, "null");
-
-            STACK_CHECK(L, 1);
-            return nullptr;
-        }
-
-        case DeepOp::Module:
-        // linda is a special case because we know lanes must be loaded from the main lua state
-        // to be able to ever get here, so we know it will remain loaded as long a the main state is around
-        // in other words, forever.
-        default:
-        {
-            return nullptr;
+            keeper_release(K);
         }
     }
+
+    delete linda; // operator delete overload ensures things go as expected
+}
+
+// #################################################################################################
+
+void LindaFactory::createMetatable(lua_State* L) const
+{
+    STACK_CHECK_START_REL(L, 0);
+    lua_newtable(L);
+    // metatable is its own index
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
+
+    // protect metatable from external access
+    lua_pushliteral(L, "Linda");
+    lua_setfield(L, -2, "__metatable");
+
+    lua_pushcfunction(L, LG_linda_tostring);
+    lua_setfield(L, -2, "__tostring");
+
+    // Decoda __towatch support
+    lua_pushcfunction(L, LG_linda_towatch);
+    lua_setfield(L, -2, "__towatch");
+
+    lua_pushcfunction(L, LG_linda_concat);
+    lua_setfield(L, -2, "__concat");
+
+    // protected calls, to ensure associated keeper is always released even in case of error
+    // all function are the protected call wrapper, where the actual operation is provided as upvalue
+    // note that this kind of thing can break function lookup as we use the function pointer here and there
+    // TODO: change that and use different functions!
+
+    lua_pushcfunction(L, LG_linda_send);
+    lua_pushcclosure(L, LG_linda_protected_call, 1);
+    lua_setfield(L, -2, "send");
+
+    lua_pushcfunction(L, LG_linda_receive);
+    lua_pushcclosure(L, LG_linda_protected_call, 1);
+    lua_setfield(L, -2, "receive");
+
+    lua_pushcfunction(L, LG_linda_limit);
+    lua_pushcclosure(L, LG_linda_protected_call, 1);
+    lua_setfield(L, -2, "limit");
+
+    lua_pushcfunction(L, LG_linda_set);
+    lua_pushcclosure(L, LG_linda_protected_call, 1);
+    lua_setfield(L, -2, "set");
+
+    lua_pushcfunction(L, LG_linda_count);
+    lua_pushcclosure(L, LG_linda_protected_call, 1);
+    lua_setfield(L, -2, "count");
+
+    lua_pushcfunction(L, LG_linda_get);
+    lua_pushcclosure(L, LG_linda_protected_call, 1);
+    lua_setfield(L, -2, "get");
+
+    lua_pushcfunction(L, LG_linda_cancel);
+    lua_setfield(L, -2, "cancel");
+
+    lua_pushcfunction(L, LG_linda_deep);
+    lua_setfield(L, -2, "deep");
+
+    lua_pushcfunction(L, LG_linda_dump);
+    lua_pushcclosure(L, LG_linda_protected_call, 1);
+    lua_setfield(L, -2, "dump");
+
+    // some constants
+    BATCH_SENTINEL.pushKey(L);
+    lua_setfield(L, -2, "batched");
+
+    NIL_SENTINEL.pushKey(L);
+    lua_setfield(L, -2, "null");
+
+    STACK_CHECK(L, 1);
+}
+
+// #################################################################################################
+
+char const* LindaFactory::moduleName() const
+{
+    // linda is a special case because we know lanes must be loaded from the main lua state
+    // to be able to ever get here, so we know it will remain loaded as long a the main state is around
+    // in other words, forever.
+    return nullptr;
 }
 
 // #################################################################################################
@@ -1034,5 +1024,5 @@ LUAG_FUNC(linda)
         luaL_checktype(L, 1, LUA_TSTRING);
         luaL_checktype(L, 2, LUA_TNUMBER);
     }
-    return luaG_newdeepuserdata(Dest{ L }, linda_id, 0);
+    return g_LindaFactory.pushDeepUserdata(Dest{ L }, 0);
 }

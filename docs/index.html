@@ -1683,34 +1683,45 @@ int luaD_new_clonable(lua_State* L)
 
 <ol>
 	<li>
-		Provide an <i>identity function</i> for your userdata, in C. This function is used for creation and deletion of your deep userdata (the shared resource), and for making metatables for the state-specific proxies for accessing it. The prototype is
-		<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>	void* idfunc(lua_State* L, DeepOp op_);</pre></td></tr></table>
-		<tt>op_</tt> can be one of:
+		Provide a <i>factory</i> for your userdata. This object is used for creation and deletion of your deep userdata (the shared resource), and for making metatables for the state-specific proxies for accessing it. The prototype is
+<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
+class MyDeepFactory : public DeepFactory
+{
+	private:
+
+	DeepPrelude* newDeepObjectInternal(lua_State* L) const override;
+	void deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const override;
+	void createMetatable(lua_State* L) const override;
+	char const* moduleName() const override;
+};
+
+static MyDeepFactory g_MyDeepFactory;
+</pre></td></tr></table>
 		<ul>
-			<li><tt>DeepOp::New</tt>: requests the creation of a new object, whose pointer is returned. Said object must derive from <tt>DeepPrelude</tt>.</li>
-			<li><tt>DeepOp::Delete</tt>: receives this same pointer on the stack as a light userdata, and should cleanup the object.</li>
-			<li><tt>DeepOp::Metatable</tt>: should build a metatable for the object. Don't cache the metatable yourself, Lanes takes care of it (<tt>DeepOp::Metatable</tt> should only be invoked once per state). Just push the metatable on the stack.</li>
-			<li><tt>DeepOp::Module</tt>: requests the name of the module that exports the idfunc, to be returned. It is necessary so that Lanes can require it in any lane state that receives a userdata. This is to prevent crashes in situations where the module could be unloaded while the idfunc pointer is still held.</li>
+			<li><tt>newDeepObjectInternal</tt>: requests the creation of a new object, whose pointer is returned. Said object must derive from <tt>DeepPrelude</tt>.</li>
+			<li><tt>deleteDeepObjectInternal</tt>: should cleanup the object.</li>
+			<li><tt>createMetatable</tt>: should build a metatable for the object. Don't cache the metatable yourself, Lanes takes care of it (<tt>createMetatable</tt> should only be invoked once per state). Just push the metatable on the stack.</li>
+			<li><tt>moduleName</tt>: requests the name of the module that exports the factory, to be returned. It is necessary so that Lanes can require it in any lane state that receives a userdata. This is to prevent crashes in situations where the module could be unloaded while the factory pointer is still held.</li>
 		</ul>
-		Take a look at <tt>linda_id</tt> in <tt>lanes.cpp</tt> or <tt>deep_test_id</tt> in <tt>deep_test.cpp</tt>.
+		Take a look at <tt>LindaFactory</tt> in <tt>linda.cpp</tt> or <tt>MyDeepFactory</tt> in <tt>deep_test.cpp</tt>.
 	</li>
 	<li>Include <tt>"deep.h"</tt> and either link against Lanes or statically compile <tt>compat.cpp deep.cpp tools.cpp universe.cpp</tt> into your module if you want to avoid a runtime dependency for users that will use your module without Lanes.
-	<li>Instanciate your userdata using <tt>luaG_newdeepuserdata()</tt>, instead of the regular <tt>lua_newuserdata()</tt>. Given an <tt>idfunc</tt>, it sets up the support structures and returns a state-specific proxy userdata for accessing your data. This proxy can also be copied over to other lanes.</li>
-	<li>Accessing the deep userdata from your C code, use <tt>luaG_todeep()</tt> instead of the regular <tt>lua_touserdata()</tt>.</li>
+	<li>Instanciate your userdata using <tt>yourFactoryObject.pushDeepUserdata()()</tt>, instead of the regular <tt>lua_newuserdata()</tt>. Given a <tt>factory</tt>, it sets up the support structures and returns a state-specific proxy userdata for accessing your data. This proxy can also be copied over to other lanes.</li>
+	<li>Accessing the deep userdata from your C code, use <tt>yourFactoryObject.toDeep()</tt> instead of the regular <tt>lua_touserdata()</tt>.</li>
 </ol>
 
 <p>
-	Deep userdata management will take care of tying to <tt>__gc</tt> methods, and doing reference counting to see how many proxies are still there for accessing the data. Once there are none, the data will be freed through a call to the <tt>idfunc</tt> you provided.
+	Deep userdata management will take care of tying to <tt>__gc</tt> methods, and doing reference counting to see how many proxies are still there for accessing the data. Once there are none, the data will be freed through a call to the factory you provided.
 </p>
 
 <p>
-	Deep userdata in transit inside keeper states (sent in a linda but not yet consumed) don't call <tt>idfunc(DeepOp::Delete)</tt> and aren't considered by reference counting. The rationale is the following:
+	Deep userdata in transit inside keeper states (sent in a linda but not yet consumed) don't call <tt>deleteDeepObjectInternal</tt> and aren't considered by reference counting. The rationale is the following:
 	<br />
 	If some non-keeper state holds a deep userdata for some deep object, then even if the keeper collects its own deep userdata, it shouldn't be cleaned up since the refcount is not 0.
 	<br />
-	OTOH, if a keeper state holds the last deep userdata for some deep object, then no lane can do actual work with it. Deep userdata's <tt>idfunc()</tt> is never called from a keeper state.
+	OTOH, if a keeper state holds the last deep userdata for some deep object, then no lane can do actual work with it. Deep userdata's <tt>factory()</tt> interface is never accessed from a keeper state.
 	<br />
-	Therefore, Lanes can just call <tt>idfunc(DeepOp::Delete)</tt> when the last non-keeper-held deep userdata is collected, as long as it doesn't do the same in a keeper state after that, since any remaining deep userdata in keeper states now hold stale pointers.
+	Therefore, Lanes can just call <tt>deleteDeepObjectInternal</tt> when the last non-keeper-held deep userdata is collected, as long as it doesn't do the same in a keeper state after that, since any remaining deep userdata in keeper states now hold stale pointers.
 </p>
 
 <p>

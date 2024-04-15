@@ -388,6 +388,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)..\Lua53\include;$(SolutionDir)Lanes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\Lua53\bin\$(Platform)\Debug\</Command>
@@ -407,6 +408,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)..\Lua51\include;$(SolutionDir)Lanes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\Lua51\bin\$(Platform)\Debug\</Command>
@@ -426,6 +428,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)..\Lua51\include;$(SolutionDir)Lanes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\Lua52\bin\$(Platform)\Debug\</Command>
@@ -446,6 +449,7 @@
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\LuaJIT-2.1.0-beta3\bin\$(Platform)\</Command>
@@ -466,6 +470,7 @@
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\LuaJIT-2.0.5\bin\$(Platform)\</Command>
@@ -485,6 +490,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)..\Lua54\include;$(SolutionDir)Lanes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\framework\</Command>
@@ -504,6 +510,7 @@
       <AdditionalIncludeDirectories>$(SolutionDir)..\MoonJIT\src;$(SolutionDir)Lanes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\MoonJIT\bin\$(Platform)\</Command>
@@ -524,6 +531,7 @@
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <PreprocessorDefinitions>_WINDLL;_DEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\Lua53\bin\$(Platform)\Debug\</Command>
@@ -544,6 +552,7 @@
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <PreprocessorDefinitions>_WINDLL;_DEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\Lua51\bin\$(Platform)\Debug\</Command>
@@ -564,6 +573,7 @@
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <PreprocessorDefinitions>_WINDLL;_DEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\Lua52\bin\$(Platform)\Debug\</Command>
@@ -584,6 +594,7 @@
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <PreprocessorDefinitions>_WINDLL;_DEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\LuaJIT-2.1.0-beta3\bin\$(Platform)\</Command>
@@ -604,6 +615,7 @@
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <PreprocessorDefinitions>_WINDLL;_DEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\LuaJIT-2.0.5\bin\$(Platform)\</Command>
@@ -624,6 +636,7 @@
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <PreprocessorDefinitions>_WINDLL;_DEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\framework\</Command>
@@ -644,6 +657,7 @@
       <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
       <PreprocessorDefinitions>_WINDLL;_DEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
       <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\MoonJIT\bin\$(Platform)\</Command>
