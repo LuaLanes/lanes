@@ -41,7 +41,7 @@ static constexpr UniqueKey UNIVERSE_FULL_REGKEY{ 0x99CA130C09EDC074ull };
 // xxh64 of string "UNIVERSE_LIGHT_REGKEY" generated at http://www.nitrxgen.net/hashgen/
 static constexpr UniqueKey UNIVERSE_LIGHT_REGKEY{ 0x3663C07C742CEB81ull };
 
-// ################################################################################################
+// #################################################################################################
 
 Universe::Universe()
 {
@@ -70,13 +70,13 @@ Universe::Universe()
 #endif // PLATFORM_LINUX
 }
 
-// ################################################################################################
+// #################################################################################################
 
 // only called from the master state
 Universe* universe_create(lua_State* L)
 {
     ASSERT_L(universe_get(L) == nullptr);
-    Universe* const U = static_cast<Universe*>(lua_newuserdatauv(L, sizeof(Universe), 0));         // universe
+    Universe* const U{ lua_newuserdatauv<Universe>(L, 0) }; // universe
     U->Universe::Universe();
     STACK_CHECK_START_REL(L, 1);
     UNIVERSE_FULL_REGKEY.setValue(L, [](lua_State* L) { lua_pushvalue(L, -2); });
@@ -85,7 +85,7 @@ Universe* universe_create(lua_State* L)
     return U;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 void universe_store(lua_State* L, Universe* U)
 {
@@ -95,7 +95,7 @@ void universe_store(lua_State* L, Universe* U)
     STACK_CHECK(L, 0);
 }
 
-// ################################################################################################
+// #################################################################################################
 
 Universe* universe_get(lua_State* L)
 {

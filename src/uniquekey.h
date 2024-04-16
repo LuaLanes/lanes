@@ -44,8 +44,10 @@ class UniqueKey
     }
     void pushValue(lua_State* const L) const
     {
+        STACK_CHECK_START_REL(L, 0);
         pushKey(L);
         lua_rawget(L, LUA_REGISTRYINDEX);
+        STACK_CHECK(L, 1);
     }
     template <typename OP>
     void setValue(lua_State* L, OP operation_) const

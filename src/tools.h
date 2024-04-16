@@ -6,13 +6,7 @@
 // forwards
 class Universe;
 
-// ################################################################################################
-
-#ifdef _DEBUG
-void luaG_dump(lua_State* L);
-#endif // _DEBUG
-
-// ################################################################################################
+// #################################################################################################
 
 void push_registry_subtable_mode(lua_State* L, UniqueKey key_, const char* mode_);
 void push_registry_subtable(lua_State* L, UniqueKey key_);
@@ -31,12 +25,13 @@ enum class InterCopyResult
     Error
 };
 
-// ################################################################################################
+// #################################################################################################
 
 using CacheIndex = Unique<int>;
 using SourceIndex = Unique<int>;
-struct InterCopyContext
+class InterCopyContext
 {
+    public:
 
     Universe* const U;
     Dest const L2;
@@ -47,35 +42,50 @@ struct InterCopyContext
     LookupMode const mode;
     char const* name; // that one can change when we reuse the context
 
-    [[nodiscard]] bool inter_copy_one() const;
-
     private:
 
-    [[nodiscard]] bool inter_copy_userdata() const;
-    [[nodiscard]] bool inter_copy_function() const;
-    [[nodiscard]] bool inter_copy_table() const;
+    // for use in copy_cached_func
+    void copy_func() const;
+    void lookup_native_func() const;
+
+    // for use in inter_copy_function
+    void copy_cached_func() const;
+    [[nodiscard]] bool lookup_table() const;
+
+    // for use in inter_copy_table
+    void inter_copy_keyvaluepair() const;
+    [[nodiscard]] bool push_cached_metatable() const;
+
+    // for use in inter_copy_userdata
     [[nodiscard]] bool copyclone() const;
     [[nodiscard]] bool copydeep() const;
-    [[nodiscard]] bool push_cached_metatable() const;
-    void copy_func() const;
-    void copy_cached_func() const;
-    void inter_copy_keyvaluepair() const;
+
+    // copying a single Lua stack item
+    [[nodiscard]] bool inter_copy_boolean() const;
+    [[nodiscard]] bool inter_copy_function() const;
+    [[nodiscard]] bool inter_copy_lightuserdata() const;
+    [[nodiscard]] bool inter_copy_nil() const;
+    [[nodiscard]] bool inter_copy_number() const;
+    [[nodiscard]] bool inter_copy_string() const;
+    [[nodiscard]] bool inter_copy_table() const;
+    [[nodiscard]] bool inter_copy_userdata() const;
 
     public:
 
+    [[nodiscard]] bool inter_copy_one() const;
     [[nodiscard]] InterCopyResult inter_copy_package() const;
     [[nodiscard]] InterCopyResult inter_copy(int n_) const;
     [[nodiscard]] InterCopyResult inter_move(int n_) const;
 };
 
-// ################################################################################################
+// #################################################################################################
 
 [[nodiscard]] int luaG_nameof(lua_State* L);
 
 void populate_func_lookup_table(lua_State* L, int _i, char const* _name);
 void initialize_allocator_function(Universe* U, lua_State* L);
 
-// ################################################################################################
+// #################################################################################################
 
 // crc64/we of string "CONFIG_REGKEY" generated at http://www.nitrxgen.net/hashgen/
 static constexpr UniqueKey CONFIG_REGKEY{ 0x31cd24894eae8624ull }; // registry key to access the configuration

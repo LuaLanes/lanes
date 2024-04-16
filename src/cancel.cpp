@@ -39,8 +39,8 @@ THE SOFTWARE.
 #include "threading.h"
 #include "tools.h"
 
-// ################################################################################################
-// ################################################################################################
+// #################################################################################################
+// #################################################################################################
 
 /*
 * Check if the thread in question ('L') has been signalled for cancel.
@@ -58,7 +58,7 @@ THE SOFTWARE.
     return lane ? lane->cancel_request : CancelRequest::None;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 //---
 // bool = cancel_test()
@@ -66,15 +66,15 @@ THE SOFTWARE.
 // Available inside the global namespace of lanes
 // returns a boolean saying if a cancel request is pending
 //
-LUAG_FUNC( cancel_test)
+LUAG_FUNC(cancel_test)
 {
     CancelRequest test{ cancel_test(L) };
     lua_pushboolean(L, test != CancelRequest::None);
     return 1;
 }
 
-// ################################################################################################
-// ################################################################################################
+// #################################################################################################
+// #################################################################################################
 
 [[nodiscard]] static void cancel_hook(lua_State* L, [[maybe_unused]] lua_Debug* ar)
 {
@@ -86,8 +86,8 @@ LUAG_FUNC( cancel_test)
     }
 }
 
-// ################################################################################################
-// ################################################################################################
+// #################################################################################################
+// #################################################################################################
 
 //---
 // = thread_cancel( lane_ud [,timeout_secs=0.0] [,wake_lindas_bool=false] )
@@ -106,7 +106,7 @@ LUAG_FUNC( cancel_test)
 //          false if the cancellation timed out, or a kill was needed.
 //
 
-// ################################################################################################
+// #################################################################################################
 
 [[nodiscard]] static CancelResult thread_cancel_soft(Lane* lane_, lua_Duration duration_, bool wake_lane_)
 {
@@ -124,7 +124,7 @@ LUAG_FUNC( cancel_test)
     return lane_->waitForCompletion(duration_) ? CancelResult::Cancelled : CancelResult::Timeout;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 [[nodiscard]] static CancelResult thread_cancel_hard(Lane* lane_, lua_Duration duration_, bool wake_lane_)
 {
@@ -143,7 +143,7 @@ LUAG_FUNC( cancel_test)
     return result;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 CancelResult thread_cancel(Lane* lane_, CancelOp op_, int hook_count_, lua_Duration duration_, bool wake_lane_)
 {
@@ -169,8 +169,8 @@ CancelResult thread_cancel(Lane* lane_, CancelOp op_, int hook_count_, lua_Durat
     return thread_cancel_hard(lane_, duration_, wake_lane_);
 }
 
-// ################################################################################################
-// ################################################################################################
+// #################################################################################################
+// #################################################################################################
 
 CancelOp which_cancel_op(char const* op_string_)
 {
@@ -202,7 +202,7 @@ CancelOp which_cancel_op(char const* op_string_)
     return op;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 [[nodiscard]] static CancelOp which_cancel_op(lua_State* L, int idx_)
 {
@@ -220,12 +220,12 @@ CancelOp which_cancel_op(char const* op_string_)
     return CancelOp::Hard;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 // bool[,reason] = lane_h:cancel( [mode, hookcount] [, timeout] [, wake_lindas])
 LUAG_FUNC(thread_cancel)
 {
-    Lane* const lane{ lua_toLane(L, 1) };
+    Lane* const lane{ ToLane(L, 1) };
     CancelOp const op{ which_cancel_op(L, 2) }; // this removes the op string from the stack
 
     int hook_count{ 0 };
@@ -235,7 +235,7 @@ LUAG_FUNC(thread_cancel)
         lua_remove(L, 2); // argument is processed, remove it
         if (hook_count < 1)
         {
-            return luaL_error(L, "hook count cannot be < 1");
+            return luaL_error(L, "hook count cannot be < 1"); // doesn't return
         }
     }
 
@@ -246,7 +246,7 @@ LUAG_FUNC(thread_cancel)
         lua_remove(L, 2); // argument is processed, remove it
         if (wait_timeout.count() < 0.0)
         {
-            return luaL_error(L, "cancel timeout cannot be < 0");
+            return luaL_error(L, "cancel timeout cannot be < 0"); // doesn't return
         }
     }
     // we wake by default in "hard" mode (remember that hook is hard too), but this can be turned off if desired
@@ -255,7 +255,7 @@ LUAG_FUNC(thread_cancel)
     {
         if (!lua_isboolean(L, 2))
         {
-            return luaL_error(L, "wake_lindas parameter is not a boolean");
+            return luaL_error(L, "wake_lindas parameter is not a boolean"); // doesn't return
         }
         wake_lane = lua_toboolean(L, 2);
         lua_remove(L, 2); // argument is processed, remove it

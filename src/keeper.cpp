@@ -48,9 +48,9 @@
 #include <algorithm>
 #include <cassert>
 
-// ###################################################################################
+// #################################################################################################
 // Keeper implementation
-// ###################################################################################
+// #################################################################################################
 
 class keeper_fifo
 {
@@ -74,7 +74,7 @@ class keeper_fifo
 
 static constexpr int CONTENTS_TABLE{ 1 };
 
-// ##################################################################################################
+// #################################################################################################
 
 // replaces the fifo ud by its uservalue on the stack
 [[nodiscard]] static keeper_fifo* prepare_fifo_access(lua_State* L, int idx_)
@@ -91,7 +91,7 @@ static constexpr int CONTENTS_TABLE{ 1 };
     return fifo;
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 // in: nothing
 // out: { first = 1, count = 0, limit = -1}
@@ -107,7 +107,7 @@ static constexpr int CONTENTS_TABLE{ 1 };
     return fifo;
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 // in: expect fifo ... on top of the stack
 // out: nothing, removes all pushed values from the stack
@@ -124,7 +124,7 @@ static void fifo_push(lua_State* L, keeper_fifo* fifo_, int count_)
     fifo_->count += count_;
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 // in: fifo
 // out: ...|nothing
@@ -140,7 +140,7 @@ static void fifo_peek(lua_State* L, keeper_fifo* fifo_, int count_)
     }
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 // in: fifo
 // out: remove the fifo from the stack, push as many items as required on the stack (function assumes they exist in sufficient number)
@@ -177,7 +177,7 @@ static void fifo_pop( lua_State* L, keeper_fifo* fifo_, int count_)
     }
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 // in: linda_ud expected at stack slot idx
 // out: fifos[ud]
@@ -205,7 +205,7 @@ static void push_table(lua_State* L, int idx_)
     STACK_CHECK(L, 1);
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 int keeper_push_linda_storage(Universe* U, Dest L, void* ptr_, uintptr_t magic_)
 {
@@ -258,7 +258,7 @@ int keeper_push_linda_storage(Universe* U, Dest L, void* ptr_, uintptr_t magic_)
     return 1;
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 // in: linda_ud
 int keepercall_clear(lua_State* L)
@@ -274,7 +274,7 @@ int keepercall_clear(lua_State* L)
     return 0;
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 // in: linda_ud, key, ...
 // out: true|false
@@ -285,7 +285,7 @@ int keepercall_send(lua_State* L)
     // get the fifo associated to this key in this linda, create it if it doesn't exist
     lua_pushvalue(L, 2);                          // ud key ... fifos key
     lua_rawget(L, -2);                            // ud key ... fifos fifo
-    if( lua_isnil(L, -1))
+    if (lua_isnil(L, -1))
     {
         lua_pop(L, 1);                            // ud key ... fifos
         std::ignore = fifo_new(L);                // ud key ... fifos fifo
@@ -311,7 +311,7 @@ int keepercall_send(lua_State* L)
     return 1;
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 // in: linda_ud, key [, key]?
 // out: (key, val) or nothing
@@ -347,13 +347,13 @@ int keepercall_receive(lua_State* L)
     return 0;
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 // in: linda_ud key mincount [maxcount]
 int keepercall_receive_batched(lua_State* L)
 {
     int const min_count{ static_cast<int>(lua_tointeger(L, 3)) };
-    if( min_count > 0)
+    if (min_count > 0)
     {
         int const max_count{ static_cast<int>(luaL_optinteger(L, 4, min_count)) };
         lua_settop(L, 2);                                         // ud key
@@ -364,7 +364,7 @@ int keepercall_receive_batched(lua_State* L)
         lua_rawget(L, 2);                                         // key fifos fifo
         lua_remove(L, 2);                                         // key fifo
         keeper_fifo* const fifo{ prepare_fifo_access(L, 2) };     // key fifotbl
-        if( fifo != nullptr && fifo->count >= min_count)
+        if (fifo != nullptr && fifo->count >= min_count)
         {
             fifo_pop(L, fifo, std::min( max_count, fifo->count)); // key ...
         }
@@ -380,7 +380,7 @@ int keepercall_receive_batched(lua_State* L)
     }
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 // in: linda_ud key n
 // out: true or nil
@@ -403,7 +403,7 @@ int keepercall_limit(lua_State* L)
     lua_settop(L, 0);
     // return true if we decide that blocked threads waiting to write on that key should be awakened
     // this is the case if we detect the key was full but it is no longer the case
-    if(
+    if (
            ((fifo->limit >= 0) && (fifo->count >= fifo->limit)) // the key was full if limited and count exceeded the previous limit
         && ((limit < 0) || (fifo->count < limit))       // the key is not full if unlimited or count is lower than the new limit
     )
@@ -416,7 +416,7 @@ int keepercall_limit(lua_State* L)
     return lua_gettop(L);
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 // in: linda_ud key [[val] ...]
 //out: true if the linda was full but it's no longer the case, else nothing
@@ -462,7 +462,7 @@ int keepercall_set(lua_State* L)
         lua_pushvalue(L, 2);                               // fifos key [val [, ...]] key
         lua_rawget(L, 1);                                  // fifos key [val [, ...]] fifo|nil
         keeper_fifo* fifo{ keeper_fifo::getPtr(L, -1) };
-        if( fifo == nullptr) // can be nullptr if we store a value at a new key
+        if (fifo == nullptr) // can be nullptr if we store a value at a new key
         {                                                  // fifos key [val [, ...]] nil
             // no need to wake writers in that case, because a writer can't wait on an inexistent key
             lua_pop(L, 1);                                 // fifos key [val [, ...]]
@@ -489,7 +489,7 @@ int keepercall_set(lua_State* L)
     return should_wake_writers ? (lua_pushboolean(L, 1), 1) : 0;
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 // in: linda_ud key [count]
 // out: at most <count> values
@@ -517,7 +517,7 @@ int keepercall_get(lua_State* L)
     return 0;
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 // in: linda_ud [, key [, ...]]
 int keepercall_count(lua_State* L)
@@ -586,9 +586,9 @@ int keepercall_count(lua_State* L)
     return 1;
 }
 
-//###################################################################################
+// #################################################################################################
 // Keeper API, accessed from linda methods
-//###################################################################################
+// #################################################################################################
 
 /*---=== Keeper states ===---
 */
@@ -636,7 +636,7 @@ void close_keepers(Universe* U)
     }
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 /*
  * Initialize keeper states
@@ -746,7 +746,7 @@ void init_keepers(Universe* U, lua_State* L)
     STACK_CHECK(L, 0);
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 // should be called only when inside a keeper_acquire/keeper_release pair (see Linda::ProtectedCall)
 Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_)
@@ -760,7 +760,7 @@ Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_)
     return nullptr;
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_)
 {
@@ -784,7 +784,7 @@ Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_)
     return nullptr;
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 void keeper_release(Keeper* K)
 {
@@ -795,7 +795,7 @@ void keeper_release(Keeper* K)
     }
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 void keeper_toggle_nil_sentinels(lua_State* L, int val_i_, LookupMode const mode_)
 {
@@ -821,7 +821,7 @@ void keeper_toggle_nil_sentinels(lua_State* L, int val_i_, LookupMode const mode
     }
 }
 
-// ##################################################################################################
+// #################################################################################################
 
 /*
 * Call a function ('func_name') in the keeper state, and pass on the returned

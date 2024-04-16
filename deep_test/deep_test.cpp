@@ -20,7 +20,7 @@ class MyDeepFactory : public DeepFactory
 
 static MyDeepFactory g_MyDeepFactory;
 
-// ################################################################################################
+// #################################################################################################
 
 // a lanes-deep userdata. needs DeepPrelude and luaG_newdeepuserdata from Lanes code.
 struct MyDeepUserdata : public DeepPrelude // Deep userdata MUST start with a DeepPrelude
@@ -28,7 +28,7 @@ struct MyDeepUserdata : public DeepPrelude // Deep userdata MUST start with a De
     lua_Integer val{ 0 };
 };
 
-// ################################################################################################
+// #################################################################################################
 
 DeepPrelude* MyDeepFactory::newDeepObjectInternal(lua_State* L) const
 {
@@ -36,7 +36,7 @@ DeepPrelude* MyDeepFactory::newDeepObjectInternal(lua_State* L) const
     return deep_test;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 void MyDeepFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const
 {
@@ -44,7 +44,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) cons
     delete deep_test;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 [[nodiscard]] static int deep_set(lua_State* L)
 {
@@ -54,7 +54,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) cons
     return 0;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 [[nodiscard]] static int deep_setuv(lua_State* L)
 {
@@ -65,7 +65,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) cons
     return 1;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 // won't actually do anything as deep userdata don't have uservalue slots
 [[nodiscard]] static int deep_getuv(lua_State* L)
@@ -76,7 +76,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) cons
     return 1;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 [[nodiscard]] static int deep_tostring(lua_State* L)
 {
@@ -85,7 +85,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) cons
     return 1;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 [[nodiscard]] static int deep_gc(lua_State* L)
 {
@@ -93,7 +93,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) cons
     return 0;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 static luaL_Reg const deep_mt[] =
 {
@@ -105,7 +105,7 @@ static luaL_Reg const deep_mt[] =
     { nullptr, nullptr }
 };
 
-// ################################################################################################
+// #################################################################################################
 
 int luaD_new_deep( lua_State* L)
 {
@@ -114,15 +114,15 @@ int luaD_new_deep( lua_State* L)
     return g_MyDeepFactory.pushDeepUserdata(Dest{ L }, nuv);
 }
 
-// ################################################################################################
-// ################################################################################################
+// #################################################################################################
+// #################################################################################################
 
 struct MyClonableUserdata
 {
     lua_Integer val;
 };
 
-// ################################################################################################
+// #################################################################################################
 
 [[nodiscard]] static int clonable_set(lua_State* L)
 {
@@ -132,7 +132,7 @@ struct MyClonableUserdata
     return 0;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 [[nodiscard]] static int clonable_setuv(lua_State* L)
 {
@@ -143,7 +143,7 @@ struct MyClonableUserdata
     return 1;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 [[nodiscard]] static int clonable_getuv(lua_State* L)
 {
@@ -153,7 +153,7 @@ struct MyClonableUserdata
     return 1;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 [[nodiscard]] static int clonable_tostring(lua_State* L)
 {
@@ -162,7 +162,7 @@ struct MyClonableUserdata
     return 1;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 [[nodiscard]] static int clonable_gc(lua_State* L)
 {
@@ -170,7 +170,7 @@ struct MyClonableUserdata
     return 0;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 // this is all we need to make a userdata lanes-clonable. no dependency on Lanes code.
 [[nodiscard]] static int clonable_lanesclone(lua_State* L)
@@ -193,7 +193,7 @@ struct MyClonableUserdata
     return 0;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 static luaL_Reg const clonable_mt[] =
 {
@@ -206,7 +206,7 @@ static luaL_Reg const clonable_mt[] =
     { nullptr, nullptr }
 };
 
-// ################################################################################################
+// #################################################################################################
 
 int luaD_new_clonable( lua_State* L)
 {
@@ -216,8 +216,8 @@ int luaD_new_clonable( lua_State* L)
     return 1;
 }
 
-// ################################################################################################
-// ################################################################################################
+// #################################################################################################
+// #################################################################################################
 
 static luaL_Reg const deep_module[] =
 {
@@ -226,14 +226,14 @@ static luaL_Reg const deep_module[] =
     { nullptr, nullptr }
 };
 
-// ################################################################################################
+// #################################################################################################
 
 LANES_API int luaopen_deep_test(lua_State* L)
 {
     luaL_newlib( L, deep_module);                           // M
 
     // preregister the metatables for the types we can instantiate so that Lanes can know about them
-    if( luaL_newmetatable( L, "clonable"))                  // M mt
+    if (luaL_newmetatable( L, "clonable"))                  // M mt
     {
         luaL_setfuncs( L, clonable_mt, 0);
         lua_pushvalue(L, -1);                               // M mt mt
@@ -241,7 +241,7 @@ LANES_API int luaopen_deep_test(lua_State* L)
     }
     lua_setfield(L, -2, "__clonableMT");                    // M
 
-    if( luaL_newmetatable( L, "deep"))                      // mt
+    if (luaL_newmetatable( L, "deep"))                      // mt
     {
         luaL_setfuncs( L, deep_mt, 0);
         lua_pushvalue(L, -1);                               // mt mt

@@ -13,7 +13,7 @@ extern "C" {
 
 #include <mutex>
 
-// ################################################################################################
+// #################################################################################################
 
 // forwards
 struct DeepPrelude;
@@ -25,7 +25,7 @@ class Lane;
 */
 #define HAVE_LANE_TRACKING() 1
 
-// ################################################################################################
+// #################################################################################################
 
 // everything we need to provide to lua_newstate()
 class AllocatorDefinition
@@ -35,6 +35,7 @@ class AllocatorDefinition
     lua_Alloc m_allocF{ nullptr };
     void* m_allocUD{ nullptr };
 
+    [[nodiscard]] static void* operator new(size_t size_) noexcept = delete; // can't create one outside of a Lua state
     [[nodiscard]] static void* operator new(size_t size_, lua_State* L) noexcept { return lua_newuserdatauv(L, size_, 0); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
@@ -72,7 +73,7 @@ class AllocatorDefinition
     }
 };
 
-// ################################################################################################
+// #################################################################################################
 
 // mutex-protected allocator for use with Lua states that share a non-threadsafe allocator
 class ProtectedAllocator : public AllocatorDefinition
@@ -115,7 +116,7 @@ class ProtectedAllocator : public AllocatorDefinition
     }
 };
 
-// ################################################################################################
+// #################################################################################################
 
 // everything regarding the Lanes universe is stored in that global structure
 // held as a full userdata in the master Lua state that required it for the first time
@@ -183,13 +184,13 @@ class Universe
     Universe& operator=(Universe&&) = delete;
 };
 
-// ################################################################################################
+// #################################################################################################
 
 [[nodiscard]] Universe* universe_get(lua_State* L);
 [[nodiscard]] Universe* universe_create(lua_State* L);
 void universe_store(lua_State* L, Universe* U);
 
-// ################################################################################################
+// #################################################################################################
 
 #if USE_DEBUG_SPEW()
 class DebugSpewIndentScope

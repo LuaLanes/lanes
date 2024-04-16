@@ -37,7 +37,7 @@ THE SOFTWARE.
 #include "tools.h"
 #include "universe.h"
 
-// ################################################################################################
+// #################################################################################################
 
 /*---=== Serialize require ===---
 */
@@ -71,7 +71,7 @@ THE SOFTWARE.
 
     // the required module (or an error message) is left on the stack as returned value by original require function
 
-    if( rc != LUA_OK) // LUA_ERRRUN / LUA_ERRMEM ?
+    if (rc != LUA_OK) // LUA_ERRRUN / LUA_ERRMEM ?
     {
         raise_lua_error(L);
     }
@@ -108,7 +108,7 @@ void serialize_require(DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L)
     STACK_CHECK(L, 0);
 }
 
-// ################################################################################################
+// #################################################################################################
 
 /*---=== luaG_newstate ===---*/
 
@@ -161,10 +161,9 @@ static luaL_Reg const libs[] =
 
 static void open1lib(DEBUGSPEW_PARAM_COMMA(Universe* U) lua_State* L, char const* name_, size_t len_)
 {
-    int i;
-    for( i = 0; libs[i].name; ++ i)
+    for (int i{ 0 }; libs[i].name; ++i)
     {
-        if( strncmp( name_, libs[i].name, len_) == 0)
+        if (strncmp( name_, libs[i].name, len_) == 0)
         {
             lua_CFunction libfunc = libs[i].func;
             name_ = libs[i].name; // note that the provided name_ doesn't necessarily ends with '\0', hence len_
@@ -176,7 +175,7 @@ static void open1lib(DEBUGSPEW_PARAM_COMMA(Universe* U) lua_State* L, char const
                 // open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
                 luaL_requiref( L, name_, libfunc, !isLanesCore);
                 // lanes.core doesn't declare a global, so scan it here and now
-                if( isLanesCore == true)
+                if (isLanesCore == true)
                 {
                     populate_func_lookup_table( L, -1, name_);
                 }
@@ -220,7 +219,7 @@ void initialize_on_state_create( Universe* U, lua_State* L)
 {
     STACK_CHECK_START_REL(L, 1);                             // settings
     lua_getfield(L, -1, "on_state_create");                  // settings on_state_create|nil
-    if( !lua_isnil(L, -1))
+    if (!lua_isnil(L, -1))
     {
         // store C function pointer in an internal variable
         U->on_state_create_func = lua_tocfunction(L, -1);    // settings on_state_create
@@ -371,7 +370,7 @@ lua_State* luaG_newstate(Universe* U, Source from_, char const* libs_)
     {
         // special "*" case (mainly to help with LuaJIT compatibility)
         // as we are called from luaopen_lanes_core() already, and that would deadlock
-        if( libs_[0] == '*' && libs_[1] == 0)
+        if (libs_[0] == '*' && libs_[1] == 0)
         {
             DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening ALL standard libraries\n" INDENT_END));
             luaL_openlibs( L);
@@ -396,26 +395,25 @@ lua_State* luaG_newstate(Universe* U, Source from_, char const* libs_)
     STACK_CHECK(L, 0);
 
     // scan all libraries, open them one by one
-    if( libs_)
+    if (libs_)
     {
-        char const* p;
-        unsigned int len = 0;
-        for( p = libs_; *p; p += len)
+        unsigned int len{ 0 };
+        for (char const* p{ libs_ }; *p; p += len)
         {
             // skip delimiters ('.' can be part of name for "lanes.core")
-            while( *p && !isalnum( *p) && *p != '.')
+            while( *p && !isalnum(*p) && *p != '.')
                 ++ p;
             // skip name
             len = 0;
-            while( isalnum( p[len]) || p[len] == '.')
+            while( isalnum(p[len]) || p[len] == '.')
                 ++ len;
             // open library
-            open1lib( DEBUGSPEW_PARAM_COMMA( U) L, p, len);
+            open1lib(DEBUGSPEW_PARAM_COMMA( U) L, p, len);
         }
     }
-    lua_gc( L, LUA_GCRESTART, 0);
+    lua_gc(L, LUA_GCRESTART, 0);
 
-    serialize_require( DEBUGSPEW_PARAM_COMMA( U) L);
+    serialize_require(DEBUGSPEW_PARAM_COMMA( U) L);
 
     // call this after the base libraries are loaded and GC is restarted
     // will raise an error in from_ in case of problem
@@ -423,7 +421,7 @@ lua_State* luaG_newstate(Universe* U, Source from_, char const* libs_)
 
     STACK_CHECK(L, 0);
     // after all this, register everything we find in our name<->function database
-    lua_pushglobaltable( L); // Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
+    lua_pushglobaltable(L); // Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
     STACK_CHECK(L, 1);
     populate_func_lookup_table(L, -1, nullptr);
 

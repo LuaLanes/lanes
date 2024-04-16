@@ -35,7 +35,6 @@ using namespace std::chrono_literals;
 #ifdef NDEBUG
 
 #define _ASSERT_L(lua,c)     //nothing
-#define STACK_DUMP(L)        //nothing
 
 #define STACK_CHECK_START_REL(L, offset_)
 #define STACK_CHECK_START_ABS(L, offset_)
@@ -45,8 +44,7 @@ using namespace std::chrono_literals;
 
 #else // NDEBUG
 
-#define _ASSERT_L(L, cond_) if( (cond_) == 0) { (void) luaL_error(L, "ASSERT failed: %s:%d '%s'", __FILE__, __LINE__, #cond_);}
-#define STACK_DUMP(L)    luaG_dump(L)
+#define _ASSERT_L(L, cond_) if ((cond_) == 0) { (void) luaL_error(L, "ASSERT failed: %s:%d '%s'", __FILE__, __LINE__, #cond_);}
 
 class StackChecker
 {

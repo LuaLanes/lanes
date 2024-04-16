@@ -81,7 +81,7 @@ static void set_deep_lookup(lua_State* L)
     STACK_CHECK( L, 0);
 }
 
-// ################################################################################################
+// #################################################################################################
 
 /*
 * Pops the key (metatable or factory) off the stack, and replaces with the
@@ -92,7 +92,7 @@ static void get_deep_lookup(lua_State* L)
     STACK_GROW( L, 1);
     STACK_CHECK_START_REL(L, 1);                             // a
     DEEP_LOOKUP_KEY.pushValue(L);                            // a {}
-    if( !lua_isnil( L, -1))
+    if (!lua_isnil( L, -1))
     {
         lua_insert( L, -2);                                  // {} a
         lua_rawget( L, -2);                                  // {} b
@@ -101,7 +101,7 @@ static void get_deep_lookup(lua_State* L)
     STACK_CHECK( L, 1);
 }
 
-// ################################################################################################
+// #################################################################################################
 
 /*
 * Return the registered factory for 'index' (deep userdata proxy),
@@ -124,7 +124,7 @@ static void get_deep_lookup(lua_State* L)
         STACK_GROW( L, 1);
         STACK_CHECK_START_REL(L, 0);
 
-        if( !lua_getmetatable( L, index))       // deep ... metatable?
+        if (!lua_getmetatable( L, index))       // deep ... metatable?
         {
             return nullptr; // no metatable: can't be a deep userdata object!
         }
@@ -139,7 +139,7 @@ static void get_deep_lookup(lua_State* L)
     }
 }
 
-// ################################################################################################
+// #################################################################################################
 
 void DeepFactory::DeleteDeepObject(lua_State* L, DeepPrelude* o_)
 {
@@ -148,7 +148,7 @@ void DeepFactory::DeleteDeepObject(lua_State* L, DeepPrelude* o_)
     STACK_CHECK(L, 0);
 }
 
-// ################################################################################################
+// #################################################################################################
 
 /*
  * void= mt.__gc( proxy_ud )
@@ -169,7 +169,7 @@ void DeepFactory::DeleteDeepObject(lua_State* L, DeepPrelude* o_)
     {
         // retrieve wrapped __gc
         lua_pushvalue( L, lua_upvalueindex( 1));                              // self __gc?
-        if( !lua_isnil( L, -1))
+        if (!lua_isnil( L, -1))
         {
             lua_insert( L, -2);                                               // __gc self
             lua_call( L, 1, 0);                                               //
@@ -180,7 +180,7 @@ void DeepFactory::DeleteDeepObject(lua_State* L, DeepPrelude* o_)
     return 0;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 /*
  * Push a proxy userdata on the stack.
@@ -194,25 +194,25 @@ void DeepFactory::DeleteDeepObject(lua_State* L, DeepPrelude* o_)
 char const* DeepFactory::PushDeepProxy(Dest L, DeepPrelude* prelude, int nuv_, LookupMode mode_)
 {
     // Check if a proxy already exists
-    push_registry_subtable_mode( L, DEEP_PROXY_CACHE_KEY, "v");                                        // DPC
-    lua_pushlightuserdata( L, prelude);                                                                // DPC deep
-    lua_rawget( L, -2);                                                                                // DPC proxy
-    if ( !lua_isnil( L, -1))
+    push_registry_subtable_mode(L, DEEP_PROXY_CACHE_KEY, "v");                                         // DPC
+    lua_pushlightuserdata(L, prelude);                                                                 // DPC deep
+    lua_rawget(L, -2);                                                                                 // DPC proxy
+    if (!lua_isnil(L, -1))
     {
-        lua_remove( L, -2);                                                                            // proxy
+        lua_remove(L, -2);                                                                             // proxy
         return nullptr;
     }
     else
     {
-        lua_pop( L, 1);                                                                                // DPC
+        lua_pop(L, 1);                                                                                 // DPC
     }
 
-    STACK_GROW( L, 7);
+    STACK_GROW(L, 7);
     STACK_CHECK_START_REL(L, 0);
 
     // a new full userdata, fitted with the specified number of uservalue slots (always 1 for Lua < 5.4)
-    DeepPrelude** proxy = (DeepPrelude**) lua_newuserdatauv(L, sizeof(DeepPrelude*), nuv_);            // DPC proxy
-    ASSERT_L( proxy);
+    DeepPrelude** const proxy{ lua_newuserdatauv<DeepPrelude*>(L, nuv_) };                             // DPC proxy
+    ASSERT_L(proxy);
     *proxy = prelude;
     prelude->m_refcount.fetch_add(1, std::memory_order_relaxed); // one more proxy pointing to this deep data
 
@@ -221,7 +221,7 @@ char const* DeepFactory::PushDeepProxy(Dest L, DeepPrelude* prelude, int nuv_, L
     lua_pushlightuserdata( L, std::bit_cast<void*>(&factory));                                         // DPC proxy factory
     get_deep_lookup( L);                                                                               // DPC proxy metatable?
 
-    if( lua_isnil( L, -1)) // // No metatable yet.
+    if (lua_isnil( L, -1)) // // No metatable yet.
     {
         lua_pop(L, 1);                                                                                 // DPC proxy
         int const oldtop{ lua_gettop(L) };
@@ -245,7 +245,7 @@ char const* DeepFactory::PushDeepProxy(Dest L, DeepPrelude* prelude, int nuv_, L
             lua_newtable( L);                                                                          // DPC proxy metatable
             lua_pushnil( L);                                                                           // DPC proxy metatable nil
         }
-        if( lua_isnil( L, -1))
+        if (lua_isnil( L, -1))
         {
             // Add our own '__gc' method
             lua_pop( L, 1);                                                                            // DPC proxy metatable
@@ -269,22 +269,22 @@ char const* DeepFactory::PushDeepProxy(Dest L, DeepPrelude* prelude, int nuv_, L
             // L.registry._LOADED exists without having registered the 'package' library.
             lua_getglobal( L, "require");                                                              // DPC proxy metatable require()
             // check that the module is already loaded (or being loaded, we are happy either way)
-            if( lua_isfunction( L, -1))
+            if (lua_isfunction( L, -1))
             {
                 lua_pushstring( L, modname);                                                           // DPC proxy metatable require() "module"
                 lua_getfield( L, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);                                 // DPC proxy metatable require() "module" _R._LOADED
-                if( lua_istable( L, -1))
+                if (lua_istable( L, -1))
                 {
                     lua_pushvalue( L, -2);                                                             // DPC proxy metatable require() "module" _R._LOADED "module"
                     lua_rawget( L, -2);                                                                // DPC proxy metatable require() "module" _R._LOADED module
                     int const alreadyloaded = lua_toboolean( L, -1);
-                    if( !alreadyloaded) // not loaded
+                    if (!alreadyloaded) // not loaded
                     {
                         int require_result;
                         lua_pop( L, 2);                                                                // DPC proxy metatable require() "module"
                         // require "modname"
                         require_result = lua_pcall( L, 1, 0, 0);                                       // DPC proxy metatable error?
-                        if( require_result != LUA_OK)
+                        if (require_result != LUA_OK)
                         {
                             // failed, return the error message
                             lua_pushfstring( L, "error while requiring '%s' identified by DeepFactory::moduleName: ", modname);
@@ -326,7 +326,7 @@ char const* DeepFactory::PushDeepProxy(Dest L, DeepPrelude* prelude, int nuv_, L
     return nullptr;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 /*
 * Create a deep userdata
@@ -354,7 +354,7 @@ int DeepFactory::pushDeepUserdata(Dest L, int nuv_) const
         return luaL_error( L, "DeepFactory::newDeepObjectInternal failed to create deep userdata (out of memory)");
     }
 
-    if( prelude->m_magic != DEEP_VERSION)
+    if (prelude->m_magic != DEEP_VERSION)
     {
         // just in case, don't leak the newly allocated deep userdata object
         deleteDeepObjectInternal(L, prelude);
@@ -364,7 +364,7 @@ int DeepFactory::pushDeepUserdata(Dest L, int nuv_) const
     ASSERT_L(prelude->m_refcount.load(std::memory_order_relaxed) == 0); // 'DeepFactory::PushDeepProxy' will lift it to 1
     ASSERT_L(&prelude->m_factory == this);
 
-    if( lua_gettop( L) - oldtop != 0)
+    if (lua_gettop( L) - oldtop != 0)
     {
         // just in case, don't leak the newly allocated deep userdata object
         deleteDeepObjectInternal(L, prelude);
@@ -380,7 +380,7 @@ int DeepFactory::pushDeepUserdata(Dest L, int nuv_) const
     return 1;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 /*
 * Access deep userdata through a proxy.
@@ -402,7 +402,7 @@ DeepPrelude* DeepFactory::toDeep(lua_State* L, int index) const
     return *proxy;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 /*
  * Copy deep userdata between two separate Lua states (from L to L2)

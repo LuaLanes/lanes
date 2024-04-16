@@ -5,7 +5,7 @@ for k,v in ipairs{...} do
 	remaining_tests[v] = true
 end
 
---####################################################################
+-- ##################################################################################################
 
 local lanes = require "lanes" .configure{ with_timers = false}
 
@@ -13,7 +13,8 @@ local linda = lanes.linda()
 -- a numeric value to read
 linda:set( "val", 33.0)
 
---####################################################################
+-- ##################################################################################################
+
 if not next(which_tests) or which_tests.genlock then
 	remaining_tests.genlock = nil
 	print "\n\n####################################################################\nbegin genlock & genatomic cancel test\n"
@@ -42,7 +43,8 @@ if not next(which_tests) or which_tests.genlock then
 
 	print "test OK"
 end
---####################################################################
+
+-- ##################################################################################################
 
 local waitCancellation = function( h, expected_status)
 	local l = lanes.linda()
@@ -127,8 +129,8 @@ local protectedBody = function( ...)
 	end
 end
 
---####################################################################
---####################################################################
+-- ##################################################################################################
+-- ##################################################################################################
 
 if not next(which_tests) or which_tests.linda then
 	remaining_tests.linda = nil
@@ -148,6 +150,8 @@ if not next(which_tests) or which_tests.linda then
 	-- reset the linda so that the other tests work
 	linda:cancel( "none")
 end
+
+-- ##################################################################################################
 
 if not next(which_tests) or which_tests.soft then
 	remaining_tests.soft = nil
@@ -171,6 +175,8 @@ if not next(which_tests) or which_tests.soft then
 	waitCancellation( h, "done")
 end
 
+-- ##################################################################################################
+
 if not next(which_tests) or which_tests.hook then
 	remaining_tests.hook = nil
 	print "\n\n####################################################################\nbegin hook cancel test\n"
@@ -185,6 +191,8 @@ if not next(which_tests) or which_tests.hook then
 	-- wait until cancellation is effective. the lane will interrupt its loop and print the exit message
 	waitCancellation( h, "cancelled")
 end
+
+-- ##################################################################################################
 
 if not next(which_tests) or which_tests.hard then
 	remaining_tests.hard = nil
@@ -203,6 +211,8 @@ if not next(which_tests) or which_tests.hard then
 	waitCancellation( h, "cancelled")
 end
 
+-- ##################################################################################################
+
 if not next(which_tests) or which_tests.hard_unprotected then
 	remaining_tests.hard_unprotected = nil
 	print "\n\n####################################################################\nbegin hard cancel test with unprotected lane body\n"
@@ -220,7 +230,7 @@ if not next(which_tests) or which_tests.hard_unprotected then
 	waitCancellation( h, "cancelled")
 end
 
---####################################################################
+-- ##################################################################################################
 
 local unknown_test, val = next(remaining_tests)
 assert(not unknown_test, tostring(unknown_test) .. " test is unknown")
