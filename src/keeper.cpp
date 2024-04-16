@@ -226,18 +226,19 @@ int keeper_push_linda_storage(Universe* U, Dest L, void* ptr_, uintptr_t magic_)
         return 0;
     }
     // move data from keeper to destination state
-    lua_pushnil(KL);                                                        // storage nil
     STACK_GROW(L, 5);
     STACK_CHECK_START_REL(L, 0);
-    lua_newtable(L);                                                                           // out
+    lua_newtable(L);                                                                                     // out
+    InterCopyContext c{ U, L, KL, {}, {}, {}, LookupMode::FromKeeper, {} };
+    lua_pushnil(KL);                                                        // storage nil
     while (lua_next(KL, -2))                                                // storage key fifo
     {
         keeper_fifo* fifo = prepare_fifo_access(KL, -1);                    // storage key fifotbl
         lua_pushvalue(KL, -2);                                              // storage key fifotbl key
-        std::ignore = luaG_inter_move(U, KL, L, 1, LookupMode::FromKeeper); // storage key fifotbl       // out key
+        std::ignore = c.inter_move(1);                                      // storage key fifotbl       // out key
         STACK_CHECK(L, 2);
         lua_newtable(L);                                                                                 // out key keyout
-        std::ignore = luaG_inter_move(U, KL, L, 1, LookupMode::FromKeeper); // storage key               // out key keyout fifotbl
+        std::ignore = c.inter_move(1);                                      // storage key               // out key keyout fifotbl
         lua_pushinteger(L, fifo->first);                                                                 // out key keyout fifotbl first
         STACK_CHECK(L, 5);
         lua_setfield(L, -3, "first");                                                                    // out key keyout fifotbl
@@ -646,23 +647,24 @@ void close_keepers(Universe* U)
  * Note: Any problems would be design flaws; the created Lua state is left
  *       unclosed, because it does not really matter. In production code, this
  *       function never fails.
- * settings table is at position 1 on the stack
+ * settings table is expected at position 1 on the stack
  */
 void init_keepers(Universe* U, lua_State* L)
 {
+    ASSERT_L(lua_gettop(L) == 1 && lua_istable(L, 1));
     STACK_CHECK_START_REL(L, 0);                                   // L                            K
-    lua_getfield(L, 1, "nb_keepers");                              // nb_keepers
+    lua_getfield(L, 1, "nb_keepers");                              // settings nb_keepers
     int const nb_keepers{ static_cast<int>(lua_tointeger(L, -1)) };
-    lua_pop(L, 1);                                                 //
+    lua_pop(L, 1);                                                 // settings
     if (nb_keepers < 1)
     {
         luaL_error(L, "Bad number of keepers (%d)", nb_keepers); // doesn't return
     }
     STACK_CHECK(L, 0);
 
-    lua_getfield(L, 1, "keepers_gc_threshold");                    // keepers_gc_threshold
+    lua_getfield(L, 1, "keepers_gc_threshold");                    // settings keepers_gc_threshold
     int const keepers_gc_threshold{ static_cast<int>(lua_tointeger(L, -1)) };
-    lua_pop(L, 1);                                                 //
+    lua_pop(L, 1);                                                 // settings
     STACK_CHECK(L, 0);
 
     // Keepers contains an array of 1 Keeper, adjust for the actual number of keeper states
@@ -682,7 +684,7 @@ void init_keepers(Universe* U, lua_State* L)
             U->keepers->keeper_array[i].Keeper::Keeper();
         }
     }
-    for (int i = 0; i < nb_keepers; ++i)                           // keepersUD
+    for (int i = 0; i < nb_keepers; ++i)                           // settings
     {
         // note that we will leak K if we raise an error later
         lua_State* const K{ create_state(U, L) };
@@ -706,26 +708,28 @@ void init_keepers(Universe* U, lua_State* L)
 
         // make sure 'package' is initialized in keeper states, so that we have require()
         // this because this is needed when transferring deep userdata object
-        luaL_requiref(K, "package", luaopen_package, 1);           //                              package
-        lua_pop(K, 1);                                             //
+        luaL_requiref(K, "package", luaopen_package, 1);           // settings                     package
+        lua_pop(K, 1);                                             // settings
         STACK_CHECK(K, 0);
         serialize_require(DEBUGSPEW_PARAM_COMMA(U) K);
         STACK_CHECK(K, 0);
 
-        // copy package.path and package.cpath from the source state
-        lua_getglobal(L, "package");                               // "..." keepersUD package
+        // copy package.path and package.cpath from the source state (TODO: use _R._LOADED.package instead of _G.package)
+        lua_getglobal(L, "package");                               // settings package
         if (!lua_isnil(L, -1))
         {
             // when copying with mode LookupMode::ToKeeper, error message is pushed at the top of the stack, not raised immediately
-            if (luaG_inter_copy_package(U, Source{ L }, Dest{ K }, -1, LookupMode::ToKeeper) != InterCopyResult::Success)
+            InterCopyContext c{ U, Dest{ K }, Source{ L }, {}, SourceIndex{ lua_absindex(L, -1) }, {}, LookupMode::ToKeeper, {} };
+            if (c.inter_copy_package() != InterCopyResult::Success)
             {
                 // if something went wrong, the error message is at the top of the stack
-                lua_remove(L, -2);                                 // error_msg
+                lua_remove(L, -2);                                 // settings error_msg
                 raise_lua_error(L);
             }
         }
-        lua_pop(L, 1);                                             //
+        lua_pop(L, 1);                                             // settings
         STACK_CHECK(L, 0);
+        STACK_CHECK(K, 0);
 
         // attempt to call on_state_create(), if we have one and it is a C function
         // (only support a C function because we can't transfer executable Lua code in keepers)
@@ -837,20 +841,23 @@ KeeperCallResult keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_
     ASSERT_L(lua_gettop(K) == 0);
 
     STACK_GROW(K, 2);
-
-    PUSH_KEEPER_FUNC(K, func_);                                                                                            // func_
-
-    lua_pushlightuserdata(K, linda);                                                                                       // func_ linda
-
-    if ((args == 0) || luaG_inter_copy(U, Source{ L }, Dest{ K }, args, LookupMode::ToKeeper) == InterCopyResult::Success) // func_ linda args...
-    {
-        lua_call(K, 1 + args, LUA_MULTRET);                                                                                // result...
+    PUSH_KEEPER_FUNC(K, func_);                                                                                       // func_
+    lua_pushlightuserdata(K, linda);                                                                                  // func_ linda
+    if (
+        (args == 0) ||
+        (InterCopyContext{ U, Dest{ K }, Source{ L }, {}, {}, {}, LookupMode::ToKeeper, {} }.inter_copy(args) == InterCopyResult::Success)
+    )
+    {                                                                                                                 // func_ linda args...
+        lua_call(K, 1 + args, LUA_MULTRET);                                                                           // result...
         int const retvals{ lua_gettop(K) - top_K };
         // note that this can raise a luaL_error while the keeper state (and its mutex) is acquired
         // this may interrupt a lane, causing the destruction of the underlying OS thread
         // after this, another lane making use of this keeper can get an error code from the mutex-locking function
         // when attempting to grab the mutex again (WINVER <= 0x400 does this, but locks just fine, I don't know about pthread)
-        if ((retvals == 0) || (luaG_inter_move(U, Source{ K }, Dest{ L }, retvals, LookupMode::FromKeeper) == InterCopyResult::Success)) // K->L
+        if (
+            (retvals == 0) ||
+            (InterCopyContext{ U, Dest{ L }, Source{ K }, {}, {}, {}, LookupMode::FromKeeper, {} }.inter_move(retvals) == InterCopyResult::Success)
+        ) // K->L
         {
             result.emplace(retvals);
         }

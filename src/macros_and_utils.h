@@ -19,9 +19,8 @@ using namespace std::chrono_literals;
 
 #define USE_DEBUG_SPEW() 0
 #if USE_DEBUG_SPEW()
-extern char const* debugspew_indent;
 #define INDENT_BEGIN "%.*s "
-#define INDENT_END , (U ? U->debugspew_indent_depth.load(std::memory_order_relaxed) : 0), debugspew_indent
+#define INDENT_END , (U ? U->debugspew_indent_depth.load(std::memory_order_relaxed) : 0), DebugSpewIndentScope::debugspew_indent
 #define DEBUGSPEW_CODE(_code) _code
 #define DEBUGSPEW_OR_NOT(a_, b_) a_
 #define DEBUGSPEW_PARAM_COMMA(param_) param_,
@@ -114,8 +113,8 @@ class StackChecker
     }
 };
 
-#define STACK_CHECK_START_REL(L, offset_) StackChecker stackChecker_##L(L, StackChecker::Relative{ offset_ }, __FILE__, __LINE__)
-#define STACK_CHECK_START_ABS(L, offset_) StackChecker stackChecker_##L(L, StackChecker::Absolute{ offset_ }, __FILE__, __LINE__)
+#define STACK_CHECK_START_REL(L, offset_) StackChecker stackChecker_##L{L, StackChecker::Relative{ offset_ }, __FILE__, __LINE__}
+#define STACK_CHECK_START_ABS(L, offset_) StackChecker stackChecker_##L{L, StackChecker::Absolute{ offset_ }, __FILE__, __LINE__}
 #define STACK_CHECK_RESET_REL(L, offset_) stackChecker_##L = StackChecker{L, StackChecker::Relative{ offset_ }, __FILE__, __LINE__}
 #define STACK_CHECK_RESET_ABS(L, offset_) stackChecker_##L = StackChecker{L, StackChecker::Absolute{ offset_ }, __FILE__, __LINE__}
 #define STACK_CHECK(L, offset_) stackChecker_##L.check(offset_, __FILE__, __LINE__)

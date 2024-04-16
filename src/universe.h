@@ -188,3 +188,31 @@ class Universe
 [[nodiscard]] Universe* universe_get(lua_State* L);
 [[nodiscard]] Universe* universe_create(lua_State* L);
 void universe_store(lua_State* L, Universe* U);
+
+// ################################################################################################
+
+#if USE_DEBUG_SPEW()
+class DebugSpewIndentScope
+{
+    private:
+
+    Universe* const U;
+
+    public:
+
+    static char const* const debugspew_indent;
+
+    DebugSpewIndentScope(Universe* U_)
+    : U{ U_ }
+    {
+        if (U)
+            U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    ~DebugSpewIndentScope()
+    {
+        if (U)
+            U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed);
+    }
+};
+#endif // USE_DEBUG_SPEW()

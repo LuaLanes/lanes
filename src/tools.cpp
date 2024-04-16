@@ -38,7 +38,7 @@ THE SOFTWARE.
 // functions implemented in deep.c
 extern void push_registry_subtable( lua_State* L, UniqueKey key_);
 
-DEBUGSPEW_CODE( char const* debugspew_indent = "----+----!----+----!----+----!----+----!----+----!----+----!----+----!----+");
+DEBUGSPEW_CODE(char const* const DebugSpewIndentScope::debugspew_indent = "----+----!----+----!----+----!----+----!----+----!----+----!----+----!----+");
 
 
 // ################################################################################################
@@ -348,7 +348,7 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L
     char const* prevName;
     DEBUGSPEW_CODE(char const *newName);
     DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "update_lookup_entry()\n" INDENT_END));
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
+    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
 
     STACK_CHECK_START_REL(L, 0);
     // first, raise an error if the function is already known
@@ -408,7 +408,6 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L
     }
     -- _depth;
     STACK_CHECK(L, -1);
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
 }
 
 // #################################################################################################
@@ -423,7 +422,7 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U) 
     // we need to remember subtables to process them after functions encountered at the current depth (breadth-first search)
     int const breadth_first_cache = lua_gettop( L) + 1;
     DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "populate_func_lookup_table_recur()\n" INDENT_END));
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
+    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
 
     STACK_GROW( L, 6);
     // slot _i contains a table where we search for functions (or a full userdata with a metatable)
@@ -445,7 +444,6 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U) 
     if( visit_count > 0)
     {
         DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "already visited\n" INDENT_END));
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
         return;
     }
 
@@ -500,7 +498,7 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U) 
     {
         DEBUGSPEW_CODE( char const* key = (lua_type( L, -2) == LUA_TSTRING) ? lua_tostring( L, -2) : "not a string");
         DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "table '%s'\n" INDENT_END, key));
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
+        DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
         // un-visit this table in case we do need to process it
         lua_pushvalue( L, -1);                                                                  // ... {_i} {bfc} k {} {}
         lua_rawget( L, cache);                                                                  // ... {_i} {bfc} k {} n
@@ -523,7 +521,6 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U) 
         populate_func_lookup_table_recur( DEBUGSPEW_PARAM_COMMA( U) L, _ctx_base, lua_gettop( L), _depth);
         lua_pop( L, 1);                                                                         // ... {_i} {bfc} k
         STACK_CHECK( L, 2);
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     }
     // remove table name from fqn stack
     lua_pushnil( L);                                                                          // ... {_i} {bfc} nil
@@ -533,7 +530,6 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U) 
     lua_pop( L, 1);                                                                           // ... {_i}
     STACK_CHECK( L, 0);
     // we are done                                                                            // ... {_i} {bfc}
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
 }
 
 // #################################################################################################
@@ -548,8 +544,8 @@ void populate_func_lookup_table(lua_State* L, int i_, char const* name_)
     int start_depth = 0;
     DEBUGSPEW_CODE( Universe* U = universe_get( L));
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%p: populate_func_lookup_table('%s')\n" INDENT_END, L, name_ ? name_ : "nullptr"));
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
-    STACK_GROW( L, 3);
+    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
+    STACK_GROW(L, 3);
     STACK_CHECK_START_REL(L, 0);
     LOOKUP_REGKEY.pushValue(L);                                                      // {}
     STACK_CHECK( L, 1);
@@ -599,7 +595,6 @@ void populate_func_lookup_table(lua_State* L, int i_, char const* name_)
         (void) luaL_error( L, "unsupported module type %s", lua_typename( L, lua_type( L, in_base)));
     }
     STACK_CHECK( L, 0);
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
 }
 
 // #################################################################################################
@@ -1782,9 +1777,8 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
     else // regular function
     {
         DEBUGSPEW_CODE(fprintf( stderr, "FUNCTION %s\n", name));
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
+        DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
         copy_cached_func();                                                                                     // ... f
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     }
     STACK_CHECK(L2, 1);
     STACK_CHECK(L1, 0);
@@ -1872,13 +1866,14 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
     STACK_CHECK_START_REL(L1, 0);                                                      // L1                          // L2
     STACK_CHECK_START_REL(L2, 0);                                                      // L1                          // L2
 
-    DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "inter_copy_one()\n" INDENT_END));
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
-    DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "%s %s: " INDENT_END, lua_type_names[val_type], vt_names[static_cast<int>(vt)]));
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "inter_copy_one()\n" INDENT_END));
+    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
+
+    LuaType val_type{ lua_type_as_enum(L1, L1_i) };
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%s %s: " INDENT_END, lua_type_names[static_cast<int>(val_type)], vt_names[static_cast<int>(vt)]));
 
     // Non-POD can be skipped if its metatable contains { __lanesignore = true }
-    LuaType val_type{ lua_type_as_enum(L1, L1_i) };
-    if( ((1 << static_cast<int>(val_type)) & pod_mask) == 0)
+    if (((1 << static_cast<int>(val_type)) & pod_mask) == 0)
     {
         if (lua_getmetatable(L1, L1_i))                                                // ... mt
         {
@@ -1974,8 +1969,6 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
         break;
     }
 
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
-
     STACK_CHECK(L2, ret ? 1 : 0);
     STACK_CHECK(L1, 0);
     return ret;
@@ -1983,30 +1976,25 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
 
 // #################################################################################################
 
-/*
-* Akin to 'lua_xmove' but copies values between _any_ Lua states.
-*
-* NOTE: Both the states must be solely in the current OS thread's posession.
-*
-* Note: Parameters are in this order ('L' = from first) to be same as 'lua_xmove'.
-*/
-[[nodiscard]] InterCopyResult luaG_inter_copy(Universe* U, Source L, Dest L2, int n, LookupMode mode_)
+// Akin to 'lua_xmove' but copies values between _any_ Lua states.
+// NOTE: Both the states must be solely in the current OS thread's possession.
+[[nodiscard]] InterCopyResult InterCopyContext::inter_copy(int n_) const
 {
-    int const top_L{ lua_gettop(L) };                             // ... {}n
+    _ASSERT_L(L1, vt == VT::NORMAL);
 
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "luaG_inter_copy()\n" INDENT_END));
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "InterCopyContext::inter_copy()\n" INDENT_END));
+    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
 
-    if (n > top_L)
+    int const top_L1{ lua_gettop(L1) };
+    if (n_ > top_L1)
     {
         // requesting to copy more than is available?
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "nothing to copy()\n" INDENT_END));
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
         return InterCopyResult::NotEnoughValues;
     }
 
     STACK_CHECK_START_REL(L2, 0);
-    STACK_GROW(L2, n + 1);
+    STACK_GROW(L2, n_ + 1);
 
     /*
     * Make a cache table for the duration of this copy. Collects tables and
@@ -2018,10 +2006,10 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
 
     char tmpBuf[16];
     char const* const pBuf{ U->verboseErrors ? tmpBuf : "?" };
-    InterCopyContext c{ U, L2, L, CacheIndex{ top_L2 + 1 }, {}, VT::NORMAL, mode_, pBuf };
+    InterCopyContext c{ U, L2, L1, CacheIndex{ top_L2 + 1 }, {}, VT::NORMAL, mode, pBuf };
     bool copyok{ true };
-    STACK_CHECK_START_REL(L, 0);
-    for (int i = top_L - n + 1, j = 1; i <= top_L; ++i, ++j)
+    STACK_CHECK_START_REL(L1, 0);
+    for (int i{ top_L1 - n_ + 1 }, j{ 1 }; i <= top_L1; ++i, ++j)
     {
         if (U->verboseErrors)
         {
@@ -2034,13 +2022,11 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
             break;
         }
     }
-    STACK_CHECK(L, 0);
-
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
+    STACK_CHECK(L1, 0);
 
     if (copyok)
     {
-        STACK_CHECK(L2, n + 1);
+        STACK_CHECK(L2, n_ + 1);
         // Remove the cache table. Persistent caching would cause i.e. multiple
         // messages passed in the same table to use the same table also in receiving end.
         lua_remove(L2, top_L2 + 1);
@@ -2055,74 +2041,108 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
 
 // #################################################################################################
 
-[[nodiscard]] InterCopyResult luaG_inter_move(Universe* U, Source L, Dest L2, int n_, LookupMode mode_)
+[[nodiscard]] InterCopyResult InterCopyContext::inter_move(int n_) const
 {
-    InterCopyResult const ret{ luaG_inter_copy(U, L, L2, n_, mode_) };
-    lua_pop( L, n_);
+    InterCopyResult const ret{ inter_copy(n_) };
+    lua_pop( L1, n_);
     return ret;
 }
 
 // #################################################################################################
 
-// transfers stuff from L->_G["package"] to L2->_G["package"]
+// transfers stuff from L1->_G["package"] to L2->_G["package"]
 // returns InterCopyResult::Success if everything is fine
-// returns InterCopyResult::Error if pushed an error message in L
-// else raise an error in L
-[[nodiscard]] InterCopyResult luaG_inter_copy_package(Universe* U, Source L, Dest L2, int package_idx_, LookupMode mode_)
+// returns InterCopyResult::Error if pushed an error message in L1
+// else raise an error in L1
+[[nodiscard]] InterCopyResult InterCopyContext::inter_copy_package() const
 {
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "luaG_inter_copy_package()\n" INDENT_END));
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
-    // package
-    STACK_CHECK_START_REL(L, 0);
-    STACK_CHECK_START_REL(L2, 0);
-    package_idx_ = lua_absindex(L, package_idx_);
-    if (lua_type(L, package_idx_) != LUA_TTABLE)
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "InterCopyContext::inter_copy_package()\n" INDENT_END));
+
+    class OnExit
     {
-        lua_pushfstring(L, "expected package as table, got %s", luaL_typename(L, package_idx_));
-        STACK_CHECK(L, 1);
-        // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
-        if (mode_ == LookupMode::LaneBody)
+        private:
+
+        lua_State* const L2;
+        int const top_L2;
+        DEBUGSPEW_CODE(DebugSpewIndentScope m_scope);
+
+        public:
+
+        OnExit(Universe* U_, lua_State* L2_)
+        : L2{ L2_ }
+        , top_L2{ lua_gettop(L2) }
+        DEBUGSPEW_COMMA_PARAM(m_scope{ U_ })
         {
-            lua_error(L); // doesn't return
+        }
+
+        ~OnExit()
+        {
+            lua_settop(L2, top_L2);
+        }
+    } onExit{ U, L2 };
+
+    STACK_CHECK_START_REL(L1, 0);
+    if (lua_type_as_enum(L1, L1_i) != LuaType::TABLE)
+    {
+        lua_pushfstring(L1, "expected package as table, got %s", luaL_typename(L1, L1_i));
+        STACK_CHECK(L1, 1);
+        // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
+        if (mode == LookupMode::LaneBody)
+        {
+            lua_error(L1); // doesn't return
         }
         return InterCopyResult::Error;
     }
-    lua_getglobal(L2, "package");
-    if (!lua_isnil(L2, -1)) // package library not loaded: do nothing
+    lua_getglobal(L2, "package"); // TODO: use _R._LOADED.package instead of _G.package
+    if (lua_isnil(L2, -1)) // package library not loaded: do nothing
     {
-        // package.loaders is renamed package.searchers in Lua 5.2
-        // but don't copy it anyway, as the function names change depending on the slot index!
-        // users should provide an on_state_create function to setup custom loaders instead
-        // don't copy package.preload in keeper states (they don't know how to translate functions)
-        char const* entries[] = { "path", "cpath", (mode_ == LookupMode::LaneBody) ? "preload" : nullptr /*, (LUA_VERSION_NUM == 501) ? "loaders" : "searchers"*/, nullptr };
-        for (char const* const entry : entries)
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "'package' not loaded, nothing to do\n" INDENT_END));
+        STACK_CHECK(L1, 0);
+        return InterCopyResult::Success;
+    }
+
+    InterCopyResult result{ InterCopyResult::Success };
+    // package.loaders is renamed package.searchers in Lua 5.2
+    // but don't copy it anyway, as the function names change depending on the slot index!
+    // users should provide an on_state_create function to setup custom loaders instead
+    // don't copy package.preload in keeper states (they don't know how to translate functions)
+    char const* entries[] = { "path", "cpath", (mode == LookupMode::LaneBody) ? "preload" : nullptr /*, (LUA_VERSION_NUM == 501) ? "loaders" : "searchers"*/, nullptr };
+    for (char const* const entry : entries)
+    {
+        if (!entry)
         {
-            if (!entry)
+            continue;
+        }
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "package.%s\n" INDENT_END, entry));
+        lua_getfield(L1, L1_i, entry);
+        if (lua_isnil(L1, -1))
+        {
+            lua_pop(L1, 1);
+        }
+        else
+        {
             {
-                continue;
+                DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
+                result = inter_move(1); // moves the entry to L2
+                STACK_CHECK(L1, 0);
             }
-            DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "package.%s\n" INDENT_END, entry));
-            lua_getfield(L, package_idx_, entry);
-            if (lua_isnil(L, -1))
+            if (result == InterCopyResult::Success)
             {
-                lua_pop(L, 1);
+                lua_setfield(L2, -2, entry); // set package[entry]
             }
             else
             {
-                DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
-                std::ignore = luaG_inter_move(U, L, L2, 1, mode_); // moves the entry to L2
-                DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
-                lua_setfield(L2, -2, entry); // set package[entry]
+                lua_pushfstring(L1, "failed to copy package entry %s", entry);
+                // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
+                if (mode == LookupMode::LaneBody)
+                {
+                    lua_error(L1); // doesn't return
+                }
+                lua_pop(L1, 1);
+                break;
             }
         }
     }
-    else
-    {
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "'package' not loaded, nothing to do\n" INDENT_END));
-    }
-    lua_pop(L2, 1);
-    STACK_CHECK(L2, 0);
-    STACK_CHECK(L, 0);
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
-    return InterCopyResult::Success;
+    STACK_CHECK(L1, 0);
+    return result;
 }

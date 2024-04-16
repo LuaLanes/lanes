@@ -19,7 +19,7 @@ void push_registry_subtable(lua_State* L, UniqueKey key_);
 
 enum class VT
 {
-    NORMAL,
+    NORMAL, // keep this one first so that it's the value we get when we default-construct
     KEY,
     METATABLE
 };
@@ -60,13 +60,15 @@ struct InterCopyContext
     void copy_func() const;
     void copy_cached_func() const;
     void inter_copy_keyvaluepair() const;
+
+    public:
+
+    [[nodiscard]] InterCopyResult inter_copy_package() const;
+    [[nodiscard]] InterCopyResult inter_copy(int n_) const;
+    [[nodiscard]] InterCopyResult inter_move(int n_) const;
 };
 
 // ################################################################################################
-
-[[nodiscard]] InterCopyResult luaG_inter_copy_package(Universe* U, Source L, Dest L2, int package_idx_, LookupMode mode_);
-[[nodiscard]] InterCopyResult luaG_inter_copy(Universe* U, Source L, Dest L2, int n, LookupMode mode_);
-[[nodiscard]] InterCopyResult luaG_inter_move(Universe* U, Source L, Dest L2, int n, LookupMode mode_);
 
 [[nodiscard]] int luaG_nameof(lua_State* L);
 

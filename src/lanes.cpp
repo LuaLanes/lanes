@@ -946,13 +946,12 @@ LUAG_FUNC(require)
     DEBUGSPEW_CODE(Universe* U = universe_get(L));
     STACK_CHECK_START_REL(L, 0);
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.require %s BEGIN\n" INDENT_END, name));
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
+    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
     lua_pushvalue(L, lua_upvalueindex(1)); // "name" require
     lua_insert(L, 1); // require "name"
     lua_call(L, nargs, 1); // module
     populate_func_lookup_table(L, -1, name);
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.require %s END\n" INDENT_END, name));
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     STACK_CHECK(L, 0);
     return 1;
 }
@@ -972,10 +971,9 @@ LUAG_FUNC(register)
     DEBUGSPEW_CODE(Universe* U = universe_get(L));
     STACK_CHECK_START_REL(L, 0); // "name" mod_table
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.register %s BEGIN\n" INDENT_END, name));
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
+    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
     populate_func_lookup_table(L, -1, name);
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.register %s END\n" INDENT_END, name));
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     STACK_CHECK(L, 0);
     return 0;
 }
@@ -1022,7 +1020,6 @@ LUAG_FUNC(lane_new)
 
     /* --- Create and prepare the sub state --- */
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: setup\n" INDENT_END));
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
 
     // populate with selected libraries at the same time
     lua_State* const L2{ luaG_newstate(U, Source{ L }, libs_str) };         // L                                                                    // L2
@@ -1041,7 +1038,8 @@ LUAG_FUNC(lane_new)
         lua_State* const m_L;
         Lane* m_lane{ nullptr };
         int const m_gc_cb_idx;
-        DEBUGSPEW_CODE(Universe* const U); // for DEBUGSPEW only (hence the absence of m_ prefix)
+        DEBUGSPEW_CODE(Universe* const U);
+        DEBUGSPEW_CODE(DebugSpewIndentScope m_scope);
 
         public:
 
@@ -1050,7 +1048,9 @@ LUAG_FUNC(lane_new)
         , m_lane{ lane_ }
         , m_gc_cb_idx{ gc_cb_idx_ }
         DEBUGSPEW_COMMA_PARAM(U{ U_ })
-        {}
+        DEBUGSPEW_COMMA_PARAM(m_scope{ U_ })
+        {
+        }
 
         ~OnExit()
         {
@@ -1132,7 +1132,8 @@ LUAG_FUNC(lane_new)
     {
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: update 'package'\n" INDENT_END));
         // when copying with mode LookupMode::LaneBody, should raise an error in case of problem, not leave it one the stack
-        [[maybe_unused]] InterCopyResult const ret{ luaG_inter_copy_package(U, Source{ L }, Dest{ L2 }, package_idx, LookupMode::LaneBody) };
+        InterCopyContext c{ U, Dest{ L2 }, Source{ L }, {}, SourceIndex{ package_idx }, {}, {}, {} };
+        [[maybe_unused]] InterCopyResult const ret{ c.inter_copy_package() };
         ASSERT_L(ret == InterCopyResult::Success); // either all went well, or we should not even get here
     }
 
@@ -1141,7 +1142,7 @@ LUAG_FUNC(lane_new)
     {
         int nbRequired = 1;
         DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: require 'required' list\n" INDENT_END));
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
+        DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
         // should not happen, was checked in lanes.lua before calling lane_new()
         if (lua_type(L, required_idx) != LUA_TTABLE)
         {
@@ -1175,10 +1176,8 @@ LUAG_FUNC(lane_new)
                     if (lua_pcall( L2, 1, 1, 0) != LUA_OK)                                                                                          // ret/errcode
                     {
                         // propagate error to main state if any
-                        std::ignore = luaG_inter_move(U
-                            , Source{ L2 }, Dest{ L }
-                            , 1, LookupMode::LaneBody
-                        );                                                  // func libs priority globals package required gc_cb [... args ...] n "modname" error
+                        InterCopyContext c{ U, Dest{ L }, Source{ L2 }, {}, {}, {}, {}, {} };
+                        std::ignore = c.inter_move(1);                                                                                              // func libs priority globals package required gc_cb [... args ...] n "modname" error
                         raise_lua_error(L);
                     }
                     // after requiring the module, register the functions it exported in our name<->function database
@@ -1189,7 +1188,6 @@ LUAG_FUNC(lane_new)
             lua_pop(L, 1);                                                  // func libs priority globals package required gc_cb [... args ...] n
             ++ nbRequired;
         }                                                                   // func libs priority globals package required gc_cb [... args ...]
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     }
     STACK_CHECK(L, 0);
     STACK_CHECK(L2, 0);                                                                                                                             //
@@ -1205,20 +1203,19 @@ LUAG_FUNC(lane_new)
             luaL_error(L, "Expected table, got %s", luaL_typename(L, globals_idx)); // doesn't return
         }
 
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
+        DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
         lua_pushnil(L);                                                     // func libs priority globals package required gc_cb [... args ...] nil
         // Lua 5.2 wants us to push the globals table on the stack
-        lua_pushglobaltable(L2);                                                                                                                    // _G
+        InterCopyContext c{ U, Dest{ L2 }, Source{ L }, {}, {}, {}, {}, {} };
+        lua_pushglobaltable(L2); // _G
         while( lua_next(L, globals_idx))                                    // func libs priority globals package required gc_cb [... args ...] k v
         {
-            std::ignore = luaG_inter_copy(U, Source{ L }, Dest{ L2 }, 2, LookupMode::LaneBody);                                                     // _G k v
+            std::ignore = c.inter_copy(2);                                                                                                          // _G k v
             // assign it in L2's globals table
             lua_rawset(L2, -3);                                                                                                                     // _G
             lua_pop(L, 1);                                                  // func libs priority globals package required gc_cb [... args ...] k
         }                                                                   // func libs priority globals package required gc_cb [... args ...]
         lua_pop( L2, 1);                                                                                                                            //
-
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     }
     STACK_CHECK(L, 0);
     STACK_CHECK(L2, 0);
@@ -1228,10 +1225,10 @@ LUAG_FUNC(lane_new)
     if (func_type == LuaType::FUNCTION)
     {
         DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane body\n" INDENT_END));
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
+        DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
         lua_pushvalue(L, 1);                                                // func libs priority globals package required gc_cb [... args ...] func
-        InterCopyResult const res{ luaG_inter_move(U, Source{ L }, Dest{ L2 }, 1, LookupMode::LaneBody) }; // func libs priority globals package required gc_cb [... args ...]     // func
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
+        InterCopyContext c{ U, Dest{ L2 }, Source{ L }, {}, {}, {}, {}, {} };
+        InterCopyResult const res{ c.inter_move(1) };                       // func libs priority globals package required gc_cb [... args ...]     // func
         if (res != InterCopyResult::Success)
         {
             luaL_error(L, "tried to copy unsupported types"); // doesn't return
@@ -1258,9 +1255,9 @@ LUAG_FUNC(lane_new)
     if (nargs > 0)
     {
         DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane arguments\n" INDENT_END));
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
-        InterCopyResult const res{ luaG_inter_move(U, Source{ L }, Dest{ L2 }, nargs, LookupMode::LaneBody) }; // func libs priority globals package required gc_cb                // func [... args ...]
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
+        DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
+        InterCopyContext c{ U, Dest{ L2 }, Source{ L }, {}, {}, {}, {}, {} };
+        InterCopyResult const res{ c.inter_move(nargs) };                   // func libs priority globals package required gc_cb                    // func [... args ...]
         if (res != InterCopyResult::Success)
         {
             luaL_error(L, "tried to copy unsupported types"); // doesn't return
@@ -1278,7 +1275,6 @@ LUAG_FUNC(lane_new)
     onExit.success();
     // we should have the lane userdata on top of the stack
     STACK_CHECK(L, 1);
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     return 1;
 }
 
@@ -1423,7 +1419,10 @@ LUAG_FUNC(thread_join)
         case Lane::Done:
         {
             int const n{ lua_gettop(L2) }; // whole L2 stack
-            if ((n > 0) && (luaG_inter_move(U, Source{ L2 }, Dest{ L }, n, LookupMode::LaneBody) != InterCopyResult::Success))
+            if (
+                (n > 0) &&
+                (InterCopyContext{ U, Dest{ L }, Source{ L2 }, {}, {}, {}, {}, {} }.inter_move(n) != InterCopyResult::Success)
+            )
             {
                 luaL_error(L, "tried to copy unsupported types"); // doesn't return
             }
@@ -1437,7 +1436,8 @@ LUAG_FUNC(thread_join)
             STACK_GROW(L, 3);
             lua_pushnil(L);
             // even when ERROR_FULL_STACK, if the error is not LUA_ERRRUN, the handler wasn't called, and we only have 1 error message on the stack ...
-            if (luaG_inter_move(U, Source{ L2 }, Dest{ L }, n, LookupMode::LaneBody) != InterCopyResult::Success) // nil "err" [trace]
+            InterCopyContext c{ U, Dest{ L }, Source{ L2 }, {}, {}, {}, {}, {} };
+            if (c.inter_move(n) != InterCopyResult::Success) // nil "err" [trace]
             {
                 luaL_error(L, "tried to copy unsupported types: %s", lua_tostring(L, -n)); // doesn't return
             }
@@ -1772,12 +1772,12 @@ LUAG_FUNC(configure)
     STACK_CHECK_START_ABS(L, 1);                                                          // settings
 
     DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END, L));
-    DEBUGSPEW_CODE(if (U) U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
+    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
 
     if (U == nullptr)
     {
         U = universe_create(L);                                                           // settings universe
-        DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed));
+        DEBUGSPEW_CODE(DebugSpewIndentScope scope2{ U });
         lua_newtable( L);                                                                 // settings universe mt
         lua_getfield(L, 1, "shutdown_timeout");                                           // settings universe mt shutdown_timeout
         lua_getfield(L, 1, "shutdown_mode");                                              // settings universe mt shutdown_timeout shutdown_mode
@@ -1920,7 +1920,6 @@ LUAG_FUNC(configure)
     CONFIG_REGKEY.setValue(L, [](lua_State* L) { lua_pushvalue(L, -2); });
     STACK_CHECK(L, 1);
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%p: lanes.configure() END\n" INDENT_END, L));
-    DEBUGSPEW_CODE(U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed));
     // Return the settings table
     return 1;
 }
