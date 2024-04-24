@@ -55,7 +55,7 @@ void luaL_requiref(lua_State *L, const char *modname, lua_CFunction openf, int g
 
 void* lua_newuserdatauv( lua_State* L, size_t sz, int nuvalue)
 {
-    ASSERT_L( nuvalue <= 1);
+    LUA_ASSERT(L, nuvalue <= 1);
     return lua_newuserdata(L, sz);
 }
 

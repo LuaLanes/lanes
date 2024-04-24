@@ -212,7 +212,7 @@ char const* DeepFactory::PushDeepProxy(Dest L, DeepPrelude* prelude, int nuv_, L
 
     // a new full userdata, fitted with the specified number of uservalue slots (always 1 for Lua < 5.4)
     DeepPrelude** const proxy{ lua_newuserdatauv<DeepPrelude*>(L, nuv_) };                             // DPC proxy
-    ASSERT_L(proxy);
+    LUA_ASSERT(L, proxy);
     *proxy = prelude;
     prelude->m_refcount.fetch_add(1, std::memory_order_relaxed); // one more proxy pointing to this deep data
 
@@ -312,8 +312,8 @@ char const* DeepFactory::PushDeepProxy(Dest L, DeepPrelude* prelude, int nuv_, L
         }
     }
     STACK_CHECK(L, 2);                                                                                 // DPC proxy metatable
-    ASSERT_L(lua_type_as_enum(L, -2) == LuaType::USERDATA);
-    ASSERT_L(lua_istable( L, -1));
+    LUA_ASSERT(L, lua_type_as_enum(L, -2) == LuaType::USERDATA);
+    LUA_ASSERT(L, lua_istable( L, -1));
     lua_setmetatable( L, -2);                                                                          // DPC proxy
 
     // If we're here, we obviously had to create a new proxy, so cache it.
@@ -321,7 +321,7 @@ char const* DeepFactory::PushDeepProxy(Dest L, DeepPrelude* prelude, int nuv_, L
     lua_pushvalue( L, -2);                                                                             // DPC proxy deep proxy
     lua_rawset( L, -4);                                                                                // DPC proxy
     lua_remove( L, -2);                                                                                // proxy
-    ASSERT_L(lua_type_as_enum(L, -1) == LuaType::USERDATA);
+    LUA_ASSERT(L, lua_type_as_enum(L, -1) == LuaType::USERDATA);
     STACK_CHECK(L, 0);
     return nullptr;
 }
@@ -361,8 +361,8 @@ int DeepFactory::pushDeepUserdata(Dest L, int nuv_) const
         return luaL_error( L, "Bad Deep Factory: DEEP_VERSION is incorrect, rebuild your implementation with the latest deep implementation");
     }
 
-    ASSERT_L(prelude->m_refcount.load(std::memory_order_relaxed) == 0); // 'DeepFactory::PushDeepProxy' will lift it to 1
-    ASSERT_L(&prelude->m_factory == this);
+    LUA_ASSERT(L, prelude->m_refcount.load(std::memory_order_relaxed) == 0); // 'DeepFactory::PushDeepProxy' will lift it to 1
+    LUA_ASSERT(L, &prelude->m_factory == this);
 
     if (lua_gettop( L) - oldtop != 0)
     {

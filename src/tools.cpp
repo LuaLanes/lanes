@@ -72,7 +72,7 @@ void push_registry_subtable_mode(lua_State* L, RegistryUniqueKey key_, const cha
         }
     }
     STACK_CHECK(L, 1);
-    ASSERT_L(lua_istable(L, -1));
+    LUA_ASSERT(L, lua_istable(L, -1));
 }
 
 // #################################################################################################
@@ -139,7 +139,7 @@ void initialize_allocator_function(Universe* U, lua_State* L)
         }
         else if (lua_type(L, -1) == LUA_TSTRING) // should be "protected"
         {
-            ASSERT_L(strcmp(lua_tostring(L, -1), "protected") == 0);
+            LUA_ASSERT(L, strcmp(lua_tostring(L, -1), "protected") == 0);
             // set the original allocator to call from inside protection by the mutex
             U->protected_allocator.initFrom(L);
             U->protected_allocator.installIn(L);
@@ -290,7 +290,7 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U) lua_State* L,
     prevName = lua_tolstring( L, -1, &prevNameLength); // nullptr if we got nil (first encounter of this object)
     // push name in fqn stack (note that concatenation will crash if name is a not string or a number)
     lua_pushvalue(L, -3);                                                                    // ... {bfc} k o name? k
-    ASSERT_L(lua_type(L, -1) == LUA_TNUMBER || lua_type(L, -1) == LUA_TSTRING);
+    LUA_ASSERT(L, lua_type(L, -1) == LUA_TNUMBER || lua_type(L, -1) == LUA_TSTRING);
     ++_depth;
     lua_rawseti(L, fqn, _depth);                                                             // ... {bfc} k o name?
     // generate name
@@ -329,8 +329,8 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U) lua_State* L,
         // prepare the stack for database feed
         lua_pushvalue(L, -1);                                                                // ... {bfc} k o "f.q.n" "f.q.n"
         lua_pushvalue(L, -3);                                                                // ... {bfc} k o "f.q.n" "f.q.n" o
-        ASSERT_L(lua_rawequal(L, -1, -4));
-        ASSERT_L(lua_rawequal(L, -2, -3));
+        LUA_ASSERT(L, lua_rawequal(L, -1, -4));
+        LUA_ASSERT(L, lua_rawequal(L, -2, -3));
         // t["f.q.n"] = o
         lua_rawset(L, dest);                                                                 // ... {bfc} k o "f.q.n"
         // t[o] = "f.q.n"
@@ -387,7 +387,7 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U) 
 
     // this table is at breadth_first_cache index
     lua_newtable(L);                                                                         // ... {_i} {bfc}
-    ASSERT_L( lua_gettop(L) == breadth_first_cache);
+    LUA_ASSERT(L,  lua_gettop(L) == breadth_first_cache);
     // iterate over all entries in the processed table
     lua_pushnil(L);                                                                          // ... {_i} {bfc} nil
     while( lua_next(L, _i) != 0)                                                             // ... {_i} {bfc} k v
@@ -434,7 +434,7 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U) 
         // un-visit this table in case we do need to process it
         lua_pushvalue(L, -1);                                                                // ... {_i} {bfc} k {} {}
         lua_rawget(L, cache);                                                                // ... {_i} {bfc} k {} n
-        ASSERT_L(lua_type(L, -1) == LUA_TNUMBER);
+        LUA_ASSERT(L, lua_type(L, -1) == LUA_TNUMBER);
         visit_count = lua_tointeger(L, -1) - 1;
         lua_pop(L, 1);                                                                       // ... {_i} {bfc} k {}
         lua_pushvalue(L, -1);                                                                // ... {_i} {bfc} k {} {}
@@ -481,7 +481,7 @@ void populate_func_lookup_table(lua_State* L, int i_, char const* name_)
     STACK_CHECK_START_REL(L, 0);
     LOOKUP_REGKEY.pushValue(L);                                                        // {}
     STACK_CHECK(L, 1);
-    ASSERT_L(lua_istable(L, -1));
+    LUA_ASSERT(L, lua_istable(L, -1));
     if (lua_type(L, in_base) == LUA_TFUNCTION) // for example when a module is a simple function
     {
         name_ = name_ ? name_ : "nullptr";
@@ -606,7 +606,7 @@ static constexpr RegistryUniqueKey REG_MTID{ 0x2E68F9B4751584DCull };
 {
     DEBUGSPEW_CODE( Universe* const U = universe_get( L));
     char const* fqn;
-    ASSERT_L( lua_isfunction( L, i) || lua_istable( L, i));  // ... v ...
+    LUA_ASSERT(L, lua_isfunction( L, i) || lua_istable( L, i));  // ... v ...
     STACK_CHECK_START_REL(L, 0);
     STACK_GROW( L, 3); // up to 3 slots are necessary on error
     if (mode_ == LookupMode::FromKeeper)
@@ -619,7 +619,7 @@ static constexpr RegistryUniqueKey REG_MTID{ 0x2E68F9B4751584DCull };
         else
         {
             // if this is not a sentinel, this is some user-created table we wanted to lookup
-            ASSERT_L(nullptr == f && lua_istable(L, i));
+            LUA_ASSERT(L, nullptr == f && lua_istable(L, i));
             // push anything that will convert to nullptr string
             lua_pushnil( L);                                     // ... v ... nil
         }
@@ -629,7 +629,7 @@ static constexpr RegistryUniqueKey REG_MTID{ 0x2E68F9B4751584DCull };
         // fetch the name from the source state's lookup table
         LOOKUP_REGKEY.pushValue(L);                            // ... v ... {}
         STACK_CHECK( L, 1);
-        ASSERT_L( lua_istable( L, -1));
+        LUA_ASSERT(L, lua_istable( L, -1));
         lua_pushvalue( L, i);                                  // ... v ... {} v
         lua_rawget( L, -2);                                    // ... v ... {} "f.q.n"
     }
@@ -701,7 +701,7 @@ static constexpr RegistryUniqueKey REG_MTID{ 0x2E68F9B4751584DCull };
         case LookupMode::FromKeeper:
         LOOKUP_REGKEY.pushValue(L2);                                                        // {}
         STACK_CHECK(L2, 1);
-        _ASSERT_L(L1, lua_istable(L2, -1));
+        LUA_ASSERT(L1, lua_istable(L2, -1));
         lua_pushlstring(L2, fqn, len);                                                      // {} "f.q.n"
         lua_rawget(L2, -2);                                                                 // {} t
         // we accept destination lookup failures in the case of transfering the Lanes body function (this will result in the source table being cloned instead)
@@ -754,7 +754,7 @@ static constexpr RegistryUniqueKey REG_MTID{ 0x2E68F9B4751584DCull };
 {
     void const* p{ lua_topointer(L1, i) };
 
-    _ASSERT_L(L1, L2_cache_i != 0);
+    LUA_ASSERT(L1, L2_cache_i != 0);
     STACK_GROW(L2, 3);                                                                              // L2
     STACK_CHECK_START_REL(L2, 0);
 
@@ -777,7 +777,7 @@ static constexpr RegistryUniqueKey REG_MTID{ 0x2E68F9B4751584DCull };
         lua_rawset(L2, L2_cache_i);                                                                 // ... {}
     }
     STACK_CHECK(L2, 1);
-    _ASSERT_L(L1, lua_istable( L2, -1));
+    LUA_ASSERT(L1, lua_istable( L2, -1));
     return !not_found_in_cache;
 }
 
@@ -1006,7 +1006,7 @@ void InterCopyContext::lookup_native_func() const
         case LookupMode::FromKeeper:
         LOOKUP_REGKEY.pushValue(L2);                                                         // {}
         STACK_CHECK(L2, 1);
-        _ASSERT_L(L1, lua_istable(L2, -1));
+        LUA_ASSERT(L1, lua_istable(L2, -1));
         lua_pushlstring(L2, fqn, len);                                                       // {} "f.q.n"
         lua_rawget(L2, -2);                                                                  // {} f
         // nil means we don't know how to transfer stuff: user should do something
@@ -1104,7 +1104,7 @@ static char const* vt_names[] =
 
 void InterCopyContext::copy_func() const
 {
-    _ASSERT_L(L1, L2_cache_i != 0);                                                                    // ... {cache} ... p
+    LUA_ASSERT(L1, L2_cache_i != 0);                                                                    // ... {cache} ... p
     STACK_GROW(L1, 2);
     STACK_CHECK_START_REL(L1, 0);
 
@@ -1158,7 +1158,7 @@ void InterCopyContext::copy_func() const
         {
             size_t sz;
             char const* s = lua_tolstring(L1, -1, &sz);        // ... b
-            _ASSERT_L(L1, s && sz);
+            LUA_ASSERT(L1, s && sz);
             STACK_GROW(L2, 2);
             // Note: Line numbers seem to be taken precisely from the 
             //       original function. 'name' is not used since the chunk
@@ -1238,7 +1238,7 @@ void InterCopyContext::copy_func() const
                 // "assigns the value at the top of the stack to the upvalue and returns its name.
                 // It also pops the value from the stack."
 
-                _ASSERT_L(L1, rc);      // not having enough slots?
+                LUA_ASSERT(L1, rc);      // not having enough slots?
             }
             // once all upvalues have been set we are left
             // with the function at the top of the stack                                               // ... {cache} ... function
@@ -1262,7 +1262,7 @@ void InterCopyContext::copy_cached_func() const
     {
         void* const aspointer = const_cast<void*>(lua_topointer(L1, L1_i));
         // TBD: Merge this and same code for tables
-        _ASSERT_L(L1, L2_cache_i != 0);
+        LUA_ASSERT(L1, L2_cache_i != 0);
 
         STACK_GROW(L2, 2);
 
@@ -1297,13 +1297,13 @@ void InterCopyContext::copy_cached_func() const
             lua_remove(L2, -2);                                       // ... {cache} ... function
         }
         STACK_CHECK(L2, 1);
-        _ASSERT_L(L1, lua_isfunction(L2, -1));
+        LUA_ASSERT(L1, lua_isfunction(L2, -1));
     }
     else // function is native/LuaJIT: no need to cache
     {
         lookup_native_func();                                         // ... {cache} ... function
         // if the function was in fact a lookup sentinel, we can either get a function or a table here
-        _ASSERT_L(L1, lua_isfunction(L2, -1) || lua_istable(L2, -1));
+        LUA_ASSERT(L1, lua_isfunction(L2, -1) || lua_istable(L2, -1));
     }
 }
 
@@ -1421,7 +1421,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     c.name = valPath ? valPath : name;
     if (c.inter_copy_one())
     {
-        _ASSERT_L(L1, lua_istable( L2, -3));
+        LUA_ASSERT(L1, lua_istable( L2, -3));
         lua_rawset(L2, -3);    // add to table (pops key & val)
     }
     else
@@ -1494,7 +1494,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
         {
             if (LookupMode::ToKeeper == mode)                                                                // ... u sentinel
             {
-                _ASSERT_L(L1, lua_tocfunction(L2, -1) == table_lookup_sentinel);
+                LUA_ASSERT(L1, lua_tocfunction(L2, -1) == table_lookup_sentinel);
                 // we want to create a new closure with a 'clone sentinel' function, where the upvalues are the userdata and the metatable fqn
                 lua_getupvalue(L2, -1, 1);                                                                   // ... u sentinel fqn
                 lua_remove(L2, -2);                                                                          // ... u fqn
@@ -1503,7 +1503,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
             }
             else // from keeper or direct                                                                    // ... u mt
             {
-                _ASSERT_L(L1, lua_istable(L2, -1));
+                LUA_ASSERT(L1, lua_istable(L2, -1));
                 lua_setmetatable(L2, -2);                                                                    // ... u
             }
             STACK_CHECK(L2, 1);
@@ -1726,7 +1726,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
      */
     if (lookup_table())
     {
-        _ASSERT_L(L1, lua_istable(L2, -1) || (lua_tocfunction(L2, -1) == table_lookup_sentinel)); // from lookup data. can also be table_lookup_sentinel if this is a table we know
+        LUA_ASSERT(L1, lua_istable(L2, -1) || (lua_tocfunction(L2, -1) == table_lookup_sentinel)); // from lookup data. can also be table_lookup_sentinel if this is a table we know
         return true;
     }
 
@@ -1741,10 +1741,10 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
     */
     if (push_cached_table(L2, L2_cache_i, L1, L1_i))
     {
-        _ASSERT_L(L1, lua_istable(L2, -1));    // from cache
+        LUA_ASSERT(L1, lua_istable(L2, -1));    // from cache
         return true;
     }
-    _ASSERT_L(L1, lua_istable(L2, -1));
+    LUA_ASSERT(L1, lua_istable(L2, -1));
 
     STACK_GROW(L1, 2);
     STACK_GROW(L2, 2);
@@ -1907,7 +1907,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
 // NOTE: Both the states must be solely in the current OS thread's possession.
 [[nodiscard]] InterCopyResult InterCopyContext::inter_copy(int n_) const
 {
-    _ASSERT_L(L1, vt == VT::NORMAL);
+    LUA_ASSERT(L1, vt == VT::NORMAL);
 
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "InterCopyContext::inter_copy()\n" INDENT_END));
     DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });

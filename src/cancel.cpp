@@ -264,7 +264,7 @@ LUAG_FUNC(thread_cancel)
     switch (thread_cancel(lane, op, hook_count, wait_timeout, wake_lane))
     {
         default: // should never happen unless we added a case and forgot to handle it
-        ASSERT_L(false);
+        LUA_ASSERT(L, false);
         break;
 
         case CancelResult::Timeout:

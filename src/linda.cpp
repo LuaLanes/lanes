@@ -168,7 +168,7 @@ template <bool OPT>
     if constexpr (!OPT)
     {
         luaL_argcheck(L, linda != nullptr, idx_, "expecting a linda object");
-        ASSERT_L(linda->U == universe_get(L));
+        LUA_ASSERT(L, linda->U == universe_get(L));
     }
     return linda;
 }
@@ -218,7 +218,7 @@ int Linda::ProtectedCall(lua_State* L, lua_CFunction f_)
     if (KL == nullptr)
         return 0;
     // if we didn't do anything wrong, the keeper stack should be clean
-    ASSERT_L(lua_gettop(KL) == 0);
+    LUA_ASSERT(L, lua_gettop(KL) == 0);
 
     // push the function to be called and move it before the arguments
     lua_pushcfunction(L, f_);
@@ -332,7 +332,7 @@ LUAG_FUNC(linda_send)
                 {
                     break;
                 }
-                ASSERT_L(pushed.value() == 1);
+                LUA_ASSERT(L, pushed.value() == 1);
 
                 ret = lua_toboolean(L, -1) ? true : false;
                 lua_pop(L, 1);
@@ -357,9 +357,9 @@ LUAG_FUNC(linda_send)
                     {
                         // change status of lane to "waiting"
                         prev_status = lane->m_status; // Running, most likely
-                        ASSERT_L(prev_status == Lane::Running); // but check, just in case
+                        LUA_ASSERT(L, prev_status == Lane::Running); // but check, just in case
                         lane->m_status = Lane::Waiting;
-                        ASSERT_L(lane->m_waiting_on == nullptr);
+                        LUA_ASSERT(L, lane->m_waiting_on == nullptr);
                         lane->m_waiting_on = &linda->m_read_happened;
                     }
                     // could not send because no room: wait until some data was read before trying again, or until timeout is reached
@@ -502,7 +502,7 @@ LUAG_FUNC(linda_receive)
             }
             if (pushed.value() > 0)
             {
-                ASSERT_L(pushed.value() >= expected_pushed_min && pushed.value() <= expected_pushed_max);
+                LUA_ASSERT(L, pushed.value() >= expected_pushed_min && pushed.value() <= expected_pushed_max);
                 // replace sentinels with real nils
                 keeper_toggle_nil_sentinels(L, lua_gettop(L) - pushed.value(), LookupMode::FromKeeper);
                 // To be done from within the 'K' locking area
@@ -523,9 +523,9 @@ LUAG_FUNC(linda_receive)
                 {
                     // change status of lane to "waiting"
                     prev_status = lane->m_status; // Running, most likely
-                    ASSERT_L(prev_status == Lane::Running); // but check, just in case
+                    LUA_ASSERT(L, prev_status == Lane::Running); // but check, just in case
                     lane->m_status = Lane::Waiting;
-                    ASSERT_L(lane->m_waiting_on == nullptr);
+                    LUA_ASSERT(L, lane->m_waiting_on == nullptr);
                     lane->m_waiting_on = &linda->m_write_happened;
                 }
                 // not enough data to read: wakeup when data was sent, or when timeout is reached
@@ -596,7 +596,7 @@ LUAG_FUNC(linda_set)
             pushed = keeper_call(linda->U, K->L, KEEPER_API(set), L, linda, 2);
             if (pushed.has_value()) // no error?
             {
-                ASSERT_L(pushed.value() == 0 || pushed.value() == 1);
+                LUA_ASSERT(L, pushed.value() == 0 || pushed.value() == 1);
 
                 if (has_value)
                 {
@@ -606,7 +606,7 @@ LUAG_FUNC(linda_set)
                 if (pushed.value() == 1)
                 {
                     // the key was full, but it is no longer the case, tell writers they should wake
-                    ASSERT_L(lua_type(L, -1) == LUA_TBOOLEAN && lua_toboolean(L, -1) == 1);
+                    LUA_ASSERT(L, lua_type(L, -1) == LUA_TBOOLEAN && lua_toboolean(L, -1) == 1);
                     linda->m_read_happened.notify_all(); // To be done from within the 'K' locking area
                 }
             }
@@ -711,10 +711,10 @@ LUAG_FUNC(linda_limit)
         {
             Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
             pushed = keeper_call(linda->U, K->L, KEEPER_API(limit), L, linda, 2);
-            ASSERT_L( pushed.has_value() && (pushed.value() == 0 || pushed.value() == 1)); // no error, optional boolean value saying if we should wake blocked writer threads
+            LUA_ASSERT(L, pushed.has_value() && (pushed.value() == 0 || pushed.value() == 1)); // no error, optional boolean value saying if we should wake blocked writer threads
             if (pushed.value() == 1)
             {
-                ASSERT_L( lua_type( L, -1) == LUA_TBOOLEAN && lua_toboolean( L, -1) == 1);
+                LUA_ASSERT(L, lua_type( L, -1) == LUA_TBOOLEAN && lua_toboolean( L, -1) == 1);
                 linda->m_read_happened.notify_all(); // To be done from within the 'K' locking area
             }
         }
@@ -931,7 +931,7 @@ DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* L) const
 void LindaFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const
 {
     Linda* const linda{ static_cast<Linda*>(o_) };
-    ASSERT_L(linda);
+    LUA_ASSERT(L, linda);
     Keeper* const myK{ which_keeper(linda->U->keepers, linda->hashSeed()) };
     // if collected after the universe, keepers are already destroyed, and there is nothing to clear
     if (myK)
@@ -943,7 +943,7 @@ void LindaFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const
         Keeper* const K{ need_acquire_release ? keeper_acquire(linda->U->keepers, linda->hashSeed()) : myK };
         // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
         [[maybe_unused]] KeeperCallResult const result{ keeper_call(linda->U, K->L, KEEPER_API(clear), L, linda, 0) };
-        ASSERT_L(result.has_value() && result.value() == 0);
+        LUA_ASSERT(L, result.has_value() && result.value() == 0);
         if (need_acquire_release)
         {
             keeper_release(K);

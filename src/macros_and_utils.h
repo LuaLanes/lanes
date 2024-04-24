@@ -34,7 +34,7 @@ using namespace std::chrono_literals;
 
 #ifdef NDEBUG
 
-#define _ASSERT_L(lua,c)     //nothing
+#define LUA_ASSERT(L,c) ; //nothing
 
 #define STACK_CHECK_START_REL(L, offset_)
 #define STACK_CHECK_START_ABS(L, offset_)
@@ -44,7 +44,15 @@ using namespace std::chrono_literals;
 
 #else // NDEBUG
 
-#define _ASSERT_L(L, cond_) if ((cond_) == 0) { (void) luaL_error(L, "ASSERT failed: %s:%d '%s'", __FILE__, __LINE__, #cond_);}
+inline void LUA_ASSERT_IMPL(lua_State* L_, bool cond_, char const* file_, size_t const line_, char const* txt_)
+{
+    if (!cond_)
+    {
+        luaL_error(L_, "LUA_ASSERT %s:%llu '%s'", file_, line_, txt_); // doesn't return
+    }
+}
+
+#define LUA_ASSERT(L_, cond_) LUA_ASSERT_IMPL(L_, cond_, __FILE__, __LINE__, #cond_)
 
 class StackChecker
 {
@@ -74,7 +82,7 @@ class StackChecker
         if ((offset_ < 0) || (m_oldtop < 0))
         {
             assert(false);
-            luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%d", lua_gettop(m_L), offset_, file_, line_); // doesn't return
+            luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%llu", lua_gettop(m_L), offset_, file_, line_); // doesn't return
         }
     }
 
@@ -85,7 +93,7 @@ class StackChecker
         if (lua_gettop(m_L) != pos_)
         {
             assert(false);
-            luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%d", lua_gettop(m_L), pos_, file_, line_); // doesn't return
+            luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%llu", lua_gettop(m_L), pos_, file_, line_); // doesn't return
         }
     }
 
@@ -105,7 +113,7 @@ class StackChecker
             if (actual != expected_)
             {
                 assert(false);
-                luaL_error(m_L, "STACK ASSERT failed (%d not %d): %s:%d", actual, expected_, file_, line_); // doesn't return
+                luaL_error(m_L, "STACK ASSERT failed (%d not %d): %s:%llu", actual, expected_, file_, line_); // doesn't return
             }
         }
     }
@@ -118,8 +126,6 @@ class StackChecker
 #define STACK_CHECK(L, offset_) stackChecker_##L.check(offset_, __FILE__, __LINE__)
 
 #endif // NDEBUG
-
-#define ASSERT_L(c) _ASSERT_L(L,c)
 
 inline void STACK_GROW(lua_State* L, int n_)
 {
@@ -137,14 +143,14 @@ inline void STACK_GROW(lua_State* L, int n_)
 template<typename T>
 [[nodiscard]] T* lua_tofulluserdata(lua_State* L, int index_)
 {
-    ASSERT_L(lua_isnil(L, index_) || lua_type(L, index_) == LUA_TUSERDATA);
+    LUA_ASSERT(L, lua_isnil(L, index_) || lua_type(L, index_) == LUA_TUSERDATA);
     return static_cast<T*>(lua_touserdata(L, index_));
 }
 
 template<typename T>
 [[nodiscard]] auto lua_tolightuserdata(lua_State* L, int index_)
 {
-    ASSERT_L(lua_isnil(L, index_) || lua_islightuserdata(L, index_));
+    LUA_ASSERT(L, lua_isnil(L, index_) || lua_islightuserdata(L, index_));
     if constexpr (std::is_pointer_v<T>)
     {
         return static_cast<T>(lua_touserdata(L, index_));

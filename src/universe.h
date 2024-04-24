@@ -39,7 +39,7 @@ class AllocatorDefinition
     [[nodiscard]] static void* operator new(size_t size_, lua_State* L) noexcept { return lua_newuserdatauv(L, size_, 0); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
-    static void operator delete([[maybe_unused]] void* p_, lua_State* L) { ASSERT_L(!"should never be called") };
+    static void operator delete([[maybe_unused]] void* p_, lua_State* L_) { LUA_ASSERT(L_, !"should never be called"); }
 
     AllocatorDefinition(lua_Alloc allocF_, void* allocUD_) noexcept
     : m_allocF{ allocF_ }

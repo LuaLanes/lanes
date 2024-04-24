@@ -317,7 +317,7 @@ static void push_stack_trace(lua_State* L, int rc_, int stk_base_)
 
             // For cancellation the error message is CANCEL_ERROR, and a stack trace isn't placed
             // For other errors, the message can be whatever was thrown, and we should have a stack trace table
-            ASSERT_L(lua_type(L, 1 + stk_base_) == (CANCEL_ERROR.equals(L, stk_base_) ? LUA_TNIL : LUA_TTABLE));
+            LUA_ASSERT(L, lua_type(L, 1 + stk_base_) == (CANCEL_ERROR.equals(L, stk_base_) ? LUA_TNIL : LUA_TTABLE));
             // Just leaving the stack trace table on the stack is enough to get it through to the master.
             break;
         }
@@ -327,7 +327,7 @@ static void push_stack_trace(lua_State* L, int rc_, int stk_base_)
         case LUA_ERRERR: // error while running the error handler (if any, for example an out-of-memory condition)
         default:
         // we should have a single value which is either a string (the error message) or CANCEL_ERROR
-        ASSERT_L((lua_gettop(L) == stk_base_) && ((lua_type(L, stk_base_) == LUA_TSTRING) || CANCEL_ERROR.equals(L, stk_base_)));
+        LUA_ASSERT(L, (lua_gettop(L) == stk_base_) && ((lua_type(L, stk_base_) == LUA_TSTRING) || CANCEL_ERROR.equals(L, stk_base_)));
         break;
     }
 }
@@ -367,10 +367,10 @@ static void push_stack_trace(lua_State* L, int rc_, int stk_base_)
         int args = 0;
         lua_pushinteger(L, n);                                                       // ... finalizers lane_error n
         lua_rawget(L, finalizers_index);                                             // ... finalizers lane_error finalizer
-        ASSERT_L(lua_isfunction(L, -1));
+        LUA_ASSERT(L, lua_isfunction(L, -1));
         if (lua_rc_ != LUA_OK) // we have an error message and an optional stack trace at the bottom of the stack
         {
-            ASSERT_L( finalizers_index == 2 || finalizers_index == 3);
+            LUA_ASSERT(L,  finalizers_index == 2 || finalizers_index == 3);
             //char const* err_msg = lua_tostring(L, 1);
             lua_pushvalue(L, 1);                                                     // ... finalizers lane_error finalizer err_msg
             // note we don't always have a stack trace for example when CANCEL_ERROR, or when we got an error that doesn't call our handler, such as LUA_ERRMEM
@@ -564,7 +564,7 @@ static void selfdestruct_add(Lane* lane_)
     if (U->timer_deep != nullptr) // test ins case some early internal error prevented Lanes from creating the deep timer
     {
         [[maybe_unused]] int const prev_ref_count{ U->timer_deep->m_refcount.fetch_sub(1, std::memory_order_relaxed) };
-        ASSERT_L(prev_ref_count == 1); // this should be the last reference
+        LUA_ASSERT(L, prev_ref_count == 1); // this should be the last reference
         DeepFactory::DeleteDeepObject(L, U->timer_deep);
         U->timer_deep = nullptr;
     }
@@ -987,7 +987,7 @@ LUAG_FUNC(lane_new)
     static constexpr int FIXED_ARGS{ 7 };
     int const nargs{ lua_gettop(L) - FIXED_ARGS };
     Universe* const U{ universe_get(L) };
-    ASSERT_L( nargs >= 0);
+    LUA_ASSERT(L, nargs >= 0);
 
     // public Lanes API accepts a generic range -3/+3
     // that will be remapped into the platform-specific scheduler priority scheme
@@ -1104,7 +1104,7 @@ LUAG_FUNC(lane_new)
     // give a default "Lua" name to the thread to see VM name in Decoda debugger
     lua_pushfstring( L2, "Lane #%p", L2);                                                                                                           // "..."
     lua_setglobal( L2, "decoda_name");                                                                                                              //
-    ASSERT_L( lua_gettop( L2) == 0);
+    LUA_ASSERT(L, lua_gettop( L2) == 0);
 
     // package
     if (package_idx != 0)
@@ -1113,7 +1113,7 @@ LUAG_FUNC(lane_new)
         // when copying with mode LookupMode::LaneBody, should raise an error in case of problem, not leave it one the stack
         InterCopyContext c{ U, Dest{ L2 }, Source{ L }, {}, SourceIndex{ package_idx }, {}, {}, {} };
         [[maybe_unused]] InterCopyResult const ret{ c.inter_copy_package() };
-        ASSERT_L(ret == InterCopyResult::Success); // either all went well, or we should not even get here
+        LUA_ASSERT(L, ret == InterCopyResult::Success); // either all went well, or we should not even get here
     }
 
     // modules to require in the target lane *before* the function is transfered!
@@ -1228,7 +1228,7 @@ LUAG_FUNC(lane_new)
     }
     STACK_CHECK(L, 0);
     STACK_CHECK(L2, 1);
-    ASSERT_L(lua_isfunction(L2, 1));
+    LUA_ASSERT(L, lua_isfunction(L2, 1));
 
     // revive arguments
     if (nargs > 0)
@@ -1243,7 +1243,7 @@ LUAG_FUNC(lane_new)
         }
     }
     STACK_CHECK(L, -nargs);
-    ASSERT_L(lua_gettop( L) == FIXED_ARGS);
+    LUA_ASSERT(L, lua_gettop( L) == FIXED_ARGS);
 
     // Store 'lane' in the lane's registry, for 'cancel_test()' (we do cancel tests at pending send/receive).
     LANE_POINTER_REGKEY.setValue(L2, [lane](lua_State* L) { lua_pushlightuserdata(L, lane); });                                                     // func [... args ...]
@@ -1355,7 +1355,7 @@ LUAG_FUNC(lane_new)
 void push_thread_status(lua_State* L, Lane* lane_)
 {
     char const* const str{ thread_status_string(lane_) };
-    ASSERT_L(str);
+    LUA_ASSERT(L, str);
 
     lua_pushstring(L, str);
 }
@@ -1430,7 +1430,7 @@ LUAG_FUNC(thread_join)
 
         default:
         DEBUGSPEW_CODE(fprintf(stderr, "Status: %d\n", lane->m_status));
-        ASSERT_L(false);
+        LUA_ASSERT(L, false);
         ret = 0;
     }
     lua_close(L2);
@@ -1454,7 +1454,7 @@ LUAG_FUNC(thread_index)
     static constexpr int KEY{ 2 };
     static constexpr int USR{ 3 };
     Lane* const lane{ ToLane(L, UD) };
-    ASSERT_L(lua_gettop(L) == 2);
+    LUA_ASSERT(L, lua_gettop(L) == 2);
 
     STACK_GROW(L, 8); // up to 8 positions are needed in case of error propagation
 
@@ -1515,7 +1515,7 @@ LUAG_FUNC(thread_index)
                     // me[-2] could carry the stack table, but even
                     // me[-1] is rather unnecessary (and undocumented);
                     // use ':join()' instead.   --AKa 22-Jan-2009
-                    ASSERT_L(lua_isnil(L, 4) && !lua_isnil(L, 5) && lua_istable(L, 6));
+                    LUA_ASSERT(L, lua_isnil(L, 4) && !lua_isnil(L, 5) && lua_istable(L, 6));
                     // store errstring at key -1
                     lua_pushnumber(L, -1);
                     lua_pushvalue(L, 5);
@@ -1741,7 +1741,7 @@ LUAG_FUNC(configure)
     Universe* U = universe_get(L);
     bool const from_master_state{ U == nullptr };
     char const* name = luaL_checkstring(L, lua_upvalueindex(1));
-    ASSERT_L(lua_type(L, 1) == LUA_TTABLE);
+    LUA_ASSERT(L, lua_type(L, 1) == LUA_TTABLE);
 
     STACK_GROW(L, 4);
     STACK_CHECK_START_ABS(L, 1);                                                          // settings
@@ -1832,10 +1832,10 @@ LUAG_FUNC(configure)
         lua_pushcfunction(L, LG_thread_index);                                            // settings M mt LG_thread_index
         lua_setfield(L, -2, "__index");                                                   // settings M mt
         lua_getglobal(L, "error");                                                        // settings M mt error
-        ASSERT_L( lua_isfunction(L, -1));
+        LUA_ASSERT(L, lua_isfunction(L, -1));
         lua_setfield(L, -2, "cached_error");                                              // settings M mt
         lua_getglobal(L, "tostring");                                                     // settings M mt tostring
-        ASSERT_L( lua_isfunction(L, -1));
+        LUA_ASSERT(L, lua_isfunction(L, -1));
         lua_setfield(L, -2, "cached_tostring");                                           // settings M mt
         lua_pushcfunction(L, LG_thread_join);                                             // settings M mt LG_thread_join
         lua_setfield(L, -2, "join");                                                      // settings M mt

@@ -64,7 +64,7 @@ class keeper_fifo
     [[nodiscard]] static void* operator new([[maybe_unused]] size_t size_, lua_State* L) noexcept { return lua_newuserdatauv<keeper_fifo>(L, 1); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
-    static void operator delete([[maybe_unused]] void* p_, lua_State* L) { ASSERT_L(!"should never be called") };
+    static void operator delete([[maybe_unused]] void* p_, lua_State* L_) { LUA_ASSERT(L_, !"should never be called"); }
 
     [[nodiscard]] static keeper_fifo* getPtr(lua_State* L, int idx_)
     {
@@ -146,7 +146,7 @@ static void fifo_peek(lua_State* L, keeper_fifo* fifo_, int count_)
 // out: remove the fifo from the stack, push as many items as required on the stack (function assumes they exist in sufficient number)
 static void fifo_pop( lua_State* L, keeper_fifo* fifo_, int count_)
 {
-    ASSERT_L(lua_istable(L, -1));
+    LUA_ASSERT(L, lua_istable(L, -1));
     int const fifo_idx{ lua_gettop(L) };       // ... fifotbl
     // each iteration pushes a value on the stack!
     STACK_GROW(L, count_ + 2);
@@ -582,7 +582,7 @@ int keepercall_count(lua_State* L)
         } // all keys are exhausted                                // out fifos
         lua_pop(L, 1);                                             // out
     }
-    ASSERT_L(lua_gettop(L) == 1);
+    LUA_ASSERT(L, lua_gettop(L) == 1);
     return 1;
 }
 
@@ -651,7 +651,7 @@ void close_keepers(Universe* U)
  */
 void init_keepers(Universe* U, lua_State* L)
 {
-    ASSERT_L(lua_gettop(L) == 1 && lua_istable(L, 1));
+    LUA_ASSERT(L, lua_gettop(L) == 1 && lua_istable(L, 1));
     STACK_CHECK_START_REL(L, 0);                                   // L                            K
     lua_getfield(L, 1, "nb_keepers");                              // settings nb_keepers
     int const nb_keepers{ static_cast<int>(lua_tointeger(L, -1)) };
@@ -838,7 +838,7 @@ KeeperCallResult keeper_call(Universe* U, lua_State* K, keeper_api_t func_, lua_
     int const args{ starting_index ? (lua_gettop(L) - starting_index + 1) : 0 };
     int const top_K{ lua_gettop(K) };
     // if we didn't do anything wrong, the keeper stack should be clean
-    ASSERT_L(lua_gettop(K) == 0);
+    LUA_ASSERT(L, lua_gettop(K) == 0);
 
     STACK_GROW(K, 2);
     PUSH_KEEPER_FUNC(K, func_);                                                                                       // func_
