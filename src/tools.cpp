@@ -200,18 +200,18 @@ void initialize_allocator_function(Universe* U, lua_State* L)
  * +-----------------+----------+------------+----------+
  */
 
-enum FuncSubType
+enum class FuncSubType
 {
-    FST_Bytecode,
-    FST_Native,
-    FST_FastJIT
+    Bytecode,
+    Native,
+    FastJIT
 } ;
 
 FuncSubType luaG_getfuncsubtype(lua_State* L, int _i)
 {
     if (lua_tocfunction(L, _i)) // nullptr for LuaJIT-fast && bytecode functions
     {
-        return FST_Native;
+        return FuncSubType::Native;
     }
     {
         int mustpush{ 0 };
@@ -227,10 +227,10 @@ FuncSubType luaG_getfuncsubtype(lua_State* L, int _i)
         lua_pop(L, mustpush);
         if (dumpres == 666)
         {
-            return FST_Bytecode;
+            return FuncSubType::Bytecode;
         }
     }
-    return FST_FastJIT;
+    return FuncSubType::FastJIT;
 }
 
 // #################################################################################################
@@ -412,9 +412,10 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U) 
             // generate a name, and if we already had one name, keep whichever is the shorter
             update_lookup_entry( DEBUGSPEW_PARAM_COMMA(U) L, _ctx_base, _depth);             // ... {_i} {bfc} k
         }
-        else if (lua_isfunction(L, -1) && (luaG_getfuncsubtype(L, -1) != FST_Bytecode))      // ... {_i} {bfc} k func
+        else if (lua_isfunction(L, -1) && (luaG_getfuncsubtype(L, -1) != FuncSubType::Bytecode))
         {
             // generate a name, and if we already had one name, keep whichever is the shorter
+            // this pops the function from the stack
             update_lookup_entry( DEBUGSPEW_PARAM_COMMA(U) L, _ctx_base, _depth);             // ... {_i} {bfc} k
         }
         else
@@ -1249,16 +1250,15 @@ void InterCopyContext::copy_func() const
 
 // #################################################################################################
 
-/* 
- * Check if we've already copied the same function from 'L', and reuse the old
- * copy.
+/*
+ * Check if we've already copied the same function from 'L1', and reuse the old copy.
  *
  * Always pushes a function to 'L2'.
  */
 void InterCopyContext::copy_cached_func() const
 {
     FuncSubType const funcSubType{ luaG_getfuncsubtype(L1, L1_i) };
-    if (funcSubType == FST_Bytecode)
+    if (funcSubType == FuncSubType::Bytecode)
     {
         void* const aspointer = const_cast<void*>(lua_topointer(L1, L1_i));
         // TBD: Merge this and same code for tables
