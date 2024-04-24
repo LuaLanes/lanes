@@ -1337,27 +1337,29 @@ LUAG_FUNC(lane_new)
 //                   / "error"     finished at an error, error value is there
 //                   / "cancelled"   execution cancelled by M (state gone)
 //
-[[nodiscard]] static char const* thread_status_string(Lane* lane_)
+[[nodiscard]] static char const* thread_status_string(Lane::Status status_)
 {
-    Lane::Status const st{ lane_->m_status }; // read just once (volatile)
-    char const* str =
-        (st == Lane::Pending) ? "pending" :
-        (st == Lane::Running) ? "running" :    // like in 'co.status()'
-        (st == Lane::Waiting) ? "waiting" :
-        (st == Lane::Done) ? "done" :
-        (st == Lane::Error) ? "error" :
-        (st == Lane::Cancelled) ? "cancelled" : nullptr;
+    char const* const str
+    {
+        (status_ == Lane::Pending) ? "pending" :
+        (status_ == Lane::Running) ? "running" :    // like in 'co.status()'
+        (status_ == Lane::Waiting) ? "waiting" :
+        (status_ == Lane::Done) ? "done" :
+        (status_ == Lane::Error) ? "error" :
+        (status_ == Lane::Cancelled) ? "cancelled" :
+        nullptr
+    };
     return str;
 }
 
 // #################################################################################################
 
-void push_thread_status(lua_State* L, Lane* lane_)
+void Lane::pushThreadStatus(lua_State* L_)
 {
-    char const* const str{ thread_status_string(lane_) };
-    LUA_ASSERT(L, str);
+    char const* const str{ thread_status_string(m_status) };
+    LUA_ASSERT(L_, str);
 
-    lua_pushstring(L, str);
+    lua_pushstring(L_, str);
 }
 
 // #################################################################################################
@@ -1495,7 +1497,7 @@ LUAG_FUNC(thread_index)
                     // this is an internal error, we probably never get here
                     lua_settop(L, 0);
                     lua_pushliteral(L, "Unexpected status: ");
-                    lua_pushstring(L, thread_status_string(lane));
+                    lua_pushstring(L, thread_status_string(lane->m_status));
                     lua_concat(L, 2);
                     raise_lua_error(L);
                     [[fallthrough]]; // fall through if we are killed, as we got nil, "killed" on the stack
@@ -1568,7 +1570,7 @@ LUAG_FUNC(thread_index)
         lua_settop(L, 2); // keep only our original arguments on the stack
         if (strcmp( keystr, "status") == 0)
         {
-            push_thread_status(L, lane); // push the string representing the status
+            lane->pushThreadStatus(L); // push the string representing the status
             return 1;
         }
         // return UD.metatable[key]
@@ -1616,7 +1618,7 @@ LUAG_FUNC(threads)
             lua_newtable(L);                                   // {} {}
             lua_pushstring(L, lane->debug_name);               // {} {} "name"
             lua_setfield(L, -2, "name");                       // {} {}
-            push_thread_status(L, lane);                       // {} {} "status"
+            lane->pushThreadStatus(L);                         // {} {} "status"
             lua_setfield(L, -2, "status");                     // {} {}
             lua_rawseti(L, -2, ++index);                       // {}
             lane = lane->tracking_next;

@@ -89,6 +89,7 @@ class Lane
 
     [[nodiscard]] bool waitForCompletion(lua_Duration duration_);
     void startThread(int priority_);
+    void pushThreadStatus(lua_State* L_);
 };
 
 // xxh64 of string "LANE_POINTER_REGKEY" generated at https://www.pelock.com/products/hash-calculator
@@ -102,5 +103,3 @@ static constexpr RegistryUniqueKey LANE_POINTER_REGKEY{ 0xB3022205633743BCull };
 {
     return *(static_cast<Lane**>(luaL_checkudata(L, i_, "Lane")));
 }
-
-void push_thread_status(lua_State* L, Lane* lane_);

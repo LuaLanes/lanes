@@ -82,6 +82,3 @@ class DeepFactory
     static void DeleteDeepObject(lua_State* L, DeepPrelude* o_);
     static char const* PushDeepProxy(Dest L, DeepPrelude* prelude, int nuv_, LookupMode mode_);
 };
-
-//LANES_API [[nodiscard]] int luaG_newdeepuserdata(Dest L, DeepFactory& factory_, int nuv_);
-//LANES_API [[nodiscard]] DeepPrelude* luaG_todeep(lua_State* L, DeepFactory &factory_, int index);
