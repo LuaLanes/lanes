@@ -77,8 +77,8 @@ class DeepFactory
     public:
 
     // NVI: public interface
-    int pushDeepUserdata(Dest L, int nuv_) const;
+    int pushDeepUserdata(DestState L, int nuv_) const;
     DeepPrelude* toDeep(lua_State* L, int index) const;
     static void DeleteDeepObject(lua_State* L, DeepPrelude* o_);
-    static char const* PushDeepProxy(Dest L, DeepPrelude* prelude, int nuv_, LookupMode mode_);
+    static char const* PushDeepProxy(DestState L, DeepPrelude* prelude, int nuv_, LookupMode mode_);
 };

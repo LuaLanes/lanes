@@ -18,10 +18,12 @@ extern "C" {
 enum class LookupMode;
 class Universe;
 
+using KeeperState = Unique<lua_State*>;
+
 struct Keeper
 {
     std::mutex m_mutex;
-    lua_State* L{ nullptr };
+    KeeperState L{ nullptr };
     // int count;
 };
 
@@ -43,7 +45,7 @@ void close_keepers(Universe* U);
 [[nodiscard]] Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_);
 void keeper_release(Keeper* K_);
 void keeper_toggle_nil_sentinels(lua_State* L, int val_i_, LookupMode const mode_);
-[[nodiscard]] int keeper_push_linda_storage(Universe* U, Dest L, void* ptr_, uintptr_t magic_);
+[[nodiscard]] int keeper_push_linda_storage(Universe* U, DestState L, void* ptr_, uintptr_t magic_);
 
 using keeper_api_t = lua_CFunction;
 #define KEEPER_API(_op) keepercall_##_op
@@ -59,4 +61,4 @@ using keeper_api_t = lua_CFunction;
 [[nodiscard]] int keepercall_count(lua_State* L);
 
 using KeeperCallResult = Unique<std::optional<int>>;
-[[nodiscard]] KeeperCallResult keeper_call(Universe* U, lua_State* K, keeper_api_t _func, lua_State* L, void* linda, int starting_index);
+[[nodiscard]] KeeperCallResult keeper_call(Universe* U, KeeperState K, keeper_api_t _func, lua_State* L, void* linda, int starting_index);

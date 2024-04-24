@@ -1001,7 +1001,7 @@ LUAG_FUNC(lane_new)
     DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: setup\n" INDENT_END));
 
     // populate with selected libraries at the same time
-    lua_State* const L2{ luaG_newstate(U, Source{ L }, libs_str) };         // L                                                                    // L2
+    lua_State* const L2{ luaG_newstate(U, SourceState{ L }, libs_str) };    // L                                                                    // L2
 
     // 'lane' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
     Lane* const lane{ new (U) Lane{ U, L2 } };
@@ -1111,7 +1111,7 @@ LUAG_FUNC(lane_new)
     {
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: update 'package'\n" INDENT_END));
         // when copying with mode LookupMode::LaneBody, should raise an error in case of problem, not leave it one the stack
-        InterCopyContext c{ U, Dest{ L2 }, Source{ L }, {}, SourceIndex{ package_idx }, {}, {}, {} };
+        InterCopyContext c{ U, DestState{ L2 }, SourceState{ L }, {}, SourceIndex{ package_idx }, {}, {}, {} };
         [[maybe_unused]] InterCopyResult const ret{ c.inter_copy_package() };
         LUA_ASSERT(L, ret == InterCopyResult::Success); // either all went well, or we should not even get here
     }
@@ -1155,7 +1155,7 @@ LUAG_FUNC(lane_new)
                     if (lua_pcall( L2, 1, 1, 0) != LUA_OK)                                                                                          // ret/errcode
                     {
                         // propagate error to main state if any
-                        InterCopyContext c{ U, Dest{ L }, Source{ L2 }, {}, {}, {}, {}, {} };
+                        InterCopyContext c{ U, DestState{ L }, SourceState{ L2 }, {}, {}, {}, {}, {} };
                         std::ignore = c.inter_move(1);                                                                                              // func libs priority globals package required gc_cb [... args ...] n "modname" error
                         raise_lua_error(L);
                     }
@@ -1185,7 +1185,7 @@ LUAG_FUNC(lane_new)
         DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
         lua_pushnil(L);                                                     // func libs priority globals package required gc_cb [... args ...] nil
         // Lua 5.2 wants us to push the globals table on the stack
-        InterCopyContext c{ U, Dest{ L2 }, Source{ L }, {}, {}, {}, {}, {} };
+        InterCopyContext c{ U, DestState{ L2 }, SourceState{ L }, {}, {}, {}, {}, {} };
         lua_pushglobaltable(L2); // _G
         while( lua_next(L, globals_idx))                                    // func libs priority globals package required gc_cb [... args ...] k v
         {
@@ -1206,7 +1206,7 @@ LUAG_FUNC(lane_new)
         DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane body\n" INDENT_END));
         DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
         lua_pushvalue(L, 1);                                                // func libs priority globals package required gc_cb [... args ...] func
-        InterCopyContext c{ U, Dest{ L2 }, Source{ L }, {}, {}, {}, {}, {} };
+        InterCopyContext c{ U, DestState{ L2 }, SourceState{ L }, {}, {}, {}, {}, {} };
         InterCopyResult const res{ c.inter_move(1) };                       // func libs priority globals package required gc_cb [... args ...]     // func
         if (res != InterCopyResult::Success)
         {
@@ -1235,7 +1235,7 @@ LUAG_FUNC(lane_new)
     {
         DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "lane_new: transfer lane arguments\n" INDENT_END));
         DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
-        InterCopyContext c{ U, Dest{ L2 }, Source{ L }, {}, {}, {}, {}, {} };
+        InterCopyContext c{ U, DestState{ L2 }, SourceState{ L }, {}, {}, {}, {}, {} };
         InterCopyResult const res{ c.inter_move(nargs) };                   // func libs priority globals package required gc_cb                    // func [... args ...]
         if (res != InterCopyResult::Success)
         {
@@ -1402,7 +1402,7 @@ LUAG_FUNC(thread_join)
             int const n{ lua_gettop(L2) }; // whole L2 stack
             if (
                 (n > 0) &&
-                (InterCopyContext{ U, Dest{ L }, Source{ L2 }, {}, {}, {}, {}, {} }.inter_move(n) != InterCopyResult::Success)
+                (InterCopyContext{ U, DestState{ L }, SourceState{ L2 }, {}, {}, {}, {}, {} }.inter_move(n) != InterCopyResult::Success)
             )
             {
                 luaL_error(L, "tried to copy unsupported types"); // doesn't return
@@ -1417,7 +1417,7 @@ LUAG_FUNC(thread_join)
             STACK_GROW(L, 3);
             lua_pushnil(L);
             // even when ERROR_FULL_STACK, if the error is not LUA_ERRRUN, the handler wasn't called, and we only have 1 error message on the stack ...
-            InterCopyContext c{ U, Dest{ L }, Source{ L2 }, {}, {}, {}, {}, {} };
+            InterCopyContext c{ U, DestState{ L }, SourceState{ L2 }, {}, {}, {}, {}, {} };
             if (c.inter_move(n) != InterCopyResult::Success) // nil "err" [trace]
             {
                 luaL_error(L, "tried to copy unsupported types: %s", lua_tostring(L, -n)); // doesn't return
@@ -1815,7 +1815,7 @@ LUAG_FUNC(configure)
     STACK_CHECK(L, 2);
 
     {
-        char const* errmsg{ DeepFactory::PushDeepProxy(Dest{ L }, U->timer_deep, 0, LookupMode::LaneBody) }; // settings M timer_deep
+        char const* errmsg{ DeepFactory::PushDeepProxy(DestState{ L }, U->timer_deep, 0, LookupMode::LaneBody) }; // settings M timer_deep
         if (errmsg != nullptr)
         {
             return luaL_error(L, errmsg);

@@ -191,7 +191,7 @@ void DeepFactory::DeleteDeepObject(lua_State* L, DeepPrelude* o_)
  * used in this Lua state (metatable, registring it). Otherwise, increments the
  * reference count.
  */
-char const* DeepFactory::PushDeepProxy(Dest L, DeepPrelude* prelude, int nuv_, LookupMode mode_)
+char const* DeepFactory::PushDeepProxy(DestState L, DeepPrelude* prelude, int nuv_, LookupMode mode_)
 {
     // Check if a proxy already exists
     push_registry_subtable_mode(L, DEEP_PROXY_CACHE_KEY, "v");                                         // DPC
@@ -343,7 +343,7 @@ char const* DeepFactory::PushDeepProxy(Dest L, DeepPrelude* prelude, int nuv_, L
 *
 * Returns: 'proxy' userdata for accessing the deep data via 'DeepFactory::toDeep()'
 */
-int DeepFactory::pushDeepUserdata(Dest L, int nuv_) const
+int DeepFactory::pushDeepUserdata(DestState L, int nuv_) const
 {
     STACK_GROW( L, 1);
     STACK_CHECK_START_REL(L, 0);

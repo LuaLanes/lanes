@@ -34,8 +34,8 @@ class InterCopyContext
     public:
 
     Universe* const U;
-    Dest const L2;
-    Source const L1;
+    DestState const L2;
+    SourceState const L1;
     CacheIndex const L2_cache_i;
     SourceIndex L1_i; // that one can change when we reuse the context
     VT vt; // that one can change when we reuse the context

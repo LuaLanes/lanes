@@ -307,7 +307,7 @@ LUAG_FUNC(linda_send)
         {
             Lane* const lane{ LANE_POINTER_REGKEY.readLightUserDataValue<Lane>(L) };
             Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
-            lua_State* const KL{ K ? K->L : nullptr };
+            KeeperState const KL{ K ? K->L : nullptr };
             if (KL == nullptr)
                 return 0;
 
@@ -473,7 +473,7 @@ LUAG_FUNC(linda_receive)
 
         Lane* const lane{ LANE_POINTER_REGKEY.readLightUserDataValue<Lane>(L) };
         Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
-        lua_State* const KL{ K ? K->L : nullptr };
+        KeeperState const KL{ K ? K->L : nullptr };
         if (KL == nullptr)
             return 0;
 
@@ -863,7 +863,7 @@ LUAG_FUNC(linda_dump)
     auto dump = [](lua_State* L)
     {
         Linda* const linda{ ToLinda<false>(L, 1) };
-        return keeper_push_linda_storage(linda->U, Dest{ L }, linda, linda->hashSeed());
+        return keeper_push_linda_storage(linda->U, DestState{ L }, linda, linda->hashSeed());
     };
     return Linda::ProtectedCall(L, dump);
 }
@@ -877,7 +877,7 @@ LUAG_FUNC(linda_dump)
 LUAG_FUNC(linda_towatch)
 {
     Linda* const linda{ ToLinda<false>(L, 1) };
-    int pushed{ keeper_push_linda_storage(linda->U, Dest{ L }, linda, linda->hashSeed()) };
+    int pushed{ keeper_push_linda_storage(linda->U, DestState{ L }, linda, linda->hashSeed()) };
     if (pushed == 0)
     {
         // if the linda is empty, don't return nil
@@ -1028,5 +1028,5 @@ LUAG_FUNC(linda)
         luaL_checktype(L, 1, LUA_TSTRING);
         luaL_checktype(L, 2, LUA_TNUMBER);
     }
-    return g_LindaFactory.pushDeepUserdata(Dest{ L }, 0);
+    return g_LindaFactory.pushDeepUserdata(DestState{ L }, 0);
 }

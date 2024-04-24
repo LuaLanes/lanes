@@ -190,7 +190,7 @@ static void open1lib(DEBUGSPEW_PARAM_COMMA(Universe* U) lua_State* L, char const
 // #################################################################################################
 
 // just like lua_xmove, args are (from, to)
-static void copy_one_time_settings(Universe* U, Source L1, Dest L2)
+static void copy_one_time_settings(Universe* U, SourceState L1, DestState L2)
 {
     DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
 
@@ -331,9 +331,9 @@ void call_on_state_create(Universe* U, lua_State* L, lua_State* from_, LookupMod
 * *NOT* called for keeper states!
 *
 */
-lua_State* luaG_newstate(Universe* U, Source from_, char const* libs_)
+lua_State* luaG_newstate(Universe* U, SourceState from_, char const* libs_)
 {
-    Dest const L{ create_state(U, from_) };
+    DestState const L{ create_state(U, from_) };
 
     STACK_GROW(L, 2);
     STACK_CHECK_START_ABS(L, 0);
@@ -361,7 +361,7 @@ lua_State* luaG_newstate(Universe* U, Source from_, char const* libs_)
     copy_one_time_settings( U, from_, L);
 
     // 'lua.c' stops GC during initialization so perhaps its a good idea. :)
-    lua_gc( L, LUA_GCSTOP, 0);
+    lua_gc(L, LUA_GCSTOP, 0);
 
 
     // Anything causes 'base' to be taken in

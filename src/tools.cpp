@@ -751,7 +751,7 @@ static constexpr RegistryUniqueKey REG_MTID{ 0x2E68F9B4751584DCull };
  * Returns true if the table was cached (no need to fill it!); false if
  * it's a virgin.
  */
-[[nodiscard]] static bool push_cached_table(Dest L2, CacheIndex L2_cache_i, Source L1, SourceIndex i)
+[[nodiscard]] static bool push_cached_table(DestState L2, CacheIndex L2_cache_i, SourceState L1, SourceIndex i)
 {
     void const* p{ lua_topointer(L1, i) };
 

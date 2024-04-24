@@ -206,8 +206,8 @@ class Unique<T, lambda, std::enable_if_t<!std::is_scalar_v<T>>> : public T
 
 // #################################################################################################
 
-using Source = Unique<lua_State*>;
-using Dest = Unique<lua_State*>;
+using SourceState = Unique<lua_State*>;
+using DestState = Unique<lua_State*>;
 
 // #################################################################################################
 
