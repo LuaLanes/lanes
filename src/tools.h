@@ -8,8 +8,8 @@ class Universe;
 
 // #################################################################################################
 
-void push_registry_subtable_mode(lua_State* L, UniqueKey key_, const char* mode_);
-void push_registry_subtable(lua_State* L, UniqueKey key_);
+void push_registry_subtable_mode(lua_State* L, RegistryUniqueKey key_, const char* mode_);
+void push_registry_subtable(lua_State* L, RegistryUniqueKey key_);
 
 enum class VT
 {
@@ -88,7 +88,7 @@ void initialize_allocator_function(Universe* U, lua_State* L);
 // #################################################################################################
 
 // crc64/we of string "CONFIG_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey CONFIG_REGKEY{ 0x31cd24894eae8624ull }; // registry key to access the configuration
+static constexpr RegistryUniqueKey CONFIG_REGKEY{ 0x31CD24894EAE8624ull }; // registry key to access the configuration
 
 // crc64/we of string "LOOKUP_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey LOOKUP_REGKEY{ 0x5051ed67ee7b51a1ull }; // registry key to access the lookup database
+static constexpr RegistryUniqueKey LOOKUP_REGKEY{ 0x5051ED67EE7B51A1ull }; // registry key to access the lookup database

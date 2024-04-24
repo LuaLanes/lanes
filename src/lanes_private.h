@@ -92,7 +92,7 @@ class Lane
 };
 
 // xxh64 of string "LANE_POINTER_REGKEY" generated at https://www.pelock.com/products/hash-calculator
-static constexpr UniqueKey LANE_POINTER_REGKEY{ 0xB3022205633743BCull }; // used as registry key
+static constexpr RegistryUniqueKey LANE_POINTER_REGKEY{ 0xB3022205633743BCull }; // used as registry key
 
 // To allow free-running threads (longer lifespan than the handle's)
 // 'Lane' are malloc/free'd and the handle only carries a pointer.

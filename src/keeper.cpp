@@ -182,7 +182,7 @@ static void fifo_pop( lua_State* L, keeper_fifo* fifo_, int count_)
 // in: linda_ud expected at stack slot idx
 // out: fifos[ud]
 // crc64/we of string "FIFOS_KEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey FIFOS_KEY{ 0xdce50bbc351cd465ull };
+static constexpr RegistryUniqueKey FIFOS_KEY{ 0xDCE50BBC351CD465ull };
 static void push_table(lua_State* L, int idx_)
 {
     STACK_GROW(L, 5);

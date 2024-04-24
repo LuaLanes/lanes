@@ -38,14 +38,14 @@ THE SOFTWARE.
 DEBUGSPEW_CODE(char const* const DebugSpewIndentScope::debugspew_indent = "----+----!----+----!----+----!----+----!----+----!----+----!----+----!----+");
 
 // crc64/we of string "LOOKUPCACHE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey LOOKUPCACHE_REGKEY{ 0x837a68dfc6fcb716ull };
+static constexpr RegistryUniqueKey LOOKUPCACHE_REGKEY{ 0x837A68DFC6FCB716ull };
 
 // #################################################################################################
 
 /*
  * Does what the original 'push_registry_subtable' function did, but adds an optional mode argument to it
  */
-void push_registry_subtable_mode( lua_State* L, UniqueKey key_, const char* mode_)
+void push_registry_subtable_mode(lua_State* L, RegistryUniqueKey key_, const char* mode_)
 {
     STACK_GROW(L, 3);
     STACK_CHECK_START_REL(L, 0);
@@ -81,7 +81,7 @@ void push_registry_subtable_mode( lua_State* L, UniqueKey key_, const char* mode
  * Push a registry subtable (keyed by unique 'key_') onto the stack.
  * If the subtable does not exist, it is created and chained.
  */
-void push_registry_subtable( lua_State* L, UniqueKey key_)
+void push_registry_subtable(lua_State* L, RegistryUniqueKey key_)
 {
   push_registry_subtable_mode(L, key_, nullptr);
 }
@@ -534,7 +534,7 @@ void populate_func_lookup_table(lua_State* L, int i_, char const* name_)
 /*---=== Inter-state copying ===---*/
 
 // crc64/we of string "REG_MTID" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey REG_MTID{ 0x2e68f9b4751584dcull };
+static constexpr RegistryUniqueKey REG_MTID{ 0x2E68F9B4751584DCull };
 
 /*
 * Get a unique ID for metatable at [i].

@@ -34,7 +34,7 @@ struct Keepers
 
 static constexpr uintptr_t KEEPER_MAGIC_SHIFT{ 3 };
 // crc64/we of string "NIL_SENTINEL" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey NIL_SENTINEL{ 0x7eaafa003a1d11a1ull, "linda.null" };
+static constexpr UniqueKey NIL_SENTINEL{ 0x7EAAFA003A1D11A1ull, "linda.null" };
 
 void init_keepers(Universe* U, lua_State* L);
 void close_keepers(Universe* U);

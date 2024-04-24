@@ -45,7 +45,7 @@ enum class CancelOp
 };
 
 // crc64/we of string "CANCEL_ERROR" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey CANCEL_ERROR{ 0xe97d41626cc97577ull, "lanes.cancel_error" }; // 'raise_cancel_error' sentinel
+static constexpr UniqueKey CANCEL_ERROR{ 0xE97D41626CC97577ull, "lanes.cancel_error" }; // 'raise_cancel_error' sentinel
 
 [[nodiscard]] CancelOp which_cancel_op(char const* op_string_);
 [[nodiscard]] CancelResult thread_cancel(Lane* lane_, CancelOp op_, int hook_count_, lua_Duration secs_, bool wake_lindas_);

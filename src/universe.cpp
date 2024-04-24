@@ -37,9 +37,9 @@ THE SOFTWARE.
 #include "uniquekey.h"
 
 // xxh64 of string "UNIVERSE_FULL_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey UNIVERSE_FULL_REGKEY{ 0x99CA130C09EDC074ull };
+static constexpr RegistryUniqueKey UNIVERSE_FULL_REGKEY{ 0x99CA130C09EDC074ull };
 // xxh64 of string "UNIVERSE_LIGHT_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey UNIVERSE_LIGHT_REGKEY{ 0x3663C07C742CEB81ull };
+static constexpr RegistryUniqueKey UNIVERSE_LIGHT_REGKEY{ 0x3663C07C742CEB81ull };
 
 // #################################################################################################
 

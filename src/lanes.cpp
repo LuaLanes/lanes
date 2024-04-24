@@ -219,7 +219,7 @@ static void securize_debug_threadname(lua_State* L, Lane* lane_)
 #if ERROR_FULL_STACK
 [[nodiscard]] static int lane_error(lua_State* L);
 // crc64/we of string "STACKTRACE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey STACKTRACE_REGKEY{ 0x534af7d3226a429full };
+static constexpr RegistryUniqueKey STACKTRACE_REGKEY{ 0x534AF7D3226A429Full };
 #endif // ERROR_FULL_STACK
 
 /*
@@ -231,7 +231,7 @@ static constexpr UniqueKey STACKTRACE_REGKEY{ 0x534af7d3226a429full };
 * anyways complicate that approach.
 */
 // crc64/we of string "FINALIZER_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey FINALIZER_REGKEY{ 0x188fccb8bf348e09ull };
+static constexpr RegistryUniqueKey FINALIZER_REGKEY{ 0x188FCCB8BF348E09ull };
 
 // #################################################################################################
 
@@ -634,7 +634,7 @@ LUAG_FUNC( set_singlethreaded)
 #if ERROR_FULL_STACK
 
 // crc64/we of string "EXTENDED_STACKTRACE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey EXTENDED_STACKTRACE_REGKEY{ 0x2357c69a7c92c936ull }; // used as registry key
+static constexpr RegistryUniqueKey EXTENDED_STACKTRACE_REGKEY{ 0x2357C69A7C92C936ull }; // used as registry key
 
 LUAG_FUNC( set_error_reporting)
 {
@@ -731,7 +731,7 @@ LUAG_FUNC( set_error_reporting)
 LUAG_FUNC(set_debug_threadname)
 {
     // fnv164 of string "debug_threadname" generated at https://www.pelock.com/products/hash-calculator
-    constexpr UniqueKey hidden_regkey{ 0x79C0669AAAE04440ull };
+    constexpr RegistryUniqueKey hidden_regkey{ 0x79C0669AAAE04440ull };
     // C s_lane structure is a light userdata upvalue
     Lane* const lane{ lua_tolightuserdata<Lane>(L, lua_upvalueindex(1)) };
     luaL_checktype(L, -1, LUA_TSTRING); // "name"
@@ -960,7 +960,7 @@ LUAG_FUNC(register)
 // #################################################################################################
 
 // crc64/we of string "GCCB_KEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey GCCB_KEY{ 0xcfb1f046ef074e88ull };
+static constexpr UniqueKey GCCB_KEY{ 0xCFB1F046EF074E88ull };
 
 //---
 // lane_ud = lane_new( function
