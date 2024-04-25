@@ -30,20 +30,21 @@ THE SOFTWARE.
 ===============================================================================
 */
 
+#include "linda.h"
+
 #include "compat.h"
-#include "deep.h"
 #include "keeper.h"
 #include "lanes_private.h"
 #include "threading.h"
 #include "tools.h"
 #include "universe.h"
 
-#include <array>
 #include <functional>
-#include <variant>
 
 // xxh64 of string "CANCEL_ERROR" generated at https://www.pelock.com/products/hash-calculator
 static constexpr UniqueKey BATCH_SENTINEL{ 0x2DDFEE0968C62AA7ull, "linda.batched" };
+
+// #################################################################################################
 
 class LindaFactory : public DeepFactory
 {
@@ -58,117 +59,84 @@ class LindaFactory : public DeepFactory
 static LindaFactory g_LindaFactory;
 
 // #################################################################################################
+// #################################################################################################
 
-/*
-* Actual data is kept within a keeper state, which is hashed by the 'Linda'
-* pointer (which is same to all userdatas pointing to it).
-*/
-class Linda : public DeepPrelude // Deep userdata MUST start with this header
+// Any hashing will do that maps pointers to [0..Universe::nb_keepers[ consistently.
+// Pointers are often aligned by 8 or so - ignore the low order bits
+// have to cast to unsigned long to avoid compilation warnings about loss of data when converting pointer-to-integer
+static constexpr uintptr_t KEEPER_MAGIC_SHIFT{ 3 };
+
+Linda::Linda(Universe* U_, LindaGroup group_, char const* name_, size_t len_)
+: DeepPrelude{ g_LindaFactory }
+, U{ U_ }
+, m_keeper_index{ (group_ ? group_ : static_cast<int>(std::bit_cast<uintptr_t>(this) >> KEEPER_MAGIC_SHIFT)) % U_->keepers->nb_keepers }
 {
-    private:
+    setName(name_, len_);
+}
 
-    static constexpr size_t kEmbeddedNameLength = 24;
-    using EmbeddedName = std::array<char, kEmbeddedNameLength>;
-    struct AllocatedName
+// #################################################################################################
+
+Linda::~Linda()
+{
+    if (std::holds_alternative<AllocatedName>(m_name))
     {
-        size_t len{ 0 };
-        char* name{ nullptr };
-    };
-    // depending on the name length, it is either embedded inside the Linda, or allocated separately
-    std::variant<AllocatedName, EmbeddedName> m_name;
-
-    public:
-
-    std::condition_variable m_read_happened;
-    std::condition_variable m_write_happened;
-    Universe* const U; // the universe this linda belongs to
-    uintptr_t const group; // a group to control keeper allocation between lindas
-    CancelRequest simulate_cancel{ CancelRequest::None };
-
-    public:
-
-    // a fifo full userdata has one uservalue, the table that holds the actual fifo contents
-    [[nodiscard]] static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internal_allocator.alloc(size_); }
-    // always embedded somewhere else or "in-place constructed" as a full userdata
-    // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
-    static void operator delete(void* p_, Universe* U_) { U_->internal_allocator.free(p_, sizeof(Linda)); }
-    // this one is for us, to make sure memory is freed by the correct allocator
-    static void operator delete(void* p_) { static_cast<Linda*>(p_)->U->internal_allocator.free(p_, sizeof(Linda)); }
-
-    Linda(Universe* U_, uintptr_t group_, char const* name_, size_t len_)
-    : DeepPrelude{ g_LindaFactory }
-    , U{ U_ }
-    , group{ group_ << KEEPER_MAGIC_SHIFT }
-    {
-        setName(name_, len_);
+        AllocatedName& name = std::get<AllocatedName>(m_name);
+        U->internal_allocator.free(name.name, name.len);
     }
+}
 
-    ~Linda()
+// #################################################################################################
+
+void Linda::setName(char const* name_, size_t len_)
+{
+    // keep default
+    if (!name_ || len_ == 0)
     {
-        if (std::holds_alternative<AllocatedName>(m_name))
-        {
-            AllocatedName& name = std::get<AllocatedName>(m_name);
-            U->internal_allocator.free(name.name, name.len);
-        }
+        return;
     }
-
-    static int ProtectedCall(lua_State* L, lua_CFunction f_);
-
-    private :
-
-    void setName(char const* name_, size_t len_)
+    ++len_; // don't forget terminating 0
+    if (len_ < kEmbeddedNameLength)
     {
-        // keep default
-        if (!name_ || len_ == 0)
-        {
-            return;
-        }
-        ++len_; // don't forget terminating 0
-        if (len_ < kEmbeddedNameLength)
-        {
-            m_name.emplace<EmbeddedName>();
-            char* const name{ std::get<EmbeddedName>(m_name).data() };
-            memcpy(name, name_, len_);
-        }
-        else
-        {
-            AllocatedName& name = std::get<AllocatedName>(m_name);
-            name.name = static_cast<char*>(U->internal_allocator.alloc(len_));
-            name.len = len_;
-            memcpy(name.name, name_, len_);
-        }
+        m_name.emplace<EmbeddedName>();
+        char* const name{ std::get<EmbeddedName>(m_name).data() };
+        memcpy(name, name_, len_);
     }
-
-    public:
-
-    uintptr_t hashSeed() const { return group ? group : std::bit_cast<uintptr_t>(this); }
-
-    char const* getName() const
+    else
     {
-        if (std::holds_alternative<AllocatedName>(m_name))
-        {
-            AllocatedName const& name = std::get<AllocatedName>(m_name);
-            return name.name;
-        }
-        if (std::holds_alternative<EmbeddedName>(m_name))
-        {
-            char const* const name{ std::get<EmbeddedName>(m_name).data() };
-            return name;
-        }
-        return nullptr;
+        AllocatedName& name = std::get<AllocatedName>(m_name);
+        name.name = static_cast<char*>(U->internal_allocator.alloc(len_));
+        name.len = len_;
+        memcpy(name.name, name_, len_);
     }
-};
+}
+
+// #################################################################################################
+
+char const* Linda::getName() const
+{
+    if (std::holds_alternative<AllocatedName>(m_name))
+    {
+        AllocatedName const& name = std::get<AllocatedName>(m_name);
+        return name.name;
+    }
+    if (std::holds_alternative<EmbeddedName>(m_name))
+    {
+        char const* const name{ std::get<EmbeddedName>(m_name).data() };
+        return name;
+    }
+    return nullptr;
+}
 
 // #################################################################################################
 
 template <bool OPT>
-[[nodiscard]] static inline Linda* ToLinda(lua_State* L, int idx_)
+[[nodiscard]] static inline Linda* ToLinda(lua_State* L_, int idx_)
 {
-    Linda* const linda{ static_cast<Linda*>(g_LindaFactory.toDeep(L, idx_)) };
+    Linda* const linda{ static_cast<Linda*>(g_LindaFactory.toDeep(L_, idx_)) };
     if constexpr (!OPT)
     {
-        luaL_argcheck(L, linda != nullptr, idx_, "expecting a linda object");
-        LUA_ASSERT(L, linda->U == universe_get(L));
+        luaL_argcheck(L_, linda != nullptr, idx_, "expecting a linda object"); // doesn't return if linda is nullptr
+        LUA_ASSERT(L_, linda->U == universe_get(L_));
     }
     return linda;
 }
@@ -213,7 +181,7 @@ int Linda::ProtectedCall(lua_State* L, lua_CFunction f_)
     Linda* const linda{ ToLinda<false>(L, 1) };
 
     // acquire the keeper
-    Keeper* const K{ keeper_acquire(linda->U->keepers, linda->hashSeed()) };
+    Keeper* const K{ linda->acquireKeeper() };
     lua_State* const KL{ K ? K->L : nullptr };
     if (KL == nullptr)
         return 0;
@@ -229,7 +197,7 @@ int Linda::ProtectedCall(lua_State* L, lua_CFunction f_)
     lua_settop(KL, 0);
 
     // release the keeper
-    keeper_release(K);
+    linda->releaseKeeper(K);
 
     // if there was an error, forward it
     if (rc != LUA_OK)
@@ -306,7 +274,7 @@ LUAG_FUNC(linda_send)
         KeeperCallResult pushed;
         {
             Lane* const lane{ LANE_POINTER_REGKEY.readLightUserDataValue<Lane>(L) };
-            Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
+            Keeper* const K{ linda->whichKeeper() };
             KeeperState const KL{ K ? K->L : nullptr };
             if (KL == nullptr)
                 return 0;
@@ -472,7 +440,7 @@ LUAG_FUNC(linda_receive)
         }
 
         Lane* const lane{ LANE_POINTER_REGKEY.readLightUserDataValue<Lane>(L) };
-        Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
+        Keeper* const K{ linda->whichKeeper() };
         KeeperState const KL{ K ? K->L : nullptr };
         if (KL == nullptr)
             return 0;
@@ -584,7 +552,7 @@ LUAG_FUNC(linda_set)
         // make sure the key is of a valid type (throws an error if not the case)
         check_key_types(L, 2, 2);
 
-        Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
+        Keeper* const K{ linda->whichKeeper() };
         KeeperCallResult pushed;
         if (linda->simulate_cancel == CancelRequest::None)
         {
@@ -639,7 +607,7 @@ LUAG_FUNC(linda_count)
         // make sure the keys are of a valid type
         check_key_types(L, 2, lua_gettop(L));
 
-        Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
+        Keeper* const K{ linda->whichKeeper() };
         KeeperCallResult const pushed{ keeper_call(linda->U, K->L, KEEPER_API(count), L, linda, 2) };
         return OptionalValue(pushed, L, "tried to count an invalid key");
     };
@@ -667,7 +635,7 @@ LUAG_FUNC(linda_get)
         KeeperCallResult pushed;
         if (linda->simulate_cancel == CancelRequest::None)
         {
-            Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
+            Keeper* const K{ linda->whichKeeper() };
             pushed = keeper_call(linda->U, K->L, KEEPER_API(get), L, linda, 2);
             if (pushed.value_or(0) > 0)
             {
@@ -709,7 +677,7 @@ LUAG_FUNC(linda_limit)
         KeeperCallResult pushed;
         if (linda->simulate_cancel == CancelRequest::None)
         {
-            Keeper* const K{ which_keeper(linda->U->keepers, linda->hashSeed()) };
+            Keeper* const K{ linda->whichKeeper() };
             pushed = keeper_call(linda->U, K->L, KEEPER_API(limit), L, linda, 2);
             LUA_ASSERT(L, pushed.has_value() && (pushed.value() == 0 || pushed.value() == 1)); // no error, optional boolean value saying if we should wake blocked writer threads
             if (pushed.value() == 1)
@@ -863,7 +831,7 @@ LUAG_FUNC(linda_dump)
     auto dump = [](lua_State* L)
     {
         Linda* const linda{ ToLinda<false>(L, 1) };
-        return keeper_push_linda_storage(linda->U, DestState{ L }, linda, linda->hashSeed());
+        return keeper_push_linda_storage(*linda, DestState{ L });
     };
     return Linda::ProtectedCall(L, dump);
 }
@@ -871,13 +839,13 @@ LUAG_FUNC(linda_dump)
 // #################################################################################################
 
 /*
- * table = linda:dump()
- * return a table listing all pending data inside the linda
+ * table/string = linda:__towatch()
+ * return a table listing all pending data inside the linda, or the stringified linda if empty
  */
 LUAG_FUNC(linda_towatch)
 {
     Linda* const linda{ ToLinda<false>(L, 1) };
-    int pushed{ keeper_push_linda_storage(linda->U, DestState{ L }, linda, linda->hashSeed()) };
+    int pushed{ keeper_push_linda_storage(*linda, DestState{ L }) };
     if (pushed == 0)
     {
         // if the linda is empty, don't return nil
@@ -892,7 +860,7 @@ DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* L) const
 {
     size_t name_len = 0;
     char const* linda_name = nullptr;
-    unsigned long linda_group = 0;
+    LindaGroup linda_group{ 0 };
     // should have a string and/or a number of the stack as parameters (name and group)
     switch (lua_gettop(L))
     {
@@ -906,13 +874,13 @@ DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* L) const
         }
         else
         {
-            linda_group = (unsigned long) lua_tointeger(L, -1);
+            linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L, -1)) };
         }
         break;
 
         case 2: // 2 parameters, a name and group, in that order
         linda_name = lua_tolstring(L, -2, &name_len);
-        linda_group = (unsigned long) lua_tointeger(L, -1);
+        linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L, -1)) };
         break;
     }
 
@@ -932,7 +900,7 @@ void LindaFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const
 {
     Linda* const linda{ static_cast<Linda*>(o_) };
     LUA_ASSERT(L, linda);
-    Keeper* const myK{ which_keeper(linda->U->keepers, linda->hashSeed()) };
+    Keeper* const myK{ linda->whichKeeper() };
     // if collected after the universe, keepers are already destroyed, and there is nothing to clear
     if (myK)
     {
@@ -940,13 +908,13 @@ void LindaFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const
         // because we are already inside a protected area, and trying to do so would deadlock!
         bool const need_acquire_release{ myK->L != L };
         // Clean associated structures in the keeper state.
-        Keeper* const K{ need_acquire_release ? keeper_acquire(linda->U->keepers, linda->hashSeed()) : myK };
+        Keeper* const K{ need_acquire_release ? linda->acquireKeeper() : myK };
         // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
         [[maybe_unused]] KeeperCallResult const result{ keeper_call(linda->U, K->L, KEEPER_API(clear), L, linda, 0) };
         LUA_ASSERT(L, result.has_value() && result.value() == 0);
         if (need_acquire_release)
         {
-            keeper_release(K);
+            linda->releaseKeeper(K);
         }
     }
 

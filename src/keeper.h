@@ -15,6 +15,7 @@ extern "C" {
 #include <mutex>
 
 // forwards
+class Linda;
 enum class LookupMode;
 class Universe;
 
@@ -34,18 +35,14 @@ struct Keepers
     Keeper keeper_array[1];
 };
 
-static constexpr uintptr_t KEEPER_MAGIC_SHIFT{ 3 };
 // crc64/we of string "NIL_SENTINEL" generated at http://www.nitrxgen.net/hashgen/
 static constexpr UniqueKey NIL_SENTINEL{ 0x7EAAFA003A1D11A1ull, "linda.null" };
 
 void init_keepers(Universe* U, lua_State* L);
 void close_keepers(Universe* U);
 
-[[nodiscard]] Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_);
-[[nodiscard]] Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_);
-void keeper_release(Keeper* K_);
 void keeper_toggle_nil_sentinels(lua_State* L, int val_i_, LookupMode const mode_);
-[[nodiscard]] int keeper_push_linda_storage(Universe* U, DestState L, void* ptr_, uintptr_t magic_);
+[[nodiscard]] int keeper_push_linda_storage(Linda& linda_, DestState L);
 
 using keeper_api_t = lua_CFunction;
 #define KEEPER_API(_op) keepercall_##_op

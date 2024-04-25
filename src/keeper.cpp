@@ -40,6 +40,7 @@
 #include "keeper.h"
 
 #include "compat.h"
+#include "linda.h"
 #include "state.h"
 #include "tools.h"
 #include "uniquekey.h"
@@ -207,16 +208,17 @@ static void push_table(lua_State* L, int idx_)
 
 // #################################################################################################
 
-int keeper_push_linda_storage(Universe* U, DestState L, void* ptr_, uintptr_t magic_)
+// only used by linda:dump() and linda:__towatch() for debugging purposes
+int keeper_push_linda_storage(Linda& linda_, DestState L)
 {
-    Keeper* const K{ which_keeper(U->keepers, magic_) };
+    Keeper* const K{ linda_.whichKeeper() };
     SourceState const KL{ K ? K->L : nullptr };
     if (KL == nullptr)
         return 0;
     STACK_GROW(KL, 4);                                                      // KEEPER                       MAIN
     STACK_CHECK_START_REL(KL, 0);
     FIFOS_KEY.pushValue(KL);                                                // fifos
-    lua_pushlightuserdata(KL, ptr_);                                        // fifos ud
+    lua_pushlightuserdata(KL, &linda_);                                     // fifos ud
     lua_rawget(KL, -2);                                                     // fifos storage
     lua_remove(KL, -2);                                                     // storage
     if (!lua_istable(KL, -1))
@@ -229,7 +231,7 @@ int keeper_push_linda_storage(Universe* U, DestState L, void* ptr_, uintptr_t ma
     STACK_GROW(L, 5);
     STACK_CHECK_START_REL(L, 0);
     lua_newtable(L);                                                                                     // out
-    InterCopyContext c{ U, L, KL, {}, {}, {}, LookupMode::FromKeeper, {} };
+    InterCopyContext c{ linda_.U, L, KL, {}, {}, {}, LookupMode::FromKeeper, {} };
     lua_pushnil(KL);                                                        // storage nil
     while (lua_next(KL, -2))                                                // storage key fifo
     {
@@ -748,37 +750,14 @@ void init_keepers(Universe* U, lua_State* L)
 
 // #################################################################################################
 
-// should be called only when inside a keeper_acquire/keeper_release pair (see Linda::ProtectedCall)
-Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_)
+Keeper* Linda::acquireKeeper() const
 {
-    int const nbKeepers{ keepers_->nb_keepers };
-    if (nbKeepers)
-    {
-        unsigned int i = (unsigned int) ((magic_ >> KEEPER_MAGIC_SHIFT) % nbKeepers);
-        return &keepers_->keeper_array[i];
-    }
-    return nullptr;
-}
-
-// #################################################################################################
-
-Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_)
-{
-    int const nbKeepers{ keepers_->nb_keepers };
+    int const nbKeepers{ U->keepers->nb_keepers };
     // can be 0 if this happens during main state shutdown (lanes is being GC'ed -> no keepers)
     if (nbKeepers)
     {
-        /*
-        * Any hashing will do that maps pointers to 0..GNbKeepers-1 
-        * consistently.
-        *
-        * Pointers are often aligned by 8 or so - ignore the low order bits
-        * have to cast to unsigned long to avoid compilation warnings about loss of data when converting pointer-to-integer
-        */
-        unsigned int i = (unsigned int)((magic_ >> KEEPER_MAGIC_SHIFT) % nbKeepers);
-        Keeper* K = &keepers_->keeper_array[i];
+        Keeper* const K{ &U->keepers->keeper_array[m_keeper_index] };
         K->m_mutex.lock();
-        //++ K->count;
         return K;
     }
     return nullptr;
@@ -786,12 +765,12 @@ Keeper* keeper_acquire(Keepers* keepers_, uintptr_t magic_)
 
 // #################################################################################################
 
-void keeper_release(Keeper* K)
+void Linda::releaseKeeper(Keeper* K_) const
 {
-    //-- K->count;
-    if (K)
+    if (K_) // can be nullptr if we tried to acquire during shutdown
     {
-        K->m_mutex.unlock();
+        assert(K_ == &U->keepers->keeper_array[m_keeper_index]);
+        K_->m_mutex.unlock();
     }
 }
 
