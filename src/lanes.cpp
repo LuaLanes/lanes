@@ -1869,10 +1869,9 @@ LUAG_FUNC(configure)
     kCancelError.pushKey(L);                                                              // settings M kCancelError
     lua_setfield(L, -2, "cancel_error");                                                  // settings M
 
-    /* to activate in a separate commit
     kNilSentinel.pushKey(L);                                                              // settings M kNilSentinel
     lua_setfield(L, -2, "null");                                                          // settings M
-    */
+
     STACK_CHECK(L, 2); // reference stack contains only the function argument 'settings'
     // we'll need this every time we transfer some C function from/to this state
     kLookupRegKey.setValue(L, [](lua_State* L) { lua_newtable(L); });                     // settings M
