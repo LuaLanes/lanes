@@ -2,7 +2,7 @@
 
 /*
  * public 'deep' API to be used by external modules if they want to implement Lanes-aware userdata
- * said modules will have to link against lanes (it is not really possible to separate the 'deep userdata' implementation from the rest of Lanes)
+ * said modules can either link against lanes, or embed compat.cpp/h deep.cpp/h tools.cpp/h universe.cpp/h
  */
 
 #ifdef __cplusplus
@@ -69,16 +69,16 @@ class DeepFactory
     private:
 
     // NVI: private overrides
-    virtual DeepPrelude* newDeepObjectInternal(lua_State* L) const = 0;
-    virtual void deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const = 0;
-    virtual void createMetatable(lua_State* L) const = 0;
+    virtual DeepPrelude* newDeepObjectInternal(lua_State* L_) const = 0;
+    virtual void deleteDeepObjectInternal(lua_State* L_, DeepPrelude* o_) const = 0;
+    virtual void createMetatable(lua_State* L_) const = 0;
     virtual char const* moduleName() const = 0;
 
     public:
 
     // NVI: public interface
-    int pushDeepUserdata(DestState L, int nuv_) const;
-    DeepPrelude* toDeep(lua_State* L, int index) const;
-    static void DeleteDeepObject(lua_State* L, DeepPrelude* o_);
-    static char const* PushDeepProxy(DestState L, DeepPrelude* prelude, int nuv_, LookupMode mode_);
+    int pushDeepUserdata(DestState L_, int nuv_) const;
+    DeepPrelude* toDeep(lua_State* L_, int index_) const;
+    static void DeleteDeepObject(lua_State* L_, DeepPrelude* o_);
+    static char const* PushDeepProxy(DestState L_, DeepPrelude* o_, int nuv_, LookupMode mode_);
 };

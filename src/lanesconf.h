@@ -19,10 +19,8 @@
 // file-level static variable: in 'global' namespace, prefix s, followed by an uppercase letter
 // file-level function (static or not): no prefix, start with an uppercase letter
 // class/struct/enum type: no prefix, start with an uppercase letter
-// static class member: prefix s, followed by an uppercase letter
-// regular class member: no prefix, start with a lowercase letter
-// static class method: no prefix, start with an uppercase letter
-// regular class method: no prefix, start with a lowercase letter
+// static class member/method: no prefix, start with an uppercase letter
+// regular class member/method: no prefix, start with a lowercase letter
 // function argument: suffix _
 // static function variable: prefix s, followed by an uppercase letter
 // function local variable: prefix l, followed by an uppercase letter

@@ -7,7 +7,7 @@
 /*
 ===============================================================================
 
-Copyright (C) 2018 benoit Germain <bnt.germain@gmail.com>
+Copyright (C) 2018-2024 benoit Germain <bnt.germain@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -35,28 +35,12 @@ THE SOFTWARE.
 #include "compat.h"
 #include "keeper.h"
 #include "lanes_private.h"
+#include "lindafactory.h"
 #include "threading.h"
 #include "tools.h"
 #include "universe.h"
 
 #include <functional>
-
-// xxh64 of string "kLindaBatched" generated at https://www.pelock.com/products/hash-calculator
-static constexpr UniqueKey kLindaBatched{ 0xB8234DF772646567ull, "linda.batched" };
-
-// #################################################################################################
-
-class LindaFactory : public DeepFactory
-{
-    private:
-
-    DeepPrelude* newDeepObjectInternal(lua_State* L) const override;
-    void deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const override;
-    void createMetatable(lua_State* L) const override;
-    char const* moduleName() const override;
-};
-// I'm not totally happy with having a global variable. But since it's stateless, it will do for the time being.
-static LindaFactory g_LindaFactory;
 
 // #################################################################################################
 // #################################################################################################
@@ -67,7 +51,7 @@ static LindaFactory g_LindaFactory;
 static constexpr uintptr_t kPointerMagicShift{ 3 };
 
 Linda::Linda(Universe* U_, LindaGroup group_, char const* name_, size_t len_)
-: DeepPrelude{ g_LindaFactory }
+: DeepPrelude{ LindaFactory::Instance }
 , U{ U_ }
 , m_keeper_index{ (group_ ? group_ : static_cast<int>(std::bit_cast<uintptr_t>(this) >> kPointerMagicShift)) % U_->keepers->nb_keepers }
 {
@@ -132,7 +116,7 @@ char const* Linda::getName() const
 template <bool OPT>
 [[nodiscard]] static inline Linda* ToLinda(lua_State* L_, int idx_)
 {
-    Linda* const linda{ static_cast<Linda*>(g_LindaFactory.toDeep(L_, idx_)) };
+    Linda* const linda{ static_cast<Linda*>(LindaFactory::Instance.toDeep(L_, idx_)) };
     if constexpr (!OPT)
     {
         luaL_argcheck(L_, linda != nullptr, idx_, "expecting a linda object"); // doesn't return if linda is nullptr
@@ -856,124 +840,26 @@ LUAG_FUNC(linda_towatch)
 
 // #################################################################################################
 
-DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* L) const
-{
-    size_t name_len = 0;
-    char const* linda_name = nullptr;
-    LindaGroup linda_group{ 0 };
-    // should have a string and/or a number of the stack as parameters (name and group)
-    switch (lua_gettop(L))
-    {
-        default: // 0
-        break;
-
-        case 1: // 1 parameter, either a name or a group
-        if (lua_type(L, -1) == LUA_TSTRING)
-        {
-            linda_name = lua_tolstring(L, -1, &name_len);
-        }
-        else
-        {
-            linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L, -1)) };
-        }
-        break;
-
-        case 2: // 2 parameters, a name and group, in that order
-        linda_name = lua_tolstring(L, -2, &name_len);
-        linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L, -1)) };
-        break;
-    }
-
-    /* The deep data is allocated separately of Lua stack; we might no
-        * longer be around when last reference to it is being released.
-        * One can use any memory allocation scheme.
-        * just don't use L's allocF because we don't know which state will get the honor of GCing the linda
-        */
-    Universe* const U{ universe_get(L) };
-    Linda* linda{ new (U) Linda{ U, linda_group, linda_name, name_len } };
-    return linda;
-}
-
-// #################################################################################################
-
-void LindaFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const
-{
-    Linda* const linda{ static_cast<Linda*>(o_) };
-    LUA_ASSERT(L, linda);
-    Keeper* const myK{ linda->whichKeeper() };
-    // if collected after the universe, keepers are already destroyed, and there is nothing to clear
-    if (myK)
-    {
-        // if collected from my own keeper, we can't acquire/release it
-        // because we are already inside a protected area, and trying to do so would deadlock!
-        bool const need_acquire_release{ myK->L != L };
-        // Clean associated structures in the keeper state.
-        Keeper* const K{ need_acquire_release ? linda->acquireKeeper() : myK };
-        // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
-        [[maybe_unused]] KeeperCallResult const result{ keeper_call(linda->U, K->L, KEEPER_API(clear), L, linda, 0) };
-        LUA_ASSERT(L, result.has_value() && result.value() == 0);
-        if (need_acquire_release)
-        {
-            linda->releaseKeeper(K);
-        }
-    }
-
-    delete linda; // operator delete overload ensures things go as expected
-}
-
-// #################################################################################################
-
-static luaL_Reg const s_LindaMT[] =
-{
-    { "__concat", LG_linda_concat },
-    { "__tostring", LG_linda_tostring },
-    { "__towatch", LG_linda_towatch }, // Decoda __towatch support
-    { "cancel", LG_linda_cancel },
-    { "count", LG_linda_count },
-    { "deep", LG_linda_deep },
-    { "dump", LG_linda_dump },
-    { "get", LG_linda_get },
-    { "limit", LG_linda_limit },
-    { "receive", LG_linda_receive },
-    { "send", LG_linda_send },
-    { "set", LG_linda_set },
-    { nullptr, nullptr }
-};
-
-void LindaFactory::createMetatable(lua_State* L) const
-{
-    STACK_CHECK_START_REL(L, 0);
-    lua_newtable(L);
-    // metatable is its own index
-    lua_pushvalue(L, -1);
-    lua_setfield(L, -2, "__index");
-
-    // protect metatable from external access
-    lua_pushliteral(L, "Linda");
-    lua_setfield(L, -2, "__metatable");
-
-    // the linda functions
-    luaL_setfuncs(L, s_LindaMT, 0);
-
-    // some constants
-    kLindaBatched.pushKey(L);
-    lua_setfield(L, -2, "batched");
-
-    kNilSentinel.pushKey(L);
-    lua_setfield(L, -2, "null");
-
-    STACK_CHECK(L, 1);
-}
-
-// #################################################################################################
-
-char const* LindaFactory::moduleName() const
-{
-    // linda is a special case because we know lanes must be loaded from the main lua state
-    // to be able to ever get here, so we know it will remain loaded as long a the main state is around
-    // in other words, forever.
-    return nullptr;
-}
+namespace global {
+    static luaL_Reg const sLindaMT[] = {
+        { "__concat", LG_linda_concat },
+        { "__tostring", LG_linda_tostring },
+        { "__towatch", LG_linda_towatch }, // Decoda __towatch support
+        { "cancel", LG_linda_cancel },
+        { "count", LG_linda_count },
+        { "deep", LG_linda_deep },
+        { "dump", LG_linda_dump },
+        { "get", LG_linda_get },
+        { "limit", LG_linda_limit },
+        { "receive", LG_linda_receive },
+        { "send", LG_linda_send },
+        { "set", LG_linda_set },
+        { nullptr, nullptr }
+    };
+} // namespace global
+// it's somewhat awkward to instanciate the LindaFactory here instead of lindafactory.cpp,
+// but that's necessary to provide s_LindaMT without exposing it outside linda.cpp.
+/*static*/ LindaFactory LindaFactory::Instance{ global::sLindaMT };
 
 // #################################################################################################
 
@@ -996,5 +882,5 @@ LUAG_FUNC(linda)
         luaL_checktype(L, 1, LUA_TSTRING);
         luaL_checktype(L, 2, LUA_TNUMBER);
     }
-    return g_LindaFactory.pushDeepUserdata(DestState{ L }, 0);
+    return LindaFactory::Instance.pushDeepUserdata(DestState{ L }, 0);
 }

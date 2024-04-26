@@ -13,6 +13,11 @@ struct Keeper;
 
 // #################################################################################################
 
+// xxh64 of string "kLindaBatched" generated at https://www.pelock.com/products/hash-calculator
+static constexpr UniqueKey kLindaBatched{ 0xB8234DF772646567ull, "linda.batched" };
+
+// #################################################################################################
+
 using LindaGroup = Unique<int>;
 
 class Linda : public DeepPrelude // Deep userdata MUST start with this header
