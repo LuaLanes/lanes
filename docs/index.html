@@ -185,7 +185,7 @@
 <p>
 	<tt>luaopen_lanes_embedded</tt> leaves the module table on the stack. <tt>lanes.configure()</tt> must still be called in order to use Lanes.
 	<br/>
-	If <tt>_luaopen_lanes</tt> is <tt>NULL</tt>, a default loader will simply attempt the equivalent of <tt>luaL_dofile(L, "lanes.lua")</tt>.
+	If <tt>_luaopen_lanes</tt> is <tt>nullptr</tt>, a default loader will simply attempt the equivalent of <tt>luaL_dofile(L, "lanes.lua")</tt>.
 </p>
 
 <p>
@@ -1172,9 +1172,9 @@
 	<br/>
 	<tt>send()</tt> returns <tt>lanes.cancel_error</tt> if interrupted by a soft cancel request.
 	<br/>
-	If no data is provided after the key, <tt>send()</tt> raises an error. If provided with <tt>linda.null</tt> before the actual key and there is no data to send, <tt>send()</tt> sends a single <tt>nil</tt>.
+	If no data is provided after the key, <tt>send()</tt> raises an error. If provided with <tt>linda.null</tt> or <tt>lanes.null</tt> before the actual key and there is no data to send, <tt>send()</tt> sends a single <tt>nil</tt>.
 	<br/>
-	Also, if <tt>linda.null</tt> is sent as data in a linda, it will be read as a <tt>nil</tt>.
+	Also, if <tt>linda.null</tt> or <tt>lanes.null</tt> is sent as data in a linda, it will be read as a <tt>nil</tt>.
 </p>
 
 <p>
@@ -1391,7 +1391,7 @@ events to a common Linda, but... :).</font>
 
 <p>
 	A very simple way of sleeping when nothing else is available. Is implemented by attempting to read some data in an unused channel of the internal linda used for timers (this linda exists even when timers aren't enabled).
-	Default duration is null, which should only cause a thread context switch.
+	Default duration is 0, which should only cause a thread context switch.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
@@ -1517,7 +1517,7 @@ events to a common Linda, but... :).</font>
 </pre></td></tr></table>
 
 <p>
-	This has the main drawback of not being LuaJIT-compatible, because some functions registered by LuaJIT are not regular C functions, but specially optimized implementations. As a result, <tt>lua_tocfunction()</tt> returns <tt>NULL</tt> for them.
+	This has the main drawback of not being LuaJIT-compatible, because some functions registered by LuaJIT are not regular C functions, but specially optimized implementations. As a result, <tt>lua_tocfunction()</tt> returns <tt>nullptr</tt> for them.
 	<br/>
 	Therefore, Lanes no longer transfers functions that way. Instead, functions are transfered as follows (more or less):
 </p>
