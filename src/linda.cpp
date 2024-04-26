@@ -41,8 +41,8 @@ THE SOFTWARE.
 
 #include <functional>
 
-// xxh64 of string "CANCEL_ERROR" generated at https://www.pelock.com/products/hash-calculator
-static constexpr UniqueKey BATCH_SENTINEL{ 0x2DDFEE0968C62AA7ull, "linda.batched" };
+// xxh64 of string "kLindaBatched" generated at https://www.pelock.com/products/hash-calculator
+static constexpr UniqueKey kLindaBatched{ 0xB8234DF772646567ull, "linda.batched" };
 
 // #################################################################################################
 
@@ -64,12 +64,12 @@ static LindaFactory g_LindaFactory;
 // Any hashing will do that maps pointers to [0..Universe::nb_keepers[ consistently.
 // Pointers are often aligned by 8 or so - ignore the low order bits
 // have to cast to unsigned long to avoid compilation warnings about loss of data when converting pointer-to-integer
-static constexpr uintptr_t KEEPER_MAGIC_SHIFT{ 3 };
+static constexpr uintptr_t kPointerMagicShift{ 3 };
 
 Linda::Linda(Universe* U_, LindaGroup group_, char const* name_, size_t len_)
 : DeepPrelude{ g_LindaFactory }
 , U{ U_ }
-, m_keeper_index{ (group_ ? group_ : static_cast<int>(std::bit_cast<uintptr_t>(this) >> KEEPER_MAGIC_SHIFT)) % U_->keepers->nb_keepers }
+, m_keeper_index{ (group_ ? group_ : static_cast<int>(std::bit_cast<uintptr_t>(this) >> kPointerMagicShift)) % U_->keepers->nb_keepers }
 {
     setName(name_, len_);
 }
@@ -157,8 +157,8 @@ static void check_key_types(lua_State* L, int start_, int end_)
 
             case LuaType::LIGHTUSERDATA:
             {
-                static constexpr std::array<std::reference_wrapper<UniqueKey const>, 3> to_check{ BATCH_SENTINEL, CANCEL_ERROR, NIL_SENTINEL };
-                for (UniqueKey const& key : to_check)
+                static constexpr std::array<std::reference_wrapper<UniqueKey const>, 3> kKeysToCheck{ kLindaBatched, kCancelError, kNilSentinel };
+                for (UniqueKey const& key : kKeysToCheck)
                 {
                     if (key.equals(L, i))
                     {
@@ -217,7 +217,7 @@ int Linda::ProtectedCall(lua_State* L, lua_CFunction f_)
 *
 * Returns:  'true' if the value was queued
 *           'false' for timeout (only happens when the queue size is limited)
-*           nil, CANCEL_ERROR if cancelled
+*           nil, kCancelError if cancelled
 */
 LUAG_FUNC(linda_send)
 {
@@ -241,10 +241,10 @@ LUAG_FUNC(linda_send)
             ++key_i;
         }
 
-        bool const as_nil_sentinel{ NIL_SENTINEL.equals(L, key_i) }; // if not nullptr, send() will silently send a single nil if nothing is provided
+        bool const as_nil_sentinel{ kNilSentinel.equals(L, key_i) }; // if not nullptr, send() will silently send a single nil if nothing is provided
         if (as_nil_sentinel)
         {
-            // the real key to send data to is after the NIL_SENTINEL marker
+            // the real key to send data to is after the kNilSentinel marker
             ++key_i;
         }
 
@@ -259,7 +259,7 @@ LUAG_FUNC(linda_send)
             if (as_nil_sentinel)
             {
                 // send a single nil if nothing is provided
-                NIL_SENTINEL.pushKey(L);
+                kNilSentinel.pushKey(L);
             }
             else
             {
@@ -273,7 +273,7 @@ LUAG_FUNC(linda_send)
         CancelRequest cancel{ CancelRequest::None };
         KeeperCallResult pushed;
         {
-            Lane* const lane{ LANE_POINTER_REGKEY.readLightUserDataValue<Lane>(L) };
+            Lane* const lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L) };
             Keeper* const K{ linda->whichKeeper() };
             KeeperState const KL{ K ? K->L : nullptr };
             if (KL == nullptr)
@@ -354,7 +354,7 @@ LUAG_FUNC(linda_send)
         {
             case CancelRequest::Soft:
             // if user wants to soft-cancel, the call returns lanes.cancel_error
-            CANCEL_ERROR.pushKey(L);
+            kCancelError.pushKey(L);
             return 1;
 
             case CancelRequest::Hard:
@@ -407,7 +407,7 @@ LUAG_FUNC(linda_receive)
         keeper_api_t selected_keeper_receive{ nullptr };
         int expected_pushed_min{ 0 }, expected_pushed_max{ 0 };
         // are we in batched mode?
-        BATCH_SENTINEL.pushKey(L);
+        kLindaBatched.pushKey(L);
         int const is_batched{ lua501_equal(L, key_i, -1) };
         lua_pop(L, 1);
         if (is_batched)
@@ -439,7 +439,7 @@ LUAG_FUNC(linda_receive)
             expected_pushed_min = expected_pushed_max = 2;
         }
 
-        Lane* const lane{ LANE_POINTER_REGKEY.readLightUserDataValue<Lane>(L) };
+        Lane* const lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L) };
         Keeper* const K{ linda->whichKeeper() };
         KeeperState const KL{ K ? K->L : nullptr };
         if (KL == nullptr)
@@ -518,8 +518,8 @@ LUAG_FUNC(linda_receive)
         switch (cancel)
         {
             case CancelRequest::Soft:
-            // if user wants to soft-cancel, the call returns CANCEL_ERROR
-            CANCEL_ERROR.pushKey(L);
+            // if user wants to soft-cancel, the call returns kCancelError
+            kCancelError.pushKey(L);
             return 1;
 
             case CancelRequest::Hard:
@@ -582,7 +582,7 @@ LUAG_FUNC(linda_set)
         else // linda is cancelled
         {
             // do nothing and return lanes.cancel_error
-            CANCEL_ERROR.pushKey(L);
+            kCancelError.pushKey(L);
             pushed.emplace(1);
         }
 
@@ -645,7 +645,7 @@ LUAG_FUNC(linda_get)
         else // linda is cancelled
         {
             // do nothing and return lanes.cancel_error
-            CANCEL_ERROR.pushKey(L);
+            kCancelError.pushKey(L);
             pushed.emplace(1);
         }
         // an error can be raised if we attempt to read an unregistered function
@@ -689,7 +689,7 @@ LUAG_FUNC(linda_limit)
         else // linda is cancelled
         {
             // do nothing and return lanes.cancel_error
-            CANCEL_ERROR.pushKey(L);
+            kCancelError.pushKey(L);
             pushed.emplace(1);
         }
         // propagate pushed boolean if any
@@ -956,10 +956,10 @@ void LindaFactory::createMetatable(lua_State* L) const
     luaL_setfuncs(L, s_LindaMT, 0);
 
     // some constants
-    BATCH_SENTINEL.pushKey(L);
+    kLindaBatched.pushKey(L);
     lua_setfield(L, -2, "batched");
 
-    NIL_SENTINEL.pushKey(L);
+    kNilSentinel.pushKey(L);
     lua_setfield(L, -2, "null");
 
     STACK_CHECK(L, 1);

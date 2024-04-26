@@ -36,10 +36,10 @@ THE SOFTWARE.
 #include "macros_and_utils.h"
 #include "uniquekey.h"
 
-// xxh64 of string "UNIVERSE_FULL_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr RegistryUniqueKey UNIVERSE_FULL_REGKEY{ 0x99CA130C09EDC074ull };
-// xxh64 of string "UNIVERSE_LIGHT_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr RegistryUniqueKey UNIVERSE_LIGHT_REGKEY{ 0x3663C07C742CEB81ull };
+// xxh64 of string "kUniverseFullRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kUniverseFullRegKey{ 0x1C2D76870DD9DD9Full };
+// xxh64 of string "kUniverseLightRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kUniverseLightRegKey{ 0x48BBE9CEAB0BA04Full };
 
 // #################################################################################################
 
@@ -79,8 +79,8 @@ Universe* universe_create(lua_State* L)
     Universe* const U{ lua_newuserdatauv<Universe>(L, 0) }; // universe
     U->Universe::Universe();
     STACK_CHECK_START_REL(L, 1);
-    UNIVERSE_FULL_REGKEY.setValue(L, [](lua_State* L) { lua_pushvalue(L, -2); });
-    UNIVERSE_LIGHT_REGKEY.setValue(L, [U](lua_State* L) { lua_pushlightuserdata(L, U); });
+    kUniverseFullRegKey.setValue(L, [](lua_State* L) { lua_pushvalue(L, -2); });
+    kUniverseLightRegKey.setValue(L, [U](lua_State* L) { lua_pushlightuserdata(L, U); });
     STACK_CHECK(L, 1);
     return U;
 }
@@ -91,7 +91,7 @@ void universe_store(lua_State* L, Universe* U)
 {
     LUA_ASSERT(L, !U || universe_get(L) == nullptr);
     STACK_CHECK_START_REL(L, 0);
-    UNIVERSE_LIGHT_REGKEY.setValue(L, [U](lua_State* L) { U ? lua_pushlightuserdata(L, U) : lua_pushnil(L); });
+    kUniverseLightRegKey.setValue(L, [U](lua_State* L) { U ? lua_pushlightuserdata(L, U) : lua_pushnil(L); });
     STACK_CHECK(L, 0);
 }
 
@@ -100,7 +100,7 @@ void universe_store(lua_State* L, Universe* U)
 Universe* universe_get(lua_State* L)
 {
     STACK_CHECK_START_REL(L, 0);
-    Universe* const universe{ UNIVERSE_LIGHT_REGKEY.readLightUserDataValue<Universe>(L) };
+    Universe* const universe{ kUniverseLightRegKey.readLightUserDataValue<Universe>(L) };
     STACK_CHECK(L, 0);
     return universe;
 }

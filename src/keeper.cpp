@@ -73,7 +73,7 @@ class keeper_fifo
     }
 };
 
-static constexpr int CONTENTS_TABLE{ 1 };
+static constexpr int kContentsTableIndex{ 1 };
 
 // #################################################################################################
 
@@ -86,7 +86,7 @@ static constexpr int CONTENTS_TABLE{ 1 };
         idx_ = lua_absindex(L, idx_);
         STACK_GROW(L, 1);
         // we can replace the fifo userdata in the stack without fear of it being GCed, there are other references around
-        lua_getiuservalue(L, idx_, CONTENTS_TABLE);
+        lua_getiuservalue(L, idx_, kContentsTableIndex);
         lua_replace(L, idx_);
     }
     return fifo;
@@ -103,7 +103,7 @@ static constexpr int CONTENTS_TABLE{ 1 };
     keeper_fifo* const fifo{ new (L) keeper_fifo{} };
     STACK_CHECK(L, 1);
     lua_newtable(L);
-    lua_setiuservalue(L, -2, CONTENTS_TABLE);
+    lua_setiuservalue(L, -2, kContentsTableIndex);
     STACK_CHECK(L, 1);
     return fifo;
 }
@@ -182,14 +182,14 @@ static void fifo_pop( lua_State* L, keeper_fifo* fifo_, int count_)
 
 // in: linda_ud expected at stack slot idx
 // out: fifos[ud]
-// crc64/we of string "FIFOS_KEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr RegistryUniqueKey FIFOS_KEY{ 0xDCE50BBC351CD465ull };
+// xxh64 of string "kFifosRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kFifosRegKey{ 0x37F11CE5A6D191AAull };
 static void push_table(lua_State* L, int idx_)
 {
     STACK_GROW(L, 5);
     STACK_CHECK_START_REL(L, 0);
     idx_ = lua_absindex(L, idx_);
-    FIFOS_KEY.pushValue(L);                    // ud fifos
+    kFifosRegKey.pushValue(L);                 // ud fifos
     lua_pushvalue(L, idx_);                    // ud fifos ud
     lua_rawget(L, -2);                         // ud fifos fifos[ud]
     STACK_CHECK(L, 2);
@@ -217,7 +217,7 @@ int keeper_push_linda_storage(Linda& linda_, DestState L)
         return 0;
     STACK_GROW(KL, 4);                                                      // KEEPER                       MAIN
     STACK_CHECK_START_REL(KL, 0);
-    FIFOS_KEY.pushValue(KL);                                                // fifos
+    kFifosRegKey.pushValue(KL);                                             // fifos
     lua_pushlightuserdata(KL, &linda_);                                     // fifos ud
     lua_rawget(KL, -2);                                                     // fifos storage
     lua_remove(KL, -2);                                                     // storage
@@ -267,7 +267,7 @@ int keepercall_clear(lua_State* L)
 {
     STACK_GROW(L, 3);
     STACK_CHECK_START_REL(L, 0);
-    FIFOS_KEY.pushValue(L);                     // ud fifos
+    kFifosRegKey.pushValue(L);                  // ud fifos
     lua_pushvalue(L, 1);                        // ud fifos ud
     lua_pushnil(L);                             // ud fifos ud nil
     lua_rawset(L, -3);                          // ud fifos
@@ -428,31 +428,31 @@ int keepercall_set(lua_State* L)
     STACK_GROW(L, 6);
 
     // retrieve fifos associated with the linda
-    push_table(L, 1);                                      // ud key [val [, ...]] fifos
-    lua_replace(L, 1);                                     // fifos key [val [, ...]]
+    push_table(L, 1);                                          // ud key [val [, ...]] fifos
+    lua_replace(L, 1);                                         // fifos key [val [, ...]]
 
     // make sure we have a value on the stack
-    if (lua_gettop(L) == 2)                                // fifos key
+    if (lua_gettop(L) == 2)                                    // fifos key
     {
-        lua_pushvalue(L, -1);                              // fifos key key
-        lua_rawget(L, 1);                                  // fifos key fifo|nil
+        lua_pushvalue(L, -1);                                  // fifos key key
+        lua_rawget(L, 1);                                      // fifos key fifo|nil
         // empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
         keeper_fifo* const fifo{ keeper_fifo::getPtr(L, -1) };
         if (fifo != nullptr) // might be nullptr if we set a nonexistent key to nil
         {                                                  // fifos key fifo
             if (fifo->limit < 0) // fifo limit value is the default (unlimited): we can totally remove it
             {
-                lua_pop(L, 1);                             // fifos key
-                lua_pushnil(L);                            // fifos key nil
-                lua_rawset(L, -3);                         // fifos
+                lua_pop(L, 1);                                 // fifos key
+                lua_pushnil(L);                                // fifos key nil
+                lua_rawset(L, -3);                             // fifos
             }
             else
             {
                 // we create room if the fifo was full but it is no longer the case
                 should_wake_writers = (fifo->limit > 0) && (fifo->count >= fifo->limit);
-                lua_remove(L, -2);                         // fifos fifo
-                lua_newtable(L);                           // fifos fifo {}
-                lua_setiuservalue(L, -2, CONTENTS_TABLE);  // fifos fifo
+                lua_remove(L, -2);                             // fifos fifo
+                lua_newtable(L);                               // fifos fifo {}
+                lua_setiuservalue(L, -2, kContentsTableIndex); // fifos fifo
                 fifo->first = 1;
                 fifo->count = 0;
             }
@@ -461,32 +461,32 @@ int keepercall_set(lua_State* L)
     else // set/replace contents stored at the specified key?
     {
         int const count{ lua_gettop(L) - 2 }; // number of items we want to store
-        lua_pushvalue(L, 2);                               // fifos key [val [, ...]] key
-        lua_rawget(L, 1);                                  // fifos key [val [, ...]] fifo|nil
+        lua_pushvalue(L, 2);                                   // fifos key [val [, ...]] key
+        lua_rawget(L, 1);                                      // fifos key [val [, ...]] fifo|nil
         keeper_fifo* fifo{ keeper_fifo::getPtr(L, -1) };
         if (fifo == nullptr) // can be nullptr if we store a value at a new key
-        {                                                  // fifos key [val [, ...]] nil
+        {                                                      // fifos key [val [, ...]] nil
             // no need to wake writers in that case, because a writer can't wait on an inexistent key
-            lua_pop(L, 1);                                 // fifos key [val [, ...]]
-            std::ignore = fifo_new(KeeperState{ L });      // fifos key [val [, ...]] fifo
-            lua_pushvalue(L, 2);                           // fifos key [val [, ...]] fifo key
-            lua_pushvalue(L, -2);                          // fifos key [val [, ...]] fifo key fifo
-            lua_rawset(L, 1);                              // fifos key [val [, ...]] fifo
+            lua_pop(L, 1);                                     // fifos key [val [, ...]]
+            std::ignore = fifo_new(KeeperState{ L });          // fifos key [val [, ...]] fifo
+            lua_pushvalue(L, 2);                               // fifos key [val [, ...]] fifo key
+            lua_pushvalue(L, -2);                              // fifos key [val [, ...]] fifo key fifo
+            lua_rawset(L, 1);                                  // fifos key [val [, ...]] fifo
         }
         else // the fifo exists, we just want to update its contents
-        {                                                  // fifos key [val [, ...]] fifo
+        {                                                      // fifos key [val [, ...]] fifo
             // we create room if the fifo was full but it is no longer the case
             should_wake_writers = (fifo->limit > 0) && (fifo->count >= fifo->limit) && (count < fifo->limit);
             // empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
-            lua_newtable(L);                               // fifos key [val [, ...]] fifo {}
-            lua_setiuservalue(L, -2, CONTENTS_TABLE);      // fifos key [val [, ...]] fifo
+            lua_newtable(L);                                   // fifos key [val [, ...]] fifo {}
+            lua_setiuservalue(L, -2, kContentsTableIndex);     // fifos key [val [, ...]] fifo
             fifo->first = 1;
             fifo->count = 0;
         }
-        fifo = prepare_fifo_access(L, -1);                 // fifos key [val [, ...]] fifotbl
+        fifo = prepare_fifo_access(L, -1);                     // fifos key [val [, ...]] fifotbl
         // move the fifo below the values we want to store
-        lua_insert(L, 3);                                  // fifos key fifotbl [val [, ...]]
-        fifo_push(L, fifo, count);                         // fifos key fifotbl
+        lua_insert(L, 3);                                      // fifos key fifotbl [val [, ...]]
+        fifo_push(L, fifo, count);                             // fifos key fifotbl
     }
     return should_wake_writers ? (lua_pushboolean(L, 1), 1) : 0;
 }
@@ -742,7 +742,7 @@ void init_keepers(Universe* U, lua_State* L)
         lua_pushfstring(K, "Keeper #%d", i + 1);                   //                              "Keeper #n"
         lua_setglobal(K, "decoda_name");                           //
         // create the fifos table in the keeper state
-        FIFOS_KEY.setValue(K, [](lua_State* L) { lua_newtable(L); });
+        kFifosRegKey.setValue(K, [](lua_State* L) { lua_newtable(L); });
         STACK_CHECK(K, 0);
     }
     STACK_CHECK(L, 0);
@@ -785,13 +785,13 @@ void keeper_toggle_nil_sentinels(lua_State* L, int val_i_, LookupMode const mode
         {
             if (lua_isnil(L, i))
             {
-                NIL_SENTINEL.pushKey(L);
+                kNilSentinel.pushKey(L);
                 lua_replace(L, i);
             }
         }
         else
         {
-            if (NIL_SENTINEL.equals(L, i))
+            if (kNilSentinel.equals(L, i))
             {
                 lua_pushnil(L);
                 lua_replace(L, i);

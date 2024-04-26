@@ -350,7 +350,7 @@ static int const gs_prio_remap[] =
 
 [[nodiscard]] static int select_prio(int prio /* -3..+3 */)
 {
-    if (prio == THREAD_PRIO_DEFAULT)
+    if (prio == kThreadPrioDefault)
         prio = 0;
     // prio range [-3,+3] was checked by the caller
     return gs_prio_remap[prio + 3];

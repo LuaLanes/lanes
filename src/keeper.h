@@ -35,8 +35,8 @@ struct Keepers
     Keeper keeper_array[1];
 };
 
-// crc64/we of string "NIL_SENTINEL" generated at http://www.nitrxgen.net/hashgen/
-static constexpr UniqueKey NIL_SENTINEL{ 0x7EAAFA003A1D11A1ull, "linda.null" };
+// xxh64 of string "kNilSentinel" generated at https://www.pelock.com/products/hash-calculator
+static constexpr UniqueKey kNilSentinel{ 0xC457D4EDDB05B5E4ull, "lanes.null" };
 
 void init_keepers(Universe* U, lua_State* L);
 void close_keepers(Universe* U);

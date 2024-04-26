@@ -50,6 +50,7 @@ class Linda : public DeepPrelude // Deep userdata MUST start with this header
     ~Linda();
     Linda(Universe* U_, LindaGroup group_, char const* name_, size_t len_);
     Linda() = delete;
+    // non-copyable, non-movable
     Linda(Linda const&) = delete;
     Linda(Linda const&&) = delete;
     Linda& operator=(Linda const&) = delete;

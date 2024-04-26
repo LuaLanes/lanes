@@ -87,8 +87,8 @@ void initialize_allocator_function(Universe* U, lua_State* L);
 
 // #################################################################################################
 
-// crc64/we of string "CONFIG_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr RegistryUniqueKey CONFIG_REGKEY{ 0x31CD24894EAE8624ull }; // registry key to access the configuration
+// xxh64 of string "kConfigRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kConfigRegKey{ 0x608379D20A398046ull }; // registry key to access the configuration
 
-// crc64/we of string "LOOKUP_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr RegistryUniqueKey LOOKUP_REGKEY{ 0x5051ED67EE7B51A1ull }; // registry key to access the lookup database
+// xxh64 of string "kLookupRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kLookupRegKey{ 0xBF1FC5CF3C6DD47Bull }; // registry key to access the lookup database

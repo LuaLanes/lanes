@@ -37,8 +37,8 @@ THE SOFTWARE.
 
 DEBUGSPEW_CODE(char const* const DebugSpewIndentScope::debugspew_indent = "----+----!----+----!----+----!----+----!----+----!----+----!----+----!----+");
 
-// crc64/we of string "LOOKUPCACHE_REGKEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr RegistryUniqueKey LOOKUPCACHE_REGKEY{ 0x837A68DFC6FCB716ull };
+// xxh64 of string "kLookupCacheRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kLookupCacheRegKey{ 0x9BF75F84E54B691Bull };
 
 // #################################################################################################
 
@@ -480,7 +480,7 @@ void populate_func_lookup_table(lua_State* L, int i_, char const* name_)
     DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
     STACK_GROW(L, 3);
     STACK_CHECK_START_REL(L, 0);
-    LOOKUP_REGKEY.pushValue(L);                                                        // {}
+    kLookupRegKey.pushValue(L);                                                        // {}
     STACK_CHECK(L, 1);
     LUA_ASSERT(L, lua_istable(L, -1));
     if (lua_type(L, in_base) == LUA_TFUNCTION) // for example when a module is a simple function
@@ -510,12 +510,12 @@ void populate_func_lookup_table(lua_State* L, int i_, char const* name_)
             STACK_CHECK(L, 2);
         }
         // retrieve the cache, create it if we haven't done it yet
-        LOOKUPCACHE_REGKEY.pushValue(L);                                               // {} {fqn} {cache}?
+        kLookupCacheRegKey.pushValue(L);                                               // {} {fqn} {cache}?
         if (lua_isnil(L, -1))
         {
             lua_pop(L, 1);                                                             // {} {fqn}
             lua_newtable(L);                                                           // {} {fqn} {cache}
-            LOOKUPCACHE_REGKEY.setValue(L, [](lua_State* L) { lua_pushvalue(L, -2); });
+            kLookupCacheRegKey.setValue(L, [](lua_State* L) { lua_pushvalue(L, -2); });
             STACK_CHECK(L, 3);
         }
         // process everything we find in that table, filling in lookup data for all functions and tables we see there
@@ -534,8 +534,8 @@ void populate_func_lookup_table(lua_State* L, int i_, char const* name_)
 
 /*---=== Inter-state copying ===---*/
 
-// crc64/we of string "REG_MTID" generated at http://www.nitrxgen.net/hashgen/
-static constexpr RegistryUniqueKey REG_MTID{ 0x2E68F9B4751584DCull };
+// xxh64 of string "kMtIdRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
 
 /*
 * Get a unique ID for metatable at [i].
@@ -547,12 +547,12 @@ static constexpr RegistryUniqueKey REG_MTID{ 0x2E68F9B4751584DCull };
     STACK_GROW(L, 3);
 
     STACK_CHECK_START_REL(L, 0);
-    push_registry_subtable(L, REG_MTID);        // ... _R[REG_MTID]
-    lua_pushvalue(L, i);                        // ... _R[REG_MTID] {mt}
-    lua_rawget(L, -2);                          // ... _R[REG_MTID] mtk?
+    push_registry_subtable(L, kMtIdRegKey);     // ... _R[kMtIdRegKey]
+    lua_pushvalue(L, i);                        // ... _R[kMtIdRegKey] {mt}
+    lua_rawget(L, -2);                          // ... _R[kMtIdRegKey] mtk?
 
     lua_Integer id{ lua_tointeger(L, -1) }; // 0 for nil
-    lua_pop(L, 1);                              // ... _R[REG_MTID]
+    lua_pop(L, 1);                              // ... _R[kMtIdRegKey]
     STACK_CHECK(L, 1);
 
     if (id == 0)
@@ -560,13 +560,13 @@ static constexpr RegistryUniqueKey REG_MTID{ 0x2E68F9B4751584DCull };
         id = U->next_mt_id.fetch_add(1, std::memory_order_relaxed);
 
         // Create two-way references: id_uint <-> table
-        lua_pushvalue(L, i);                    // ... _R[REG_MTID] {mt}
-        lua_pushinteger(L, id);                 // ... _R[REG_MTID] {mt} id
-        lua_rawset(L, -3);                      // ... _R[REG_MTID]
+        lua_pushvalue(L, i);                    // ... _R[kMtIdRegKey] {mt}
+        lua_pushinteger(L, id);                 // ... _R[kMtIdRegKey] {mt} id
+        lua_rawset(L, -3);                      // ... _R[kMtIdRegKey]
 
-        lua_pushinteger(L, id);                 // ... _R[REG_MTID] id
-        lua_pushvalue(L, i);                    // ... _R[REG_MTID] id {mt}
-        lua_rawset(L, -3);                      // ... _R[REG_MTID]
+        lua_pushinteger(L, id);                 // ... _R[kMtIdRegKey] id
+        lua_pushvalue(L, i);                    // ... _R[kMtIdRegKey] id {mt}
+        lua_rawset(L, -3);                      // ... _R[kMtIdRegKey]
     }
     lua_pop(L, 1);                              // ...
     STACK_CHECK(L, 0);
@@ -628,7 +628,7 @@ static constexpr RegistryUniqueKey REG_MTID{ 0x2E68F9B4751584DCull };
     else
     {
         // fetch the name from the source state's lookup table
-        LOOKUP_REGKEY.pushValue(L);                            // ... v ... {}
+        kLookupRegKey.pushValue(L);                            // ... v ... {}
         STACK_CHECK( L, 1);
         LUA_ASSERT(L, lua_istable( L, -1));
         lua_pushvalue( L, i);                                  // ... v ... {} v
@@ -700,7 +700,7 @@ static constexpr RegistryUniqueKey REG_MTID{ 0x2E68F9B4751584DCull };
 
         case LookupMode::LaneBody:
         case LookupMode::FromKeeper:
-        LOOKUP_REGKEY.pushValue(L2);                                                        // {}
+        kLookupRegKey.pushValue(L2);                                                        // {}
         STACK_CHECK(L2, 1);
         LUA_ASSERT(L1, lua_istable(L2, -1));
         lua_pushlstring(L2, fqn, len);                                                      // {} "f.q.n"
@@ -1005,7 +1005,7 @@ void InterCopyContext::lookup_native_func() const
 
         case LookupMode::LaneBody:
         case LookupMode::FromKeeper:
-        LOOKUP_REGKEY.pushValue(L2);                                                         // {}
+        kLookupRegKey.pushValue(L2);                                                         // {}
         STACK_CHECK(L2, 1);
         LUA_ASSERT(L1, lua_istable(L2, -1));
         lua_pushlstring(L2, fqn, len);                                                       // {} "f.q.n"
@@ -1324,30 +1324,30 @@ void InterCopyContext::copy_cached_func() const
     STACK_CHECK_START_REL(L2, 0);
     STACK_GROW(L2, 4);
     // do we already know this metatable?
-    push_registry_subtable(L2, REG_MTID);                                                               // _R[REG_MTID]
-    lua_pushinteger(L2, mt_id);                                                                         // _R[REG_MTID] id
-    lua_rawget(L2, -2);                                                                                 // _R[REG_MTID] mt|nil
+    push_registry_subtable(L2, kMtIdRegKey);                                                            // _R[kMtIdRegKey]
+    lua_pushinteger(L2, mt_id);                                                                         // _R[kMtIdRegKey] id
+    lua_rawget(L2, -2);                                                                                 // _R[kMtIdRegKey] mt|nil
     STACK_CHECK(L2, 2);
 
     if (lua_isnil(L2, -1))
     {   // L2 did not know the metatable
-        lua_pop(L2, 1);                                                                                 // _R[REG_MTID]
+        lua_pop(L2, 1);                                                                                 // _R[kMtIdRegKey]
         InterCopyContext const c{ U, L2, L1, L2_cache_i, SourceIndex{ lua_gettop(L1) }, VT::METATABLE, mode, name };
-        if (!c.inter_copy_one())                                                                        // _R[REG_MTID] mt?
+        if (!c.inter_copy_one())                                                                        // _R[kMtIdRegKey] mt?
         {
             luaL_error(L1, "Error copying a metatable"); // doesn't return
         }
 
-        STACK_CHECK(L2, 2);                                                                             // _R[REG_MTID] mt
+        STACK_CHECK(L2, 2);                                                                             // _R[kMtIdRegKey] mt
         // mt_id -> metatable
-        lua_pushinteger(L2, mt_id);                                                                     // _R[REG_MTID] mt id
-        lua_pushvalue(L2, -2);                                                                          // _R[REG_MTID] mt id mt
-        lua_rawset(L2, -4);                                                                             // _R[REG_MTID] mt
+        lua_pushinteger(L2, mt_id);                                                                     // _R[kMtIdRegKey] mt id
+        lua_pushvalue(L2, -2);                                                                          // _R[kMtIdRegKey] mt id mt
+        lua_rawset(L2, -4);                                                                             // _R[kMtIdRegKey] mt
 
         // metatable -> mt_id
-        lua_pushvalue(L2, -1);                                                                          // _R[REG_MTID] mt mt
-        lua_pushinteger(L2, mt_id);                                                                     // _R[REG_MTID] mt mt id
-        lua_rawset(L2, -4);                                                                             // _R[REG_MTID] mt
+        lua_pushvalue(L2, -1);                                                                          // _R[kMtIdRegKey] mt mt
+        lua_pushinteger(L2, mt_id);                                                                     // _R[kMtIdRegKey] mt mt id
+        lua_rawset(L2, -4);                                                                             // _R[kMtIdRegKey] mt
         STACK_CHECK(L2, 2);
     }
     lua_remove(L2, -2);                                                                                 // mt
@@ -1431,12 +1431,6 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 }
 
 // #################################################################################################
-
-/*
-* The clone cache is a weak valued table listing all clones, indexed by their userdatapointer
-* fnv164 of string "CLONABLES_CACHE_KEY" generated at https://www.pelock.com/products/hash-calculator
-*/
-static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
 
 [[nodiscard]] bool InterCopyContext::copyclone() const
 {
@@ -1848,7 +1842,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
 */
 [[nodiscard]] bool InterCopyContext::inter_copy_one() const
 {
-    static constexpr int pod_mask = (1 << LUA_TNIL) | (1 << LUA_TBOOLEAN) | (1 << LUA_TLIGHTUSERDATA) | (1 << LUA_TNUMBER) | (1 << LUA_TSTRING);
+    static constexpr int kPODmask = (1 << LUA_TNIL) | (1 << LUA_TBOOLEAN) | (1 << LUA_TLIGHTUSERDATA) | (1 << LUA_TNUMBER) | (1 << LUA_TSTRING);
     STACK_GROW(L2, 1);
     STACK_CHECK_START_REL(L1, 0);                                                      // L1                          // L2
     STACK_CHECK_START_REL(L2, 0);                                                      // L1                          // L2
@@ -1860,7 +1854,7 @@ static constexpr UniqueKey CLONABLES_CACHE_KEY{ 0xD04EE018B3DEE8F5ull };
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%s %s: " INDENT_END, lua_type_names[static_cast<int>(val_type)], vt_names[static_cast<int>(vt)]));
 
     // Non-POD can be skipped if its metatable contains { __lanesignore = true }
-    if (((1 << static_cast<int>(val_type)) & pod_mask) == 0)
+    if (((1 << static_cast<int>(val_type)) & kPODmask) == 0)
     {
         if (lua_getmetatable(L1, L1_i))                                                // ... mt
         {

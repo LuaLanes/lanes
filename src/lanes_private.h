@@ -92,8 +92,8 @@ class Lane
     void pushThreadStatus(lua_State* L_);
 };
 
-// xxh64 of string "LANE_POINTER_REGKEY" generated at https://www.pelock.com/products/hash-calculator
-static constexpr RegistryUniqueKey LANE_POINTER_REGKEY{ 0xB3022205633743BCull }; // used as registry key
+// xxh64 of string "kLanePointerRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kLanePointerRegKey{ 0x2D8CF03FE9F0A51Aull }; // used as registry key
 
 // To allow free-running threads (longer lifespan than the handle's)
 // 'Lane' are malloc/free'd and the handle only carries a pointer.

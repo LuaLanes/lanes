@@ -178,6 +178,7 @@ class Universe
 
     Universe();
     ~Universe() = default;
+    // non-copyable, non-movable
     Universe(Universe const&) = delete;
     Universe(Universe&&) = delete;
     Universe& operator=(Universe const&) = delete;

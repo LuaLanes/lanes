@@ -15,7 +15,7 @@
 #define THREADAPI THREADAPI_PTHREAD
 #endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 
-static constexpr int THREAD_PRIO_DEFAULT{ -999 };
+static constexpr int kThreadPrioDefault{ -999 };
 
 // #################################################################################################
 // #################################################################################################
@@ -40,8 +40,8 @@ static constexpr int THREAD_PRIO_DEFAULT{ -999 };
 #pragma message( "The value of _WIN32_WINNT: " XSTR(_WIN32_WINNT))
 */
 
-static constexpr int THREAD_PRIO_MIN{ -3 };
-static constexpr int THREAD_PRIO_MAX{ +3 };
+static constexpr int kThreadPrioMin{ -3 };
+static constexpr int kThreadPrioMax{ +3 };
 
 // #################################################################################################
 // #################################################################################################
@@ -58,11 +58,11 @@ static constexpr int THREAD_PRIO_MAX{ +3 };
 #include <pthread.h>
 
 #if defined(PLATFORM_LINUX) && !defined(LINUX_SCHED_RR)
-static constexpr int THREAD_PRIO_MIN{ 0 };
+static constexpr int kThreadPrioMin{ 0 };
 #else
-static constexpr int THREAD_PRIO_MIN{ -3 };
+static constexpr int kThreadPrioMin{ -3 };
 #endif
-static constexpr int THREAD_PRIO_MAX{ +3 };
+static constexpr int kThreadPrioMax{ +3 };
 
 #endif // THREADAPI == THREADAPI_PTHREAD
 // #################################################################################################

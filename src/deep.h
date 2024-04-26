@@ -30,14 +30,14 @@ enum class LookupMode
 
 // #################################################################################################
 
-// xxh64 of string "DEEP_VERSION_3" generated at https://www.pelock.com/products/hash-calculator
-static constexpr UniqueKey DEEP_VERSION{ 0xB2CC0FD9C0AE9674ull, "DEEP_VERSION_3" };
+// xxh64 of string "kDeepVersion_1" generated at https://www.pelock.com/products/hash-calculator
+static constexpr UniqueKey kDeepVersion{ 0x91171AEC6641E9DBull, "kDeepVersion" };
 
 // should be used as header for deep userdata
 // a deep userdata is a full userdata that stores a single pointer to the actual DeepPrelude-derived object
 struct DeepPrelude
 {
-    UniqueKey const m_magic{ DEEP_VERSION };
+    UniqueKey const m_magic{ kDeepVersion };
     // when stored in a keeper state, the full userdata doesn't have a metatable, so we need direct access to the factory
     class DeepFactory& m_factory;
     // data is destroyed when refcount is 0

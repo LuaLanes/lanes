@@ -53,14 +53,14 @@ THE SOFTWARE.
 *   metatable   ->  factory
 *   factory      ->  metatable
 */
-// crc64/we of string "DEEP_LOOKUP_KEY" generated at http://www.nitrxgen.net/hashgen/
-static constexpr RegistryUniqueKey DEEP_LOOKUP_KEY{ 0x9FB9B4F3F633D83Dull };
+// xxh64 of string "kDeepLookupRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kDeepLookupRegKey{ 0xC6788345703C6059ull };
 
 /*
  * The deep proxy cache is a weak valued table listing all deep UD proxies indexed by the deep UD that they are proxying
- * crc64/we of string "DEEP_PROXY_CACHE_KEY" generated at http://www.nitrxgen.net/hashgen/
+ * xxh64 of string "kDeepProxyCacheRegKey" generated at https://www.pelock.com/products/hash-calculator
 */
-static constexpr RegistryUniqueKey DEEP_PROXY_CACHE_KEY{ 0x05773D6FC26BE106ull };
+static constexpr RegistryUniqueKey kDeepProxyCacheRegKey{ 0xEBCD49AE1A3DD35Eull };
 
 /*
 * Sets up [-1]<->[-2] two-way lookups, and ensures the lookup table exists.
@@ -70,7 +70,7 @@ static void set_deep_lookup(lua_State* L)
 {
     STACK_GROW( L, 3);
     STACK_CHECK_START_REL(L, 2);                             // a b
-    push_registry_subtable( L, DEEP_LOOKUP_KEY);             // a b {}
+    push_registry_subtable( L, kDeepLookupRegKey);           // a b {}
     STACK_CHECK( L, 3);
     lua_insert( L, -3);                                      // {} a b
     lua_pushvalue( L, -1);                                   // {} a b b
@@ -91,7 +91,7 @@ static void get_deep_lookup(lua_State* L)
 {
     STACK_GROW( L, 1);
     STACK_CHECK_START_REL(L, 1);                             // a
-    DEEP_LOOKUP_KEY.pushValue(L);                            // a {}
+    kDeepLookupRegKey.pushValue(L);                          // a {}
     if (!lua_isnil( L, -1))
     {
         lua_insert( L, -2);                                  // {} a
@@ -194,7 +194,7 @@ void DeepFactory::DeleteDeepObject(lua_State* L, DeepPrelude* o_)
 char const* DeepFactory::PushDeepProxy(DestState L, DeepPrelude* prelude, int nuv_, LookupMode mode_)
 {
     // Check if a proxy already exists
-    push_registry_subtable_mode(L, DEEP_PROXY_CACHE_KEY, "v");                                         // DPC
+    push_registry_subtable_mode(L, kDeepProxyCacheRegKey, "v");                                        // DPC
     lua_pushlightuserdata(L, prelude);                                                                 // DPC deep
     lua_rawget(L, -2);                                                                                 // DPC proxy
     if (!lua_isnil(L, -1))
@@ -354,11 +354,11 @@ int DeepFactory::pushDeepUserdata(DestState L, int nuv_) const
         return luaL_error( L, "DeepFactory::newDeepObjectInternal failed to create deep userdata (out of memory)");
     }
 
-    if (prelude->m_magic != DEEP_VERSION)
+    if (prelude->m_magic != kDeepVersion)
     {
         // just in case, don't leak the newly allocated deep userdata object
         deleteDeepObjectInternal(L, prelude);
-        return luaL_error( L, "Bad Deep Factory: DEEP_VERSION is incorrect, rebuild your implementation with the latest deep implementation");
+        return luaL_error( L, "Bad Deep Factory: kDeepVersion is incorrect, rebuild your implementation with the latest deep implementation");
     }
 
     LUA_ASSERT(L, prelude->m_refcount.load(std::memory_order_relaxed) == 0); // 'DeepFactory::PushDeepProxy' will lift it to 1

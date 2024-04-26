@@ -200,15 +200,15 @@ static void copy_one_time_settings(Universe* U, SourceState L1, DestState L2)
 
     DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "copy_one_time_settings()\n" INDENT_END));
 
-    CONFIG_REGKEY.pushValue(L1);                                                        // config
+    kConfigRegKey.pushValue(L1);                                                        // config
     // copy settings from from source to destination registry
     InterCopyContext c{ U, L2, L1, {}, {}, {}, {}, {} };
     if (c.inter_move(1) != InterCopyResult::Success)                                    //                           // config
     {
         luaL_error(L1, "failed to copy settings when loading lanes.core"); // doesn't return
     }
-    // set L2:_R[CONFIG_REGKEY] = settings
-    CONFIG_REGKEY.setValue(L2, [](lua_State* L) { lua_insert(L, -2); });                                             // config
+    // set L2:_R[kConfigRegKey] = settings
+    kConfigRegKey.setValue(L2, [](lua_State* L) { lua_insert(L, -2); });                                             // config
     STACK_CHECK(L2, 0);
     STACK_CHECK(L1, 0);
 }
@@ -301,7 +301,7 @@ void call_on_state_create(Universe* U, lua_State* L, lua_State* from_, LookupMod
                 STACK_CHECK(L, 0);
                 return;
             }
-            CONFIG_REGKEY.pushValue(L);                                                // {}
+            kConfigRegKey.pushValue(L);                                                // {}
             STACK_CHECK(L, 1);
             lua_getfield(L, -1, "on_state_create");                                    // {} on_state_create()
             lua_remove(L, -2);                                                         // on_state_create()
@@ -344,7 +344,7 @@ lua_State* luaG_newstate(Universe* U, SourceState from_, char const* libs_)
     STACK_CHECK(L, 0);
 
     // we'll need this every time we transfer some C function from/to this state
-    LOOKUP_REGKEY.setValue(L, [](lua_State* L) { lua_newtable(L); });
+    kLookupRegKey.setValue(L, [](lua_State* L) { lua_newtable(L); });
     STACK_CHECK(L, 0);
 
     // neither libs (not even 'base') nor special init func: we are done
@@ -427,7 +427,7 @@ lua_State* luaG_newstate(Universe* U, SourceState from_, char const* libs_)
 
 #if 1 && USE_DEBUG_SPEW()
     // dump the lookup database contents
-    LOOKUP_REGKEY.pushValue(L);                                                                                                // {}
+    kLookupRegKey.pushValue(L);                                                                                                // {}
     lua_pushnil(L);                                                                                                            // {} nil
     while (lua_next(L, -2))                                                                                                    // {} k v
     {
