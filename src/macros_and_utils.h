@@ -17,6 +17,47 @@ extern "C" {
 
 using namespace std::chrono_literals;
 
+// #################################################################################################
+
+// use this instead of Lua's lua_error
+[[noreturn]] static inline void raise_lua_error(lua_State* L_)
+{
+    std::ignore = lua_error(L_); // doesn't return
+    assert(false); // we should never get here, but i'm paranoid
+}
+
+// #################################################################################################
+
+// use this instead of Lua's luaL_error
+template <typename... ARGS>
+[[noreturn]] static inline void raise_luaL_error(lua_State* L_, char const* fmt_, ARGS... args_)
+{
+    std::ignore = luaL_error(L_, fmt_, std::forward<ARGS>(args_)...); // doesn't return
+    assert(false); // we should never get here, but i'm paranoid
+}
+
+// #################################################################################################
+
+// use this instead of Lua's luaL_argerror
+template <typename... ARGS>
+[[noreturn]] static inline void raise_luaL_argerror(lua_State* L_, int arg_, char const* extramsg_)
+{
+    std::ignore = luaL_argerror(L_, arg_, extramsg_); // doesn't return
+    assert(false); // we should never get here, but i'm paranoid
+}
+
+// #################################################################################################
+
+// use this instead of Lua's luaL_typeerror
+template <typename... ARGS>
+[[noreturn]] static inline void raise_luaL_typeerror(lua_State* L_, int arg_, char const* tname_)
+{
+    std::ignore = luaL_typeerror(L_, arg_, tname_); // doesn't return
+    assert(false); // we should never get here, but i'm paranoid
+}
+
+// #################################################################################################
+
 #define USE_DEBUG_SPEW() 0
 #if USE_DEBUG_SPEW()
 #define INDENT_BEGIN "%.*s "
@@ -48,7 +89,7 @@ inline void LUA_ASSERT_IMPL(lua_State* L_, bool cond_, char const* file_, size_t
 {
     if (!cond_)
     {
-        luaL_error(L_, "LUA_ASSERT %s:%llu '%s'", file_, line_, txt_); // doesn't return
+        raise_luaL_error(L_, "LUA_ASSERT %s:%llu '%s'", file_, line_, txt_);
     }
 }
 
@@ -82,7 +123,7 @@ class StackChecker
         if ((offset_ < 0) || (m_oldtop < 0))
         {
             assert(false);
-            luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%llu", lua_gettop(m_L), offset_, file_, line_); // doesn't return
+            raise_luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%llu", lua_gettop(m_L), offset_, file_, line_);
         }
     }
 
@@ -93,7 +134,7 @@ class StackChecker
         if (lua_gettop(m_L) != pos_)
         {
             assert(false);
-            luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%llu", lua_gettop(m_L), pos_, file_, line_); // doesn't return
+            raise_luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%llu", lua_gettop(m_L), pos_, file_, line_);
         }
     }
 
@@ -113,7 +154,7 @@ class StackChecker
             if (actual != expected_)
             {
                 assert(false);
-                luaL_error(m_L, "STACK ASSERT failed (%d not %d): %s:%llu", actual, expected_, file_, line_); // doesn't return
+                raise_luaL_error(m_L, "STACK ASSERT failed (%d not %d): %s:%llu", actual, expected_, file_, line_);
             }
         }
     }
@@ -127,13 +168,17 @@ class StackChecker
 
 #endif // NDEBUG
 
+// #################################################################################################
+
 inline void STACK_GROW(lua_State* L, int n_)
 {
     if (!lua_checkstack(L, n_))
     {
-        luaL_error(L, "Cannot grow stack!"); // doesn't return
+        raise_luaL_error(L, "Cannot grow stack!");
     }
 }
+
+// #################################################################################################
 
 #define LUAG_FUNC(func_name) [[nodiscard]] int LG_##func_name(lua_State* L)
 
@@ -168,13 +213,6 @@ template <typename T>
 }
 
 // #################################################################################################
-
-// use this instead of Lua's lua_error if possible
-[[noreturn]] static inline void raise_lua_error(lua_State* L)
-{
-    std::ignore = lua_error(L); // doesn't return
-    assert(false); // we should never get here, but i'm paranoid
-}
 
 using lua_Duration = std::chrono::template duration<lua_Number>;
 
@@ -222,7 +260,7 @@ typename T::value_type const& OptionalValue(T const& x_, Ts... args_)
 {
     if (!x_.has_value())
     {
-        luaL_error(std::forward<Ts>(args_)...); // doesn't return
+        raise_luaL_error(std::forward<Ts>(args_)...);
     }
     return x_.value();
 }

@@ -205,7 +205,7 @@ static void copy_one_time_settings(Universe* U, SourceState L1, DestState L2)
     InterCopyContext c{ U, L2, L1, {}, {}, {}, {}, {} };
     if (c.inter_move(1) != InterCopyResult::Success)                                    //                           // config
     {
-        luaL_error(L1, "failed to copy settings when loading lanes.core"); // doesn't return
+        raise_luaL_error(L1, "failed to copy settings when loading lanes.core");
     }
     // set L2:_R[kConfigRegKey] = settings
     kConfigRegKey.setValue(L2, [](lua_State* L) { lua_insert(L, -2); });                                             // config
@@ -229,7 +229,7 @@ void initialize_on_state_create( Universe* U, lua_State* L)
             char const* upname = lua_getupvalue(L, -1, 1);   // settings on_state_create upval?
             if (upname != nullptr) // should be "" for C functions with upvalues if any
             {
-                (void) luaL_error(L, "on_state_create shouldn't have upvalues");
+                raise_luaL_error(L, "on_state_create shouldn't have upvalues");
             }
             // remove this C function from the config table so that it doesn't cause problems
             // when we transfer the config table in newly created Lua states
@@ -274,7 +274,7 @@ lua_State* create_state(Universe* U, lua_State* from_)
 
     if (L == nullptr)
     {
-        luaL_error(from_, "luaG_newstate() failed while creating state; out of memory"); // doesn't return
+        raise_luaL_error(from_, "luaG_newstate() failed while creating state; out of memory");
     }
     return L;
 }
@@ -310,7 +310,7 @@ void call_on_state_create(Universe* U, lua_State* L, lua_State* from_, LookupMod
         // capture error and raise it in caller state
         if (lua_pcall(L, 0, 0, 0) != LUA_OK)
         {
-            luaL_error(from_, "on_state_create failed: \"%s\"", lua_isstring(L, -1) ? lua_tostring(L, -1) : lua_typename(L, lua_type(L, -1)));
+            raise_luaL_error(from_, "on_state_create failed: \"%s\"", lua_isstring(L, -1) ? lua_tostring(L, -1) : lua_typename(L, lua_type(L, -1)));
         }
         STACK_CHECK(L, 0);
     }

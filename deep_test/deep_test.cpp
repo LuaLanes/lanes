@@ -178,20 +178,20 @@ struct MyClonableUserdata
 // this is all we need to make a userdata lanes-clonable. no dependency on Lanes code.
 [[nodiscard]] static int clonable_lanesclone(lua_State* L)
 {
-    switch( lua_gettop( L))
+    switch( lua_gettop(L))
     {
         case 3:
         {
             MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
             MyClonableUserdata* from = static_cast<MyClonableUserdata*>(lua_touserdata(L, 2));
-            size_t len = lua_tointeger( L, 3);
+            size_t len = lua_tointeger(L, 3);
             assert( len == sizeof(MyClonableUserdata));
             *self = *from;
         }
         return 0;
 
         default:
-        (void) luaL_error( L, "Lanes called clonable_lanesclone with unexpected parameters");
+        raise_luaL_error(L, "Lanes called clonable_lanesclone with unexpected parameters");
     }
     return 0;
 }

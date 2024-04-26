@@ -54,7 +54,7 @@ static constexpr UniqueKey kCancelError{ 0x0630345FEF912746ull, "lanes.cancel_er
 {
     STACK_GROW(L, 1);
     kCancelError.pushKey(L); // special error value
-    raise_lua_error(L); // doesn't return
+    raise_lua_error(L);
 }
 
 // #################################################################################################

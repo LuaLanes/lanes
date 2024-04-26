@@ -660,7 +660,7 @@ void init_keepers(Universe* U, lua_State* L)
     lua_pop(L, 1);                                                 // settings
     if (nb_keepers < 1)
     {
-        luaL_error(L, "Bad number of keepers (%d)", nb_keepers); // doesn't return
+        raise_luaL_error(L, "Bad number of keepers (%d)", nb_keepers);
     }
     STACK_CHECK(L, 0);
 
@@ -675,7 +675,7 @@ void init_keepers(Universe* U, lua_State* L)
         U->keepers = static_cast<Keepers*>(U->internal_allocator.alloc(bytes));
         if (U->keepers == nullptr)
         {
-            luaL_error(L, "init_keepers() failed while creating keeper array; out of memory"); // doesn't return
+            raise_luaL_error(L, "init_keepers() failed while creating keeper array; out of memory");
         }
         U->keepers->Keepers::Keepers();
         U->keepers->gc_threshold = keepers_gc_threshold;
@@ -692,7 +692,7 @@ void init_keepers(Universe* U, lua_State* L)
         KeeperState const K{ create_state(U, L) };
         if (K == nullptr)
         {
-            luaL_error(L, "init_keepers() failed while creating keeper states; out of memory"); // doesn't return
+            raise_luaL_error(L, "init_keepers() failed while creating keeper states; out of memory");
         }
 
         U->keepers->keeper_array[i].L = K;
@@ -829,7 +829,7 @@ KeeperCallResult keeper_call(Universe* U, KeeperState K, keeper_api_t func_, lua
     {                                                                                                                 // func_ linda args...
         lua_call(K, 1 + args, LUA_MULTRET);                                                                           // result...
         int const retvals{ lua_gettop(K) - top_K };
-        // note that this can raise a luaL_error while the keeper state (and its mutex) is acquired
+        // note that this can raise a lua error while the keeper state (and its mutex) is acquired
         // this may interrupt a lane, causing the destruction of the underlying OS thread
         // after this, another lane making use of this keeper can get an error code from the mutex-locking function
         // when attempting to grab the mutex again (WINVER <= 0x400 does this, but locks just fine, I don't know about pthread)
@@ -862,7 +862,7 @@ KeeperCallResult keeper_call(Universe* U, KeeperState K, keeper_api_t func_, lua
                 int const gc_usage_after{ lua_gc(K, LUA_GCCOUNT, 0) };
                 if (gc_usage_after > gc_threshold) [[unlikely]]
                 {
-                    luaL_error(L, "Keeper GC threshold is too low, need at least %d", gc_usage_after);
+                    raise_luaL_error(L, "Keeper GC threshold is too low, need at least %d", gc_usage_after);
                 }
             }
         }

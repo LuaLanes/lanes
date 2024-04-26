@@ -213,7 +213,7 @@ CancelOp which_cancel_op(char const* op_string_)
         lua_remove(L, idx_); // argument is processed, remove it
         if (op == CancelOp::Invalid)
         {
-            luaL_error(L, "invalid hook option %s", str); // doesn't return
+            raise_luaL_error(L, "invalid hook option %s", str);
         }
         return op;
     }
@@ -235,7 +235,7 @@ LUAG_FUNC(thread_cancel)
         lua_remove(L, 2); // argument is processed, remove it
         if (hook_count < 1)
         {
-            return luaL_error(L, "hook count cannot be < 1"); // doesn't return
+            raise_luaL_error(L, "hook count cannot be < 1");
         }
     }
 
@@ -246,7 +246,7 @@ LUAG_FUNC(thread_cancel)
         lua_remove(L, 2); // argument is processed, remove it
         if (wait_timeout.count() < 0.0)
         {
-            return luaL_error(L, "cancel timeout cannot be < 0"); // doesn't return
+            raise_luaL_error(L, "cancel timeout cannot be < 0");
         }
     }
     // we wake by default in "hard" mode (remember that hook is hard too), but this can be turned off if desired
@@ -255,7 +255,7 @@ LUAG_FUNC(thread_cancel)
     {
         if (!lua_isboolean(L, 2))
         {
-            return luaL_error(L, "wake_lindas parameter is not a boolean"); // doesn't return
+            raise_luaL_error(L, "wake_lindas parameter is not a boolean");
         }
         wake_lane = lua_toboolean(L, 2);
         lua_remove(L, 2); // argument is processed, remove it

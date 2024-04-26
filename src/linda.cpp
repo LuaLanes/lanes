@@ -146,14 +146,14 @@ static void check_key_types(lua_State* L, int start_, int end_)
                 {
                     if (key.equals(L, i))
                     {
-                        luaL_error(L, "argument #%d: can't use %s as a key", i, key.m_debugName); // doesn't return
+                        raise_luaL_error(L, "argument #%d: can't use %s as a key", i, key.m_debugName);
                         break;
                     }
                 }
             }
             break;
         }
-        luaL_error(L, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", i); // doesn't return
+        raise_luaL_error(L, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", i);
     }
 }
 
@@ -247,7 +247,7 @@ LUAG_FUNC(linda_send)
             }
             else
             {
-                return luaL_error(L, "no data to send");
+                raise_luaL_error(L, "no data to send");
             }
         }
 
@@ -331,7 +331,7 @@ LUAG_FUNC(linda_send)
 
         if (!pushed.has_value())
         {
-            luaL_error(L, "tried to copy unsupported types"); // doesn't return
+            raise_luaL_error(L, "tried to copy unsupported types");
         }
 
         switch (cancel)
@@ -410,7 +410,7 @@ LUAG_FUNC(linda_receive)
             ++expected_pushed_max;
             if (expected_pushed_min > expected_pushed_max)
             {
-                return luaL_error(L, "batched min/max error");
+                raise_luaL_error(L, "batched min/max error");
             }
         }
         else
@@ -496,7 +496,7 @@ LUAG_FUNC(linda_receive)
 
         if (!pushed.has_value())
         {
-            return luaL_error(L, "tried to copy unsupported types");
+            raise_luaL_error(L, "tried to copy unsupported types");
         }
 
         switch (cancel)
@@ -716,7 +716,7 @@ LUAG_FUNC(linda_cancel)
     }
     else
     {
-        return luaL_error(L, "unknown wake hint '%s'", who);
+        raise_luaL_error(L, "unknown wake hint '%s'", who);
     }
     return 0;
 }
@@ -798,7 +798,7 @@ LUAG_FUNC(linda_concat)
     }
     if (!atLeastOneLinda) // should not be possible
     {
-        return luaL_error(L, "internal error: linda_concat called on non-Linda");
+        raise_luaL_error(L, "internal error: linda_concat called on non-Linda");
     }
     lua_concat(L, 2);
     return 1;

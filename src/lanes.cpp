@@ -556,7 +556,7 @@ static void selfdestruct_add(Lane* lane_)
         if (lane != SELFDESTRUCT_END)
         {
             // this causes a leak because we don't call U's destructor (which could be bad if the still running lanes are accessing it)
-            luaL_error(L, "Zombie thread %s refuses to die!", lane->debug_name); // doesn't return
+            raise_luaL_error(L, "Zombie thread %s refuses to die!", lane->debug_name);
         }
     }
 
@@ -600,16 +600,16 @@ LUAG_FUNC( set_singlethreaded)
 #ifdef _UTILBINDTHREADTOCPU
     if (cores > 1)
     {
-        return luaL_error(L, "Limiting to N>1 cores not possible");
+        raise_luaL_error(L, "Limiting to N>1 cores not possible");
     }
     // requires 'chudInitialize()'
     utilBindThreadToCPU(0);     // # of CPU to run on (we cannot limit to 2..N CPUs?)
     return 0;
 #else
-    return luaL_error(L, "Not available: compile with _UTILBINDTHREADTOCPU");
+    raise_luaL_error(L, "Not available: compile with _UTILBINDTHREADTOCPU");
 #endif
 #else
-    return luaL_error(L, "not implemented");
+    raise_luaL_error(L, "not implemented");
 #endif
 }
 
@@ -645,7 +645,7 @@ LUAG_FUNC( set_error_reporting)
     bool const basic{ strcmp(mode, "basic") == 0 };
     if (!extended && !basic)
     {
-        return luaL_error(L, "unsupported error reporting model %s", mode);
+        raise_luaL_error(L, "unsupported error reporting model %s", mode);
     }
 
     kExtendedStackTraceRegKey.setValue(L, [extended](lua_State* L) { lua_pushboolean(L, extended ? 1 : 0); });
@@ -769,7 +769,7 @@ LUAG_FUNC(set_thread_priority)
     // On some platforms, -3 is equivalent to -2 and +3 to +2
     if (prio < kThreadPrioMin || prio > kThreadPrioMax)
     {
-        return luaL_error(L, "priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, prio);
+        raise_luaL_error(L, "priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, prio);
     }
     THREAD_SET_PRIORITY(static_cast<int>(prio), universe_get(L)->m_sudo);
     return 0;
@@ -782,7 +782,7 @@ LUAG_FUNC(set_thread_affinity)
     lua_Integer const affinity{ luaL_checkinteger(L, 1) };
     if (affinity <= 0)
     {
-        return luaL_error(L, "invalid affinity (%d)", affinity);
+        raise_luaL_error(L, "invalid affinity (%d)", affinity);
     }
     THREAD_SET_AFFINITY( static_cast<unsigned int>(affinity));
     return 0;
@@ -994,7 +994,7 @@ LUAG_FUNC(lane_new)
     // On some platforms, -3 is equivalent to -2 and +3 to +2
     if (have_priority && (priority < kThreadPrioMin || priority > kThreadPrioMax))
     {
-        return luaL_error(L, "Priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, priority);
+        raise_luaL_error(L, "Priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, priority);
     }
 
     /* --- Create and prepare the sub state --- */
@@ -1007,7 +1007,7 @@ LUAG_FUNC(lane_new)
     Lane* const lane{ new (U) Lane{ U, L2 } };
     if (lane == nullptr)
     {
-        return luaL_error(L, "could not create lane: out of memory");
+        raise_luaL_error(L, "could not create lane: out of memory");
     }
 
     class OnExit
@@ -1125,7 +1125,7 @@ LUAG_FUNC(lane_new)
         // should not happen, was checked in lanes.lua before calling lane_new()
         if (lua_type(L, required_idx) != LUA_TTABLE)
         {
-            luaL_error(L, "expected required module list as a table, got %s", luaL_typename(L, required_idx)); // doesn't return
+            raise_luaL_error(L, "expected required module list as a table, got %s", luaL_typename(L, required_idx));
         }
 
         lua_pushnil(L);                                                     // func libs priority globals package required gc_cb [... args ...] nil
@@ -1133,7 +1133,7 @@ LUAG_FUNC(lane_new)
         {
             if (lua_type(L, -1) != LUA_TSTRING || lua_type(L, -2) != LUA_TNUMBER || lua_tonumber(L, -2) != nbRequired)
             {
-                luaL_error(L, "required module list should be a list of strings"); // doesn't return
+                raise_luaL_error(L, "required module list should be a list of strings");
             }
             else
             {
@@ -1147,7 +1147,7 @@ LUAG_FUNC(lane_new)
                 if (lua_isnil( L2, -1))
                 {
                     lua_pop( L2, 1);                                                                                                                //
-                    luaL_error(L, "cannot pre-require modules without loading 'package' library first"); // doesn't return
+                    raise_luaL_error(L, "cannot pre-require modules without loading 'package' library first");
                 }
                 else
                 {
@@ -1179,7 +1179,7 @@ LUAG_FUNC(lane_new)
         DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "lane_new: transfer globals\n" INDENT_END));
         if (!lua_istable(L, globals_idx))
         {
-            luaL_error(L, "Expected table, got %s", luaL_typename(L, globals_idx)); // doesn't return
+            raise_luaL_error(L, "Expected table, got %s", luaL_typename(L, globals_idx));
         }
 
         DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
@@ -1210,7 +1210,7 @@ LUAG_FUNC(lane_new)
         InterCopyResult const res{ c.inter_move(1) };                       // func libs priority globals package required gc_cb [... args ...]     // func
         if (res != InterCopyResult::Success)
         {
-            luaL_error(L, "tried to copy unsupported types"); // doesn't return
+            raise_luaL_error(L, "tried to copy unsupported types");
         }
     }
     else if (func_type == LuaType::STRING)
@@ -1219,12 +1219,12 @@ LUAG_FUNC(lane_new)
         // compile the string
         if (luaL_loadstring(L2, lua_tostring(L, 1)) != 0)                                                                                           // func
         {
-            luaL_error(L, "error when parsing lane function code"); // doesn't return
+            raise_luaL_error(L, "error when parsing lane function code");
         }
     }
     else
     {
-        luaL_error(L, "Expected function, got %s", lua_typename(L, func_type)); // doesn't return
+        raise_luaL_error(L, "Expected function, got %s", lua_typename(L, func_type));
     }
     STACK_CHECK(L, 0);
     STACK_CHECK(L2, 1);
@@ -1239,7 +1239,7 @@ LUAG_FUNC(lane_new)
         InterCopyResult const res{ c.inter_move(nargs) };                   // func libs priority globals package required gc_cb                    // func [... args ...]
         if (res != InterCopyResult::Success)
         {
-            luaL_error(L, "tried to copy unsupported types"); // doesn't return
+            raise_luaL_error(L, "tried to copy unsupported types");
         }
     }
     STACK_CHECK(L, -nargs);
@@ -1405,7 +1405,7 @@ LUAG_FUNC(thread_join)
                 (InterCopyContext{ U, DestState{ L }, SourceState{ L2 }, {}, {}, {}, {}, {} }.inter_move(n) != InterCopyResult::Success)
             )
             {
-                luaL_error(L, "tried to copy unsupported types"); // doesn't return
+                raise_luaL_error(L, "tried to copy unsupported types");
             }
             ret = n;
         }
@@ -1420,7 +1420,7 @@ LUAG_FUNC(thread_join)
             InterCopyContext c{ U, DestState{ L }, SourceState{ L2 }, {}, {}, {}, {}, {} };
             if (c.inter_move(n) != InterCopyResult::Success) // nil "err" [trace]
             {
-                luaL_error(L, "tried to copy unsupported types: %s", lua_tostring(L, -n)); // doesn't return
+                raise_luaL_error(L, "tried to copy unsupported types: %s", lua_tostring(L, -n));
             }
             ret = 1 + n;
         }
@@ -1580,7 +1580,7 @@ LUAG_FUNC(thread_index)
         // only "cancel" and "join" are registered as functions, any other string will raise an error
         if (!lua_iscfunction(L, -1))
         {
-            luaL_error(L, "can't index a lane with '%s'", keystr); // doesn't return
+            raise_luaL_error(L, "can't index a lane with '%s'", keystr);
         }
         return 1;
     }
@@ -1818,7 +1818,7 @@ LUAG_FUNC(configure)
         char const* errmsg{ DeepFactory::PushDeepProxy(DestState{ L }, U->timer_deep, 0, LookupMode::LaneBody) }; // settings M timer_deep
         if (errmsg != nullptr)
         {
-            return luaL_error(L, errmsg);
+            raise_luaL_error(L, errmsg);
         }
         lua_setfield(L, -2, "timer_gateway");                                             // settings M
     }
@@ -1975,10 +1975,10 @@ LANES_API int luaopen_lanes_core( lua_State* L)
     lua_getglobal(L, "jit");                           // {jit?}
 #if LUAJIT_FLAVOR() == 0
     if (!lua_isnil(L, -1))
-        return luaL_error(L, "Lanes is built for PUC-Lua, don't run from LuaJIT");
+        raise_luaL_error(L, "Lanes is built for PUC-Lua, don't run from LuaJIT");
 #else
     if (lua_isnil(L, -1))
-        return luaL_error(L, "Lanes is built for LuaJIT, don't run from PUC-Lua");
+        raise_luaL_error(L, "Lanes is built for LuaJIT, don't run from PUC-Lua");
 #endif
     lua_pop(L, 1);                                     //
     STACK_CHECK(L, 0);
@@ -2012,7 +2012,7 @@ LANES_API int luaopen_lanes_core( lua_State* L)
     int const rc{ luaL_loadfile(L, "lanes.lua") || lua_pcall(L, 0, 1, 0) };
     if (rc != LUA_OK)
     {
-        return luaL_error(L, "failed to initialize embedded Lanes");
+        raise_luaL_error(L, "failed to initialize embedded Lanes");
     }
     return 1;
 }

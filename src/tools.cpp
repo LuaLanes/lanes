@@ -130,7 +130,7 @@ void initialize_allocator_function(Universe* U, lua_State* L)
             char const* upname = lua_getupvalue(L, -1, 1);  // settings allocator upval?
             if (upname != nullptr) // should be "" for C functions with upvalues if any
             {
-                (void) luaL_error(L, "config.allocator() shouldn't have upvalues");
+                raise_luaL_error(L, "config.allocator() shouldn't have upvalues");
             }
             // remove this C function from the config table so that it doesn't cause problems
             // when we transfer the config table in newly created Lua states
@@ -525,7 +525,7 @@ void populate_func_lookup_table(lua_State* L, int i_, char const* name_)
     else
     {
         lua_pop(L, 1);                                                         //
-        luaL_error(L, "unsupported module type %s", lua_typename(L, lua_type(L, in_base))); // doesn't return
+        raise_luaL_error(L, "unsupported module type %s", lua_typename(L, lua_type(L, in_base)));
     }
     STACK_CHECK(L, 0);
 }
@@ -579,7 +579,7 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
 // function sentinel used to transfer native functions from/to keeper states
 [[nodiscard]] static int func_lookup_sentinel(lua_State* L)
 {
-    return luaL_error(L, "function lookup sentinel for %s, should never be called", lua_tostring(L, lua_upvalueindex(1)));
+    raise_luaL_error(L, "function lookup sentinel for %s, should never be called", lua_tostring(L, lua_upvalueindex(1)));
 }
 
 // #################################################################################################
@@ -587,7 +587,7 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
 // function sentinel used to transfer native table from/to keeper states
 [[nodiscard]] static int table_lookup_sentinel(lua_State* L)
 {
-    return luaL_error(L, "table lookup sentinel for %s, should never be called", lua_tostring(L, lua_upvalueindex(1)));
+    raise_luaL_error(L, "table lookup sentinel for %s, should never be called", lua_tostring(L, lua_upvalueindex(1)));
 }
 
 // #################################################################################################
@@ -595,7 +595,7 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
 // function sentinel used to transfer cloned full userdata from/to keeper states
 [[nodiscard]] static int userdata_clone_sentinel(lua_State* L)
 {
-    return luaL_error(L, "userdata clone sentinel for %s, should never be called", lua_tostring(L, lua_upvalueindex(1)));
+    raise_luaL_error(L, "userdata clone sentinel for %s, should never be called", lua_tostring(L, lua_upvalueindex(1)));
 }
 
 // #################################################################################################
@@ -663,7 +663,7 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
             gotchaB = "";
             what = (lua_type( L, -1) == LUA_TSTRING) ? lua_tostring( L, -1) : luaL_typename( L, -1);
         }
-        (void) luaL_error( L, "%s%s '%s' not found in %s origin transfer database.%s", typewhat, gotchaA, what, from ? from : "main", gotchaB);
+        raise_luaL_error(L, "%s%s '%s' not found in %s origin transfer database.%s", typewhat, gotchaA, what, from ? from : "main", gotchaB);
         *len_ = 0;
         return nullptr;
     }
@@ -689,7 +689,7 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
     switch (mode)
     {
         default: // shouldn't happen, in theory...
-        luaL_error(L1, "internal error: unknown lookup mode"); // doesn't return
+        raise_luaL_error(L1, "internal error: unknown lookup mode");
         break;
 
         case LookupMode::ToKeeper:
@@ -723,13 +723,13 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
             to = lua_tostring(L2, -1);
             lua_pop(L2, 1);                                                                 // {} t
             // when mode_ == LookupMode::FromKeeper, L is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
-            luaL_error(
+            raise_luaL_error(
                 (mode == LookupMode::FromKeeper) ? L2 : L1
                 , "INTERNAL ERROR IN %s: table '%s' not found in %s destination transfer database."
                 , from ? from : "main"
                 , fqn
                 , to ? to : "main"
-            ); // doesn't return
+            );
             return false;
         }
         lua_remove(L2, -2);                                                                 // t
@@ -936,10 +936,10 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
  */
 int luaG_nameof( lua_State* L)
 {
-    int what = lua_gettop( L);
+    int const what{ lua_gettop(L) };
     if (what > 1)
     {
-        luaL_argerror( L, what, "too many arguments.");
+        raise_luaL_argerror( L, what, "too many arguments.");
     }
 
     // nil, boolean, light userdata, number and string aren't identifiable
@@ -994,7 +994,7 @@ void InterCopyContext::lookup_native_func() const
     switch (mode)
     {
         default: // shouldn't happen, in theory...
-        luaL_error(L1, "internal error: unknown lookup mode"); // doesn't return
+        raise_luaL_error(L1, "internal error: unknown lookup mode");
         break;
 
         case LookupMode::ToKeeper:
@@ -1022,7 +1022,7 @@ void InterCopyContext::lookup_native_func() const
             to = lua_tostring(L2, -1);
             lua_pop(L2, 1);                                                                  // {} f
             // when mode_ == LookupMode::FromKeeper, L is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
-            (void) luaL_error(
+            raise_luaL_error(
                 (mode == LookupMode::FromKeeper) ? L2 : L1
                 , "%s%s: function '%s' not found in %s destination transfer database."
                 , lua_isnil(L2, -1) ? "" : "INTERNAL ERROR IN "
@@ -1127,7 +1127,7 @@ void InterCopyContext::copy_func() const
     B.L = nullptr;
     if (lua504_dump(L1, buf_writer, &B, 0) != 0)
     {
-        luaL_error(L1, "internal error: function dump failed."); // doesn't return
+        raise_luaL_error(L1, "internal error: function dump failed.");
     }
 
     // pushes dumped string on 'L1'
@@ -1173,7 +1173,7 @@ void InterCopyContext::copy_func() const
                 // "Otherwise, it pushes an error message"
                 //
                 STACK_GROW(L1, 1);
-                luaL_error(L1, "%s: %s", name, lua_tostring(L2, -1)); // doesn't return
+                raise_luaL_error(L1, "%s: %s", name, lua_tostring(L2, -1));
             }
             // remove the dumped string
             lua_pop(L1, 1);                                    // ...
@@ -1217,7 +1217,7 @@ void InterCopyContext::copy_func() const
                     c.L1_i = SourceIndex{ lua_gettop(L1) };
                     if (!c.inter_copy_one())                                                           // ... {cache} ... function <upvalues>
                     {
-                        luaL_error(L1, "Cannot copy upvalue type '%s'", luaL_typename(L1, -1)); // doesn't return
+                        raise_luaL_error(L1, "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
                     }
                 }
                 lua_pop(L1, 1);                                // ... _G
@@ -1335,7 +1335,7 @@ void InterCopyContext::copy_cached_func() const
         InterCopyContext const c{ U, L2, L1, L2_cache_i, SourceIndex{ lua_gettop(L1) }, VT::METATABLE, mode, name };
         if (!c.inter_copy_one())                                                                        // _R[kMtIdRegKey] mt?
         {
-            luaL_error(L1, "Error copying a metatable"); // doesn't return
+            raise_luaL_error(L1, "Error copying a metatable");
         }
 
         STACK_CHECK(L2, 2);                                                                             // _R[kMtIdRegKey] mt
@@ -1371,7 +1371,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     {
         return;
         // we could raise an error instead of ignoring the table entry, like so:
-        //luaL_error(L1, "Unable to copy %s key '%s' because of value is of type '%s'", (vt == VT::NORMAL) ? "table" : "metatable", name, luaL_typename(L1, key_i)); // doesn't return
+        //raise_luaL_error(L1, "Unable to copy %s key '%s' because of value is of type '%s'", (vt == VT::NORMAL) ? "table" : "metatable", name, luaL_typename(L1, key_i));
         // maybe offer this possibility as a global configuration option, or a linda setting, or as a parameter of the call causing the transfer?
     }
 
@@ -1426,7 +1426,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     }
     else
     {
-        luaL_error(L1, "Unable to copy %s entry '%s' because of value is of type '%s'", (vt == VT::NORMAL) ? "table" : "metatable", valPath, luaL_typename(L1, val_i));
+        raise_luaL_error(L1, "Unable to copy %s entry '%s' because of value is of type '%s'", (vt == VT::NORMAL) ? "table" : "metatable", valPath, luaL_typename(L1, val_i));
     }
 }
 
@@ -1504,7 +1504,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         }
         else
         {
-            luaL_error(L1, "Error copying a metatable"); // doesn't return
+            raise_luaL_error(L1, "Error copying a metatable");
         }
         // first, add the entry in the cache (at this point it is either the actual userdata or the keeper sentinel
         lua_pushlightuserdata( L2, source);                                                                  // ... u source
@@ -1521,7 +1521,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
             c.L1_i = SourceIndex{ lua_absindex(L1, -1) };
             if (!c.inter_copy_one())                                                                         // ... u uv
             {
-                luaL_error(L1, "Cannot copy upvalue type '%s'", luaL_typename(L1, -1)); // doesn't return
+                raise_luaL_error(L1, "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
             }
             lua_pop(L1, 1);                                                      // ... mt __lanesclone [uv]*
             // this pops the value from the stack
@@ -1591,7 +1591,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     }
     else // raise an error
     {
-        luaL_error(L1, "can't copy non-deep full userdata across lanes"); // doesn't return
+        raise_luaL_error(L1, "can't copy non-deep full userdata across lanes");
     }
 
     STACK_CHECK(L2, 1);
@@ -1667,7 +1667,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
                 c.L1_i = SourceIndex{ lua_absindex(L1, -1) };
                 if (!c.inter_copy_one())                                                                        // ... mt u uv
                 {
-                    luaL_error(L1, "Cannot copy upvalue type '%s'", luaL_typename(L1, -1)); // doesn't return
+                    raise_luaL_error(L1, "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
                 }
                 lua_pop(L1, 1);                                                   // ... u [uv]*
                 // this pops the value from the stack
@@ -2010,7 +2010,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
         if (mode == LookupMode::LaneBody)
         {
-            lua_error(L1); // doesn't return
+            raise_lua_error(L1);
         }
         return InterCopyResult::Error;
     }
@@ -2057,7 +2057,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
                 // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
                 if (mode == LookupMode::LaneBody)
                 {
-                    lua_error(L1); // doesn't return
+                    raise_lua_error(L1);
                 }
                 lua_pop(L1, 1);
                 break;

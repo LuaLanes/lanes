@@ -351,14 +351,14 @@ int DeepFactory::pushDeepUserdata(DestState L, int nuv_) const
     DeepPrelude* const prelude{ newDeepObjectInternal(L) };
     if (prelude == nullptr)
     {
-        return luaL_error( L, "DeepFactory::newDeepObjectInternal failed to create deep userdata (out of memory)");
+        raise_luaL_error(L, "DeepFactory::newDeepObjectInternal failed to create deep userdata (out of memory)");
     }
 
     if (prelude->m_magic != kDeepVersion)
     {
         // just in case, don't leak the newly allocated deep userdata object
         deleteDeepObjectInternal(L, prelude);
-        return luaL_error( L, "Bad Deep Factory: kDeepVersion is incorrect, rebuild your implementation with the latest deep implementation");
+        raise_luaL_error(L, "Bad Deep Factory: kDeepVersion is incorrect, rebuild your implementation with the latest deep implementation");
     }
 
     LUA_ASSERT(L, prelude->m_refcount.load(std::memory_order_relaxed) == 0); // 'DeepFactory::PushDeepProxy' will lift it to 1
@@ -368,13 +368,13 @@ int DeepFactory::pushDeepUserdata(DestState L, int nuv_) const
     {
         // just in case, don't leak the newly allocated deep userdata object
         deleteDeepObjectInternal(L, prelude);
-        return luaL_error(L, "Bad DeepFactory::newDeepObjectInternal overload: should not push anything on the stack");
+        raise_luaL_error(L, "Bad DeepFactory::newDeepObjectInternal overload: should not push anything on the stack");
     }
 
     char const* const errmsg{ DeepFactory::PushDeepProxy(L, prelude, nuv_, LookupMode::LaneBody) }; // proxy
     if (errmsg != nullptr)
     {
-        return luaL_error( L, errmsg);
+        raise_luaL_error(L, errmsg);
     }
     STACK_CHECK( L, 1);
     return 1;
@@ -443,7 +443,7 @@ DeepPrelude* DeepFactory::toDeep(lua_State* L, int index) const
             c.L1_i = SourceIndex{ lua_absindex(L1, -1) };
             if (!c.inter_copy_one())                                                                        // u uv
             {
-                luaL_error(L1, "Cannot copy upvalue type '%s'", luaL_typename(L1, -1)); // doesn't return
+                raise_luaL_error(L1, "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
             }
             lua_pop(L1, 1);                                                              // ... u [uv]*
             // this pops the value from the stack
@@ -459,7 +459,7 @@ DeepPrelude* DeepFactory::toDeep(lua_State* L, int index) const
     {
         // raise the error in the proper state (not the keeper)
         lua_State* const errL{ (mode == LookupMode::FromKeeper) ? L2 : L1 };
-        luaL_error(errL, errmsg); // doesn't return
+        raise_luaL_error(errL, errmsg);
     }
     return true;
 }
