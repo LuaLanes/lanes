@@ -67,9 +67,9 @@ class keeper_fifo
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete([[maybe_unused]] void* p_, KeeperState L_) { LUA_ASSERT(L_, !"should never be called"); }
 
-    [[nodiscard]] static keeper_fifo* getPtr(lua_State* L, int idx_)
+    [[nodiscard]] static keeper_fifo* getPtr(lua_State* L_, int idx_)
     {
-        return lua_tofulluserdata<keeper_fifo>(L, idx_);
+        return lua_tofulluserdata<keeper_fifo>(L_, idx_);
     }
 };
 
@@ -78,16 +78,16 @@ static constexpr int kContentsTableIndex{ 1 };
 // #################################################################################################
 
 // replaces the fifo ud by its uservalue on the stack
-[[nodiscard]] static keeper_fifo* prepare_fifo_access(lua_State* L, int idx_)
+[[nodiscard]] static keeper_fifo* prepare_fifo_access(lua_State* L_, int idx_)
 {
-    keeper_fifo* const fifo{ keeper_fifo::getPtr(L, idx_) };
+    keeper_fifo* const fifo{ keeper_fifo::getPtr(L_, idx_) };
     if (fifo != nullptr)
     {
-        idx_ = lua_absindex(L, idx_);
-        STACK_GROW(L, 1);
+        idx_ = lua_absindex(L_, idx_);
+        STACK_GROW(L_, 1);
         // we can replace the fifo userdata in the stack without fear of it being GCed, there are other references around
-        lua_getiuservalue(L, idx_, kContentsTableIndex);
-        lua_replace(L, idx_);
+        lua_getiuservalue(L_, idx_, kContentsTableIndex);
+        lua_replace(L_, idx_);
     }
     return fifo;
 }
@@ -96,15 +96,15 @@ static constexpr int kContentsTableIndex{ 1 };
 
 // in: nothing
 // out: { first = 1, count = 0, limit = -1}
-[[nodiscard]] static keeper_fifo* fifo_new(KeeperState L)
+[[nodiscard]] static keeper_fifo* fifo_new(KeeperState L_)
 {
-    STACK_GROW(L, 2);
-    STACK_CHECK_START_REL(L, 0);
-    keeper_fifo* const fifo{ new (L) keeper_fifo{} };
-    STACK_CHECK(L, 1);
-    lua_newtable(L);
-    lua_setiuservalue(L, -2, kContentsTableIndex);
-    STACK_CHECK(L, 1);
+    STACK_GROW(L_, 2);
+    STACK_CHECK_START_REL(L_, 0);
+    keeper_fifo* const fifo{ new (L_) keeper_fifo{} };
+    STACK_CHECK(L_, 1);
+    lua_newtable(L_);
+    lua_setiuservalue(L_, -2, kContentsTableIndex);
+    STACK_CHECK(L_, 1);
     return fifo;
 }
 
@@ -112,15 +112,15 @@ static constexpr int kContentsTableIndex{ 1 };
 
 // in: expect fifo ... on top of the stack
 // out: nothing, removes all pushed values from the stack
-static void fifo_push(lua_State* L, keeper_fifo* fifo_, int count_)
+static void fifo_push(lua_State* L_, keeper_fifo* fifo_, int count_)
 {
-    int const idx{ lua_gettop(L) - count_ };
+    int const idx{ lua_gettop(L_) - count_ };
     int const start{ fifo_->first + fifo_->count - 1 };
     // pop all additional arguments, storing them in the fifo
     for (int i = count_; i >= 1; --i)
     {
         // store in the fifo the value at the top of the stack at the specified index, popping it from the stack
-        lua_rawseti(L, idx, start + i);
+        lua_rawseti(L_, idx, start + i);
     }
     fifo_->count += count_;
 }
@@ -132,12 +132,12 @@ static void fifo_push(lua_State* L, keeper_fifo* fifo_, int count_)
 // expects exactly 1 value on the stack!
 // currently only called with a count of 1, but this may change in the future
 // function assumes that there is enough data in the fifo to satisfy the request
-static void fifo_peek(lua_State* L, keeper_fifo* fifo_, int count_)
+static void fifo_peek(lua_State* L_, keeper_fifo* fifo_, int count_)
 {
-    STACK_GROW(L, count_);
+    STACK_GROW(L_, count_);
     for (int i = 0; i < count_; ++i)
     {
-        lua_rawgeti(L, 1, (fifo_->first + i));
+        lua_rawgeti(L_, 1, (fifo_->first + i));
     }
 }
 
@@ -145,29 +145,29 @@ static void fifo_peek(lua_State* L, keeper_fifo* fifo_, int count_)
 
 // in: fifo
 // out: remove the fifo from the stack, push as many items as required on the stack (function assumes they exist in sufficient number)
-static void fifo_pop( lua_State* L, keeper_fifo* fifo_, int count_)
+static void fifo_pop( lua_State* L_, keeper_fifo* fifo_, int count_)
 {
-    LUA_ASSERT(L, lua_istable(L, -1));
-    int const fifo_idx{ lua_gettop(L) };       // ... fifotbl
+    LUA_ASSERT(L_, lua_istable(L_, -1));
+    int const fifo_idx{ lua_gettop(L_) };       // ... fifotbl
     // each iteration pushes a value on the stack!
-    STACK_GROW(L, count_ + 2);
+    STACK_GROW(L_, count_ + 2);
     // skip first item, we will push it last
     for (int i = 1; i < count_; ++i)
     {
         int const at{ fifo_->first + i };
         // push item on the stack
-        lua_rawgeti(L, fifo_idx, at);          // ... fifotbl val
+        lua_rawgeti(L_, fifo_idx, at);          // ... fifotbl val
         // remove item from the fifo
-        lua_pushnil(L);                        // ... fifotbl val nil
-        lua_rawseti(L, fifo_idx, at);          // ... fifotbl val
+        lua_pushnil(L_);                        // ... fifotbl val nil
+        lua_rawseti(L_, fifo_idx, at);          // ... fifotbl val
     }
     // now process first item
     {
         int const at{ fifo_->first };
-        lua_rawgeti(L, fifo_idx, at);          // ... fifotbl vals val
-        lua_pushnil(L);                        // ... fifotbl vals val nil
-        lua_rawseti(L, fifo_idx, at);          // ... fifotbl vals val
-        lua_replace(L, fifo_idx);              // ... vals
+        lua_rawgeti(L_, fifo_idx, at);          // ... fifotbl vals val
+        lua_pushnil(L_);                        // ... fifotbl vals val nil
+        lua_rawseti(L_, fifo_idx, at);          // ... fifotbl vals val
+        lua_replace(L_, fifo_idx);              // ... vals
     }
 
     // avoid ever-growing indexes by resetting each time we detect the fifo is empty
@@ -184,26 +184,26 @@ static void fifo_pop( lua_State* L, keeper_fifo* fifo_, int count_)
 // out: fifos[ud]
 // xxh64 of string "kFifosRegKey" generated at https://www.pelock.com/products/hash-calculator
 static constexpr RegistryUniqueKey kFifosRegKey{ 0x37F11CE5A6D191AAull };
-static void push_table(lua_State* L, int idx_)
+static void push_table(lua_State* L_, int idx_)
 {
-    STACK_GROW(L, 5);
-    STACK_CHECK_START_REL(L, 0);
-    idx_ = lua_absindex(L, idx_);
-    kFifosRegKey.pushValue(L);                 // ud fifos
-    lua_pushvalue(L, idx_);                    // ud fifos ud
-    lua_rawget(L, -2);                         // ud fifos fifos[ud]
-    STACK_CHECK(L, 2);
-    if (lua_isnil(L, -1))
+    STACK_GROW(L_, 5);
+    STACK_CHECK_START_REL(L_, 0);
+    idx_ = lua_absindex(L_, idx_);
+    kFifosRegKey.pushValue(L_);                 // ud fifos
+    lua_pushvalue(L_, idx_);                    // ud fifos ud
+    lua_rawget(L_, -2);                         // ud fifos fifos[ud]
+    STACK_CHECK(L_, 2);
+    if (lua_isnil(L_, -1))
     {
-        lua_pop(L, 1);                         // ud fifos
+        lua_pop(L_, 1);                         // ud fifos
         // add a new fifos table for this linda
-        lua_newtable(L);                       // ud fifos fifos[ud]
-        lua_pushvalue(L, idx_);                // ud fifos fifos[ud] ud
-        lua_pushvalue(L, -2);                  // ud fifos fifos[ud] ud fifos[ud]
-        lua_rawset(L, -4);                     // ud fifos fifos[ud]
+        lua_newtable(L_);                       // ud fifos fifos[ud]
+        lua_pushvalue(L_, idx_);                // ud fifos fifos[ud] ud
+        lua_pushvalue(L_, -2);                  // ud fifos fifos[ud] ud fifos[ud]
+        lua_rawset(L_, -4);                     // ud fifos fifos[ud]
     }
-    lua_remove(L, -2);                         // ud fifos[ud]
-    STACK_CHECK(L, 1);
+    lua_remove(L_, -2);                         // ud fifos[ud]
+    STACK_CHECK(L_, 1);
 }
 
 // #################################################################################################
@@ -263,16 +263,16 @@ int keeper_push_linda_storage(Linda& linda_, DestState L)
 // #################################################################################################
 
 // in: linda_ud
-int keepercall_clear(lua_State* L)
+int keepercall_clear(lua_State* L_)
 {
-    STACK_GROW(L, 3);
-    STACK_CHECK_START_REL(L, 0);
-    kFifosRegKey.pushValue(L);                  // ud fifos
-    lua_pushvalue(L, 1);                        // ud fifos ud
-    lua_pushnil(L);                             // ud fifos ud nil
-    lua_rawset(L, -3);                          // ud fifos
-    lua_pop(L, 1);                              // ud
-    STACK_CHECK(L, 0);
+    STACK_GROW(L_, 3);
+    STACK_CHECK_START_REL(L_, 0);
+    kFifosRegKey.pushValue(L_);                  // ud fifos
+    lua_pushvalue(L_, 1);                        // ud fifos ud
+    lua_pushnil(L_);                             // ud fifos ud nil
+    lua_rawset(L_, -3);                          // ud fifos
+    lua_pop(L_, 1);                              // ud
+    STACK_CHECK(L_, 0);
     return 0;
 }
 
@@ -280,35 +280,35 @@ int keepercall_clear(lua_State* L)
 
 // in: linda_ud, key, ...
 // out: true|false
-int keepercall_send(lua_State* L)
+int keepercall_send(lua_State* L_)
 {
-    int const n{ lua_gettop(L) - 2 };
-    push_table(L, 1);                             // ud key ... fifos
+    int const n{ lua_gettop(L_) - 2 };
+    push_table(L_, 1);                             // ud key ... fifos
     // get the fifo associated to this key in this linda, create it if it doesn't exist
-    lua_pushvalue(L, 2);                          // ud key ... fifos key
-    lua_rawget(L, -2);                            // ud key ... fifos fifo
-    if (lua_isnil(L, -1))
+    lua_pushvalue(L_, 2);                          // ud key ... fifos key
+    lua_rawget(L_, -2);                            // ud key ... fifos fifo
+    if (lua_isnil(L_, -1))
     {
-        lua_pop(L, 1);                            // ud key ... fifos
-        std::ignore = fifo_new(KeeperState{ L }); // ud key ... fifos fifo
-        lua_pushvalue(L, 2);                      // ud key ... fifos fifo key
-        lua_pushvalue(L, -2);                     // ud key ... fifos fifo key fifo
-        lua_rawset(L, -4);                        // ud key ... fifos fifo
+        lua_pop(L_, 1);                            // ud key ... fifos
+        std::ignore = fifo_new(KeeperState{ L_ }); // ud key ... fifos fifo
+        lua_pushvalue(L_, 2);                      // ud key ... fifos fifo key
+        lua_pushvalue(L_, -2);                     // ud key ... fifos fifo key fifo
+        lua_rawset(L_, -4);                        // ud key ... fifos fifo
     }
-    lua_remove(L, -2);                            // ud key ... fifo
-    keeper_fifo* fifo{ keeper_fifo::getPtr(L, -1) };
+    lua_remove(L_, -2);                            // ud key ... fifo
+    keeper_fifo* fifo{ keeper_fifo::getPtr(L_, -1) };
     if (fifo->limit >= 0 && fifo->count + n > fifo->limit)
     {
-        lua_settop(L, 0);                         //
-        lua_pushboolean(L, 0);                    // false
+        lua_settop(L_, 0);                         //
+        lua_pushboolean(L_, 0);                    // false
     }
     else
     {
-        fifo = prepare_fifo_access(L, -1);        // ud fifotbl
-        lua_replace(L, 2);                        // ud fifotbl ...
-        fifo_push(L, fifo, n);                    // ud fifotbl
-        lua_settop(L, 0);                         //
-        lua_pushboolean(L, 1);                    // true
+        fifo = prepare_fifo_access(L_, -1);        // ud fifotbl
+        lua_replace(L_, 2);                        // ud fifotbl ...
+        fifo_push(L_, fifo, n);                    // ud fifotbl
+        lua_settop(L_, 0);                         //
+        lua_pushboolean(L_, 1);                    // true
     }
     return 1;
 }
@@ -317,33 +317,33 @@ int keepercall_send(lua_State* L)
 
 // in: linda_ud, key [, key]?
 // out: (key, val) or nothing
-int keepercall_receive(lua_State* L)
+int keepercall_receive(lua_State* L_)
 {
-    int const top{ lua_gettop(L) };
-    push_table(L, 1);                                          // ud keys fifos
-    lua_replace(L, 1);                                         // fifos keys
+    int const top{ lua_gettop(L_) };
+    push_table(L_, 1);                                          // ud keys fifos
+    lua_replace(L_, 1);                                         // fifos keys
     for (int i = 2; i <= top; ++i)
     {
-        lua_pushvalue(L, i);                                   // fifos keys key[i]
-        lua_rawget(L, 1);                                      // fifos keys fifo
-        keeper_fifo* const fifo{ prepare_fifo_access(L, -1) }; // fifos keys fifotbl
+        lua_pushvalue(L_, i);                                   // fifos keys key[i]
+        lua_rawget(L_, 1);                                      // fifos keys fifo
+        keeper_fifo* const fifo{ prepare_fifo_access(L_, -1) }; // fifos keys fifotbl
         if (fifo != nullptr && fifo->count > 0)
         {
-            fifo_pop(L, fifo, 1);                              // fifos keys val
-            if (!lua_isnil(L, -1))
+            fifo_pop(L_, fifo, 1);                              // fifos keys val
+            if (!lua_isnil(L_, -1))
             {
-                lua_replace(L, 1);                             // val keys
-                lua_settop(L, i);                              // val keys key[i]
+                lua_replace(L_, 1);                             // val keys
+                lua_settop(L_, i);                              // val keys key[i]
                 if (i != 2)
                 {
-                    lua_replace(L, 2);                         // val key keys
-                    lua_settop(L, 2);                          // val key
+                    lua_replace(L_, 2);                         // val key keys
+                    lua_settop(L_, 2);                          // val key
                 }
-                lua_insert(L, 1);                              // key, val
+                lua_insert(L_, 1);                              // key, val
                 return 2;
             }
         }
-        lua_settop(L, top);                                    // data keys
+        lua_settop(L_, top);                                    // data keys
     }
     // nothing to receive
     return 0;
@@ -352,29 +352,29 @@ int keepercall_receive(lua_State* L)
 // #################################################################################################
 
 // in: linda_ud key mincount [maxcount]
-int keepercall_receive_batched(lua_State* L)
+int keepercall_receive_batched(lua_State* L_)
 {
-    int const min_count{ static_cast<int>(lua_tointeger(L, 3)) };
+    int const min_count{ static_cast<int>(lua_tointeger(L_, 3)) };
     if (min_count > 0)
     {
-        int const max_count{ static_cast<int>(luaL_optinteger(L, 4, min_count)) };
-        lua_settop(L, 2);                                         // ud key
-        lua_insert(L, 1);                                         // key ud
-        push_table(L, 2);                                         // key ud fifos
-        lua_remove(L, 2);                                         // key fifos
-        lua_pushvalue(L, 1);                                      // key fifos key
-        lua_rawget(L, 2);                                         // key fifos fifo
-        lua_remove(L, 2);                                         // key fifo
-        keeper_fifo* const fifo{ prepare_fifo_access(L, 2) };     // key fifotbl
+        int const max_count{ static_cast<int>(luaL_optinteger(L_, 4, min_count)) };
+        lua_settop(L_, 2);                                         // ud key
+        lua_insert(L_, 1);                                         // key ud
+        push_table(L_, 2);                                         // key ud fifos
+        lua_remove(L_, 2);                                         // key fifos
+        lua_pushvalue(L_, 1);                                      // key fifos key
+        lua_rawget(L_, 2);                                         // key fifos fifo
+        lua_remove(L_, 2);                                         // key fifo
+        keeper_fifo* const fifo{ prepare_fifo_access(L_, 2) };     // key fifotbl
         if (fifo != nullptr && fifo->count >= min_count)
         {
-            fifo_pop(L, fifo, std::min( max_count, fifo->count)); // key ...
+            fifo_pop(L_, fifo, std::min( max_count, fifo->count)); // key ...
         }
         else
         {
-            lua_settop(L, 0);                                     //
+            lua_settop(L_, 0);                                     //
         }
-        return lua_gettop(L);
+        return lua_gettop(L_);
     }
     else
     {
@@ -386,23 +386,23 @@ int keepercall_receive_batched(lua_State* L)
 
 // in: linda_ud key n
 // out: true or nil
-int keepercall_limit(lua_State* L)
+int keepercall_limit(lua_State* L_)
 {
-    int const limit{ static_cast<int>(lua_tointeger(L, 3)) };
-    push_table(L, 1);                                   // ud key n fifos
-    lua_replace(L, 1);                                  // fifos key n
-    lua_pop(L, 1);                                      // fifos key
-    lua_pushvalue(L, -1);                               // fifos key key
-    lua_rawget(L, -3);                                  // fifos key fifo|nil
-    keeper_fifo* fifo{ keeper_fifo::getPtr(L, -1) };
+    int const limit{ static_cast<int>(lua_tointeger(L_, 3)) };
+    push_table(L_, 1);                                   // ud key n fifos
+    lua_replace(L_, 1);                                  // fifos key n
+    lua_pop(L_, 1);                                      // fifos key
+    lua_pushvalue(L_, -1);                               // fifos key key
+    lua_rawget(L_, -3);                                  // fifos key fifo|nil
+    keeper_fifo* fifo{ keeper_fifo::getPtr(L_, -1) };
     if (fifo == nullptr)
     {                                                   // fifos key nil
-        lua_pop(L, 1);                                  // fifos key
-        fifo = fifo_new(KeeperState{ L });              // fifos key fifo
-        lua_rawset(L, -3);                              // fifos
+        lua_pop(L_, 1);                                  // fifos key
+        fifo = fifo_new(KeeperState{ L_ });              // fifos key fifo
+        lua_rawset(L_, -3);                              // fifos
     }
     // remove any clutter on the stack
-    lua_settop(L, 0);
+    lua_settop(L_, 0);
     // return true if we decide that blocked threads waiting to write on that key should be awakened
     // this is the case if we detect the key was full but it is no longer the case
     if (
@@ -410,49 +410,49 @@ int keepercall_limit(lua_State* L)
         && ((limit < 0) || (fifo->count < limit))       // the key is not full if unlimited or count is lower than the new limit
     )
     {
-        lua_pushboolean(L, 1);                          // true
+        lua_pushboolean(L_, 1);                          // true
     }
     // set the new limit
     fifo->limit = limit;
     // return 0 or 1 value
-    return lua_gettop(L);
+    return lua_gettop(L_);
 }
 
 // #################################################################################################
 
 // in: linda_ud key [[val] ...]
 //out: true if the linda was full but it's no longer the case, else nothing
-int keepercall_set(lua_State* L)
+int keepercall_set(lua_State* L_)
 {
     bool should_wake_writers{ false };
-    STACK_GROW(L, 6);
+    STACK_GROW(L_, 6);
 
     // retrieve fifos associated with the linda
-    push_table(L, 1);                                          // ud key [val [, ...]] fifos
-    lua_replace(L, 1);                                         // fifos key [val [, ...]]
+    push_table(L_, 1);                                          // ud key [val [, ...]] fifos
+    lua_replace(L_, 1);                                         // fifos key [val [, ...]]
 
     // make sure we have a value on the stack
-    if (lua_gettop(L) == 2)                                    // fifos key
+    if (lua_gettop(L_) == 2)                                    // fifos key
     {
-        lua_pushvalue(L, -1);                                  // fifos key key
-        lua_rawget(L, 1);                                      // fifos key fifo|nil
+        lua_pushvalue(L_, -1);                                  // fifos key key
+        lua_rawget(L_, 1);                                      // fifos key fifo|nil
         // empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
-        keeper_fifo* const fifo{ keeper_fifo::getPtr(L, -1) };
+        keeper_fifo* const fifo{ keeper_fifo::getPtr(L_, -1) };
         if (fifo != nullptr) // might be nullptr if we set a nonexistent key to nil
         {                                                  // fifos key fifo
             if (fifo->limit < 0) // fifo limit value is the default (unlimited): we can totally remove it
             {
-                lua_pop(L, 1);                                 // fifos key
-                lua_pushnil(L);                                // fifos key nil
-                lua_rawset(L, -3);                             // fifos
+                lua_pop(L_, 1);                                 // fifos key
+                lua_pushnil(L_);                                // fifos key nil
+                lua_rawset(L_, -3);                             // fifos
             }
             else
             {
                 // we create room if the fifo was full but it is no longer the case
                 should_wake_writers = (fifo->limit > 0) && (fifo->count >= fifo->limit);
-                lua_remove(L, -2);                             // fifos fifo
-                lua_newtable(L);                               // fifos fifo {}
-                lua_setiuservalue(L, -2, kContentsTableIndex); // fifos fifo
+                lua_remove(L_, -2);                             // fifos fifo
+                lua_newtable(L_);                               // fifos fifo {}
+                lua_setiuservalue(L_, -2, kContentsTableIndex); // fifos fifo
                 fifo->first = 1;
                 fifo->count = 0;
             }
@@ -460,59 +460,59 @@ int keepercall_set(lua_State* L)
     }
     else // set/replace contents stored at the specified key?
     {
-        int const count{ lua_gettop(L) - 2 }; // number of items we want to store
-        lua_pushvalue(L, 2);                                   // fifos key [val [, ...]] key
-        lua_rawget(L, 1);                                      // fifos key [val [, ...]] fifo|nil
-        keeper_fifo* fifo{ keeper_fifo::getPtr(L, -1) };
+        int const count{ lua_gettop(L_) - 2 }; // number of items we want to store
+        lua_pushvalue(L_, 2);                                   // fifos key [val [, ...]] key
+        lua_rawget(L_, 1);                                      // fifos key [val [, ...]] fifo|nil
+        keeper_fifo* fifo{ keeper_fifo::getPtr(L_, -1) };
         if (fifo == nullptr) // can be nullptr if we store a value at a new key
         {                                                      // fifos key [val [, ...]] nil
             // no need to wake writers in that case, because a writer can't wait on an inexistent key
-            lua_pop(L, 1);                                     // fifos key [val [, ...]]
-            std::ignore = fifo_new(KeeperState{ L });          // fifos key [val [, ...]] fifo
-            lua_pushvalue(L, 2);                               // fifos key [val [, ...]] fifo key
-            lua_pushvalue(L, -2);                              // fifos key [val [, ...]] fifo key fifo
-            lua_rawset(L, 1);                                  // fifos key [val [, ...]] fifo
+            lua_pop(L_, 1);                                     // fifos key [val [, ...]]
+            std::ignore = fifo_new(KeeperState{ L_ });          // fifos key [val [, ...]] fifo
+            lua_pushvalue(L_, 2);                               // fifos key [val [, ...]] fifo key
+            lua_pushvalue(L_, -2);                              // fifos key [val [, ...]] fifo key fifo
+            lua_rawset(L_, 1);                                  // fifos key [val [, ...]] fifo
         }
         else // the fifo exists, we just want to update its contents
         {                                                      // fifos key [val [, ...]] fifo
             // we create room if the fifo was full but it is no longer the case
             should_wake_writers = (fifo->limit > 0) && (fifo->count >= fifo->limit) && (count < fifo->limit);
             // empty the fifo for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
-            lua_newtable(L);                                   // fifos key [val [, ...]] fifo {}
-            lua_setiuservalue(L, -2, kContentsTableIndex);     // fifos key [val [, ...]] fifo
+            lua_newtable(L_);                                   // fifos key [val [, ...]] fifo {}
+            lua_setiuservalue(L_, -2, kContentsTableIndex);     // fifos key [val [, ...]] fifo
             fifo->first = 1;
             fifo->count = 0;
         }
-        fifo = prepare_fifo_access(L, -1);                     // fifos key [val [, ...]] fifotbl
+        fifo = prepare_fifo_access(L_, -1);                     // fifos key [val [, ...]] fifotbl
         // move the fifo below the values we want to store
-        lua_insert(L, 3);                                      // fifos key fifotbl [val [, ...]]
-        fifo_push(L, fifo, count);                             // fifos key fifotbl
+        lua_insert(L_, 3);                                      // fifos key fifotbl [val [, ...]]
+        fifo_push(L_, fifo, count);                             // fifos key fifotbl
     }
-    return should_wake_writers ? (lua_pushboolean(L, 1), 1) : 0;
+    return should_wake_writers ? (lua_pushboolean(L_, 1), 1) : 0;
 }
 
 // #################################################################################################
 
 // in: linda_ud key [count]
 // out: at most <count> values
-int keepercall_get(lua_State* L)
+int keepercall_get(lua_State* L_)
 {
     int count{ 1 };
-    if (lua_gettop(L) == 3)                                // ud key count
+    if (lua_gettop(L_) == 3)                                // ud key count
     {
-        count = static_cast<int>(lua_tointeger(L, 3));
-        lua_pop(L, 1);                                     // ud key
+        count = static_cast<int>(lua_tointeger(L_, 3));
+        lua_pop(L_, 1);                                     // ud key
     }
-    push_table(L, 1);                                      // ud key fifos
-    lua_replace(L, 1);                                     // fifos key
-    lua_rawget(L, 1);                                      // fifos fifo
-    keeper_fifo* const fifo{ prepare_fifo_access(L, -1) }; // fifos fifotbl
+    push_table(L_, 1);                                      // ud key fifos
+    lua_replace(L_, 1);                                     // fifos key
+    lua_rawget(L_, 1);                                      // fifos fifo
+    keeper_fifo* const fifo{ prepare_fifo_access(L_, -1) }; // fifos fifotbl
     if (fifo != nullptr && fifo->count > 0)
     {
-        lua_remove(L, 1);                                  // fifotbl
+        lua_remove(L_, 1);                                  // fifotbl
         count = std::min(count, fifo->count);
         // read <count> value off the fifo
-        fifo_peek(L, fifo, count);                         // fifotbl ...
+        fifo_peek(L_, fifo, count);                         // fifotbl ...
         return count;
     }
     // no fifo was ever registered for this key, or it is empty
@@ -522,69 +522,69 @@ int keepercall_get(lua_State* L)
 // #################################################################################################
 
 // in: linda_ud [, key [, ...]]
-int keepercall_count(lua_State* L)
+int keepercall_count(lua_State* L_)
 {
-    push_table(L, 1);                                              // ud keys fifos
-    switch (lua_gettop(L))
+    push_table(L_, 1);                                              // ud keys fifos
+    switch (lua_gettop(L_))
     {
         // no key is specified: return a table giving the count of all known keys
         case 2:                                                    // ud fifos
-        lua_newtable(L);                                           // ud fifos out
-        lua_replace(L, 1);                                         // out fifos
-        lua_pushnil(L);                                            // out fifos nil
-        while (lua_next(L, 2))                                     // out fifos key fifo
+        lua_newtable(L_);                                           // ud fifos out
+        lua_replace(L_, 1);                                         // out fifos
+        lua_pushnil(L_);                                            // out fifos nil
+        while (lua_next(L_, 2))                                     // out fifos key fifo
         {
-            keeper_fifo* const fifo{ keeper_fifo::getPtr(L, -1) };
-            lua_pop(L, 1);                                         // out fifos key
-            lua_pushvalue(L, -1);                                  // out fifos key key
-            lua_pushinteger(L, fifo->count);                       // out fifos key key count
-            lua_rawset(L, -5);                                     // out fifos key
+            keeper_fifo* const fifo{ keeper_fifo::getPtr(L_, -1) };
+            lua_pop(L_, 1);                                         // out fifos key
+            lua_pushvalue(L_, -1);                                  // out fifos key key
+            lua_pushinteger(L_, fifo->count);                       // out fifos key key count
+            lua_rawset(L_, -5);                                     // out fifos key
         }
-        lua_pop(L, 1);                                             // out
+        lua_pop(L_, 1);                                             // out
         break;
 
         // 1 key is specified: return its count
         case 3:                                                    // ud key fifos
-        lua_replace(L, 1);                                         // fifos key
-        lua_rawget(L, -2);                                         // fifos fifo|nil
-        if (lua_isnil(L, -1))                                      // the key is unknown
+        lua_replace(L_, 1);                                         // fifos key
+        lua_rawget(L_, -2);                                         // fifos fifo|nil
+        if (lua_isnil(L_, -1))                                      // the key is unknown
         {                                                          // fifos nil
-            lua_remove(L, -2);                                     // nil
+            lua_remove(L_, -2);                                     // nil
         }
         else // the key is known
         {                                                          // fifos fifo
-            keeper_fifo* const fifo{ keeper_fifo::getPtr(L, -1) };
-            lua_pushinteger(L, fifo->count);                       // fifos fifo count
-            lua_replace(L, -3);                                    // count fifo
-            lua_pop(L, 1);                                         // count
+            keeper_fifo* const fifo{ keeper_fifo::getPtr(L_, -1) };
+            lua_pushinteger(L_, fifo->count);                       // fifos fifo count
+            lua_replace(L_, -3);                                    // count fifo
+            lua_pop(L_, 1);                                         // count
         }
         break;
 
         // a variable number of keys is specified: return a table of their counts
         default: // ud keys fifos
-        lua_newtable(L);                                           // ud keys... fifos out
-        lua_replace(L, 1);                                         // out keys... fifos
+        lua_newtable(L_);                                           // ud keys... fifos out
+        lua_replace(L_, 1);                                         // out keys... fifos
         // shifts all keys up in the stack. potentially slow if there are a lot of them, but then it should be bearable
-        lua_insert(L, 2);                                          // out fifos keys...
-        while (lua_gettop(L) > 2)
+        lua_insert(L_, 2);                                          // out fifos keys...
+        while (lua_gettop(L_) > 2)
         {
-            lua_pushvalue(L, -1);                                  // out fifos keys... key
-            lua_rawget(L, 2);                                      // out fifos keys... fifo|nil
-            keeper_fifo* const fifo{ keeper_fifo::getPtr(L, -1) };
-            lua_pop(L, 1);                                         // out fifos keys...
+            lua_pushvalue(L_, -1);                                  // out fifos keys... key
+            lua_rawget(L_, 2);                                      // out fifos keys... fifo|nil
+            keeper_fifo* const fifo{ keeper_fifo::getPtr(L_, -1) };
+            lua_pop(L_, 1);                                         // out fifos keys...
             if (fifo != nullptr)                                   // the key is known
             {
-                lua_pushinteger(L, fifo->count);                   // out fifos keys... count
-                lua_rawset(L, 1);                                  // out fifos keys...
+                lua_pushinteger(L_, fifo->count);                   // out fifos keys... count
+                lua_rawset(L_, 1);                                  // out fifos keys...
             }
             else // the key is unknown
             {
-                lua_pop(L, 1);                                     // out fifos keys...
+                lua_pop(L_, 1);                                     // out fifos keys...
             }
         } // all keys are exhausted                                // out fifos
-        lua_pop(L, 1);                                             // out
+        lua_pop(L_, 1);                                             // out
     }
-    LUA_ASSERT(L, lua_gettop(L) == 1);
+    LUA_ASSERT(L_, lua_gettop(L_) == 1);
     return 1;
 }
 
@@ -651,23 +651,23 @@ void close_keepers(Universe* U)
  *       function never fails.
  * settings table is expected at position 1 on the stack
  */
-void init_keepers(Universe* U, lua_State* L)
+void init_keepers(Universe* U, lua_State* L_)
 {
-    LUA_ASSERT(L, lua_gettop(L) == 1 && lua_istable(L, 1));
-    STACK_CHECK_START_REL(L, 0);                                   // L                            K
-    lua_getfield(L, 1, "nb_keepers");                              // settings nb_keepers
-    int const nb_keepers{ static_cast<int>(lua_tointeger(L, -1)) };
-    lua_pop(L, 1);                                                 // settings
+    LUA_ASSERT(L_, lua_gettop(L_) == 1 && lua_istable(L_, 1));
+    STACK_CHECK_START_REL(L_, 0);                                   // L_                            K
+    lua_getfield(L_, 1, "nb_keepers");                              // settings nb_keepers
+    int const nb_keepers{ static_cast<int>(lua_tointeger(L_, -1)) };
+    lua_pop(L_, 1);                                                 // settings
     if (nb_keepers < 1)
     {
-        raise_luaL_error(L, "Bad number of keepers (%d)", nb_keepers);
+        raise_luaL_error(L_, "Bad number of keepers (%d)", nb_keepers);
     }
-    STACK_CHECK(L, 0);
+    STACK_CHECK(L_, 0);
 
-    lua_getfield(L, 1, "keepers_gc_threshold");                    // settings keepers_gc_threshold
-    int const keepers_gc_threshold{ static_cast<int>(lua_tointeger(L, -1)) };
-    lua_pop(L, 1);                                                 // settings
-    STACK_CHECK(L, 0);
+    lua_getfield(L_, 1, "keepers_gc_threshold");                    // settings keepers_gc_threshold
+    int const keepers_gc_threshold{ static_cast<int>(lua_tointeger(L_, -1)) };
+    lua_pop(L_, 1);                                                 // settings
+    STACK_CHECK(L_, 0);
 
     // Keepers contains an array of 1 Keeper, adjust for the actual number of keeper states
     {
@@ -675,7 +675,7 @@ void init_keepers(Universe* U, lua_State* L)
         U->keepers = static_cast<Keepers*>(U->internal_allocator.alloc(bytes));
         if (U->keepers == nullptr)
         {
-            raise_luaL_error(L, "init_keepers() failed while creating keeper array; out of memory");
+            raise_luaL_error(L_, "init_keepers() failed while creating keeper array; out of memory");
         }
         U->keepers->Keepers::Keepers();
         U->keepers->gc_threshold = keepers_gc_threshold;
@@ -689,10 +689,10 @@ void init_keepers(Universe* U, lua_State* L)
     for (int i = 0; i < nb_keepers; ++i)                           // settings
     {
         // note that we will leak K if we raise an error later
-        KeeperState const K{ create_state(U, L) };
+        KeeperState const K{ create_state(U, L_) };
         if (K == nullptr)
         {
-            raise_luaL_error(L, "init_keepers() failed while creating keeper states; out of memory");
+            raise_luaL_error(L_, "init_keepers() failed while creating keeper states; out of memory");
         }
 
         U->keepers->keeper_array[i].L = K;
@@ -717,35 +717,35 @@ void init_keepers(Universe* U, lua_State* L)
         STACK_CHECK(K, 0);
 
         // copy package.path and package.cpath from the source state (TODO: use _R._LOADED.package instead of _G.package)
-        lua_getglobal(L, "package");                               // settings package
-        if (!lua_isnil(L, -1))
+        lua_getglobal(L_, "package");                               // settings package
+        if (!lua_isnil(L_, -1))
         {
             // when copying with mode LookupMode::ToKeeper, error message is pushed at the top of the stack, not raised immediately
-            InterCopyContext c{ U, DestState{ K }, SourceState{ L }, {}, SourceIndex{ lua_absindex(L, -1) }, {}, LookupMode::ToKeeper, {} };
+            InterCopyContext c{ U, DestState{ K }, SourceState{ L_ }, {}, SourceIndex{ lua_absindex(L_, -1) }, {}, LookupMode::ToKeeper, {} };
             if (c.inter_copy_package() != InterCopyResult::Success)
             {
                 // if something went wrong, the error message is at the top of the stack
-                lua_remove(L, -2);                                 // settings error_msg
-                raise_lua_error(L);
+                lua_remove(L_, -2);                                 // settings error_msg
+                raise_lua_error(L_);
             }
         }
-        lua_pop(L, 1);                                             // settings
-        STACK_CHECK(L, 0);
+        lua_pop(L_, 1);                                             // settings
+        STACK_CHECK(L_, 0);
         STACK_CHECK(K, 0);
 
         // attempt to call on_state_create(), if we have one and it is a C function
         // (only support a C function because we can't transfer executable Lua code in keepers)
-        // will raise an error in L in case of problem
-        call_on_state_create(U, K, L, LookupMode::ToKeeper);
+        // will raise an error in L_ in case of problem
+        call_on_state_create(U, K, L_, LookupMode::ToKeeper);
 
         // to see VM name in Decoda debugger
         lua_pushfstring(K, "Keeper #%d", i + 1);                   //                              "Keeper #n"
         lua_setglobal(K, "decoda_name");                           //
         // create the fifos table in the keeper state
-        kFifosRegKey.setValue(K, [](lua_State* L) { lua_newtable(L); });
+        kFifosRegKey.setValue(K, [](lua_State* L_) { lua_newtable(L_); });
         STACK_CHECK(K, 0);
     }
-    STACK_CHECK(L, 0);
+    STACK_CHECK(L_, 0);
 }
 
 // #################################################################################################
@@ -776,25 +776,25 @@ void Linda::releaseKeeper(Keeper* K_) const
 
 // #################################################################################################
 
-void keeper_toggle_nil_sentinels(lua_State* L, int val_i_, LookupMode const mode_)
+void keeper_toggle_nil_sentinels(lua_State* L_, int val_i_, LookupMode const mode_)
 {
-    int const n{ lua_gettop(L) };
+    int const n{ lua_gettop(L_) };
     for (int i = val_i_; i <= n; ++i)
     {
         if (mode_ == LookupMode::ToKeeper)
         {
-            if (lua_isnil(L, i))
+            if (lua_isnil(L_, i))
             {
-                kNilSentinel.pushKey(L);
-                lua_replace(L, i);
+                kNilSentinel.pushKey(L_);
+                lua_replace(L_, i);
             }
         }
         else
         {
-            if (kNilSentinel.equals(L, i))
+            if (kNilSentinel.equals(L_, i))
             {
-                lua_pushnil(L);
-                lua_replace(L, i);
+                lua_pushnil(L_);
+                lua_replace(L_, i);
             }
         }
     }
@@ -811,20 +811,20 @@ void keeper_toggle_nil_sentinels(lua_State* L, int val_i_, LookupMode const mode
 *
 * Returns: number of return values (pushed to 'L'), unset in case of error
 */
-KeeperCallResult keeper_call(Universe* U, KeeperState K, keeper_api_t func_, lua_State* L, void* linda, int starting_index)
+KeeperCallResult keeper_call(Universe* U, KeeperState K, keeper_api_t func_, lua_State* L_, void* linda, int starting_index)
 {
     KeeperCallResult result;
-    int const args{ starting_index ? (lua_gettop(L) - starting_index + 1) : 0 };
+    int const args{ starting_index ? (lua_gettop(L_) - starting_index + 1) : 0 };
     int const top_K{ lua_gettop(K) };
     // if we didn't do anything wrong, the keeper stack should be clean
-    LUA_ASSERT(L, lua_gettop(K) == 0);
+    LUA_ASSERT(L_, lua_gettop(K) == 0);
 
     STACK_GROW(K, 2);
     PUSH_KEEPER_FUNC(K, func_);                                                                                       // func_
     lua_pushlightuserdata(K, linda);                                                                                  // func_ linda
     if (
         (args == 0) ||
-        (InterCopyContext{ U, DestState{ K }, SourceState{ L }, {}, {}, {}, LookupMode::ToKeeper, {} }.inter_copy(args) == InterCopyResult::Success)
+        (InterCopyContext{ U, DestState{ K }, SourceState{ L_ }, {}, {}, {}, LookupMode::ToKeeper, {} }.inter_copy(args) == InterCopyResult::Success)
     )
     {                                                                                                                 // func_ linda args...
         lua_call(K, 1 + args, LUA_MULTRET);                                                                           // result...
@@ -835,8 +835,8 @@ KeeperCallResult keeper_call(Universe* U, KeeperState K, keeper_api_t func_, lua
         // when attempting to grab the mutex again (WINVER <= 0x400 does this, but locks just fine, I don't know about pthread)
         if (
             (retvals == 0) ||
-            (InterCopyContext{ U, DestState{ L }, SourceState{ K }, {}, {}, {}, LookupMode::FromKeeper, {} }.inter_move(retvals) == InterCopyResult::Success)
-        ) // K->L
+            (InterCopyContext{ U, DestState{ L_ }, SourceState{ K }, {}, {}, {}, LookupMode::FromKeeper, {} }.inter_move(retvals) == InterCopyResult::Success)
+        ) // K->L_
         {
             result.emplace(retvals);
         }
@@ -862,7 +862,7 @@ KeeperCallResult keeper_call(Universe* U, KeeperState K, keeper_api_t func_, lua
                 int const gc_usage_after{ lua_gc(K, LUA_GCCOUNT, 0) };
                 if (gc_usage_after > gc_threshold) [[unlikely]]
                 {
-                    raise_luaL_error(L, "Keeper GC threshold is too low, need at least %d", gc_usage_after);
+                    raise_luaL_error(L_, "Keeper GC threshold is too low, need at least %d", gc_usage_after);
                 }
             }
         }

@@ -51,9 +51,9 @@ THE SOFTWARE.
 * Returns CANCEL_SOFT/HARD if any locks are to be exited, and 'raise_cancel_error()' called,
 * to make execution of the lane end.
 */
-[[nodiscard]] static inline CancelRequest cancel_test(lua_State* L)
+[[nodiscard]] static inline CancelRequest cancel_test(lua_State* L_)
 {
-    Lane* const lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L) };
+    Lane* const lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
     // 'lane' is nullptr for the original main state (and no-one can cancel that)
     return lane ? lane->cancel_request : CancelRequest::None;
 }
@@ -68,21 +68,21 @@ THE SOFTWARE.
 //
 LUAG_FUNC(cancel_test)
 {
-    CancelRequest test{ cancel_test(L) };
-    lua_pushboolean(L, test != CancelRequest::None);
+    CancelRequest test{ cancel_test(L_) };
+    lua_pushboolean(L_, test != CancelRequest::None);
     return 1;
 }
 
 // #################################################################################################
 // #################################################################################################
 
-[[nodiscard]] static void cancel_hook(lua_State* L, [[maybe_unused]] lua_Debug* ar)
+[[nodiscard]] static void cancel_hook(lua_State* L_, [[maybe_unused]] lua_Debug* ar)
 {
     DEBUGSPEW_CODE(fprintf(stderr, "cancel_hook\n"));
-    if (cancel_test(L) != CancelRequest::None)
+    if (cancel_test(L_) != CancelRequest::None)
     {
-        lua_sethook(L, nullptr, 0, 0);
-        raise_cancel_error(L);
+        lua_sethook(L_, nullptr, 0, 0);
+        raise_cancel_error(L_);
     }
 }
 
@@ -204,16 +204,16 @@ CancelOp which_cancel_op(char const* op_string_)
 
 // #################################################################################################
 
-[[nodiscard]] static CancelOp which_cancel_op(lua_State* L, int idx_)
+[[nodiscard]] static CancelOp which_cancel_op(lua_State* L_, int idx_)
 {
-    if (lua_type(L, idx_) == LUA_TSTRING)
+    if (lua_type(L_, idx_) == LUA_TSTRING)
     {
-        char const* const str{ lua_tostring(L, idx_) };
+        char const* const str{ lua_tostring(L_, idx_) };
         CancelOp op{ which_cancel_op(str) };
-        lua_remove(L, idx_); // argument is processed, remove it
+        lua_remove(L_, idx_); // argument is processed, remove it
         if (op == CancelOp::Invalid)
         {
-            raise_luaL_error(L, "invalid hook option %s", str);
+            raise_luaL_error(L_, "invalid hook option %s", str);
         }
         return op;
     }
@@ -225,58 +225,52 @@ CancelOp which_cancel_op(char const* op_string_)
 // bool[,reason] = lane_h:cancel( [mode, hookcount] [, timeout] [, wake_lindas])
 LUAG_FUNC(thread_cancel)
 {
-    Lane* const lane{ ToLane(L, 1) };
-    CancelOp const op{ which_cancel_op(L, 2) }; // this removes the op string from the stack
+    Lane* const lane{ ToLane(L_, 1) };
+    CancelOp const op{ which_cancel_op(L_, 2) }; // this removes the op string from the stack
 
     int hook_count{ 0 };
     if (static_cast<int>(op) > static_cast<int>(CancelOp::Soft)) // hook is requested
     {
-        hook_count = static_cast<int>(luaL_checkinteger(L, 2));
-        lua_remove(L, 2); // argument is processed, remove it
-        if (hook_count < 1)
-        {
-            raise_luaL_error(L, "hook count cannot be < 1");
+        hook_count = static_cast<int>(luaL_checkinteger(L_, 2));
+        lua_remove(L_, 2); // argument is processed, remove it
+        if (hook_count < 1) {
+            raise_luaL_error(L_, "hook count cannot be < 1");
         }
     }
 
     lua_Duration wait_timeout{ 0.0 };
-    if (lua_type(L, 2) == LUA_TNUMBER)
-    {
-        wait_timeout = lua_Duration{ lua_tonumber(L, 2) };
-        lua_remove(L, 2); // argument is processed, remove it
-        if (wait_timeout.count() < 0.0)
-        {
-            raise_luaL_error(L, "cancel timeout cannot be < 0");
+    if (lua_type(L_, 2) == LUA_TNUMBER) {
+        wait_timeout = lua_Duration{ lua_tonumber(L_, 2) };
+        lua_remove(L_, 2); // argument is processed, remove it
+        if (wait_timeout.count() < 0.0) {
+            raise_luaL_error(L_, "cancel timeout cannot be < 0");
         }
     }
     // we wake by default in "hard" mode (remember that hook is hard too), but this can be turned off if desired
     bool wake_lane{ op != CancelOp::Soft };
-    if (lua_gettop(L) >= 2)
-    {
-        if (!lua_isboolean(L, 2))
-        {
-            raise_luaL_error(L, "wake_lindas parameter is not a boolean");
+    if (lua_gettop(L_) >= 2) {
+        if (!lua_isboolean(L_, 2)) {
+            raise_luaL_error(L_, "wake_lindas parameter is not a boolean");
         }
-        wake_lane = lua_toboolean(L, 2);
-        lua_remove(L, 2); // argument is processed, remove it
+        wake_lane = lua_toboolean(L_, 2);
+        lua_remove(L_, 2); // argument is processed, remove it
     }
-    STACK_CHECK_START_REL(L, 0);
-    switch (thread_cancel(lane, op, hook_count, wait_timeout, wake_lane))
-    {
-        default: // should never happen unless we added a case and forgot to handle it
-        LUA_ASSERT(L, false);
+    STACK_CHECK_START_REL(L_, 0);
+    switch (thread_cancel(lane, op, hook_count, wait_timeout, wake_lane)) {
+    default: // should never happen unless we added a case and forgot to handle it
+        LUA_ASSERT(L_, false);
         break;
 
-        case CancelResult::Timeout:
-        lua_pushboolean(L, 0);                // false
-        lua_pushstring(L, "timeout");         // false "timeout"
+    case CancelResult::Timeout:
+        lua_pushboolean(L_, 0); // false
+        lua_pushstring(L_, "timeout"); // false "timeout"
         break;
 
-        case CancelResult::Cancelled:
-        lua_pushboolean(L, 1);                // true
-        lane->pushThreadStatus(L);            // true status
+    case CancelResult::Cancelled:
+        lua_pushboolean(L_, 1); // true
+        lane->pushThreadStatus(L_); // true status
         break;
     }
-    STACK_CHECK(L, 2);
+    STACK_CHECK(L_, 2);
     return 2;
 }

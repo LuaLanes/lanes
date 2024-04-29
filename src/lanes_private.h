@@ -98,7 +98,7 @@ static constexpr RegistryUniqueKey kLanePointerRegKey{ 0x2D8CF03FE9F0A51Aull }; 
 // 'Lane' are malloc/free'd and the handle only carries a pointer.
 // This is not deep userdata since the handle's not portable among lanes.
 //
-[[nodiscard]] inline Lane* ToLane(lua_State* L, int i_)
+[[nodiscard]] inline Lane* ToLane(lua_State* L_, int i_)
 {
-    return *(static_cast<Lane**>(luaL_checkudata(L, i_, "Lane")));
+    return *(static_cast<Lane**>(luaL_checkudata(L_, i_, "Lane")));
 }

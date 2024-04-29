@@ -49,6 +49,7 @@ template <typename... ARGS>
 
 // #################################################################################################
 
+#if LUA_VERSION_NUM >= 504
 // use this instead of Lua's luaL_typeerror
 template <typename... ARGS>
 [[noreturn]] static inline void raise_luaL_typeerror(lua_State* L_, int arg_, char const* tname_)
@@ -56,6 +57,7 @@ template <typename... ARGS>
     std::ignore = luaL_typeerror(L_, arg_, tname_); // doesn't return
     assert(false); // we should never get here, but i'm paranoid
 }
+#endif // LUA_VERSION_NUM
 
 // #################################################################################################
 
@@ -182,42 +184,42 @@ class StackChecker
 
 // #################################################################################################
 
-inline void STACK_GROW(lua_State* L, int n_)
+inline void STACK_GROW(lua_State* L_, int n_)
 {
-    if (!lua_checkstack(L, n_)) {
-        raise_luaL_error(L, "Cannot grow stack!");
+    if (!lua_checkstack(L_, n_)) {
+        raise_luaL_error(L_, "Cannot grow stack!");
     }
 }
 
 // #################################################################################################
 
-#define LUAG_FUNC(func_name) [[nodiscard]] int LG_##func_name(lua_State* L)
+#define LUAG_FUNC(func_name) [[nodiscard]] int LG_##func_name(lua_State* L_)
 
 // #################################################################################################
 
 // a small helper to extract a full userdata pointer from the stack in a safe way
 template <typename T>
-[[nodiscard]] T* lua_tofulluserdata(lua_State* L, int index_)
+[[nodiscard]] T* lua_tofulluserdata(lua_State* L_, int index_)
 {
-    LUA_ASSERT(L, lua_isnil(L, index_) || lua_type(L, index_) == LUA_TUSERDATA);
-    return static_cast<T*>(lua_touserdata(L, index_));
+    LUA_ASSERT(L_, lua_isnil(L_, index_) || lua_type(L_, index_) == LUA_TUSERDATA);
+    return static_cast<T*>(lua_touserdata(L_, index_));
 }
 
 template <typename T>
-[[nodiscard]] auto lua_tolightuserdata(lua_State* L, int index_)
+[[nodiscard]] auto lua_tolightuserdata(lua_State* L_, int index_)
 {
-    LUA_ASSERT(L, lua_isnil(L, index_) || lua_islightuserdata(L, index_));
+    LUA_ASSERT(L_, lua_isnil(L_, index_) || lua_islightuserdata(L_, index_));
     if constexpr (std::is_pointer_v<T>) {
-        return static_cast<T>(lua_touserdata(L, index_));
+        return static_cast<T>(lua_touserdata(L_, index_));
     } else {
-        return static_cast<T*>(lua_touserdata(L, index_));
+        return static_cast<T*>(lua_touserdata(L_, index_));
     }
 }
 
 template <typename T>
-[[nodiscard]] T* lua_newuserdatauv(lua_State* L, int nuvalue_)
+[[nodiscard]] T* lua_newuserdatauv(lua_State* L_, int nuvalue_)
 {
-    return static_cast<T*>(lua_newuserdatauv(L, sizeof(T), nuvalue_));
+    return static_cast<T*>(lua_newuserdatauv(L_, sizeof(T), nuvalue_));
 }
 
 // #################################################################################################

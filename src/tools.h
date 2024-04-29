@@ -8,8 +8,8 @@ class Universe;
 
 // #################################################################################################
 
-void push_registry_subtable_mode(lua_State* L, RegistryUniqueKey key_, const char* mode_);
-void push_registry_subtable(lua_State* L, RegistryUniqueKey key_);
+void push_registry_subtable_mode(lua_State* L_, RegistryUniqueKey key_, const char* mode_);
+void push_registry_subtable(lua_State* L_, RegistryUniqueKey key_);
 
 enum class VT
 {
@@ -77,10 +77,10 @@ class InterCopyContext
 
 // #################################################################################################
 
-[[nodiscard]] int luaG_nameof(lua_State* L);
+[[nodiscard]] int luaG_nameof(lua_State* L_);
 
-void populate_func_lookup_table(lua_State* L, int _i, char const* _name);
-void initialize_allocator_function(Universe* U, lua_State* L);
+void populate_func_lookup_table(lua_State* L_, int _i, char const* _name);
+void initialize_allocator_function(Universe* U, lua_State* L_);
 
 // #################################################################################################
 

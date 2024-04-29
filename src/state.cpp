@@ -49,34 +49,34 @@ THE SOFTWARE.
 //
 // Upvalues: [1]: original 'require' function
 //
-[[nodiscard]] static int luaG_new_require(lua_State* L)
+[[nodiscard]] static int luaG_new_require(lua_State* L_)
 {
     int rc;
-    int const args = lua_gettop( L);                                    // args
-    Universe* U = universe_get( L);
+    int const args = lua_gettop( L_);                                    // args
+    Universe* U = universe_get( L_);
     //char const* modname = luaL_checkstring( L, 1);
 
-    STACK_GROW( L, 1);
+    STACK_GROW( L_, 1);
 
-    lua_pushvalue( L, lua_upvalueindex( 1));                            // args require
-    lua_insert( L, 1);                                                  // require args
+    lua_pushvalue( L_, lua_upvalueindex( 1));                            // args require
+    lua_insert( L_, 1);                                                  // require args
 
     // Using 'lua_pcall()' to catch errors; otherwise a failing 'require' would
     // leave us locked, blocking any future 'require' calls from other lanes.
 
     U->require_cs.lock();
     // starting with Lua 5.4, require may return a second optional value, so we need LUA_MULTRET
-    rc = lua_pcall( L, args, LUA_MULTRET, 0 /*errfunc*/ ); // err|result(s)
+    rc = lua_pcall( L_, args, LUA_MULTRET, 0 /*errfunc*/ ); // err|result(s)
     U->require_cs.unlock();
 
     // the required module (or an error message) is left on the stack as returned value by original require function
 
     if (rc != LUA_OK) // LUA_ERRRUN / LUA_ERRMEM ?
     {
-        raise_lua_error(L);
+        raise_lua_error(L_);
     }
     // should be 1 for Lua <= 5.3, 1 or 2 starting with Lua 5.4
-    return lua_gettop(L);                                           // result(s)
+    return lua_gettop(L_);                                           // result(s)
 }
 
 // #################################################################################################
@@ -84,38 +84,38 @@ THE SOFTWARE.
 /*
 * Serialize calls to 'require', if it exists
 */
-void serialize_require(DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L)
+void serialize_require(DEBUGSPEW_PARAM_COMMA( Universe* U) lua_State* L_)
 {
-    STACK_GROW(L, 1);
-    STACK_CHECK_START_REL(L, 0);
+    STACK_GROW(L_, 1);
+    STACK_CHECK_START_REL(L_, 0);
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "serializing require()\n" INDENT_END));
 
     // Check 'require' is there and not already wrapped; if not, do nothing
     //
-    lua_getglobal(L, "require");
-    if (lua_isfunction(L, -1) && lua_tocfunction(L, -1) != luaG_new_require)
+    lua_getglobal(L_, "require");
+    if (lua_isfunction(L_, -1) && lua_tocfunction(L_, -1) != luaG_new_require)
     {
         // [-1]: original 'require' function
-        lua_pushcclosure(L, luaG_new_require, 1 /*upvalues*/);
-        lua_setglobal(L, "require");
+        lua_pushcclosure(L_, luaG_new_require, 1 /*upvalues*/);
+        lua_setglobal(L_, "require");
     }
     else
     {
         // [-1]: nil
-        lua_pop(L, 1);
+        lua_pop(L_, 1);
     }
 
-    STACK_CHECK(L, 0);
+    STACK_CHECK(L_, 0);
 }
 
 // #################################################################################################
 
 /*---=== luaG_newstate ===---*/
 
-[[nodiscard]] static int require_lanes_core(lua_State* L)
+[[nodiscard]] static int require_lanes_core(lua_State* L_)
 {
     // leaves a copy of 'lanes.core' module table on the stack
-    luaL_requiref( L, "lanes.core", luaopen_lanes_core, 0);
+    luaL_requiref( L_, "lanes.core", luaopen_lanes_core, 0);
     return 1;
 }
 
@@ -159,7 +159,7 @@ static luaL_Reg const libs[] =
 
 // #################################################################################################
 
-static void open1lib(DEBUGSPEW_PARAM_COMMA(Universe* U) lua_State* L, char const* name_, size_t len_)
+static void open1lib(DEBUGSPEW_PARAM_COMMA(Universe* U) lua_State* L_, char const* name_, size_t len_)
 {
     for (int i{ 0 }; libs[i].name; ++i)
     {
@@ -171,16 +171,16 @@ static void open1lib(DEBUGSPEW_PARAM_COMMA(Universe* U) lua_State* L, char const
             {
                 bool const isLanesCore{ libfunc == require_lanes_core }; // don't want to create a global for "lanes.core"
                 DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "opening %.*s library\n" INDENT_END, (int) len_, name_));
-                STACK_CHECK_START_REL(L, 0);
+                STACK_CHECK_START_REL(L_, 0);
                 // open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
-                luaL_requiref( L, name_, libfunc, !isLanesCore);
+                luaL_requiref( L_, name_, libfunc, !isLanesCore);
                 // lanes.core doesn't declare a global, so scan it here and now
                 if (isLanesCore == true)
                 {
-                    populate_func_lookup_table( L, -1, name_);
+                    populate_func_lookup_table( L_, -1, name_);
                 }
-                lua_pop( L, 1);
-                STACK_CHECK( L, 0);
+                lua_pop( L_, 1);
+                STACK_CHECK( L_, 0);
             }
             break;
         }
@@ -208,33 +208,33 @@ static void copy_one_time_settings(Universe* U, SourceState L1, DestState L2)
         raise_luaL_error(L1, "failed to copy settings when loading lanes.core");
     }
     // set L2:_R[kConfigRegKey] = settings
-    kConfigRegKey.setValue(L2, [](lua_State* L) { lua_insert(L, -2); });                                             // config
+    kConfigRegKey.setValue(L2, [](lua_State* L_) { lua_insert(L_, -2); });                                             // config
     STACK_CHECK(L2, 0);
     STACK_CHECK(L1, 0);
 }
 
 // #################################################################################################
 
-void initialize_on_state_create( Universe* U, lua_State* L)
+void initialize_on_state_create( Universe* U, lua_State* L_)
 {
-    STACK_CHECK_START_REL(L, 1);                             // settings
-    lua_getfield(L, -1, "on_state_create");                  // settings on_state_create|nil
-    if (!lua_isnil(L, -1))
+    STACK_CHECK_START_REL(L_, 1);                             // settings
+    lua_getfield(L_, -1, "on_state_create");                  // settings on_state_create|nil
+    if (!lua_isnil(L_, -1))
     {
         // store C function pointer in an internal variable
-        U->on_state_create_func = lua_tocfunction(L, -1);    // settings on_state_create
+        U->on_state_create_func = lua_tocfunction(L_, -1);    // settings on_state_create
         if (U->on_state_create_func != nullptr)
         {
             // make sure the function doesn't have upvalues
-            char const* upname = lua_getupvalue(L, -1, 1);   // settings on_state_create upval?
+            char const* upname = lua_getupvalue(L_, -1, 1);   // settings on_state_create upval?
             if (upname != nullptr) // should be "" for C functions with upvalues if any
             {
-                raise_luaL_error(L, "on_state_create shouldn't have upvalues");
+                raise_luaL_error(L_, "on_state_create shouldn't have upvalues");
             }
             // remove this C function from the config table so that it doesn't cause problems
             // when we transfer the config table in newly created Lua states
-            lua_pushnil(L);                                  // settings on_state_create nil
-            lua_setfield(L, -3, "on_state_create");          // settings on_state_create
+            lua_pushnil(L_);                                  // settings on_state_create nil
+            lua_setfield(L_, -3, "on_state_create");          // settings on_state_create
         }
         else
         {
@@ -242,8 +242,8 @@ void initialize_on_state_create( Universe* U, lua_State* L)
             U->on_state_create_func = (lua_CFunction) initialize_on_state_create;
         }
     }
-    lua_pop(L, 1);                                           // settings
-    STACK_CHECK(L, 1);
+    lua_pop(L_, 1);                                           // settings
+    STACK_CHECK(L_, 1);
 }
 
 // #################################################################################################
@@ -281,16 +281,16 @@ lua_State* create_state(Universe* U, lua_State* from_)
 
 // #################################################################################################
 
-void call_on_state_create(Universe* U, lua_State* L, lua_State* from_, LookupMode mode_)
+void call_on_state_create(Universe* U, lua_State* L_, lua_State* from_, LookupMode mode_)
 {
     if (U->on_state_create_func != nullptr)
     {
-        STACK_CHECK_START_REL(L, 0);
+        STACK_CHECK_START_REL(L_, 0);
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "calling on_state_create()\n" INDENT_END));
         if (U->on_state_create_func != (lua_CFunction) initialize_on_state_create)
         {
             // C function: recreate a closure in the new state, bypassing the lookup scheme
-            lua_pushcfunction(L, U->on_state_create_func); // on_state_create()
+            lua_pushcfunction(L_, U->on_state_create_func); // on_state_create()
         }
         else // Lua function located in the config table, copied when we opened "lanes.core"
         {
@@ -298,21 +298,21 @@ void call_on_state_create(Universe* U, lua_State* L, lua_State* from_, LookupMod
             {
                 // if attempting to call in a keeper state, do nothing because the function doesn't exist there
                 // this doesn't count as an error though
-                STACK_CHECK(L, 0);
+                STACK_CHECK(L_, 0);
                 return;
             }
-            kConfigRegKey.pushValue(L);                                                // {}
-            STACK_CHECK(L, 1);
-            lua_getfield(L, -1, "on_state_create");                                    // {} on_state_create()
-            lua_remove(L, -2);                                                         // on_state_create()
+            kConfigRegKey.pushValue(L_);                                                // {}
+            STACK_CHECK(L_, 1);
+            lua_getfield(L_, -1, "on_state_create");                                    // {} on_state_create()
+            lua_remove(L_, -2);                                                         // on_state_create()
         }
-        STACK_CHECK(L, 1);
+        STACK_CHECK(L_, 1);
         // capture error and raise it in caller state
-        if (lua_pcall(L, 0, 0, 0) != LUA_OK)
+        if (lua_pcall(L_, 0, 0, 0) != LUA_OK)
         {
-            raise_luaL_error(from_, "on_state_create failed: \"%s\"", lua_isstring(L, -1) ? lua_tostring(L, -1) : lua_typename(L, lua_type(L, -1)));
+            raise_luaL_error(from_, "on_state_create failed: \"%s\"", lua_isstring(L_, -1) ? lua_tostring(L_, -1) : lua_typename(L_, lua_type(L_, -1)));
         }
-        STACK_CHECK(L, 0);
+        STACK_CHECK(L_, 0);
     }
 }
 
@@ -344,7 +344,7 @@ lua_State* luaG_newstate(Universe* U, SourceState from_, char const* libs_)
     STACK_CHECK(L, 0);
 
     // we'll need this every time we transfer some C function from/to this state
-    kLookupRegKey.setValue(L, [](lua_State* L) { lua_newtable(L); });
+    kLookupRegKey.setValue(L, [](lua_State* L_) { lua_newtable(L_); });
     STACK_CHECK(L, 0);
 
     // neither libs (not even 'base') nor special init func: we are done

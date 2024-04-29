@@ -73,34 +73,34 @@ Universe::Universe()
 // #################################################################################################
 
 // only called from the master state
-Universe* universe_create(lua_State* L)
+Universe* universe_create(lua_State* L_)
 {
-    LUA_ASSERT(L, universe_get(L) == nullptr);
-    Universe* const U{ lua_newuserdatauv<Universe>(L, 0) }; // universe
+    LUA_ASSERT(L_, universe_get(L_) == nullptr);
+    Universe* const U{ lua_newuserdatauv<Universe>(L_, 0) }; // universe
     U->Universe::Universe();
-    STACK_CHECK_START_REL(L, 1);
-    kUniverseFullRegKey.setValue(L, [](lua_State* L) { lua_pushvalue(L, -2); });
-    kUniverseLightRegKey.setValue(L, [U](lua_State* L) { lua_pushlightuserdata(L, U); });
-    STACK_CHECK(L, 1);
+    STACK_CHECK_START_REL(L_, 1);
+    kUniverseFullRegKey.setValue(L_, [](lua_State* L_) { lua_pushvalue(L_, -2); });
+    kUniverseLightRegKey.setValue(L_, [U](lua_State* L_) { lua_pushlightuserdata(L_, U); });
+    STACK_CHECK(L_, 1);
     return U;
 }
 
 // #################################################################################################
 
-void universe_store(lua_State* L, Universe* U)
+void universe_store(lua_State* L_, Universe* U)
 {
-    LUA_ASSERT(L, !U || universe_get(L) == nullptr);
-    STACK_CHECK_START_REL(L, 0);
-    kUniverseLightRegKey.setValue(L, [U](lua_State* L) { U ? lua_pushlightuserdata(L, U) : lua_pushnil(L); });
-    STACK_CHECK(L, 0);
+    LUA_ASSERT(L_, !U || universe_get(L_) == nullptr);
+    STACK_CHECK_START_REL(L_, 0);
+    kUniverseLightRegKey.setValue(L_, [U](lua_State* L_) { U ? lua_pushlightuserdata(L_, U) : lua_pushnil(L_); });
+    STACK_CHECK(L_, 0);
 }
 
 // #################################################################################################
 
-Universe* universe_get(lua_State* L)
+Universe* universe_get(lua_State* L_)
 {
-    STACK_CHECK_START_REL(L, 0);
-    Universe* const universe{ kUniverseLightRegKey.readLightUserDataValue<Universe>(L) };
-    STACK_CHECK(L, 0);
+    STACK_CHECK_START_REL(L_, 0);
+    Universe* const universe{ kUniverseLightRegKey.readLightUserDataValue<Universe>(L_) };
+    STACK_CHECK(L_, 0);
     return universe;
 }

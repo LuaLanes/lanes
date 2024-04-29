@@ -49,7 +49,7 @@ void LindaFactory::createMetatable(lua_State* L_) const
     lua_setfield(L_, -2, "__metatable");
 
     // the linda functions
-    luaL_setfuncs(L_, mLindaMT, 0);
+    luaG_registerlibfuncs(L_, mLindaMT);
 
     // some constants
     kLindaBatched.pushKey(L_);

@@ -36,11 +36,11 @@ extern "C"
 #define lua_setuservalue lua_setfenv
 #define lua_getuservalue lua_getfenv
 #define lua_rawlen lua_objlen
-#define luaG_registerlibfuncs(L, _funcs) luaL_register(L, nullptr, _funcs)
+#define luaG_registerlibfuncs(L_, _funcs) luaL_register(L_, nullptr, _funcs)
 #define LUA_OK 0
 #define LUA_ERRGCMM 666 // doesn't exist in Lua 5.1, we don't care about the actual value
-void luaL_requiref(lua_State* L, const char* modname, lua_CFunction openf, int glb); // implementation copied from Lua 5.2 sources
-#define lua504_dump(L, writer, data, strip) lua_dump(L, writer, data)
+void luaL_requiref(lua_State* L_, const char* modname, lua_CFunction openf, int glb); // implementation copied from Lua 5.2 sources
+#define lua504_dump(L_, writer_, data_, strip_) lua_dump(L_, writer_, data_)
 #define LUA_LOADED_TABLE "_LOADED" // // doesn't exist in Lua 5.1
 
 #endif // LUA_VERSION_NUM == 501

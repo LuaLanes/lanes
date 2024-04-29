@@ -34,7 +34,7 @@ class AllocatorDefinition
     void* m_allocUD{ nullptr };
 
     [[nodiscard]] static void* operator new(size_t size_) noexcept = delete; // can't create one outside of a Lua state
-    [[nodiscard]] static void* operator new(size_t size_, lua_State* L) noexcept { return lua_newuserdatauv(L, size_, 0); }
+    [[nodiscard]] static void* operator new(size_t size_, lua_State* L_) noexcept { return lua_newuserdatauv(L_, size_, 0); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete([[maybe_unused]] void* p_, lua_State* L_) { LUA_ASSERT(L_, !"should never be called"); }
@@ -50,9 +50,9 @@ class AllocatorDefinition
     AllocatorDefinition& operator=(AllocatorDefinition const& rhs_) = default;
     AllocatorDefinition& operator=(AllocatorDefinition&& rhs_) = default;
 
-    void initFrom(lua_State* L)
+    void initFrom(lua_State* L_)
     {
-        m_allocF = lua_getallocf(L, &m_allocUD);
+        m_allocF = lua_getallocf(L_, &m_allocUD);
     }
 
     void* lua_alloc(void* ptr_, size_t osize_, size_t nsize_)
@@ -89,25 +89,25 @@ class ProtectedAllocator
 
     public:
     // we are not like our base class: we can't be created inside a full userdata (or we would have to install a metatable and __gc handler to destroy ourselves properly)
-    [[nodiscard]] static void* operator new(size_t size_, lua_State* L) noexcept = delete;
-    static void operator delete(void* p_, lua_State* L) = delete;
+    [[nodiscard]] static void* operator new(size_t size_, lua_State* L_) noexcept = delete;
+    static void operator delete(void* p_, lua_State* L_) = delete;
 
     AllocatorDefinition makeDefinition()
     {
         return AllocatorDefinition{ protected_lua_Alloc, this };
     }
 
-    void installIn(lua_State* L)
+    void installIn(lua_State* L_)
     {
-        lua_setallocf(L, protected_lua_Alloc, this);
+        lua_setallocf(L_, protected_lua_Alloc, this);
     }
 
-    void removeFrom(lua_State* L)
+    void removeFrom(lua_State* L_)
     {
         // remove the protected allocator, if any
         if (m_allocF != nullptr) {
             // install the non-protected allocator
-            lua_setallocf(L, m_allocF, m_allocUD);
+            lua_setallocf(L_, m_allocF, m_allocUD);
         }
     }
 };
@@ -182,9 +182,9 @@ class Universe
 
 // #################################################################################################
 
-[[nodiscard]] Universe* universe_get(lua_State* L);
-[[nodiscard]] Universe* universe_create(lua_State* L);
-void universe_store(lua_State* L, Universe* U);
+[[nodiscard]] Universe* universe_get(lua_State* L_);
+[[nodiscard]] Universe* universe_create(lua_State* L_);
+void universe_store(lua_State* L_, Universe* U);
 
 // #################################################################################################
 

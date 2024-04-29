@@ -59,7 +59,7 @@ class Linda
     Linda& operator=(Linda const&) = delete;
     Linda& operator=(Linda const&&) = delete;
 
-    [[nodiscard]] static int ProtectedCall(lua_State* L, lua_CFunction f_);
+    [[nodiscard]] static int ProtectedCall(lua_State* L_, lua_CFunction f_);
 
     private:
     void setName(char const* name_, size_t len_);
