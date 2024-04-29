@@ -1,7 +1,8 @@
 #pragma once
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif // __cplusplus
 #include "lua.h"
 #include "lualib.h"
@@ -24,7 +25,7 @@ enum class CancelRequest
 {
     None, // no pending cancel request
     Soft, // user wants the lane to cancel itself manually on cancel_test()
-    Hard  // user wants the lane to be interrupted (meaning code won't return from those functions) from inside linda:send/receive calls
+    Hard // user wants the lane to be interrupted (meaning code won't return from those functions) from inside linda:send/receive calls
 };
 
 enum class CancelResult

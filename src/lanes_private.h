@@ -16,7 +16,6 @@
 class Lane
 {
     public:
-
     /*
       Pending: The Lua VM hasn't done anything yet.
       Running, Waiting: Thread is inside the Lua VM. If the thread is forcefully stopped, we can't lua_close() the Lua State.
@@ -53,7 +52,7 @@ class Lane
     // S: while S is running, M must keep out of modifying the state
 
     Status volatile m_status{ Pending };
-    // 
+    //
     // M: sets to Pending (before launching)
     // S: updates -> Running/Waiting -> Done/Error/Cancelled
 

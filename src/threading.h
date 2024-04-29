@@ -7,11 +7,11 @@
 #define THREADAPI_WINDOWS 1
 #define THREADAPI_PTHREAD 2
 
-#if (defined( PLATFORM_XBOX) || defined( PLATFORM_WIN32) || defined( PLATFORM_POCKETPC))
-//#pragma message ( "THREADAPI_WINDOWS" )
+#if (defined(PLATFORM_XBOX) || defined(PLATFORM_WIN32) || defined(PLATFORM_POCKETPC))
+// #pragma message ( "THREADAPI_WINDOWS" )
 #define THREADAPI THREADAPI_WINDOWS
 #else // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
-//#pragma message ( "THREADAPI_PTHREAD" )
+// #pragma message ( "THREADAPI_PTHREAD" )
 #define THREADAPI THREADAPI_PTHREAD
 #endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 

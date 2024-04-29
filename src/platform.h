@@ -1,22 +1,22 @@
 #pragma once
 
 #ifdef _WIN32_WCE
-  #define PLATFORM_POCKETPC
+#define PLATFORM_POCKETPC
 #elif defined(_XBOX)
-  #define PLATFORM_XBOX
+#define PLATFORM_XBOX
 #elif (defined _WIN32)
-  #define PLATFORM_WIN32
-  #define NOMINMAX
+#define PLATFORM_WIN32
+#define NOMINMAX
 #elif (defined __linux__)
-  #define PLATFORM_LINUX
+#define PLATFORM_LINUX
 #elif (defined __APPLE__) && (defined __MACH__)
-  #define PLATFORM_OSX
+#define PLATFORM_OSX
 #elif (defined __NetBSD__) || (defined __FreeBSD__) || (defined BSD)
-  #define PLATFORM_BSD
+#define PLATFORM_BSD
 #elif (defined __QNX__)
-  #define PLATFORM_QNX
+#define PLATFORM_QNX
 #elif (defined __CYGWIN__)
-  #define PLATFORM_CYGWIN
+#define PLATFORM_CYGWIN
 #else
-  #error "Unknown platform!"
+#error "Unknown platform!"
 #endif

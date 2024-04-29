@@ -6,7 +6,8 @@
  */
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif // __cplusplus
 #include "lua.h"
 #ifdef __cplusplus
@@ -53,13 +54,11 @@ struct DeepPrelude
 class DeepFactory
 {
     protected:
-
     // protected non-virtual destructor: Lanes won't manage the Factory's lifetime
     DeepFactory() = default;
     ~DeepFactory() = default;
 
     public:
-
     // non-copyable, non-movable
     DeepFactory(DeepFactory const&) = delete;
     DeepFactory(DeepFactory const&&) = delete;
@@ -67,18 +66,16 @@ class DeepFactory
     DeepFactory& operator=(DeepFactory const&&) = delete;
 
     private:
-
     // NVI: private overrides
-    virtual DeepPrelude* newDeepObjectInternal(lua_State* L_) const = 0;
+    [[nodiscard]] virtual DeepPrelude* newDeepObjectInternal(lua_State* L_) const = 0;
     virtual void deleteDeepObjectInternal(lua_State* L_, DeepPrelude* o_) const = 0;
     virtual void createMetatable(lua_State* L_) const = 0;
-    virtual char const* moduleName() const = 0;
+    [[nodiscard]] virtual char const* moduleName() const = 0;
 
     public:
-
     // NVI: public interface
-    int pushDeepUserdata(DestState L_, int nuv_) const;
-    DeepPrelude* toDeep(lua_State* L_, int index_) const;
+    [[nodiscard]] int pushDeepUserdata(DestState L_, int nuv_) const;
+    [[nodiscard]] DeepPrelude* toDeep(lua_State* L_, int index_) const;
     static void DeleteDeepObject(lua_State* L_, DeepPrelude* o_);
-    static char const* PushDeepProxy(DestState L_, DeepPrelude* o_, int nuv_, LookupMode mode_);
+    [[nodiscard]] static char const* PushDeepProxy(DestState L_, DeepPrelude* o_, int nuv_, LookupMode mode_);
 };

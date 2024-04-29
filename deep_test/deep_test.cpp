@@ -13,13 +13,13 @@ class MyDeepFactory : public DeepFactory
 
     private:
 
-    DeepPrelude* newDeepObjectInternal(lua_State* L) const override;
+    [[nodiscard]] DeepPrelude* newDeepObjectInternal(lua_State* L) const override;
     void deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const override;
     void createMetatable(lua_State* L_) const override
     {
         luaL_getmetatable(L_, "deep");
     }
-    char const* moduleName() const override { return "deep_test"; }
+    [[nodiscard]] char const* moduleName() const override { return "deep_test"; }
 };
 /*static*/ MyDeepFactory MyDeepFactory::Instance{};
 

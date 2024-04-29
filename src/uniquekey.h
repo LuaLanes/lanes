@@ -10,11 +10,9 @@
 class UniqueKey
 {
     protected:
-
     uintptr_t const m_storage{ 0 };
 
     public:
-
     char const* m_debugName{ nullptr };
 
     // ---------------------------------------------------------------------------------------------
@@ -45,10 +43,10 @@ class UniqueKey
 
 // #################################################################################################
 
-class RegistryUniqueKey : public UniqueKey
+class RegistryUniqueKey
+: public UniqueKey
 {
     public:
-
     using UniqueKey::UniqueKey;
 
     // ---------------------------------------------------------------------------------------------
@@ -64,9 +62,9 @@ class RegistryUniqueKey : public UniqueKey
     void setValue(lua_State* L_, OP operation_) const
     {
         // Note we can't check stack consistency because operation is not always a push (could be insert, replace, whatever)
-        pushKey(L_);                           // ... key
-        operation_(L_);                        // ... key value
-        lua_rawset(L_, LUA_REGISTRYINDEX);     // ...
+        pushKey(L_); // ... key
+        operation_(L_); // ... key value
+        lua_rawset(L_, LUA_REGISTRYINDEX); // ...
     }
     // ---------------------------------------------------------------------------------------------
     template <typename T>
@@ -86,7 +84,7 @@ class RegistryUniqueKey : public UniqueKey
         STACK_GROW(L_, 1);
         STACK_CHECK_START_REL(L_, 0);
         pushValue(L_);
-        bool const value{ lua_toboolean(L_, -1) ? true : false}; // bool/nil
+        bool const value{ lua_toboolean(L_, -1) ? true : false }; // bool/nil
         lua_pop(L_, 1);
         STACK_CHECK(L_, 0);
         return value;

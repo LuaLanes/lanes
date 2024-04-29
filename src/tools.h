@@ -32,7 +32,6 @@ using SourceIndex = Unique<int>;
 class InterCopyContext
 {
     public:
-
     Universe* const U;
     DestState const L2;
     SourceState const L1;
@@ -43,7 +42,6 @@ class InterCopyContext
     char const* name; // that one can change when we reuse the context
 
     private:
-
     // for use in copy_cached_func
     void copy_func() const;
     void lookup_native_func() const;
@@ -71,7 +69,6 @@ class InterCopyContext
     [[nodiscard]] bool inter_copy_userdata() const;
 
     public:
-
     [[nodiscard]] bool inter_copy_one() const;
     [[nodiscard]] InterCopyResult inter_copy_package() const;
     [[nodiscard]] InterCopyResult inter_copy(int n_) const;
