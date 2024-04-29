@@ -174,7 +174,11 @@ void DeepFactory::DeleteDeepObject(lua_State* L_, DeepPrelude* o_)
             lua_insert( L_, -2);                                               // __gc self
             lua_call( L_, 1, 0);                                               //
         }
-        // we don't really know what remains on the stack at that point (depending on us finding a __gc or not), but we don't care
+        else
+        {
+            // need an empty stack in case we are GC_ing from a Keeper, so that empty stack checks aren't triggered
+            lua_pop(L_, 2);
+        }
         DeepFactory::DeleteDeepObject(L_, p);
     }
     return 0;
