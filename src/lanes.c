@@ -1993,6 +1993,9 @@ LUAG_FUNC( configure)
     push_unique_key( L, CANCEL_ERROR);                                                     // settings M CANCEL_ERROR
     lua_setfield( L, -2, "cancel_error");                                                  // settings M
 
+    push_unique_key( L, NIL_SENTINEL);                                                     // settings M NIL_SENTINEL
+    lua_setfield( L, -2, "null");                                                          // settings M
+
     STACK_MID( L, 2); // reference stack contains only the function argument 'settings'
     // we'll need this every time we transfer some C function from/to this state
     REGISTRY_SET( L, LOOKUP_REGKEY, lua_newtable( L));
