@@ -52,21 +52,21 @@ THE SOFTWARE.
 [[nodiscard]] static int luaG_new_require(lua_State* L_)
 {
     int rc;
-    int const args = lua_gettop( L_);                                    // args
-    Universe* U = universe_get( L_);
-    //char const* modname = luaL_checkstring( L, 1);
+    int const args = lua_gettop(L_);                                    // args
+    Universe* U = universe_get(L_);
+    //char const* modname = luaL_checkstring(L_, 1);
 
-    STACK_GROW( L_, 1);
+    STACK_GROW(L_, 1);
 
-    lua_pushvalue( L_, lua_upvalueindex( 1));                            // args require
-    lua_insert( L_, 1);                                                  // require args
+    lua_pushvalue(L_, lua_upvalueindex( 1));                            // args require
+    lua_insert(L_, 1);                                                  // require args
 
     // Using 'lua_pcall()' to catch errors; otherwise a failing 'require' would
     // leave us locked, blocking any future 'require' calls from other lanes.
 
     U->require_cs.lock();
     // starting with Lua 5.4, require may return a second optional value, so we need LUA_MULTRET
-    rc = lua_pcall( L_, args, LUA_MULTRET, 0 /*errfunc*/ ); // err|result(s)
+    rc = lua_pcall(L_, args, LUA_MULTRET, 0 /*errfunc*/ );              // err|result(s)
     U->require_cs.unlock();
 
     // the required module (or an error message) is left on the stack as returned value by original require function
@@ -76,7 +76,7 @@ THE SOFTWARE.
         raise_lua_error(L_);
     }
     // should be 1 for Lua <= 5.3, 1 or 2 starting with Lua 5.4
-    return lua_gettop(L_);                                           // result(s)
+    return lua_gettop(L_);                                              // result(s)
 }
 
 // #################################################################################################

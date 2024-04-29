@@ -25,76 +25,150 @@ extern "C"
 
 // code is now preferring Lua 5.4 API
 
+// #################################################################################################
+
 // add some Lua 5.3-style API when building for Lua 5.1
 #if LUA_VERSION_NUM == 501
 
 #define lua501_equal lua_equal
-#define lua_absindex(L, idx) (((idx) >= 0 || (idx) <= LUA_REGISTRYINDEX) ? (idx) : lua_gettop(L) + (idx) + 1)
+inline int lua_absindex(lua_State* L_, int idx_)
+{
+    return (((idx_) >= 0 || (idx_) <= LUA_REGISTRYINDEX) ? (idx_) : lua_gettop(L_) + (idx_) + 1);
+}
 #if LUAJIT_VERSION_NUM < 20200 // moonjit is 5.1 plus bits of 5.2 that we don't need to wrap
-#define lua_pushglobaltable(L) lua_pushvalue(L, LUA_GLOBALSINDEX)
+inline void lua_pushglobaltable(lua_State* L_)
+{
+    lua_pushvalue(L_, LUA_GLOBALSINDEX);
+}
 #endif // LUAJIT_VERSION_NUM
-#define lua_setuservalue lua_setfenv
-#define lua_getuservalue lua_getfenv
-#define lua_rawlen lua_objlen
-#define luaG_registerlibfuncs(L_, _funcs) luaL_register(L_, nullptr, _funcs)
+inline int lua_setuservalue(lua_State* L_, int idx_)
+{
+    return lua_setfenv(L_, idx_);
+}
+inline void lua_getuservalue(lua_State* L_, int idx_)
+{
+    lua_getfenv(L_, idx_);
+}
+inline size_t lua_rawlen(lua_State* L_, int idx_)
+{
+    return lua_objlen(L_, idx_);
+}
+inline void luaG_registerlibfuncs(lua_State* L_, luaL_Reg const funcs_[])
+{
+    luaL_register(L_, nullptr, funcs_);
+}
+// keep as macros to be consistent with Lua headers
 #define LUA_OK 0
 #define LUA_ERRGCMM 666 // doesn't exist in Lua 5.1, we don't care about the actual value
-void luaL_requiref(lua_State* L_, const char* modname, lua_CFunction openf, int glb); // implementation copied from Lua 5.2 sources
-#define lua504_dump(L_, writer_, data_, strip_) lua_dump(L_, writer_, data_)
+void luaL_requiref(lua_State* L_, const char* modname_, lua_CFunction openf_, int glb_); // implementation copied from Lua 5.2 sources
+inline int lua504_dump(lua_State* L_, lua_Writer writer_, void* data_, [[maybe_unused]] int strip_)
+{
+    return lua_dump(L_, writer_, data_);
+}
 #define LUA_LOADED_TABLE "_LOADED" // // doesn't exist in Lua 5.1
 
 #endif // LUA_VERSION_NUM == 501
+
+// #################################################################################################
 
 // wrap Lua 5.2 calls under Lua 5.1 API when it is simpler that way
 #if LUA_VERSION_NUM == 502
 
 #ifndef lua501_equal // already defined when compatibility is active in luaconf.h
-#define lua501_equal(L, a, b) lua_compare(L, a, b, LUA_OPEQ)
+inline int lua501_equal(lua_State* L_, int a_, int b_)
+{
+    return lua_compare(L_, a_, b_, LUA_OPEQ);
+}
 #endif // lua501_equal
 #ifndef lua_lessthan // already defined when compatibility is active in luaconf.h
-#define lua_lessthan(L, a, b) lua_compare(L, a, b, LUA_OPLT)
+inline int lua_lessthan(lua_State* L_, int a_, int b_)
+{
+    return lua_compare(L_, a_, b_, LUA_OPLT);
+}
 #endif // lua_lessthan
-#define luaG_registerlibfuncs(L, _funcs) luaL_setfuncs(L, _funcs, 0)
-#define lua504_dump(L, writer, data, strip) lua_dump(L, writer, data)
+inline void luaG_registerlibfuncs(lua_State* L_, luaL_Reg const funcs_[])
+{
+    luaL_setfuncs(L_, funcs_, 0);
+}
+inline int lua504_dump(lua_State* L_, lua_Writer writer_, void* data_, [[maybe_unused]] int strip_)
+{
+    return lua_dump(L_, writer_, data_);
+}
 #define LUA_LOADED_TABLE "_LOADED" // // doesn't exist in Lua 5.2
 
 #endif // LUA_VERSION_NUM == 502
+
+// #################################################################################################
 
 // wrap Lua 5.3 calls under Lua 5.1 API when it is simpler that way
 #if LUA_VERSION_NUM == 503
 
 #ifndef lua501_equal // already defined when compatibility is active in luaconf.h
-#define lua501_equal(L, a, b) lua_compare(L, a, b, LUA_OPEQ)
+inline int lua501_equal(lua_State* L_, int a_, int b_)
+{
+    return lua_compare(L_, a_, b_, LUA_OPEQ);
+}
 #endif // lua501_equal
 #ifndef lua_lessthan // already defined when compatibility is active in luaconf.h
-#define lua_lessthan(L, a, b) lua_compare(L, a, b, LUA_OPLT)
+inline int lua_lessthan(lua_State* L_, int a_, int b_)
+{
+    return lua_compare(L_, a_, b_, LUA_OPLT);
+}
 #endif // lua_lessthan
-#define luaG_registerlibfuncs(L, _funcs) luaL_setfuncs(L, _funcs, 0)
-#define lua504_dump lua_dump
-#define luaL_optint(L, n, d) ((int) luaL_optinteger(L, (n), (d)))
+inline void luaG_registerlibfuncs(lua_State* L_, luaL_Reg const funcs_[])
+{
+    luaL_setfuncs(L_, funcs_, 0);
+}
+inline int lua504_dump(lua_State* L_, lua_Writer writer_, void* data_, int strip_)
+{
+    return lua_dump(L_, writer_, data_, strip_);
+}
+inline int luaL_optint(lua_State* L_, int n_, lua_Integer d_)
+{
+    return static_cast<int>(luaL_optinteger(L_, n_, d_));
+}
 
 #endif // LUA_VERSION_NUM == 503
 
+// #################################################################################################
+
 #if LUA_VERSION_NUM < 504
 
-void* lua_newuserdatauv(lua_State* L, size_t sz, int nuvalue);
-int lua_getiuservalue(lua_State* L, int idx, int n);
-int lua_setiuservalue(lua_State* L, int idx, int n);
+void* lua_newuserdatauv(lua_State* L_, size_t sz_, int nuvalue_);
+int lua_getiuservalue(lua_State* L_, int idx_, int n_);
+int lua_setiuservalue(lua_State* L_, int idx_, int n_);
 
 #endif // LUA_VERSION_NUM < 504
+
+// #################################################################################################
 
 // wrap Lua 5.4 calls under Lua 5.1 API when it is simpler that way
 #if LUA_VERSION_NUM == 504
 
 #ifndef lua501_equal // already defined when compatibility is active in luaconf.h
-#define lua501_equal(L, a, b) lua_compare(L, a, b, LUA_OPEQ)
+inline int lua501_equal(lua_State* L_, int a_, int b_)
+{
+    return lua_compare(L_, a_, b_, LUA_OPEQ);
+}
 #endif // lua501_equal
 #ifndef lua_lessthan // already defined when compatibility is active in luaconf.h
-#define lua_lessthan(L, a, b) lua_compare(L, a, b, LUA_OPLT)
+inline int lua_lessthan(lua_State* L_, int a_, int b_)
+{
+    return lua_compare(L_, a_, b_, LUA_OPLT);
+}
 #endif // lua_lessthan
-#define luaG_registerlibfuncs(L, _funcs) luaL_setfuncs(L, _funcs, 0)
-#define lua504_dump lua_dump
-#define luaL_optint(L, n, d) ((int) luaL_optinteger(L, (n), (d)))
+inline void luaG_registerlibfuncs(lua_State* L_, luaL_Reg const funcs_[])
+{
+    luaL_setfuncs(L_, funcs_, 0);
+}
+inline int lua504_dump(lua_State* L_, lua_Writer writer_, void* data_, int strip_)
+{
+    return lua_dump(L_, writer_, data_, strip_);
+}
+inline int luaL_optint(lua_State* L_, int n_, lua_Integer d_)
+{
+    return static_cast<int>(luaL_optinteger(L_, n_, d_));
+}
 #define LUA_ERRGCMM 666 // doesn't exist in Lua 5.4, we don't care about the actual value
 
 #endif // LUA_VERSION_NUM == 504
@@ -117,11 +191,11 @@ enum class LuaType
     CDATA = 10 // LuaJIT CDATA
 };
 
-inline LuaType lua_type_as_enum(lua_State* L, int idx_)
+inline LuaType lua_type_as_enum(lua_State* L_, int idx_)
 {
-    return static_cast<LuaType>(lua_type(L, idx_));
+    return static_cast<LuaType>(lua_type(L_, idx_));
 }
-inline char const* lua_typename(lua_State* L, LuaType t_)
+inline char const* lua_typename(lua_State* L_, LuaType t_)
 {
-    return lua_typename(L, static_cast<int>(t_));
+    return lua_typename(L_, static_cast<int>(t_));
 }

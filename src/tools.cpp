@@ -305,7 +305,7 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U) lua_State* L_
     // based on some sorting order so that we end up with the same name in all databases whatever order the table walk yielded
     if (prevName != nullptr && (prevNameLength < newNameLength || lua_lessthan(L_, -2, -1)))
     {
-        DEBUGSPEW_CODE( fprintf( stderr, INDENT_BEGIN "%s '%s' remained named '%s'\n" INDENT_END, lua_typename( L, lua_type( L, -3)), newName, prevName));
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%s '%s' remained named '%s'\n" INDENT_END, lua_typename(L_, lua_type(L_, -3)), newName, prevName));
         // the previous name is 'smaller' than the one we just generated: keep it!
         lua_pop(L_, 3);                                                                       // ... {bfc} k
     }
@@ -324,7 +324,7 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U) lua_State* L_
         {
             lua_remove(L_, -2);                                                               // ... {bfc} k o "f.q.n"
         }
-        DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "%s '%s'\n" INDENT_END, lua_typename(L, lua_type( L, -2)), newName));
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%s '%s'\n" INDENT_END, lua_typename(L_, lua_type(L_, -2)), newName));
         // prepare the stack for database feed
         lua_pushvalue(L_, -1);                                                                // ... {bfc} k o "f.q.n" "f.q.n"
         lua_pushvalue(L_, -3);                                                                // ... {bfc} k o "f.q.n" "f.q.n" o
@@ -428,7 +428,7 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U) 
     lua_pushnil(L_);                                                                          // ... {_i} {bfc} nil
     while (lua_next(L_, breadth_first_cache) != 0)                                            // ... {_i} {bfc} k {}
     {
-        DEBUGSPEW_CODE(char const* key = (lua_type(L, -2) == LUA_TSTRING) ? lua_tostring(L, -2) : "not a string");
+        DEBUGSPEW_CODE(char const* key = (lua_type(L_, -2) == LUA_TSTRING) ? lua_tostring(L_, -2) : "not a string");
         DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "table '%s'\n" INDENT_END, key));
         DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
         // un-visit this table in case we do need to process it
@@ -474,8 +474,8 @@ void populate_func_lookup_table(lua_State* L_, int i_, char const* name_)
     int const ctx_base = lua_gettop(L_) + 1;
     int const in_base = lua_absindex(L_, i_);
     int start_depth = 0;
-    DEBUGSPEW_CODE(Universe* U = universe_get(L));
-    DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "%p: populate_func_lookup_table('%s')\n" INDENT_END, L, name_ ? name_ : "nullptr"));
+    DEBUGSPEW_CODE(Universe* U = universe_get(L_));
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%p: populate_func_lookup_table('%s')\n" INDENT_END, L_, name_ ? name_ : "nullptr"));
     DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
     STACK_GROW(L_, 3);
     STACK_CHECK_START_REL(L_, 0);
@@ -1723,7 +1723,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         return true;
     }
 
-    /* Check if we've already copied the same table from 'L' (during this transmission), and
+    /* Check if we've already copied the same table from 'L1' (during this transmission), and
     * reuse the old copy. This allows table upvalues shared by multiple
     * local functions to point to the same table, also in the target.
     * Also, this takes care of cyclic tables and multiple references

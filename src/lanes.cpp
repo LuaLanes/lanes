@@ -208,7 +208,7 @@ static void securize_debug_threadname(lua_State* L_, Lane* lane_)
     STACK_GROW(L_, 3);
     lua_getiuservalue(L_, 1, 1);
     lua_newtable(L_);
-    // Lua 5.1 can't do 'lane_->debug_name = lua_pushstring(L, lane_->debug_name);'
+    // Lua 5.1 can't do 'lane_->debug_name = lua_pushstring(L_, lane_->debug_name);'
     lua_pushstring(L_, lane_->debug_name);
     lane_->debug_name = lua_tostring(L_, -1);
     lua_rawset(L_, -3);
@@ -371,7 +371,7 @@ static void push_stack_trace(lua_State* L_, int rc_, int stk_base_)
         if (lua_rc_ != LUA_OK) // we have an error message and an optional stack trace at the bottom of the stack
         {
             LUA_ASSERT(L_,  finalizers_index == 2 || finalizers_index == 3);
-            //char const* err_msg = lua_tostring(L, 1);
+            //char const* err_msg = lua_tostring(L_, 1);
             lua_pushvalue(L_, 1);                                                     // ... finalizers lane_error finalizer err_msg
             // note we don't always have a stack trace for example when kCancelError, or when we got an error that doesn't call our handler, such as LUA_ERRMEM
             if (finalizers_index == 3)
@@ -819,18 +819,18 @@ static char const* get_errcode_name( int _code)
 }
 #endif // USE_DEBUG_SPEW()
 
-static void lane_main(Lane* lane)
+static void lane_main(Lane* lane_)
 {
-    lua_State* const L{ lane->L };
+    lua_State* const L{ lane_->L };
     // wait until the launching thread has finished preparing L
-    lane->m_ready.wait();
+    lane_->m_ready.wait();
     int rc{ LUA_ERRRUN };
-    if (lane->m_status == Lane::Pending) // nothing wrong happened during preparation, we can work
+    if (lane_->m_status == Lane::Pending) // nothing wrong happened during preparation, we can work
     {
         // At this point, the lane function and arguments are on the stack
         int const nargs{ lua_gettop(L) - 1 };
         DEBUGSPEW_CODE(Universe* U = universe_get(L));
-        lane->m_status = Lane::Running; // Pending -> Running
+        lane_->m_status = Lane::Running; // Pending -> Running
 
         // Tie "set_finalizer()" to the state
         lua_pushcfunction(L, LG_set_finalizer);
@@ -839,7 +839,7 @@ static void lane_main(Lane* lane)
 
         // Tie "set_debug_threadname()" to the state
         // But don't register it in the lookup database because of the Lane pointer upvalue
-        lua_pushlightuserdata(L, lane);
+        lua_pushlightuserdata(L, lane_);
         lua_pushcclosure(L, LG_set_debug_threadname, 1);
         lua_setglobal(L, "set_debug_threadname");
 
@@ -879,24 +879,24 @@ static void lane_main(Lane* lane)
             // the finalizer generated an error, and left its own error message [and stack trace] on the stack
             rc = rc2; // we're overruling the earlier script error or normal return
         }
-        lane->m_waiting_on = nullptr; // just in case
-        if (selfdestruct_remove(lane)) // check and remove (under lock!)
+        lane_->m_waiting_on = nullptr; // just in case
+        if (selfdestruct_remove(lane_)) // check and remove (under lock!)
         {
             // We're a free-running thread and no-one's there to clean us up.
-            lua_close(lane->L);
-            lane->L = nullptr; // just in case
-            lane->U->selfdestruct_cs.lock();
+            lua_close(lane_->L);
+            lane_->L = nullptr; // just in case
+            lane_->U->selfdestruct_cs.lock();
             // done with lua_close(), terminal shutdown sequence may proceed
-            lane->U->selfdestructing_count.fetch_sub(1, std::memory_order_release);
-            lane->U->selfdestruct_cs.unlock();
+            lane_->U->selfdestructing_count.fetch_sub(1, std::memory_order_release);
+            lane_->U->selfdestruct_cs.unlock();
 
             // we destroy our jthread member from inside the thread body, so we have to detach so that we don't try to join, as this doesn't seem a good idea
-            lane->m_thread.detach();
-            delete lane;
-            lane = nullptr;
+            lane_->m_thread.detach();
+            delete lane_;
+            lane_ = nullptr;
         }
     }
-    if (lane)
+    if (lane_)
     {
         // leave results (1..top) or error message + stack trace (1..2) on the stack - master will copy them
 
@@ -904,9 +904,9 @@ static void lane_main(Lane* lane)
 
         {
             // 'm_done_mutex' protects the -> Done|Error|Cancelled state change
-            std::lock_guard lock{ lane->m_done_mutex };
-            lane->m_status = st;
-            lane->m_done_signal.notify_one();// wake up master (while 'lane->m_done_mutex' is on)
+            std::lock_guard lock{ lane_->m_done_mutex };
+            lane_->m_status = st;
+            lane_->m_done_signal.notify_one();// wake up master (while 'lane_->m_done_mutex' is on)
         }
     }
 }
@@ -946,7 +946,7 @@ LUAG_FUNC(register)
     // ignore extra parameters, just in case
     lua_settop(L_, 2);
     luaL_argcheck(L_, (mod_type == LuaType::TABLE) || (mod_type == LuaType::FUNCTION), 2, "unexpected module type");
-    DEBUGSPEW_CODE(Universe* U = universe_get(L));
+    DEBUGSPEW_CODE(Universe* U = universe_get(L_));
     STACK_CHECK_START_REL(L_, 0); // "name" mod_table
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.register %s BEGIN\n" INDENT_END, name));
     DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
@@ -1747,7 +1747,7 @@ LUAG_FUNC(configure)
     STACK_GROW(L_, 4);
     STACK_CHECK_START_ABS(L_, 1);                                                          // settings
 
-    DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END, L));
+    DEBUGSPEW_CODE(fprintf( stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END, L_));
     DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
 
     if (U == nullptr)
@@ -1898,7 +1898,7 @@ LUAG_FUNC(configure)
     // set _R[kConfigRegKey] = settings
     kConfigRegKey.setValue(L_, [](lua_State* L_) { lua_pushvalue(L_, -2); });
     STACK_CHECK(L_, 1);
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%p: lanes.configure() END\n" INDENT_END, L));
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%p: lanes.configure() END\n" INDENT_END, L_));
     // Return the settings table
     return 1;
 }

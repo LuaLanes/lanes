@@ -209,13 +209,13 @@ static void push_table(lua_State* L_, int idx_)
 // #################################################################################################
 
 // only used by linda:dump() and linda:__towatch() for debugging purposes
-int keeper_push_linda_storage(Linda& linda_, DestState L)
+int keeper_push_linda_storage(Linda& linda_, DestState L_)
 {
     Keeper* const K{ linda_.whichKeeper() };
     SourceState const KL{ K ? K->L : nullptr };
     if (KL == nullptr)
         return 0;
-    STACK_GROW(KL, 4);                                                      // KEEPER                       MAIN
+    STACK_GROW(KL, 4);                                                      // KEEPER                        MAIN
     STACK_CHECK_START_REL(KL, 0);
     kFifosRegKey.pushValue(KL);                                             // fifos
     lua_pushlightuserdata(KL, &linda_);                                     // fifos ud
@@ -228,33 +228,33 @@ int keeper_push_linda_storage(Linda& linda_, DestState L)
         return 0;
     }
     // move data from keeper to destination state
-    STACK_GROW(L, 5);
-    STACK_CHECK_START_REL(L, 0);
-    lua_newtable(L);                                                                                     // out
-    InterCopyContext c{ linda_.U, L, KL, {}, {}, {}, LookupMode::FromKeeper, {} };
+    STACK_GROW(L_, 5);
+    STACK_CHECK_START_REL(L_, 0);
+    lua_newtable(L_);                                                                                     // out
+    InterCopyContext c{ linda_.U, L_, KL, {}, {}, {}, LookupMode::FromKeeper, {} };
     lua_pushnil(KL);                                                        // storage nil
     while (lua_next(KL, -2))                                                // storage key fifo
     {
         keeper_fifo* fifo = prepare_fifo_access(KL, -1);                    // storage key fifotbl
         lua_pushvalue(KL, -2);                                              // storage key fifotbl key
-        std::ignore = c.inter_move(1);                                      // storage key fifotbl       // out key
-        STACK_CHECK(L, 2);
-        lua_newtable(L);                                                                                 // out key keyout
-        std::ignore = c.inter_move(1);                                      // storage key               // out key keyout fifotbl
-        lua_pushinteger(L, fifo->first);                                                                 // out key keyout fifotbl first
-        STACK_CHECK(L, 5);
-        lua_setfield(L, -3, "first");                                                                    // out key keyout fifotbl
-        lua_pushinteger(L, fifo->count);                                                                 // out key keyout fifobtl count
-        STACK_CHECK(L, 5);
-        lua_setfield(L, -3, "count");                                                                    // out key keyout fifotbl
-        lua_pushinteger(L, fifo->limit);                                                                 // out key keyout fifotbl limit
-        STACK_CHECK(L, 5);
-        lua_setfield(L, -3, "limit");                                                                    // out key keyout fifotbl
-        lua_setfield(L, -2, "fifo");                                                                     // out key keyout
-        lua_rawset(L, -3);                                                                               // out
-        STACK_CHECK(L, 1);
+        std::ignore = c.inter_move(1);                                      // storage key fifotbl        // out key
+        STACK_CHECK(L_, 2);
+        lua_newtable(L_);                                                                                 // out key keyout
+        std::ignore = c.inter_move(1);                                      // storage key                // out key keyout fifotbl
+        lua_pushinteger(L_, fifo->first);                                                                 // out key keyout fifotbl first
+        STACK_CHECK(L_, 5);
+        lua_setfield(L_, -3, "first");                                                                    // out key keyout fifotbl
+        lua_pushinteger(L_, fifo->count);                                                                 // out key keyout fifobtl count
+        STACK_CHECK(L_, 5);
+        lua_setfield(L_, -3, "count");                                                                    // out key keyout fifotbl
+        lua_pushinteger(L_, fifo->limit);                                                                 // out key keyout fifotbl limit
+        STACK_CHECK(L_, 5);
+        lua_setfield(L_, -3, "limit");                                                                    // out key keyout fifotbl
+        lua_setfield(L_, -2, "fifo");                                                                     // out key keyout
+        lua_rawset(L_, -3);                                                                               // out
+        STACK_CHECK(L_, 1);
     }
-    STACK_CHECK(L, 1);
+    STACK_CHECK(L_, 1);
     lua_pop(KL, 1);                                                         //
     STACK_CHECK(KL, 0);
     return 1;
@@ -776,10 +776,10 @@ void Linda::releaseKeeper(Keeper* K_) const
 
 // #################################################################################################
 
-void keeper_toggle_nil_sentinels(lua_State* L_, int val_i_, LookupMode const mode_)
+void keeper_toggle_nil_sentinels(lua_State* L_, int start_, LookupMode const mode_)
 {
     int const n{ lua_gettop(L_) };
-    for (int i = val_i_; i <= n; ++i)
+    for (int i = start_; i <= n; ++i)
     {
         if (mode_ == LookupMode::ToKeeper)
         {
@@ -811,17 +811,17 @@ void keeper_toggle_nil_sentinels(lua_State* L_, int val_i_, LookupMode const mod
 *
 * Returns: number of return values (pushed to 'L'), unset in case of error
 */
-KeeperCallResult keeper_call(Universe* U, KeeperState K, keeper_api_t func_, lua_State* L_, void* linda, int starting_index)
+KeeperCallResult keeper_call(Universe* U, KeeperState K, keeper_api_t func_, lua_State* L_, void* linda_, int starting_index_)
 {
     KeeperCallResult result;
-    int const args{ starting_index ? (lua_gettop(L_) - starting_index + 1) : 0 };
+    int const args{ starting_index_ ? (lua_gettop(L_) - starting_index_ + 1) : 0 };
     int const top_K{ lua_gettop(K) };
     // if we didn't do anything wrong, the keeper stack should be clean
     LUA_ASSERT(L_, lua_gettop(K) == 0);
 
     STACK_GROW(K, 2);
     PUSH_KEEPER_FUNC(K, func_);                                                                                       // func_
-    lua_pushlightuserdata(K, linda);                                                                                  // func_ linda
+    lua_pushlightuserdata(K, linda_);                                                                                 // func_ linda
     if (
         (args == 0) ||
         (InterCopyContext{ U, DestState{ K }, SourceState{ L_ }, {}, {}, {}, LookupMode::ToKeeper, {} }.inter_copy(args) == InterCopyResult::Success)

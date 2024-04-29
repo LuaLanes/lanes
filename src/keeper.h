@@ -42,8 +42,8 @@ static constexpr UniqueKey kNilSentinel{ 0xC457D4EDDB05B5E4ull, "lanes.null" };
 void init_keepers(Universe* U, lua_State* L_);
 void close_keepers(Universe* U);
 
-void keeper_toggle_nil_sentinels(lua_State* L_, int val_i_, LookupMode const mode_);
-[[nodiscard]] int keeper_push_linda_storage(Linda& linda_, DestState L);
+void keeper_toggle_nil_sentinels(lua_State* L_, int start_, LookupMode const mode_);
+[[nodiscard]] int keeper_push_linda_storage(Linda& linda_, DestState L_);
 
 using keeper_api_t = lua_CFunction;
 #define KEEPER_API(_op) keepercall_##_op

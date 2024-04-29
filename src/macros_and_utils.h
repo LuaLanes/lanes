@@ -78,13 +78,13 @@ template <typename... ARGS>
 
 #ifdef NDEBUG
 
-#define LUA_ASSERT(L, c) ; // nothing
+#define LUA_ASSERT(L_, c) ; // nothing
 
-#define STACK_CHECK_START_REL(L, offset_)
-#define STACK_CHECK_START_ABS(L, offset_)
-#define STACK_CHECK_RESET_REL(L, offset_)
-#define STACK_CHECK_RESET_ABS(L, offset_)
-#define STACK_CHECK(L, offset_)
+#define STACK_CHECK_START_REL(L_, offset_)
+#define STACK_CHECK_START_ABS(L_, offset_)
+#define STACK_CHECK_RESET_REL(L_, offset_)
+#define STACK_CHECK_RESET_ABS(L_, offset_)
+#define STACK_CHECK(L_, offset_)
 
 #else // NDEBUG
 

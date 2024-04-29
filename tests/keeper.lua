@@ -18,8 +18,10 @@ do
     -- repeatedly add and remove stuff in the linda so that a GC happens during the keeper operation
     for i = 1, 1000 do
         for j = 1, 1000 do -- send 1000 tables
+            -- print("send #" .. j)
             unnamedLinda:send("here", {"a", "table", "with", "some", "stuff"})
         end
+        -- print(clearing)
         unnamedLinda:set("here") -- clear everything
     end
 end

@@ -12,35 +12,35 @@
 // #################################################################################################
 
 // Copied from Lua 5.2 loadlib.c
-static int luaL_getsubtable(lua_State* L_, int idx, const char* fname)
+static int luaL_getsubtable(lua_State* L_, int idx_, const char* fname_)
 {
-    lua_getfield(L_, idx, fname);
+    lua_getfield(L_, idx_, fname_);
     if (lua_istable(L_, -1))
         return 1; /* table already there */
     else {
         lua_pop(L_, 1); /* remove previous result */
-        idx = lua_absindex(L_, idx);
+        idx_ = lua_absindex(L_, idx_);
         lua_newtable(L_);
         lua_pushvalue(L_, -1); /* copy to be left at top */
-        lua_setfield(L_, idx, fname); /* assign new table to field */
+        lua_setfield(L_, idx_, fname_); /* assign new table to field */
         return 0; /* false, because did not find table there */
     }
 }
 
 // #################################################################################################
 
-void luaL_requiref(lua_State* L_, const char* modname, lua_CFunction openf, int glb)
+void luaL_requiref(lua_State* L_, const char* modname_, lua_CFunction openf_, int glb_)
 {
-    lua_pushcfunction(L_, openf);
-    lua_pushstring(L_, modname); /* argument to open function */
+    lua_pushcfunction(L_, openf_);
+    lua_pushstring(L_, modname_); /* argument to open function */
     lua_call(L_, 1, 1); /* open module */
     luaL_getsubtable(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
     lua_pushvalue(L_, -2); /* make copy of module (call result) */
-    lua_setfield(L_, -2, modname); /* _LOADED[modname] = module */
+    lua_setfield(L_, -2, modname_); /* _LOADED[modname] = module */
     lua_pop(L_, 1); /* remove _LOADED table */
-    if (glb) {
+    if (glb_) {
         lua_pushvalue(L_, -1); /* copy of 'mod' */
-        lua_setglobal(L_, modname); /* _G[modname] = module */
+        lua_setglobal(L_, modname_); /* _G[modname] = module */
     }
 }
 #endif // LUA_VERSION_NUM
@@ -51,23 +51,23 @@ void luaL_requiref(lua_State* L_, const char* modname, lua_CFunction openf, int 
 // #################################################################################################
 // #################################################################################################
 
-void* lua_newuserdatauv(lua_State* L_, size_t sz, int nuvalue)
+void* lua_newuserdatauv(lua_State* L_, size_t sz_, int nuvalue_)
 {
-    LUA_ASSERT(L_, nuvalue <= 1);
-    return lua_newuserdata(L_, sz);
+    LUA_ASSERT(L_, nuvalue_ <= 1);
+    return lua_newuserdata(L_, sz_);
 }
 
 // #################################################################################################
 
 // push on stack uservalue #n of full userdata at idx
-int lua_getiuservalue(lua_State* L_, int idx, int n)
+int lua_getiuservalue(lua_State* L_, int idx_, int n_)
 {
     // full userdata can have only 1 uservalue before 5.4
-    if (n > 1) {
+    if (n_ > 1) {
         lua_pushnil(L_);
         return LUA_TNONE;
     }
-    lua_getuservalue(L_, idx);
+    lua_getuservalue(L_, idx_);
 
 #if LUA_VERSION_NUM == 501
     /* default environment is not a nil (see lua_getfenv) */
@@ -88,9 +88,9 @@ int lua_getiuservalue(lua_State* L_, int idx, int n)
 
 // Pops a value from the stack and sets it as the new n-th user value associated to the full userdata at the given index.
 // Returns 0 if the userdata does not have that value.
-int lua_setiuservalue(lua_State* L_, int idx, int n)
+int lua_setiuservalue(lua_State* L_, int idx_, int n_)
 {
-    if (n > 1
+    if (n_ > 1
 #if LUA_VERSION_NUM == 501
         || lua_type(L_, -1) != LUA_TTABLE
 #endif
@@ -99,7 +99,7 @@ int lua_setiuservalue(lua_State* L_, int idx, int n)
         return 0;
     }
 
-    lua_setuservalue(L_, idx);
+    lua_setuservalue(L_, idx_);
     return 1; // I guess anything non-0 is ok
 }
 
