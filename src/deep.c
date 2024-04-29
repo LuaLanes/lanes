@@ -236,7 +236,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
     *proxy = prelude;
 
     // Get/create metatable for 'idfunc' (in this state)
-    lua_pushlightuserdata( L, (void*)(uintptr_t)(prelude->idfunc));                                    // DPC proxy idfunc
+    lua_pushlightuserdata(L, (void*) prelude->idfunc);                                                 // DPC proxy idfunc
     get_deep_lookup( L);                                                                               // DPC proxy metatable?
 
     if( lua_isnil( L, -1)) // // No metatable yet.
@@ -278,7 +278,7 @@ char const* push_deep_proxy( Universe* U, lua_State* L, DeepPrelude* prelude, in
 
         // Memorize for later rounds
         lua_pushvalue( L, -1);                                                                           // DPC proxy metatable metatable
-        lua_pushlightuserdata( L, (void*)(uintptr_t)(prelude->idfunc));                                  // DPC proxy metatable metatable idfunc
+        lua_pushlightuserdata(L, (void*) prelude->idfunc);                                               // DPC proxy metatable metatable idfunc
         set_deep_lookup( L);                                                                             // DPC proxy metatable
 
         // 2 - cause the target state to require the module that exported the idfunc

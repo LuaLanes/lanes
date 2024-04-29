@@ -52,11 +52,11 @@ struct s_Linda
     SIGNAL_T read_happened;
     SIGNAL_T write_happened;
     Universe* U; // the universe this linda belongs to
-    uintptr_t group; // a group to control keeper allocation between lindas
+    uint_t group; // a group to control keeper allocation between lindas
     enum e_cancel_request simulate_cancel;
     char name[1];
 };
-#define LINDA_KEEPER_HASHSEED( linda) (linda->group ? linda->group : (uintptr_t)linda)
+#define LINDA_KEEPER_HASHSEED(linda) (linda->group ? linda->group : (uint_t)(ptrdiff_t) linda)
 
 static void* linda_id( lua_State*, DeepOp);
 
@@ -766,7 +766,7 @@ static void* linda_id( lua_State* L, DeepOp op_)
             struct s_Linda* s;
             size_t name_len = 0;
             char const* linda_name = NULL;
-            unsigned long linda_group = 0;
+            uint_t linda_group = 0;
             // should have a string and/or a number of the stack as parameters (name and group)
             switch( lua_gettop( L))
             {
@@ -780,13 +780,13 @@ static void* linda_id( lua_State* L, DeepOp op_)
                 }
                 else
                 {
-                    linda_group = (unsigned long) lua_tointeger( L, -1);
+                    linda_group = (uint_t) lua_tointeger(L, -1);
                 }
                 break;
 
                 case 2: // 2 parameters, a name and group, in that order
                 linda_name = lua_tolstring( L, -2, &name_len);
-                linda_group = (unsigned long) lua_tointeger( L, -1);
+                linda_group = (uint_t) lua_tointeger(L, -1);
                 break;
             }
 

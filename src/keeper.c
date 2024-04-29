@@ -189,7 +189,7 @@ static void push_table( lua_State* L, int idx_)
     STACK_END( L, 1);
 }
 
-int keeper_push_linda_storage( Universe* U, lua_State* L, void* ptr_, uintptr_t magic_)
+int keeper_push_linda_storage(Universe* U, lua_State* L, void* ptr_, uint_t magic_)
 {
     Keeper* const K = which_keeper( U->keepers, magic_);
     lua_State* const KL = K ? K->L : NULL;
@@ -731,7 +731,7 @@ void init_keepers( Universe* U, lua_State* L)
 }
 
 // should be called only when inside a keeper_acquire/keeper_release pair (see linda_protected_call)
-Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_)
+Keeper* which_keeper(Keepers* keepers_, uint_t magic_)
 {
     int const nbKeepers = keepers_->nb_keepers;
     if (nbKeepers)
@@ -742,7 +742,7 @@ Keeper* which_keeper(Keepers* keepers_, uintptr_t magic_)
     return NULL;
 }
 
-Keeper* keeper_acquire( Keepers* keepers_, uintptr_t magic_)
+Keeper* keeper_acquire(Keepers* keepers_, uint_t magic_)
 {
     int const nbKeepers = keepers_->nb_keepers;
     // can be 0 if this happens during main state shutdown (lanes is being GC'ed -> no keepers)
@@ -755,7 +755,7 @@ Keeper* keeper_acquire( Keepers* keepers_, uintptr_t magic_)
         * Pointers are often aligned by 8 or so - ignore the low order bits
         * have to cast to unsigned long to avoid compilation warnings about loss of data when converting pointer-to-integer
         */
-        unsigned int i = (unsigned int)((magic_ >> KEEPER_MAGIC_SHIFT) % nbKeepers);
+        uint_t i = (uint_t) ((magic_ >> KEEPER_MAGIC_SHIFT) % nbKeepers);
         Keeper* K = &keepers_->keeper_array[i];
 
         MUTEX_LOCK( &K->keeper_cs);

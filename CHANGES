@@ -1,5 +1,9 @@
 CHANGES:
 
+CHANGE 162: BGe 29-Apr-24
+   * remove uintptr_t again. I love optional stuff in standard headers
+   * expose nil sentinel as lanes.null
+
 CHANGE 161: BGe 15-Apr-24
    * fix keeper state stack accumulating garbage in case of transfer errors
 
