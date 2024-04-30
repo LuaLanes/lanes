@@ -2,7 +2,7 @@
  * LINDAFACTORY.CPP                    Copyright (c) 2024-, Benoit Germain
  *
  * Linda deep userdata factory
-*/
+ */
 
 /*
 ===============================================================================
@@ -69,8 +69,7 @@ void LindaFactory::deleteDeepObjectInternal(lua_State* L_, DeepPrelude* o_) cons
     LUA_ASSERT(L_, linda);
     Keeper* const myK{ linda->whichKeeper() };
     // if collected after the universe, keepers are already destroyed, and there is nothing to clear
-    if (myK)
-    {
+    if (myK) {
         // if collected from my own keeper, we can't acquire/release it
         // because we are already inside a protected area, and trying to do so would deadlock!
         bool const need_acquire_release{ myK->L != L_ };
@@ -79,8 +78,7 @@ void LindaFactory::deleteDeepObjectInternal(lua_State* L_, DeepPrelude* o_) cons
         // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
         [[maybe_unused]] KeeperCallResult const result{ keeper_call(linda->U, K->L, KEEPER_API(clear), L_, linda, 0) };
         LUA_ASSERT(L_, result.has_value() && result.value() == 0);
-        if (need_acquire_release)
-        {
+        if (need_acquire_release) {
             linda->releaseKeeper(K);
         }
     }
@@ -106,23 +104,19 @@ DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* L_) const
     char const* linda_name{ nullptr };
     LindaGroup linda_group{ 0 };
     // should have a string and/or a number of the stack as parameters (name and group)
-    switch (lua_gettop(L_))
-    {
-        default: // 0
+    switch (lua_gettop(L_)) {
+    default: // 0
         break;
 
-        case 1: // 1 parameter, either a name or a group
-        if (lua_type(L_, -1) == LUA_TSTRING)
-        {
+    case 1: // 1 parameter, either a name or a group
+        if (lua_type(L_, -1) == LUA_TSTRING) {
             linda_name = lua_tolstring(L_, -1, &name_len);
-        }
-        else
-        {
+        } else {
             linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L_, -1)) };
         }
         break;
 
-        case 2: // 2 parameters, a name and group, in that order
+    case 2: // 2 parameters, a name and group, in that order
         linda_name = lua_tolstring(L_, -2, &name_len);
         linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L_, -1)) };
         break;

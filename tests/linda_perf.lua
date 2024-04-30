@@ -1,5 +1,5 @@
 local lanes = require "lanes"
-lanes.configure{ with_timers = false, keepers_gc_threshold=30000 }
+lanes.configure{ with_timers = false }
 
 -- set TEST1, PREFILL1, FILL1, TEST2, PREFILL2, FILL2 from the command line
 

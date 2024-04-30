@@ -55,8 +55,8 @@ class InterCopyContext
     [[nodiscard]] bool push_cached_metatable() const;
 
     // for use in inter_copy_userdata
-    [[nodiscard]] bool copyclone() const;
-    [[nodiscard]] bool copydeep() const;
+    [[nodiscard]] bool copyClonable() const;
+    [[nodiscard]] bool copyDeep() const;
 
     // copying a single Lua stack item
     [[nodiscard]] bool inter_copy_boolean() const;
@@ -79,8 +79,8 @@ class InterCopyContext
 
 [[nodiscard]] int luaG_nameof(lua_State* L_);
 
-void populate_func_lookup_table(lua_State* L_, int _i, char const* _name);
-void initialize_allocator_function(Universe* U, lua_State* L_);
+void populate_func_lookup_table(lua_State* L_, int i_, char const* name_);
+void initialize_allocator_function(Universe* U_, lua_State* L_);
 
 // #################################################################################################
 

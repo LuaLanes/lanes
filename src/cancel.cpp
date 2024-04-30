@@ -111,8 +111,7 @@ LUAG_FUNC(cancel_test)
 {
     lane_->cancel_request = CancelRequest::Soft; // it's now signaled to stop
     // negative timeout: we don't want to truly abort the lane, we just want it to react to cancel_test() on its own
-    if (wakeLane_) // wake the thread so that execution returns from any pending linda operation if desired
-    {
+    if (wakeLane_) { // wake the thread so that execution returns from any pending linda operation if desired
         std::condition_variable* const waiting_on{ lane_->m_waiting_on };
         if (lane_->m_status == Lane::Waiting && waiting_on != nullptr) {
             waiting_on->notify_all();
@@ -128,8 +127,7 @@ LUAG_FUNC(cancel_test)
 {
     lane_->cancel_request = CancelRequest::Hard; // it's now signaled to stop
     // lane_->m_thread.get_stop_source().request_stop();
-    if (wakeLane_) // wake the thread so that execution returns from any pending linda operation if desired
-    {
+    if (wakeLane_) { // wake the thread so that execution returns from any pending linda operation if desired
         std::condition_variable* waiting_on = lane_->m_waiting_on;
         if (lane_->m_status == Lane::Waiting && waiting_on != nullptr) {
             waiting_on->notify_all();
@@ -209,8 +207,7 @@ LUAG_FUNC(thread_cancel)
     CancelOp const op{ which_cancel_op(L_, 2) }; // this removes the op string from the stack
 
     int hook_count{ 0 };
-    if (static_cast<int>(op) > static_cast<int>(CancelOp::Soft)) // hook is requested
-    {
+    if (static_cast<int>(op) > static_cast<int>(CancelOp::Soft)) { // hook is requested
         hook_count = static_cast<int>(luaL_checkinteger(L_, 2));
         lua_remove(L_, 2); // argument is processed, remove it
         if (hook_count < 1) {

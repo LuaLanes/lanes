@@ -184,7 +184,7 @@ class Universe
 
 [[nodiscard]] Universe* universe_get(lua_State* L_);
 [[nodiscard]] Universe* universe_create(lua_State* L_);
-void universe_store(lua_State* L_, Universe* U);
+void universe_store(lua_State* L_, Universe* U_);
 
 // #################################################################################################
 

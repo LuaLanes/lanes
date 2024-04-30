@@ -60,8 +60,7 @@ Universe::Universe()
     // the launched threads (even -2).
     //
 #ifdef LINUX_SCHED_RR
-    if (m_sudo)
-    {
+    if (m_sudo) {
         struct sched_param sp;
         sp.sched_priority = _PRIO_0;
         PT_CALL(pthread_setschedparam(pthread_self(), SCHED_RR, &sp));
@@ -87,11 +86,11 @@ Universe* universe_create(lua_State* L_)
 
 // #################################################################################################
 
-void universe_store(lua_State* L_, Universe* U)
+void universe_store(lua_State* L_, Universe* U_)
 {
-    LUA_ASSERT(L_, !U || universe_get(L_) == nullptr);
+    LUA_ASSERT(L_, !U_ || universe_get(L_) == nullptr);
     STACK_CHECK_START_REL(L_, 0);
-    kUniverseLightRegKey.setValue(L_, [U](lua_State* L_) { U ? lua_pushlightuserdata(L_, U) : lua_pushnil(L_); });
+    kUniverseLightRegKey.setValue(L_, [U = U_](lua_State* L_) { U ? lua_pushlightuserdata(L_, U) : lua_pushnil(L_); });
     STACK_CHECK(L_, 0);
 }
 
