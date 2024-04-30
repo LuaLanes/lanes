@@ -245,12 +245,12 @@ FuncSubType luaG_getfuncsubtype(lua_State* L_, int _i)
  * if we already had an entry of type [o] = ..., replace the name if the new one is shorter
  * pops the processed object from the stack
  */
-static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_, int _ctx_base, int _depth)
+static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_, int ctxBase_, int depth_)
 {
     // slot 1 in the stack contains the table that receives everything we found
-    int const dest{ _ctx_base };
+    int const dest{ ctxBase_ };
     // slot 2 contains a table that, when concatenated, produces the fully qualified name of scanned elements in the table provided at slot _i
-    int const fqn{ _ctx_base + 1 };
+    int const fqn{ ctxBase_ + 1 };
 
     size_t prevNameLength, newNameLength;
     char const* prevName;
@@ -266,10 +266,10 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L
     // push name in fqn stack (note that concatenation will crash if name is a not string or a number)
     lua_pushvalue(L_, -3);                                                                         // L_: ... {bfc} k o name? k
     LUA_ASSERT(L_, lua_type(L_, -1) == LUA_TNUMBER || lua_type(L_, -1) == LUA_TSTRING);
-    ++_depth;
-    lua_rawseti(L_, fqn, _depth); // L_: ... {bfc} k o name?
+    ++depth_;
+    lua_rawseti(L_, fqn, depth_);                                                                  // L_: ... {bfc} k o name?
     // generate name
-    DEBUGSPEW_OR_NOT(newName, std::ignore) = luaG_pushFQN(L_, fqn, _depth, &newNameLength);        // L_: ... {bfc} k o name? "f.q.n"
+    DEBUGSPEW_OR_NOT(newName, std::ignore) = luaG_pushFQN(L_, fqn, depth_, &newNameLength);        // L_: ... {bfc} k o name? "f.q.n"
     // Lua 5.2 introduced a hash randomizer seed which causes table iteration to yield a different key order
     // on different VMs even when the tables are populated the exact same way.
     // When Lua is built with compatibility options (such as LUA_COMPAT_ALL),
@@ -306,9 +306,9 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L
         lua_rawset(L_, dest);                                                                      // L_: ... {bfc} k
         // remove table name from fqn stack
         lua_pushnil(L_);                                                                           // L_: ... {bfc} k nil
-        lua_rawseti(L_, fqn, _depth);                                                              // L_: ... {bfc} k
+        lua_rawseti(L_, fqn, depth_);                                                              // L_: ... {bfc} k
     }
-    --_depth;
+    --depth_;
     STACK_CHECK(L_, -1);
 }
 
@@ -486,15 +486,15 @@ void populate_func_lookup_table(lua_State* L_, int i_, char const* name_)
 static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
 
 // get a unique ID for metatable at [i].
-[[nodiscard]] static lua_Integer get_mt_id(Universe* U_, lua_State* L_, int i)
+[[nodiscard]] static lua_Integer get_mt_id(Universe* U_, lua_State* L_, int idx_)
 {
-    i = lua_absindex(L_, i);
+    idx_ = lua_absindex(L_, idx_);
 
     STACK_GROW(L_, 3);
 
     STACK_CHECK_START_REL(L_, 0);
     push_registry_subtable(L_, kMtIdRegKey);                                                       // L_: ... _R[kMtIdRegKey]
-    lua_pushvalue(L_, i);                                                                          // L_: ... _R[kMtIdRegKey] {mt}
+    lua_pushvalue(L_, idx_);                                                                       // L_: ... _R[kMtIdRegKey] {mt}
     lua_rawget(L_, -2);                                                                            // L_: ... _R[kMtIdRegKey] mtk?
 
     lua_Integer id{ lua_tointeger(L_, -1) }; // 0 for nil
@@ -505,12 +505,12 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
         id = U_->next_mt_id.fetch_add(1, std::memory_order_relaxed);
 
         // Create two-way references: id_uint <-> table
-        lua_pushvalue(L_, i);                                                                      // L_: ... _R[kMtIdRegKey] {mt}
+        lua_pushvalue(L_, idx_);                                                                   // L_: ... _R[kMtIdRegKey] {mt}
         lua_pushinteger(L_, id);                                                                   // L_: ... _R[kMtIdRegKey] {mt} id
         lua_rawset(L_, -3);                                                                        // L_: ... _R[kMtIdRegKey]
 
         lua_pushinteger(L_, id);                                                                   // L_: ... _R[kMtIdRegKey] id
-        lua_pushvalue(L_, i);                                                                      // L_: ... _R[kMtIdRegKey] id {mt}
+        lua_pushvalue(L_, idx_);                                                                   // L_: ... _R[kMtIdRegKey] id {mt}
         lua_rawset(L_, -3);                                                                        // L_: ... _R[kMtIdRegKey]
     }
     lua_pop(L_, 1);                                                                                // L_: ...
@@ -548,13 +548,11 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
 // retrieve the name of a function/table in the lookup database
 [[nodiscard]] static char const* find_lookup_name(lua_State* L_, int i_, LookupMode mode_, char const* upName_, size_t* len_)
 {
-    DEBUGSPEW_CODE(Universe* const U = universe_get(L_));
-    char const* fqn;
     LUA_ASSERT(L_, lua_isfunction(L_, i_) || lua_istable(L_, i_));                                 // L_: ... v ...
     STACK_CHECK_START_REL(L_, 0);
     STACK_GROW(L_, 3); // up to 3 slots are necessary on error
     if (mode_ == LookupMode::FromKeeper) {
-        lua_CFunction f = lua_tocfunction(L_, i_); // should *always* be func_lookup_sentinel or table_lookup_sentinel!
+        lua_CFunction f = lua_tocfunction(L_, i_); // should *always* be one of the function sentinels
         if (f == func_lookup_sentinel || f == table_lookup_sentinel || f == userdata_clone_sentinel) {
             lua_getupvalue(L_, i_, 1);                                                             // L_: ... v ... "f.q.n"
         } else {
@@ -571,22 +569,24 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
         lua_pushvalue(L_, i_);                                                                     // L_: ... v ... {} v
         lua_rawget(L_, -2);                                                                        // L_: ... v ... {} "f.q.n"
     }
-    fqn = lua_tolstring(L_, -1, len_);
+    char const* fqn{ lua_tolstring(L_, -1, len_) };
+    DEBUGSPEW_CODE(Universe* const U = universe_get(L_));
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "function [C] %s \n" INDENT_END(U), fqn));
     // popping doesn't invalidate the pointer since this is an interned string gotten from the lookup database
     lua_pop(L_, (mode_ == LookupMode::FromKeeper) ? 1 : 2);                                        // L_: ... v ...
     STACK_CHECK(L_, 0);
     if (nullptr == fqn && !lua_istable(L_, i_)) { // raise an error if we try to send an unknown function (but not for tables)
-        char const *from, *typewhat, *what, *gotchaA, *gotchaB;
+        *len_ = 0; // just in case
         // try to discover the name of the function we want to send
         lua_getglobal(L_, "decoda_name");                                                          // L_: ... v ... decoda_name
-        from = lua_tostring(L_, -1);
+        char const* from{ lua_tostring(L_, -1) };
         lua_pushcfunction(L_, luaG_nameof);                                                        // L_: ... v ... decoda_name luaG_nameof
         lua_pushvalue(L_, i_);                                                                     // L_: ... v ... decoda_name luaG_nameof t
         lua_call(L_, 1, 2);                                                                        // L_: ... v ... decoda_name "type" "name"|nil
-        typewhat = (lua_type(L_, -2) == LUA_TSTRING) ? lua_tostring(L_, -2) : luaL_typename(L_, -2);
+        char const* typewhat{ (lua_type(L_, -2) == LUA_TSTRING) ? lua_tostring(L_, -2) : luaL_typename(L_, -2) };
         // second return value can be nil if the table was not found
         // probable reason: the function was removed from the source Lua state before Lanes was required.
+        char const *what, *gotchaA, *gotchaB;
         if (lua_isnil(L_, -1)) {
             gotchaA = " referenced by";
             gotchaB = "\n(did you remove it from the source Lua state before requiring Lanes?)";
@@ -597,8 +597,6 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
             what = (lua_type(L_, -1) == LUA_TSTRING) ? lua_tostring(L_, -1) : luaL_typename(L_, -1);
         }
         raise_luaL_error(L_, "%s%s '%s' not found in %s origin transfer database.%s", typewhat, gotchaA, what, from ? from : "main", gotchaB);
-        *len_ = 0;
-        return nullptr;
     }
     STACK_CHECK(L_, 0);
     return fqn;
@@ -668,19 +666,13 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
 
 // #################################################################################################
 
-/*
- * Check if we've already copied the same table from 'L1_', and
- * reuse the old copy. This allows table upvalues shared by multiple
- * local functions to point to the same table, also in the target.
- *
- * Always pushes a table to 'L2_'.
- *
- * Returns true if the table was cached (no need to fill it!); false if
- * it's a virgin.
- */
-[[nodiscard]] static bool push_cached_table(DestState L2, CacheIndex L2_cache_i, SourceState L1, SourceIndex i)
+// Check if we've already copied the same table from 'L1', and reuse the old copy. This allows table upvalues shared by multiple
+// local functions to point to the same table, also in the target.
+// Always pushes a table to 'L2'.
+// Returns true if the table was cached (no need to fill it!); false if it's a virgin.
+[[nodiscard]] bool InterCopyContext::push_cached_table() const
 {
-    void const* p{ lua_topointer(L1, i) };
+    void const* p{ lua_topointer(L1, L1_i) };
 
     LUA_ASSERT(L1, L2_cache_i != 0);
     STACK_GROW(L2, 3);
@@ -689,19 +681,19 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
     // We don't need to use the from state ('L1') in ID since the life span
     // is only for the duration of a copy (both states are locked).
     // push a light userdata uniquely representing the table
-    lua_pushlightuserdata(L2, const_cast<void*>(p));                                               //                                                L2: ... p
+    lua_pushlightuserdata(L2, const_cast<void*>(p));                                               // L1: ... t ...                                  L2: ... p
 
     // fprintf(stderr, "<< ID: %s >>\n", lua_tostring(L2, -1));
 
-    lua_rawget(L2, L2_cache_i);                                                                    //                                                L2: ... {cached|nil}
+    lua_rawget(L2, L2_cache_i);                                                                    // L1: ... t ...                                  L2: ... {cached|nil}
     bool const not_found_in_cache{ lua_isnil(L2, -1) };
     if (not_found_in_cache) {
         // create a new entry in the cache
-        lua_pop(L2, 1);                                                                            //                                                L2: ...
-        lua_newtable(L2);                                                                          //                                                L2: ... {}
-        lua_pushlightuserdata(L2, const_cast<void*>(p));                                           //                                                L2: ... {} p
-        lua_pushvalue(L2, -2);                                                                     //                                                L2: ... {} p {}
-        lua_rawset(L2, L2_cache_i);                                                                //                                                L2: ... {}
+        lua_pop(L2, 1);                                                                            // L1: ... t ...                                  L2: ...
+        lua_newtable(L2);                                                                          // L1: ... t ...                                  L2: ... {}
+        lua_pushlightuserdata(L2, const_cast<void*>(p));                                           // L1: ... t ...                                  L2: ... {} p
+        lua_pushvalue(L2, -2);                                                                     // L1: ... t ...                                  L2: ... {} p {}
+        lua_rawset(L2, L2_cache_i);                                                                // L1: ... t ...                                  L2: ... {}
     }
     STACK_CHECK(L2, 1);
     LUA_ASSERT(L1, lua_istable(L2, -1));
@@ -711,12 +703,12 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
 // #################################################################################################
 
 // Return some name helping to identify an object
-[[nodiscard]] static int discover_object_name_recur(lua_State* L_, int shortest_, int depth_)
+[[nodiscard]] static int DiscoverObjectNameRecur(lua_State* L_, int shortest_, int depth_)
 {
-    int const what = 1;                                                                            // L_: o "r" {c} {fqn} ... {?}
-    int const result = 2;
-    int const cache = 3;
-    int const fqn = 4;
+    static constexpr int kWhat{ 1 }; // the object to investigate                                  // L_: o "r" {c} {fqn} ... {?}
+    static constexpr int kResult{ 2 }; // where the result string is stored
+    static constexpr int kCache{ 3 }; // a cache
+    static constexpr int kFQN{ 4 }; // the name compositing stack
     // no need to scan this table if the name we will discover is longer than one we already know
     if (shortest_ <= depth_ + 1) {
         return shortest_;
@@ -725,7 +717,7 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
     STACK_CHECK_START_REL(L_, 0);
     // stack top contains the table to search in
     lua_pushvalue(L_, -1);                                                                         // L_: o "r" {c} {fqn} ... {?} {?}
-    lua_rawget(L_, cache);                                                                         // L_: o "r" {c} {fqn} ... {?} nil/1
+    lua_rawget(L_, kCache);                                                                        // L_: o "r" {c} {fqn} ... {?} nil/1
     // if table is already visited, we are done
     if (!lua_isnil(L_, -1)) {
         lua_pop(L_, 1); // L_: o "r" {c} {fqn} ... {?}
@@ -735,7 +727,7 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
     lua_pop(L_, 1);                                                                                // L_: o "r" {c} {fqn} ... {?}
     lua_pushvalue(L_, -1);                                                                         // L_: o "r" {c} {fqn} ... {?} {?}
     lua_pushinteger(L_, 1);                                                                        // L_: o "r" {c} {fqn} ... {?} {?} 1
-    lua_rawset(L_, cache);                                                                         // L_: o "r" {c} {fqn} ... {?}
+    lua_rawset(L_, kCache);                                                                        // L_: o "r" {c} {fqn} ... {?}
     // scan table contents
     lua_pushnil(L_);                                                                               // L_: o "r" {c} {fqn} ... {?} nil
     while (lua_next(L_, -2)) {                                                                     // L_: o "r" {c} {fqn} ... {?} k v
@@ -745,14 +737,14 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
         // append key name to fqn stack
         ++depth_;
         lua_pushvalue(L_, -2);                                                                     // L_: o "r" {c} {fqn} ... {?} k v k
-        lua_rawseti(L_, fqn, depth_);                                                              // L_: o "r" {c} {fqn} ... {?} k v
-        if (lua_rawequal(L_, -1, what)) { // is it what we are looking for?
+        lua_rawseti(L_, kFQN, depth_);                                                             // L_: o "r" {c} {fqn} ... {?} k v
+        if (lua_rawequal(L_, -1, kWhat)) { // is it what we are looking for?
             STACK_CHECK(L_, 2);
             // update shortest name
             if (depth_ < shortest_) {
                 shortest_ = depth_;
-                std::ignore = luaG_pushFQN(L_, fqn, depth_, nullptr);                              // L_: o "r" {c} {fqn} ... {?} k v "fqn"
-                lua_replace(L_, result);                                                           // L_: o "r" {c} {fqn} ... {?} k v
+                std::ignore = luaG_pushFQN(L_, kFQN, depth_, nullptr);                             // L_: o "r" {c} {fqn} ... {?} k v "fqn"
+                lua_replace(L_, kResult);                                                          // L_: o "r" {c} {fqn} ... {?} k v
             }
             // no need to search further at this level
             lua_pop(L_, 2);                                                                        // L_: o "r" {c} {fqn} ... {?}
@@ -765,16 +757,16 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
 
         case LUA_TTABLE:                                                                           // L_: o "r" {c} {fqn} ... {?} k {}
             STACK_CHECK(L_, 2);
-            shortest_ = discover_object_name_recur(L_, shortest_, depth_);
+            shortest_ = DiscoverObjectNameRecur(L_, shortest_, depth_);
             // search in the table's metatable too
             if (lua_getmetatable(L_, -1)) {                                                        // L_: o "r" {c} {fqn} ... {?} k {} {mt}
                 if (lua_istable(L_, -1)) {
                     ++depth_;
                     lua_pushliteral(L_, "__metatable");                                            // L_: o "r" {c} {fqn} ... {?} k {} {mt} "__metatable"
-                    lua_rawseti(L_, fqn, depth_);                                                  // L_: o "r" {c} {fqn} ... {?} k {} {mt}
-                    shortest_ = discover_object_name_recur(L_, shortest_, depth_);
+                    lua_rawseti(L_, kFQN, depth_);                                                 // L_: o "r" {c} {fqn} ... {?} k {} {mt}
+                    shortest_ = DiscoverObjectNameRecur(L_, shortest_, depth_);
                     lua_pushnil(L_);                                                               // L_: o "r" {c} {fqn} ... {?} k {} {mt} nil
-                    lua_rawseti(L_, fqn, depth_);                                                  // L_: o "r" {c} {fqn} ... {?} k {} {mt}
+                    lua_rawseti(L_, kFQN, depth_);                                                 // L_: o "r" {c} {fqn} ... {?} k {} {mt}
                     --depth_;
                 }
                 lua_pop(L_, 1);                                                                    // L_: o "r" {c} {fqn} ... {?} k {}
@@ -793,10 +785,10 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
                 if (lua_istable(L_, -1)) {
                     ++depth_;
                     lua_pushliteral(L_, "__metatable");                                            // L_: o "r" {c} {fqn} ... {?} k U {mt} "__metatable"
-                    lua_rawseti(L_, fqn, depth_);                                                  // L_: o "r" {c} {fqn} ... {?} k U {mt}
-                    shortest_ = discover_object_name_recur(L_, shortest_, depth_);
+                    lua_rawseti(L_, kFQN, depth_);                                                 // L_: o "r" {c} {fqn} ... {?} k U {mt}
+                    shortest_ = DiscoverObjectNameRecur(L_, shortest_, depth_);
                     lua_pushnil(L_);                                                               // L_: o "r" {c} {fqn} ... {?} k U {mt} nil
-                    lua_rawseti(L_, fqn, depth_);                                                  // L_: o "r" {c} {fqn} ... {?} k U {mt}
+                    lua_rawseti(L_, kFQN, depth_);                                                 // L_: o "r" {c} {fqn} ... {?} k U {mt}
                     --depth_;
                 }
                 lua_pop(L_, 1); // L_: o "r" {c} {fqn} ... {?} k U
@@ -809,10 +801,10 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
                     if (lua_istable(L_, -1)) { // if it is a table, look inside
                         ++depth_;
                         lua_pushliteral(L_, "uservalue");                                          // L_: o "r" {c} {fqn} ... {?} k v {u} "uservalue"
-                        lua_rawseti(L_, fqn, depth_);                                              // L_: o "r" {c} {fqn} ... {?} k v {u}
-                        shortest_ = discover_object_name_recur(L_, shortest_, depth_);
+                        lua_rawseti(L_, kFQN, depth_);                                             // L_: o "r" {c} {fqn} ... {?} k v {u}
+                        shortest_ = DiscoverObjectNameRecur(L_, shortest_, depth_);
                         lua_pushnil(L_);                                                           // L_: o "r" {c} {fqn} ... {?} k v {u} nil
-                        lua_rawseti(L_, fqn, depth_);                                              // L_: o "r" {c} {fqn} ... {?} k v {u}
+                        lua_rawseti(L_, kFQN, depth_);                                             // L_: o "r" {c} {fqn} ... {?} k v {u}
                         --depth_;
                     }
                     lua_pop(L_, 1);                                                                // L_: o "r" {c} {fqn} ... {?} k U
@@ -828,7 +820,7 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
         lua_pop(L_, 1);                                                                            // L_: o "r" {c} {fqn} ... {?} k
         // remove name from fqn stack
         lua_pushnil(L_);                                                                           // L_: o "r" {c} {fqn} ... {?} k nil
-        lua_rawseti(L_, fqn, depth_);                                                              // L_: o "r" {c} {fqn} ... {?} k
+        lua_rawseti(L_, kFQN, depth_);                                                             // L_: o "r" {c} {fqn} ... {?} k
         STACK_CHECK(L_, 1);
         --depth_;
     }                                                                                              // L_: o "r" {c} {fqn} ... {?}
@@ -836,14 +828,14 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
     // remove the visited table from the cache, in case a shorter path to the searched object exists
     lua_pushvalue(L_, -1);                                                                         // L_: o "r" {c} {fqn} ... {?} {?}
     lua_pushnil(L_);                                                                               // L_: o "r" {c} {fqn} ... {?} {?} nil
-    lua_rawset(L_, cache);                                                                         // L_: o "r" {c} {fqn} ... {?}
+    lua_rawset(L_, kCache);                                                                        // L_: o "r" {c} {fqn} ... {?}
     STACK_CHECK(L_, 0);
     return shortest_;
 }
 
 // #################################################################################################
 
-// "type", "name" = lanes.nameof( o)
+// "type", "name" = lanes.nameof(o)
 int luaG_nameof(lua_State* L_)
 {
     int const what{ lua_gettop(L_) };
@@ -863,20 +855,21 @@ int luaG_nameof(lua_State* L_)
     // this slot will contain the shortest name we found when we are done
     lua_pushnil(L_);                                                                               // L_: o nil
     // push a cache that will contain all already visited tables
-    lua_newtable(L_); // o nil {c}
+    lua_newtable(L_);                                                                              // L_: o nil {c}
     // push a table whose contents are strings that, when concatenated, produce unique name
     lua_newtable(L_);                                                                              // L_: o nil {c} {fqn}
+    // {fqn}[1] = "_G"
     lua_pushliteral(L_, "_G");                                                                     // L_: o nil {c} {fqn} "_G"
     lua_rawseti(L_, -2, 1);                                                                        // L_: o nil {c} {fqn}
     // this is where we start the search
     lua_pushglobaltable(L_);                                                                       // L_: o nil {c} {fqn} _G
-    std::ignore = discover_object_name_recur(L_, 6666, 1);
+    std::ignore = DiscoverObjectNameRecur(L_, 6666, 1);
     if (lua_isnil(L_, 2)) { // try again with registry, just in case...
         lua_pop(L_, 1);                                                                            // L_: o nil {c} {fqn}
         lua_pushliteral(L_, "_R");                                                                 // L_: o nil {c} {fqn} "_R"
         lua_rawseti(L_, -2, 1);                                                                    // L_: o nil {c} {fqn}
         lua_pushvalue(L_, LUA_REGISTRYINDEX);                                                      // L_: o nil {c} {fqn} _R
-        (void) discover_object_name_recur(L_, 6666, 1);
+        std::ignore = DiscoverObjectNameRecur(L_, 6666, 1);
     }
     lua_pop(L_, 3);                                                                                // L_: o "result"
     STACK_CHECK(L_, 1);
@@ -892,7 +885,7 @@ void InterCopyContext::lookup_native_func() const
 {
     // get the name of the function we want to send
     size_t len;
-    char const* fqn = find_lookup_name(L1, L1_i, mode, name, &len);
+    char const* const fqn{ find_lookup_name(L1, L1_i, mode, name, &len) };
     // push the equivalent function in the destination's stack, retrieved from the lookup table
     STACK_CHECK_START_REL(L2, 0);
     STACK_GROW(L2, 3); // up to 3 slots are necessary on error
@@ -917,12 +910,11 @@ void InterCopyContext::lookup_native_func() const
         // nil means we don't know how to transfer stuff: user should do something
         // anything other than function or table should not happen!
         if (!lua_isfunction(L2, -1) && !lua_istable(L2, -1)) {
-            char const *from, *to;
             lua_getglobal(L1, "decoda_name");                                                      // L1: ... f ... decoda_name
-            from = lua_tostring(L1, -1);
+            char const* const from{ lua_tostring(L1, -1) };
             lua_pop(L1, 1);                                                                        // L1: ... f ...
             lua_getglobal(L2, "decoda_name");                                                      // L1: ... f ...                                  L2: {} f decoda_name
-            to = lua_tostring(L2, -1);
+            char const* const to{ lua_tostring(L2, -1) };
             lua_pop(L2, 1); // L2: {} f
             // when mode_ == LookupMode::FromKeeper, L is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
             raise_luaL_error(
@@ -985,13 +977,13 @@ static char const* vt_names[] = {
 // we have to do it that way because we can't unbalance the stack between buffer operations
 // namely, this means we can't push a function on top of the stack *after* we initialize the buffer!
 // luckily, this also works with earlier Lua versions
-[[nodiscard]] static int buf_writer(lua_State* L_, void const* b, size_t size, void* ud)
+[[nodiscard]] static int buf_writer(lua_State* L_, void const* b_, size_t size_, void* ud_)
 {
-    luaL_Buffer* B = (luaL_Buffer*) ud;
+    luaL_Buffer* const B{ static_cast<luaL_Buffer*>(ud_) };
     if (!B->L) {
         luaL_buffinit(L_, B);
     }
-    luaL_addlstring(B, (char const*) b, size);
+    luaL_addlstring(B, static_cast<char const*>(b_), size_);
     return 0;
 }
 
@@ -1118,18 +1110,16 @@ void InterCopyContext::copy_func() const
         STACK_CHECK(L1, 0);
 
         // Set upvalues (originally set to 'nil' by 'lua_load')
-        {
-            for (int const func_index{ lua_gettop(L2) - n }; n > 0; --n) {
-                char const* rc{ lua_setupvalue(L2, func_index, n) };                               //                                                L2: ... {cache} ... function
-                //
-                // "assigns the value at the top of the stack to the upvalue and returns its name.
-                // It also pops the value from the stack."
+        for (int const func_index{ lua_gettop(L2) - n }; n > 0; --n) {
+            char const* rc{ lua_setupvalue(L2, func_index, n) };                                   //                                                L2: ... {cache} ... function
+            //
+            // "assigns the value at the top of the stack to the upvalue and returns its name.
+            // It also pops the value from the stack."
 
-                LUA_ASSERT(L1, rc); // not having enough slots?
-            }
-            // once all upvalues have been set we are left
-            // with the function at the top of the stack                                           //                                                L2: ... {cache} ... function
+            LUA_ASSERT(L1, rc); // not having enough slots?
         }
+        // once all upvalues have been set we are left
+        // with the function at the top of the stack                                               //                                                L2: ... {cache} ... function
     }
     STACK_CHECK(L1, 0);
 }
@@ -1152,9 +1142,8 @@ void InterCopyContext::copy_cached_func() const
         //
         STACK_CHECK_START_REL(L2, 0);
 
-        // We don't need to use the from state ('L') in ID since the life span
+        // We don't need to use the from state ('L1') in ID since the life span
         // is only for the duration of a copy (both states are locked).
-        //
 
         // push a light userdata uniquely representing the function
         lua_pushlightuserdata(L2, aspointer);                                                      //                                                L2: ... {cache} ... p
@@ -1294,7 +1283,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::copyClonable() const
+[[nodiscard]] bool InterCopyContext::tryCopyClonable() const
 {
     SourceIndex const L1_i{ lua_absindex(L1, this->L1_i) };
     void* const source{ lua_touserdata(L1, L1_i) };
@@ -1407,7 +1396,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     }
 
     // try clonable userdata first
-    if (copyClonable()) {
+    if (tryCopyClonable()) {
         STACK_CHECK(L1, 0);
         STACK_CHECK(L2, 1);
         return true;
@@ -1418,7 +1407,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 
     // Allow only deep userdata entities to be copied across
     DEBUGSPEW_CODE(fprintf(stderr, "USERDATA\n"));
-    if (copyDeep()) {
+    if (tryCopyDeep()) {
         STACK_CHECK(L1, 0);
         STACK_CHECK(L2, 1);
         return true;
@@ -1564,7 +1553,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
      * Note: Even metatables need to go through this test; to detect
      *       loops such as those in required module tables (getmetatable(lanes).lanes == lanes)
      */
-    if (push_cached_table(L2, L2_cache_i, L1, L1_i)) {
+    if (push_cached_table()) {
         LUA_ASSERT(L1, lua_istable(L2, -1)); // from cache
         return true;
     }

@@ -66,6 +66,7 @@ class DeepFactory
     DeepFactory& operator=(DeepFactory const&&) = delete;
 
     private:
+    void storeDeepLookup(lua_State* L_) const;
     // NVI: private overrides
     [[nodiscard]] virtual DeepPrelude* newDeepObjectInternal(lua_State* L_) const = 0;
     virtual void deleteDeepObjectInternal(lua_State* L_, DeepPrelude* o_) const = 0;

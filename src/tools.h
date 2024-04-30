@@ -53,10 +53,11 @@ class InterCopyContext
     // for use in inter_copy_table
     void inter_copy_keyvaluepair() const;
     [[nodiscard]] bool push_cached_metatable() const;
+    [[nodiscard]] bool push_cached_table() const;
 
     // for use in inter_copy_userdata
-    [[nodiscard]] bool copyClonable() const;
-    [[nodiscard]] bool copyDeep() const;
+    [[nodiscard]] bool tryCopyClonable() const;
+    [[nodiscard]] bool tryCopyDeep() const;
 
     // copying a single Lua stack item
     [[nodiscard]] bool inter_copy_boolean() const;
