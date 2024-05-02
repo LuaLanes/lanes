@@ -100,6 +100,25 @@ inline int lua504_dump(lua_State* L_, lua_Writer writer_, void* data_, [[maybe_u
 
 // #################################################################################################
 
+#if LUA_VERSION_NUM < 503
+// starting with Lua 5.3, lua_getfield returns the type of the value it found
+inline int lua503_getfield(lua_State* L_, int idx_, char const* k_)
+{
+    lua_getfield(L_, idx_, k_);
+    return lua_type(L_, -1);
+}
+
+#else // LUA_VERSION_NUM >= 503
+
+inline int lua503_getfield(lua_State* L_, int idx_, char const* k_)
+{
+    return lua_getfield(L_, idx_, k_);
+}
+
+#endif // LUA_VERSION_NUM >= 503
+
+// #################################################################################################
+
 // wrap Lua 5.3 calls under Lua 5.1 API when it is simpler that way
 #if LUA_VERSION_NUM == 503
 
@@ -199,3 +218,5 @@ inline char const* lua_typename(lua_State* L_, LuaType t_)
 {
     return lua_typename(L_, static_cast<int>(t_));
 }
+
+int luaG_getpackage(lua_State* L_);

@@ -1826,12 +1826,11 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         STACK_CHECK(L1, 1);
         // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
         if (mode == LookupMode::LaneBody) {
-            raise_lua_error(getErrL());
+            raise_lua_error(getErrL()); // that's ok, getErrL() is L1 in that case
         }
         return InterCopyResult::Error;
     }
-    lua_getglobal(L2, "package"); // TODO: use _R._LOADED.package instead of _G.package
-    if (lua_isnil(L2, -1)) { // package library not loaded: do nothing
+    if (luaG_getpackage(L2) == LUA_TNIL) { // package library not loaded: do nothing
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "'package' not loaded, nothing to do\n" INDENT_END(U)));
         STACK_CHECK(L1, 0);
         return InterCopyResult::Success;

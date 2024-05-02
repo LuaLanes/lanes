@@ -651,15 +651,14 @@ void init_keepers(Universe* U_, lua_State* L_)
 
         // make sure 'package' is initialized in keeper states, so that we have require()
         // this because this is needed when transferring deep userdata object
-        luaL_requiref(K, "package", luaopen_package, 1);                                           // L_: settings                                    K: package
+        luaL_requiref(K, LUA_LOADLIBNAME, luaopen_package, 1);                                     // L_: settings                                    K: package
         lua_pop(K, 1);                                                                             // L_: settings                                    K:
         STACK_CHECK(K, 0);
         serialize_require(DEBUGSPEW_PARAM_COMMA(U_) K);
         STACK_CHECK(K, 0);
 
-        // copy package.path and package.cpath from the source state (TODO: use _R._LOADED.package instead of _G.package)
-        lua_getglobal(L_, "package");                                                              // L_: settings package                            K:
-        if (!lua_isnil(L_, -1)) {
+        // copy package.path and package.cpath from the source state
+        if (luaG_getpackage(L_) != LUA_TNIL) {                                                     // L_: settings package                            K:
             // when copying with mode LookupMode::ToKeeper, error message is pushed at the top of the stack, not raised immediately
             InterCopyContext c{ U_, DestState{ K }, SourceState{ L_ }, {}, SourceIndex{ lua_absindex(L_, -1) }, {}, LookupMode::ToKeeper, {} };
             if (c.inter_copy_package() != InterCopyResult::Success) {                              // L_: settings ... error_msg                      K:

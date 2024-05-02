@@ -6,6 +6,23 @@
 #include "macros_and_utils.h"
 
 // #################################################################################################
+
+// a small helper to obtain the "package" module table from the registry instead of relying on the presence of _G.package
+int luaG_getpackage(lua_State* L_)
+{
+    STACK_CHECK_START_REL(L_, 0);
+    int type{ lua503_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE) };                          // L_: _R._LOADED|nil
+    if (type != LUA_TTABLE) {                                                                      // L_: _R._LOADED|nil
+        STACK_CHECK(L_, 1);
+        return type;
+    }
+    type = lua503_getfield(L_, -1, LUA_LOADLIBNAME);                                               // L_: _R._LOADED package|nil
+    lua_remove(L_, -2);                                                                            // L_: package|nil
+    STACK_CHECK(L_, 1);
+    return type;
+}
+
+// #################################################################################################
 // #################################################################################################
 #if LUA_VERSION_NUM == 501
 // #################################################################################################
@@ -71,7 +88,7 @@ int lua_getiuservalue(lua_State* L_, int idx_, int n_)
 
 #if LUA_VERSION_NUM == 501
     /* default environment is not a nil (see lua_getfenv) */
-    lua_getglobal(L_, "package");
+    lua_getglobal(L_, LUA_LOADLIBNAME);
     if (lua_rawequal(L_, -2, -1) || lua_rawequal(L_, -2, LUA_GLOBALSINDEX)) {
         lua_pop(L_, 2);
         lua_pushnil(L_);
