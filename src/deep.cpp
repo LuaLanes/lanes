@@ -381,7 +381,7 @@ DeepPrelude* DeepFactory::toDeep(lua_State* L_, int index_) const
     STACK_CHECK_START_REL(L1, 0);
     STACK_CHECK_START_REL(L2, 0);
 
-    // extract all uservalues of the source
+    // extract all uservalues of the source. unfortunately, the only way to know their count is to iterate until we fail
     int nuv = 0;
     while (lua_getiuservalue(L1, L1_i, nuv + 1) != LUA_TNONE) {                                    // L1: ... u [uv]* nil
         ++nuv;
@@ -391,7 +391,10 @@ DeepPrelude* DeepFactory::toDeep(lua_State* L_, int index_) const
     STACK_CHECK(L1, nuv);
 
     DeepPrelude* const u{ *lua_tofulluserdata<DeepPrelude*>(L1, L1_i) };
-    char const* errmsg{ DeepFactory::PushDeepProxy(L2, u, nuv, mode) };                            //                                               L2: u
+    char const* errmsg{ DeepFactory::PushDeepProxy(L2, u, nuv, mode) };                            // L1: ... u [uv]*                               L2: u
+    if (errmsg != nullptr) {
+        raise_luaL_error(getErrL(), errmsg);
+    }
 
     // transfer all uservalues of the source in the destination
     {
@@ -399,8 +402,8 @@ DeepPrelude* DeepFactory::toDeep(lua_State* L_, int index_) const
         int const clone_i{ lua_gettop(L2) };
         while (nuv) {
             c.L1_i = SourceIndex{ lua_absindex(L1, -1) };
-            if (!c.inter_copy_one()) {                                                             //                                               L2: u uv
-                raise_luaL_error(L1, "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
+            if (!c.inter_copy_one()) {                                                             // L1: ... u [uv]*                               L2: u uv
+                raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
             }
             lua_pop(L1, 1);                                                                        // L1: ... u [uv]*
             // this pops the value from the stack
@@ -412,10 +415,5 @@ DeepPrelude* DeepFactory::toDeep(lua_State* L_, int index_) const
     STACK_CHECK(L2, 1);
     STACK_CHECK(L1, 0);
 
-    if (errmsg != nullptr) {
-        // raise the error in the proper state (not the keeper)
-        lua_State* const errL{ (mode == LookupMode::FromKeeper) ? L2 : L1 };
-        raise_luaL_error(errL, errmsg);
-    }
     return true;
 }

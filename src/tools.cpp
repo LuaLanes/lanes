@@ -616,7 +616,7 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
     STACK_GROW(L2, 3); // up to 3 slots are necessary on error
     switch (mode) {
     default: // shouldn't happen, in theory...
-        raise_luaL_error(L1, "internal error: unknown lookup mode");
+        raise_luaL_error(getErrL(), "internal error: unknown lookup mode");
         break;
 
     case LookupMode::ToKeeper:
@@ -646,9 +646,8 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
             lua_getglobal(L2, "decoda_name");                                                      // L1: ... t ...                                  L2: {} t decoda_name
             to = lua_tostring(L2, -1);
             lua_pop(L2, 1);                                                                        // L1: ... t ...                                  L2: {} t
-            // when mode_ == LookupMode::FromKeeper, L1 is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
             raise_luaL_error(
-                (mode == LookupMode::FromKeeper) ? L2 : L1,
+                getErrL(),
                 "INTERNAL ERROR IN %s: table '%s' not found in %s destination transfer database.",
                 from ? from : "main",
                 fqn,
@@ -889,7 +888,7 @@ void InterCopyContext::lookup_native_func() const
     STACK_GROW(L2, 3); // up to 3 slots are necessary on error
     switch (mode) {
     default: // shouldn't happen, in theory...
-        raise_luaL_error(L1, "internal error: unknown lookup mode");
+        raise_luaL_error(getErrL(), "internal error: unknown lookup mode");
         break;
 
     case LookupMode::ToKeeper:
@@ -916,7 +915,7 @@ void InterCopyContext::lookup_native_func() const
             lua_pop(L2, 1); // L2: {} f
             // when mode_ == LookupMode::FromKeeper, L is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
             raise_luaL_error(
-                (mode == LookupMode::FromKeeper) ? L2 : L1
+                getErrL()
                 , "%s%s: function '%s' not found in %s destination transfer database."
                 , lua_isnil(L2, -1) ? "" : "INTERNAL ERROR IN "
                 , from ? from : "main"
@@ -1010,7 +1009,7 @@ void InterCopyContext::copy_func() const
     luaL_Buffer B;
     B.L = nullptr;
     if (lua504_dump(L1, buf_writer, &B, 0) != 0) {
-        raise_luaL_error(L1, "internal error: function dump failed.");
+        raise_luaL_error(getErrL(), "internal error: function dump failed.");
     }
 
     // pushes dumped string on 'L1'
@@ -1054,7 +1053,7 @@ void InterCopyContext::copy_func() const
                 // "Otherwise, it pushes an error message"
                 //
                 STACK_GROW(L1, 1);
-                raise_luaL_error(L1, "%s: %s", fname, lua_tostring(L2, -1));
+                raise_luaL_error(getErrL(), "%s: %s", fname, lua_tostring(L2, -1));
             }
             // remove the dumped string
             lua_pop(L1, 1); // ...
@@ -1094,7 +1093,7 @@ void InterCopyContext::copy_func() const
                     DEBUGSPEW_CODE(fprintf(stderr, "copying value\n"));
                     c.L1_i = SourceIndex{ lua_gettop(L1) };
                     if (!c.inter_copy_one()) {                                                     //                                                L2: ... {cache} ... function <upvalues>
-                        raise_luaL_error(L1, "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
+                        raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
                     }
                 }
                 lua_pop(L1, 1);                                                                    // L1: ... _G
@@ -1196,7 +1195,7 @@ void InterCopyContext::copy_cached_func() const
         lua_pop(L2, 1);                                                                            //                                                L2: _R[kMtIdRegKey]
         InterCopyContext const c{ U, L2, L1, L2_cache_i, SourceIndex{ lua_gettop(L1) }, VT::METATABLE, mode, name };
         if (!c.inter_copy_one()) {                                                                 //                                                L2: _R[kMtIdRegKey] mt?
-            raise_luaL_error(L1, "Error copying a metatable");
+            raise_luaL_error(getErrL(), "Error copying a metatable");
         }
 
         STACK_CHECK(L2, 2);                                                                        //                                                L2: _R[kMtIdRegKey] mt
@@ -1275,7 +1274,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         LUA_ASSERT(L1, lua_istable(L2, -3));
         lua_rawset(L2, -3); // add to table (pops key & val)
     } else {
-        raise_luaL_error(L1, "Unable to copy %s entry '%s' because of value is of type '%s'", (vt == VT::NORMAL) ? "table" : "metatable", valPath, luaL_typename(L1, val_i));
+        raise_luaL_error(getErrL(), "Unable to copy %s entry '%s' because of value is of type '%s'", (vt == VT::NORMAL) ? "table" : "metatable", valPath, luaL_typename(L1, val_i));
     }
 }
 
@@ -1342,7 +1341,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
             }
             STACK_CHECK(L2, 1);
         } else {
-            raise_luaL_error(L1, "Error copying a metatable");
+            raise_luaL_error(getErrL(), "Error copying a metatable");
         }
         // first, add the entry in the cache (at this point it is either the actual userdata or the keeper sentinel
         lua_pushlightuserdata(L2, source);                                                         //                                                L2: ... u source
@@ -1356,7 +1355,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         while (uvi > 0) {
             c.L1_i = SourceIndex{ lua_absindex(L1, -1) };
             if (!c.inter_copy_one()) {                                                             //                                                L2: ... u uv
-                raise_luaL_error(L1, "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
+                raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
             }
             lua_pop(L1, 1);                                                                        // L1: ... mt __lanesclone [uv]*
             // this pops the value from the stack
@@ -1419,7 +1418,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         void* const lud{ lua_touserdata(L1, L1_i) };
         lua_pushlightuserdata(L2, lud);
     } else { // raise an error
-        raise_luaL_error(L1, "can't copy non-deep full userdata across lanes");
+        raise_luaL_error(getErrL(), "can't copy non-deep full userdata across lanes");
     }
 
     STACK_CHECK(L2, 1);
@@ -1489,7 +1488,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
             while (uvi > 0) {
                 c.L1_i = SourceIndex{ lua_absindex(L1, -1) };
                 if (!c.inter_copy_one()) {                                                         //                                                L2: ... mt u uv
-                    raise_luaL_error(L1, "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
+                    raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
                 }
                 lua_pop(L1, 1);                                                                    // L1: ... u [uv]*
                 // this pops the value from the stack
@@ -1827,7 +1826,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         STACK_CHECK(L1, 1);
         // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
         if (mode == LookupMode::LaneBody) {
-            raise_lua_error(L1);
+            raise_lua_error(getErrL());
         }
         return InterCopyResult::Error;
     }
@@ -1864,7 +1863,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
                 lua_pushfstring(L1, "failed to copy package entry %s", entry);
                 // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
                 if (mode == LookupMode::LaneBody) {
-                    raise_lua_error(L1);
+                    raise_lua_error(getErrL());
                 }
                 lua_pop(L1, 1);
                 break;
