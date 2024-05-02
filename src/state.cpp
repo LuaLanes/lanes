@@ -64,10 +64,10 @@ THE SOFTWARE.
     // Using 'lua_pcall()' to catch errors; otherwise a failing 'require' would
     // leave us locked, blocking any future 'require' calls from other lanes.
 
-    U->require_cs.lock();
+    U->requireMutex.lock();
     // starting with Lua 5.4, require may return a second optional value, so we need LUA_MULTRET
     rc = lua_pcall(L_, args, LUA_MULTRET, 0 /*errfunc*/);                                          // L_: err|result(s)
-    U->require_cs.unlock();
+    U->requireMutex.unlock();
 
     // the required module (or an error message) is left on the stack as returned value by original require function
 
@@ -205,14 +205,14 @@ static void copy_one_time_settings(Universe* U_, SourceState L1_, DestState L2_)
 
 // #################################################################################################
 
-void initialize_on_state_create(Universe* U_, lua_State* L_)
+void initializeOnStateCreate(Universe* U_, lua_State* L_)
 {
     STACK_CHECK_START_REL(L_, 1);                                                                  // L_: settings
     lua_getfield(L_, -1, "on_state_create");                                                       // L_: settings on_state_create|nil
     if (!lua_isnil(L_, -1)) {
         // store C function pointer in an internal variable
-        U_->on_state_create_func = lua_tocfunction(L_, -1);                                        // L_: settings on_state_create
-        if (U_->on_state_create_func != nullptr) {
+        U_->onStateCreateFunc = lua_tocfunction(L_, -1);                                           // L_: settings on_state_create
+        if (U_->onStateCreateFunc != nullptr) {
             // make sure the function doesn't have upvalues
             char const* upname = lua_getupvalue(L_, -1, 1);                                        // L_: settings on_state_create upval?
             if (upname != nullptr) { // should be "" for C functions with upvalues if any
@@ -224,7 +224,7 @@ void initialize_on_state_create(Universe* U_, lua_State* L_)
             lua_setfield(L_, -3, "on_state_create");                                               // L_: settings on_state_create
         } else {
             // optim: store marker saying we have such a function in the config table
-            U_->on_state_create_func = (lua_CFunction) initialize_on_state_create;
+            U_->onStateCreateFunc = reinterpret_cast<lua_CFunction>(initializeOnStateCreate);
         }
     }
     lua_pop(L_, 1);                                                                                // L_: settings
@@ -240,17 +240,17 @@ lua_State* create_state(Universe* U_, lua_State* from_)
     // for some reason, LuaJIT 64 bits does not support creating a state with lua_newstate...
     L = luaL_newstate();
 #else  // LUAJIT_FLAVOR() == 64
-    if (U_->provide_allocator != nullptr) { // we have a function we can call to obtain an allocator
-        lua_pushcclosure(from_, U_->provide_allocator, 0);
+    if (U_->provideAllocator != nullptr) { // we have a function we can call to obtain an allocator
+        lua_pushcclosure(from_, U_->provideAllocator, 0);
         lua_call(from_, 0, 1);
         {
             AllocatorDefinition* const def{ lua_tofulluserdata<AllocatorDefinition>(from_, -1) };
-            L = lua_newstate(def->m_allocF, def->m_allocUD);
+            L = lua_newstate(def->allocF, def->allocUD);
         }
         lua_pop(from_, 1);
     } else {
         // reuse the allocator provided when the master state was created
-        L = lua_newstate(U_->protected_allocator.m_allocF, U_->protected_allocator.m_allocUD);
+        L = lua_newstate(U_->protectedAllocator.allocF, U_->protectedAllocator.allocUD);
     }
 #endif // LUAJIT_FLAVOR() == 64
 
@@ -262,14 +262,14 @@ lua_State* create_state(Universe* U_, lua_State* from_)
 
 // #################################################################################################
 
-void call_on_state_create(Universe* U_, lua_State* L_, lua_State* from_, LookupMode mode_)
+void callOnStateCreate(Universe* U_, lua_State* L_, lua_State* from_, LookupMode mode_)
 {
-    if (U_->on_state_create_func != nullptr) {
+    if (U_->onStateCreateFunc != nullptr) {
         STACK_CHECK_START_REL(L_, 0);
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "calling on_state_create()\n" INDENT_END(U_)));
-        if (U_->on_state_create_func != (lua_CFunction) initialize_on_state_create) {
+        if (U_->onStateCreateFunc != reinterpret_cast<lua_CFunction>(initializeOnStateCreate)) {
             // C function: recreate a closure in the new state, bypassing the lookup scheme
-            lua_pushcfunction(L_, U_->on_state_create_func); // on_state_create()
+            lua_pushcfunction(L_, U_->onStateCreateFunc); // on_state_create()
         } else { // Lua function located in the config table, copied when we opened "lanes.core"
             if (mode_ != LookupMode::LaneBody) {
                 // if attempting to call in a keeper state, do nothing because the function doesn't exist there
@@ -323,7 +323,7 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
     STACK_CHECK(L, 0);
 
     // neither libs (not even 'base') nor special init func: we are done
-    if (libs_ == nullptr && U_->on_state_create_func == nullptr) {
+    if (libs_ == nullptr && U_->onStateCreateFunc == nullptr) {
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "luaG_newstate(nullptr)\n" INDENT_END(U_)));
         return L;
     }
@@ -384,7 +384,7 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
 
     // call this after the base libraries are loaded and GC is restarted
     // will raise an error in from_ in case of problem
-    call_on_state_create(U_, L, from_, LookupMode::LaneBody);
+    callOnStateCreate(U_, L, from_, LookupMode::LaneBody);
 
     STACK_CHECK(L, 0);
     // after all this, register everything we find in our name<->function database
@@ -398,7 +398,7 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
     lua_pushnil(L);                                                                                // L: {} nil
     while (lua_next(L, -2)) {                                                                      // L: {} k v
         lua_getglobal(L, "print");                                                                 // L: {} k v print
-        int const indent{ U_->debugspew_indent_depth.load(std::memory_order_relaxed) };
+        int const indent{ U_->debugspewIndentDepth.load(std::memory_order_relaxed) };
         lua_pushlstring(L, DebugSpewIndentScope::debugspew_indent, indent);                        // L: {} k v print " "
         lua_pushvalue(L, -4);                                                                      // L: {} k v print " " k
         lua_pushvalue(L, -4);                                                                      // L: {} k v print " " k v

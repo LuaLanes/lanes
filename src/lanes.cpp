@@ -106,7 +106,7 @@ THE SOFTWARE.
 #if HAVE_LANE_TRACKING()
 
 // The chain is ended by '(Lane*)(-1)', not nullptr:
-// 'tracking_first -> ... -> ... -> (-1)'
+// 'trackingFirst -> ... -> ... -> (-1)'
 #define TRACKING_END ((Lane*) (-1))
 
 /*
@@ -115,11 +115,11 @@ THE SOFTWARE.
  */
 static void tracking_add(Lane* lane_)
 {
-    std::lock_guard<std::mutex> guard{ lane_->U->tracking_cs };
+    std::lock_guard<std::mutex> guard{ lane_->U->trackingMutex };
     assert(lane_->tracking_next == nullptr);
 
-    lane_->tracking_next = lane_->U->tracking_first;
-    lane_->U->tracking_first = lane_;
+    lane_->tracking_next = lane_->U->trackingFirst;
+    lane_->U->trackingFirst = lane_;
 }
 
 // #################################################################################################
@@ -130,13 +130,13 @@ static void tracking_add(Lane* lane_)
 [[nodiscard]] static bool tracking_remove(Lane* lane_)
 {
     bool found{ false };
-    std::lock_guard<std::mutex> guard{ lane_->U->tracking_cs };
+    std::lock_guard<std::mutex> guard{ lane_->U->trackingMutex };
     // Make sure (within the MUTEX) that we actually are in the chain
     // still (at process exit they will remove us from chain and then
     // cancel/kill).
     //
     if (lane_->tracking_next != nullptr) {
-        Lane** ref = (Lane**) &lane_->U->tracking_first;
+        Lane** ref = (Lane**) &lane_->U->trackingFirst;
 
         while (*ref != TRACKING_END) {
             if (*ref == lane_) {
@@ -161,7 +161,7 @@ Lane::Lane(Universe* U_, lua_State* L_)
 , L{ L_ }
 {
 #if HAVE_LANE_TRACKING()
-    if (U->tracking_first) {
+    if (U->trackingFirst) {
         tracking_add(this);
     }
 #endif // HAVE_LANE_TRACKING()
@@ -176,10 +176,10 @@ bool Lane::waitForCompletion(lua_Duration duration_)
         until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration_);
     }
 
-    std::unique_lock lock{ done_mutex };
+    std::unique_lock lock{ doneMutex };
     // std::stop_token token{ thread.get_stop_token() };
-    // return done_signal.wait_until(lock, token, secs_, [this](){ return status >= Lane::Done; });
-    return done_signal.wait_until(lock, until, [this]() { return status >= Lane::Done; });
+    // return doneCondVar.wait_until(lock, token, secs_, [this](){ return status >= Lane::Done; });
+    return doneCondVar.wait_until(lock, until, [this]() { return status >= Lane::Done; });
 }
 
 // #################################################################################################
@@ -189,7 +189,7 @@ void Lane::startThread(int priority_)
 {
     thread = std::jthread([this]() { lane_main(this); });
     if (priority_ != kThreadPrioDefault) {
-        JTHREAD_SET_PRIORITY(thread, priority_, U->m_sudo);
+        JTHREAD_SET_PRIORITY(thread, priority_, U->sudo);
     }
 }
 
@@ -208,9 +208,9 @@ static void securize_debug_threadname(lua_State* L_, Lane* lane_)
     STACK_GROW(L_, 3);
     lua_getiuservalue(L_, 1, 1);
     lua_newtable(L_);
-    // Lua 5.1 can't do 'lane_->debug_name = lua_pushstring(L_, lane_->debug_name);'
-    lua_pushstring(L_, lane_->debug_name);
-    lane_->debug_name = lua_tostring(L_, -1);
+    // Lua 5.1 can't do 'lane_->debugName = lua_pushstring(L_, lane_->debugName);'
+    lua_pushstring(L_, lane_->debugName);
+    lane_->debugName = lua_tostring(L_, -1);
     lua_rawset(L_, -3);
     lua_pop(L_, 1);
     STACK_CHECK(L_, 0);
@@ -242,7 +242,7 @@ Lane::~Lane()
     // Clean up after a (finished) thread
     //
 #if HAVE_LANE_TRACKING()
-    if (U->tracking_first != nullptr) {
+    if (U->trackingFirst != nullptr) {
         // Lane was cleaned up, no need to handle at process termination
         std::ignore = tracking_remove(this);
     }
@@ -414,7 +414,7 @@ static void push_stack_trace(lua_State* L_, int rc_, int stk_base_)
 #define SELFDESTRUCT_END ((Lane*) (-1))
 //
 // The chain is ended by '(Lane*)(-1)', not nullptr:
-//      'selfdestruct_first -> ... -> ... -> (-1)'
+//      'selfdestructFirst -> ... -> ... -> (-1)'
 
 /*
  * Add the lane to selfdestruct chain; the ones still running at the end of the
@@ -422,11 +422,11 @@ static void push_stack_trace(lua_State* L_, int rc_, int stk_base_)
  */
 static void selfdestruct_add(Lane* lane_)
 {
-    std::lock_guard<std::mutex> guard{ lane_->U->selfdestruct_cs };
+    std::lock_guard<std::mutex> guard{ lane_->U->selfdestructMutex };
     assert(lane_->selfdestruct_next == nullptr);
 
-    lane_->selfdestruct_next = lane_->U->selfdestruct_first;
-    lane_->U->selfdestruct_first = lane_;
+    lane_->selfdestruct_next = lane_->U->selfdestructFirst;
+    lane_->U->selfdestructFirst = lane_;
 }
 
 // #################################################################################################
@@ -435,20 +435,20 @@ static void selfdestruct_add(Lane* lane_)
 [[nodiscard]] static bool selfdestruct_remove(Lane* lane_)
 {
     bool found{ false };
-    std::lock_guard<std::mutex> guard{ lane_->U->selfdestruct_cs };
+    std::lock_guard<std::mutex> guard{ lane_->U->selfdestructMutex };
     // Make sure (within the MUTEX) that we actually are in the chain
     // still (at process exit they will remove us from chain and then
     // cancel/kill).
     //
     if (lane_->selfdestruct_next != nullptr) {
-        Lane* volatile* ref = static_cast<Lane* volatile*>(&lane_->U->selfdestruct_first);
+        Lane* volatile* ref = static_cast<Lane* volatile*>(&lane_->U->selfdestructFirst);
 
         while (*ref != SELFDESTRUCT_END) {
             if (*ref == lane_) {
                 *ref = lane_->selfdestruct_next;
                 lane_->selfdestruct_next = nullptr;
                 // the terminal shutdown should wait until the lane is done with its lua_close()
-                lane_->U->selfdestructing_count.fetch_add(1, std::memory_order_release);
+                lane_->U->selfdestructingCount.fetch_add(1, std::memory_order_release);
                 found = true;
                 break;
             }
@@ -469,11 +469,11 @@ static void selfdestruct_add(Lane* lane_)
     [[maybe_unused]] char const* const op_string{ lua_tostring(L_, lua_upvalueindex(2)) };
     CancelOp const op{ which_cancel_op(op_string) };
 
-    if (U->selfdestruct_first != SELFDESTRUCT_END) {
+    if (U->selfdestructFirst != SELFDESTRUCT_END) {
         // Signal _all_ still running threads to exit (including the timer thread)
         {
-            std::lock_guard<std::mutex> guard{ U->selfdestruct_cs };
-            Lane* lane{ U->selfdestruct_first };
+            std::lock_guard<std::mutex> guard{ U->selfdestructMutex };
+            Lane* lane{ U->selfdestructFirst };
             lua_Duration timeout{ 1us };
             while (lane != SELFDESTRUCT_END) {
                 // attempt the requested cancel with a small timeout.
@@ -490,16 +490,16 @@ static void selfdestruct_add(Lane* lane_)
         {
             std::chrono::time_point<std::chrono::steady_clock> t_until{ std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(shutdown_timeout) };
 
-            while (U->selfdestruct_first != SELFDESTRUCT_END) {
+            while (U->selfdestructFirst != SELFDESTRUCT_END) {
                 // give threads time to act on their cancel
                 std::this_thread::yield();
                 // count the number of cancelled thread that didn't have the time to act yet
                 int n{ 0 };
                 {
-                    std::lock_guard<std::mutex> guard{ U->selfdestruct_cs };
-                    Lane* lane{ U->selfdestruct_first };
+                    std::lock_guard<std::mutex> guard{ U->selfdestructMutex };
+                    Lane* lane{ U->selfdestructFirst };
                     while (lane != SELFDESTRUCT_END) {
-                        if (lane->cancel_request != CancelRequest::None)
+                        if (lane->cancelRequest != CancelRequest::None)
                             ++n;
                         lane = lane->selfdestruct_next;
                     }
@@ -515,33 +515,33 @@ static void selfdestruct_add(Lane* lane_)
 
         // If some lanes are currently cleaning after themselves, wait until they are done.
         // They are no longer listed in the selfdestruct chain, but they still have to lua_close().
-        while (U->selfdestructing_count.load(std::memory_order_acquire) > 0) {
+        while (U->selfdestructingCount.load(std::memory_order_acquire) > 0) {
             std::this_thread::yield();
         }
     }
 
     // If after all this, we still have some free-running lanes, it's an external user error, they should have stopped appropriately
     {
-        std::lock_guard<std::mutex> guard{ U->selfdestruct_cs };
-        Lane* lane{ U->selfdestruct_first };
+        std::lock_guard<std::mutex> guard{ U->selfdestructMutex };
+        Lane* lane{ U->selfdestructFirst };
         if (lane != SELFDESTRUCT_END) {
             // this causes a leak because we don't call U's destructor (which could be bad if the still running lanes are accessing it)
-            raise_luaL_error(L_, "Zombie thread %s refuses to die!", lane->debug_name);
+            raise_luaL_error(L_, "Zombie thread %s refuses to die!", lane->debugName);
         }
     }
 
     // no need to mutex-protect this as all threads in the universe are gone at that point
-    if (U->timer_deep != nullptr) { // test ins case some early internal error prevented Lanes from creating the deep timer
-        [[maybe_unused]] int const prev_ref_count{ U->timer_deep->refcount.fetch_sub(1, std::memory_order_relaxed) };
+    if (U->timerLinda != nullptr) { // test in case some early internal error prevented Lanes from creating the deep timer
+        [[maybe_unused]] int const prev_ref_count{ U->timerLinda->refcount.fetch_sub(1, std::memory_order_relaxed) };
         LUA_ASSERT(L_, prev_ref_count == 1); // this should be the last reference
-        DeepFactory::DeleteDeepObject(L_, U->timer_deep);
-        U->timer_deep = nullptr;
+        DeepFactory::DeleteDeepObject(L_, U->timerLinda);
+        U->timerLinda = nullptr;
     }
 
     close_keepers(U);
 
     // remove the protected allocator, if any
-    U->protected_allocator.removeFrom(L_);
+    U->protectedAllocator.removeFrom(L_);
 
     U->Universe::~Universe();
 
@@ -701,9 +701,9 @@ LUAG_FUNC(set_debug_threadname)
     // store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...
     hidden_regkey.setValue(L_, [](lua_State* L_) { lua_pushvalue(L_, -2); });
     STACK_CHECK(L_, 1);
-    lane->debug_name = lua_tostring(L_, -1);
+    lane->debugName = lua_tostring(L_, -1);
     // keep a direct pointer on the string
-    THREAD_SETNAME(lane->debug_name);
+    THREAD_SETNAME(lane->debugName);
     // to see VM name in Decoda debugger Virtual Machine window
     lua_setglobal(L_, "decoda_name"); //
     STACK_CHECK(L_, 0);
@@ -716,7 +716,7 @@ LUAG_FUNC(get_debug_threadname)
 {
     Lane* const lane{ ToLane(L_, 1) };
     luaL_argcheck(L_, lua_gettop(L_) == 1, 2, "too many arguments");
-    lua_pushstring(L_, lane->debug_name);
+    lua_pushstring(L_, lane->debugName);
     return 1;
 }
 
@@ -731,7 +731,7 @@ LUAG_FUNC(set_thread_priority)
     if (prio < kThreadPrioMin || prio > kThreadPrioMax) {
         raise_luaL_error(L_, "priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, prio);
     }
-    THREAD_SET_PRIORITY(static_cast<int>(prio), universe_get(L_)->m_sudo);
+    THREAD_SET_PRIORITY(static_cast<int>(prio), universe_get(L_)->sudo);
     return 0;
 }
 
@@ -843,10 +843,10 @@ static void lane_main(Lane* lane_)
             // We're a free-running thread and no-one's there to clean us up.
             lua_close(lane_->L);
             lane_->L = nullptr; // just in case
-            lane_->U->selfdestruct_cs.lock();
+            lane_->U->selfdestructMutex.lock();
             // done with lua_close(), terminal shutdown sequence may proceed
-            lane_->U->selfdestructing_count.fetch_sub(1, std::memory_order_release);
-            lane_->U->selfdestruct_cs.unlock();
+            lane_->U->selfdestructingCount.fetch_sub(1, std::memory_order_release);
+            lane_->U->selfdestructMutex.unlock();
 
             // we destroy our jthread member from inside the thread body, so we have to detach so that we don't try to join, as this doesn't seem a good idea
             lane_->thread.detach();
@@ -860,10 +860,10 @@ static void lane_main(Lane* lane_)
         Lane::Status const st = (rc == LUA_OK) ? Lane::Done : kCancelError.equals(L, 1) ? Lane::Cancelled : Lane::Error;
 
         {
-            // 'done_mutex' protects the -> Done|Error|Cancelled state change
-            std::lock_guard lock{ lane_->done_mutex };
+            // 'doneMutex' protects the -> Done|Error|Cancelled state change
+            std::lock_guard lock{ lane_->doneMutex };
             lane_->status = st;
-            lane_->done_signal.notify_one(); // wake up master (while 'lane_->done_mutex' is on)
+            lane_->doneCondVar.notify_one(); // wake up master (while 'lane_->doneMutex' is on)
         }
     }
 }
@@ -994,9 +994,9 @@ LUAG_FUNC(lane_new)
                 lua_settop(m_lane->L, 0);
                 kCancelError.pushKey(m_lane->L);
                 {
-                    std::lock_guard lock{ m_lane->done_mutex };
+                    std::lock_guard lock{ m_lane->doneMutex };
                     m_lane->status = Lane::Cancelled;
-                    m_lane->done_signal.notify_one(); // wake up master (while 'lane->done_mutex' is on)
+                    m_lane->doneCondVar.notify_one(); // wake up master (while 'lane->doneMutex' is on)
                 }
                 // unblock the thread so that it can terminate gracefully
                 m_lane->ready.count_down();
@@ -1207,7 +1207,7 @@ LUAG_FUNC(lane_new)
     lua_rawget(L_, -2);                                                                            // L_: ud uservalue gc_cb|nil
     if (!lua_isnil(L_, -1)) {
         lua_remove(L_, -2);                                                                        // L_: ud gc_cb|nil
-        lua_pushstring(L_, lane->debug_name);                                                      // L_: ud gc_cb name
+        lua_pushstring(L_, lane->debugName);                                                       // L_: ud gc_cb name
         have_gc_cb = true;
     } else {
         lua_pop(L_, 2);                                                                            // L_: ud
@@ -1228,7 +1228,7 @@ LUAG_FUNC(lane_new)
         lua_close(lane->L);
         lane->L = nullptr;
         // just in case, but s will be freed soon so...
-        lane->debug_name = "<gc>";
+        lane->debugName = "<gc>";
     }
 
     // Clean up after a (finished) thread
@@ -1307,7 +1307,7 @@ LUAG_FUNC(thread_join)
 
     int ret{ 0 };
     Universe* const U{ lane->U };
-    // debug_name is a pointer to string possibly interned in the lane's state, that no longer exists when the state is closed
+    // debugName is a pointer to string possibly interned in the lane's state, that no longer exists when the state is closed
     // so store it in the userdata uservalue at a key that can't possibly collide
     securize_debug_threadname(L_, lane);
     switch (lane->status) {
@@ -1508,15 +1508,15 @@ LUAG_FUNC(threads)
 
     // List _all_ still running threads
     //
-    std::lock_guard<std::mutex> guard{ U->tracking_cs };
-    if (U->tracking_first && U->tracking_first != TRACKING_END) {
-        Lane* lane{ U->tracking_first };
-        int index = 0;
+    std::lock_guard<std::mutex> guard{ U->trackingMutex };
+    if (U->trackingFirst && U->trackingFirst != TRACKING_END) {
+        Lane* lane{ U->trackingFirst };
+        int index{ 0 };
         lua_newtable(L_);                                                                          // L_: {}
         while (lane != TRACKING_END) {
             // insert a { name, status } tuple, so that several lanes with the same name can't clobber each other
             lua_newtable(L_);                                                                      // L_: {} {}
-            lua_pushstring(L_, lane->debug_name);                                                  // L_: {} {} "name"
+            lua_pushstring(L_, lane->debugName);                                                   // L_: {} {} "name"
             lua_setfield(L_, -2, "name");                                                          // L_: {} {}
             lane->pushThreadStatus(L_);                                                            // L_: {} {} "status"
             lua_setfield(L_, -2, "status");                                                        // L_: {} {}
@@ -1663,26 +1663,26 @@ LUAG_FUNC(configure)
         lua_pop(L_, 1);                                                                            // L_: settings
 #if HAVE_LANE_TRACKING()
         lua_getfield(L_, 1, "track_lanes");                                                        // L_: settings track_lanes
-        U->tracking_first = lua_toboolean(L_, -1) ? TRACKING_END : nullptr;
+        U->trackingFirst = lua_toboolean(L_, -1) ? TRACKING_END : nullptr;
         lua_pop(L_, 1);                                                                            // L_: settings
 #endif // HAVE_LANE_TRACKING()
         // Linked chains handling
-        U->selfdestruct_first = SELFDESTRUCT_END;
+        U->selfdestructFirst = SELFDESTRUCT_END;
         initialize_allocator_function(U, L_);
-        initialize_on_state_create(U, L_);
+        initializeOnStateCreate(U, L_);
         init_keepers(U, L_);
         STACK_CHECK(L_, 1);
 
-        // Initialize 'timer_deep'; a common Linda object shared by all states
+        // Initialize 'timerLinda'; a common Linda object shared by all states
         lua_pushcfunction(L_, LG_linda);                                                           // L_: settings lanes.linda
         lua_pushliteral(L_, "lanes-timer");                                                        // L_: settings lanes.linda "lanes-timer"
         lua_call(L_, 1, 1);                                                                        // L_: settings linda
         STACK_CHECK(L_, 2);
 
         // Proxy userdata contents is only a 'DeepPrelude*' pointer
-        U->timer_deep = *lua_tofulluserdata<DeepPrelude*>(L_, -1);
+        U->timerLinda = *lua_tofulluserdata<DeepPrelude*>(L_, -1);
         // increment refcount so that this linda remains alive as long as the universe exists.
-        U->timer_deep->refcount.fetch_add(1, std::memory_order_relaxed);
+        U->timerLinda->refcount.fetch_add(1, std::memory_order_relaxed);
         lua_pop(L_, 1);                                                                            // L_: settings
     }
     STACK_CHECK(L_, 1);
@@ -1699,7 +1699,7 @@ LUAG_FUNC(configure)
     luaG_registerlibfuncs(L_, lanes_functions);
 #if HAVE_LANE_TRACKING()
     // register core.threads() only if settings say it should be available
-    if (U->tracking_first != nullptr) {
+    if (U->trackingFirst != nullptr) {
         lua_pushcfunction(L_, LG_threads);                                                         // L_: settings M LG_threads()
         lua_setfield(L_, -2, "threads");                                                           // L_: settings M
     }
@@ -1708,8 +1708,8 @@ LUAG_FUNC(configure)
 
     {
         char const* errmsg{
-            DeepFactory::PushDeepProxy(DestState{ L_ }, U->timer_deep, 0, LookupMode::LaneBody)
-        };                                                                                         // L_: settings M timer_deep
+            DeepFactory::PushDeepProxy(DestState{ L_ }, U->timerLinda, 0, LookupMode::LaneBody)
+        };                                                                                         // L_: settings M timerLinda
         if (errmsg != nullptr) {
             raise_luaL_error(L_, errmsg);
         }

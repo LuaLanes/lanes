@@ -53,7 +53,7 @@ static constexpr uintptr_t kPointerMagicShift{ 3 };
 Linda::Linda(Universe* U_, LindaGroup group_, char const* name_, size_t len_)
 : DeepPrelude{ LindaFactory::Instance }
 , U{ U_ }
-, m_keeper_index{ (group_ ? group_ : static_cast<int>(std::bit_cast<uintptr_t>(this) >> kPointerMagicShift)) % U_->keepers->nb_keepers }
+, keeperIndex{ (group_ ? group_ : static_cast<int>(std::bit_cast<uintptr_t>(this) >> kPointerMagicShift)) % U_->keepers->nb_keepers }
 {
     setName(name_, len_);
 }
@@ -62,9 +62,9 @@ Linda::Linda(Universe* U_, LindaGroup group_, char const* name_, size_t len_)
 
 Linda::~Linda()
 {
-    if (std::holds_alternative<AllocatedName>(m_name)) {
-        AllocatedName& name = std::get<AllocatedName>(m_name);
-        U->internal_allocator.free(name.name, name.len);
+    if (std::holds_alternative<AllocatedName>(nameVariant)) {
+        AllocatedName& name = std::get<AllocatedName>(nameVariant);
+        U->internalAllocator.free(name.name, name.len);
     }
 }
 
@@ -78,12 +78,12 @@ void Linda::setName(char const* name_, size_t len_)
     }
     ++len_; // don't forget terminating 0
     if (len_ < kEmbeddedNameLength) {
-        m_name.emplace<EmbeddedName>();
-        char* const name{ std::get<EmbeddedName>(m_name).data() };
+        nameVariant.emplace<EmbeddedName>();
+        char* const name{ std::get<EmbeddedName>(nameVariant).data() };
         memcpy(name, name_, len_);
     } else {
-        AllocatedName& name = std::get<AllocatedName>(m_name);
-        name.name = static_cast<char*>(U->internal_allocator.alloc(len_));
+        AllocatedName& name = std::get<AllocatedName>(nameVariant);
+        name.name = static_cast<char*>(U->internalAllocator.alloc(len_));
         name.len = len_;
         memcpy(name.name, name_, len_);
     }
@@ -93,12 +93,12 @@ void Linda::setName(char const* name_, size_t len_)
 
 char const* Linda::getName() const
 {
-    if (std::holds_alternative<AllocatedName>(m_name)) {
-        AllocatedName const& name = std::get<AllocatedName>(m_name);
+    if (std::holds_alternative<AllocatedName>(nameVariant)) {
+        AllocatedName const& name = std::get<AllocatedName>(nameVariant);
         return name.name;
     }
-    if (std::holds_alternative<EmbeddedName>(m_name)) {
-        char const* const name{ std::get<EmbeddedName>(m_name).data() };
+    if (std::holds_alternative<EmbeddedName>(nameVariant)) {
+        char const* const name{ std::get<EmbeddedName>(nameVariant).data() };
         return name;
     }
     return nullptr;
@@ -241,9 +241,9 @@ LUAG_FUNC(linda_send)
             STACK_CHECK_START_REL(KL, 0);
             for (bool try_again{ true };;) {
                 if (lane != nullptr) {
-                    cancel = lane->cancel_request;
+                    cancel = lane->cancelRequest;
                 }
-                cancel = (cancel != CancelRequest::None) ? cancel : linda->simulate_cancel;
+                cancel = (cancel != CancelRequest::None) ? cancel : linda->cancelRequest;
                 // if user wants to cancel, or looped because of a timeout, the call returns without sending anything
                 if (!try_again || cancel != CancelRequest::None) {
                     pushed.emplace(0);
@@ -262,7 +262,7 @@ LUAG_FUNC(linda_send)
 
                 if (ret) {
                     // Wake up ALL waiting threads
-                    linda->m_write_happened.notify_all();
+                    linda->writeHappened.notify_all();
                     break;
                 }
 
@@ -280,11 +280,11 @@ LUAG_FUNC(linda_send)
                         LUA_ASSERT(L_, prev_status == Lane::Running); // but check, just in case
                         lane->status = Lane::Waiting;
                         LUA_ASSERT(L_, lane->waiting_on == nullptr);
-                        lane->waiting_on = &linda->m_read_happened;
+                        lane->waiting_on = &linda->readHappened;
                     }
                     // could not send because no room: wait until some data was read before trying again, or until timeout is reached
-                    std::unique_lock<std::mutex> keeper_lock{ K->m_mutex, std::adopt_lock };
-                    std::cv_status const status{ linda->m_read_happened.wait_until(keeper_lock, until) };
+                    std::unique_lock<std::mutex> keeper_lock{ K->mutex, std::adopt_lock };
+                    std::cv_status const status{ linda->readHappened.wait_until(keeper_lock, until) };
                     keeper_lock.release(); // we don't want to release the lock!
                     try_again = (status == std::cv_status::no_timeout); // detect spurious wakeups
                     if (lane != nullptr) {
@@ -390,9 +390,9 @@ LUAG_FUNC(linda_receive)
         STACK_CHECK_START_REL(KL, 0);
         for (bool try_again{ true };;) {
             if (lane != nullptr) {
-                cancel = lane->cancel_request;
+                cancel = lane->cancelRequest;
             }
-            cancel = (cancel != CancelRequest::None) ? cancel : linda->simulate_cancel;
+            cancel = (cancel != CancelRequest::None) ? cancel : linda->cancelRequest;
             // if user wants to cancel, or looped because of a timeout, the call returns without sending anything
             if (!try_again || cancel != CancelRequest::None) {
                 pushed.emplace(0);
@@ -410,7 +410,7 @@ LUAG_FUNC(linda_receive)
                 keeper_toggle_nil_sentinels(L_, lua_gettop(L_) - pushed.value(), LookupMode::FromKeeper);
                 // To be done from within the 'K' locking area
                 //
-                linda->m_read_happened.notify_all();
+                linda->readHappened.notify_all();
                 break;
             }
 
@@ -427,11 +427,11 @@ LUAG_FUNC(linda_receive)
                     LUA_ASSERT(L_, prev_status == Lane::Running); // but check, just in case
                     lane->status = Lane::Waiting;
                     LUA_ASSERT(L_, lane->waiting_on == nullptr);
-                    lane->waiting_on = &linda->m_write_happened;
+                    lane->waiting_on = &linda->writeHappened;
                 }
                 // not enough data to read: wakeup when data was sent, or when timeout is reached
-                std::unique_lock<std::mutex> keeper_lock{ K->m_mutex, std::adopt_lock };
-                std::cv_status const status{ linda->m_write_happened.wait_until(keeper_lock, until) };
+                std::unique_lock<std::mutex> keeper_lock{ K->mutex, std::adopt_lock };
+                std::cv_status const status{ linda->writeHappened.wait_until(keeper_lock, until) };
                 keeper_lock.release();                              // we don't want to release the lock!
                 try_again = (status == std::cv_status::no_timeout); // detect spurious wakeups
                 if (lane != nullptr) {
@@ -483,7 +483,7 @@ LUAG_FUNC(linda_set)
 
         Keeper* const K{ linda->whichKeeper() };
         KeeperCallResult pushed;
-        if (linda->simulate_cancel == CancelRequest::None) {
+        if (linda->cancelRequest == CancelRequest::None) {
             if (has_value) {
                 // convert nils to some special non-nil sentinel in sent values
                 keeper_toggle_nil_sentinels(L_, 3, LookupMode::ToKeeper);
@@ -494,12 +494,12 @@ LUAG_FUNC(linda_set)
 
                 if (has_value) {
                     // we put some data in the slot, tell readers that they should wake
-                    linda->m_write_happened.notify_all(); // To be done from within the 'K' locking area
+                    linda->writeHappened.notify_all(); // To be done from within the 'K' locking area
                 }
                 if (pushed.value() == 1) {
                     // the key was full, but it is no longer the case, tell writers they should wake
                     LUA_ASSERT(L_, lua_type(L_, -1) == LUA_TBOOLEAN && lua_toboolean(L_, -1) == 1);
-                    linda->m_read_happened.notify_all(); // To be done from within the 'K' locking area
+                    linda->readHappened.notify_all(); // To be done from within the 'K' locking area
                 }
             }
         } else { // linda is cancelled
@@ -553,7 +553,7 @@ LUAG_FUNC(linda_get)
         check_key_types(L_, 2, 2);
 
         KeeperCallResult pushed;
-        if (linda->simulate_cancel == CancelRequest::None) {
+        if (linda->cancelRequest == CancelRequest::None) {
             Keeper* const K{ linda->whichKeeper() };
             pushed = keeper_call(linda->U, K->L, KEEPER_API(get), L_, linda, 2);
             if (pushed.value_or(0) > 0) {
@@ -590,13 +590,13 @@ LUAG_FUNC(linda_limit)
         check_key_types(L_, 2, 2);
 
         KeeperCallResult pushed;
-        if (linda->simulate_cancel == CancelRequest::None) {
+        if (linda->cancelRequest == CancelRequest::None) {
             Keeper* const K{ linda->whichKeeper() };
             pushed = keeper_call(linda->U, K->L, KEEPER_API(limit), L_, linda, 2);
             LUA_ASSERT(L_, pushed.has_value() && (pushed.value() == 0 || pushed.value() == 1)); // no error, optional boolean value saying if we should wake blocked writer threads
             if (pushed.value() == 1) {
                 LUA_ASSERT(L_, lua_type(L_, -1) == LUA_TBOOLEAN && lua_toboolean(L_, -1) == 1);
-                linda->m_read_happened.notify_all(); // To be done from within the 'K' locking area
+                linda->readHappened.notify_all(); // To be done from within the 'K' locking area
             }
         } else { // linda is cancelled
             // do nothing and return lanes.cancel_error
@@ -623,16 +623,16 @@ LUAG_FUNC(linda_cancel)
     // make sure we got 3 arguments: the linda, a key and a limit
     luaL_argcheck(L_, lua_gettop(L_) <= 2, 2, "wrong number of arguments");
 
-    linda->simulate_cancel = CancelRequest::Soft;
+    linda->cancelRequest = CancelRequest::Soft;
     if (strcmp(who, "both") == 0) { // tell everyone writers to wake up
-        linda->m_write_happened.notify_all();
-        linda->m_read_happened.notify_all();
+        linda->writeHappened.notify_all();
+        linda->readHappened.notify_all();
     } else if (strcmp(who, "none") == 0) { // reset flag
-        linda->simulate_cancel = CancelRequest::None;
+        linda->cancelRequest = CancelRequest::None;
     } else if (strcmp(who, "read") == 0) { // tell blocked readers to wake up
-        linda->m_write_happened.notify_all();
+        linda->writeHappened.notify_all();
     } else if (strcmp(who, "write") == 0) { // tell blocked writers to wake up
-        linda->m_read_happened.notify_all();
+        linda->readHappened.notify_all();
     } else {
         raise_luaL_error(L_, "unknown wake hint '%s'", who);
     }

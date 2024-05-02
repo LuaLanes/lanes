@@ -86,6 +86,7 @@ test:
 	$(MAKE) irayo_recursive
 	$(MAKE) keeper
 	$(MAKE) linda_perf
+	$(MAKE) manual_register
 	$(MAKE) objects
 	$(MAKE) package
 	$(MAKE) pingpong

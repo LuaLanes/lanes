@@ -55,7 +55,7 @@ THE SOFTWARE.
 {
     Lane* const lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
     // 'lane' is nullptr for the original main state (and no-one can cancel that)
-    return lane ? lane->cancel_request : CancelRequest::None;
+    return lane ? lane->cancelRequest : CancelRequest::None;
 }
 
 // #################################################################################################
@@ -109,7 +109,7 @@ LUAG_FUNC(cancel_test)
 
 [[nodiscard]] static CancelResult thread_cancel_soft(Lane* lane_, lua_Duration duration_, bool wakeLane_)
 {
-    lane_->cancel_request = CancelRequest::Soft; // it's now signaled to stop
+    lane_->cancelRequest = CancelRequest::Soft; // it's now signaled to stop
     // negative timeout: we don't want to truly abort the lane, we just want it to react to cancel_test() on its own
     if (wakeLane_) { // wake the thread so that execution returns from any pending linda operation if desired
         std::condition_variable* const waiting_on{ lane_->waiting_on };
@@ -125,7 +125,7 @@ LUAG_FUNC(cancel_test)
 
 [[nodiscard]] static CancelResult thread_cancel_hard(Lane* lane_, lua_Duration duration_, bool wakeLane_)
 {
-    lane_->cancel_request = CancelRequest::Hard; // it's now signaled to stop
+    lane_->cancelRequest = CancelRequest::Hard; // it's now signaled to stop
     // lane_->thread.get_stop_source().request_stop();
     if (wakeLane_) { // wake the thread so that execution returns from any pending linda operation if desired
         std::condition_variable* waiting_on = lane_->waiting_on;

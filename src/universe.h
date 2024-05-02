@@ -30,8 +30,8 @@ class Lane;
 class AllocatorDefinition
 {
     public:
-    lua_Alloc m_allocF{ nullptr };
-    void* m_allocUD{ nullptr };
+    lua_Alloc allocF{ nullptr };
+    void* allocUD{ nullptr };
 
     [[nodiscard]] static void* operator new(size_t size_) noexcept = delete; // can't create one outside of a Lua state
     [[nodiscard]] static void* operator new(size_t size_, lua_State* L_) noexcept { return lua_newuserdatauv(L_, size_, 0); }
@@ -40,8 +40,8 @@ class AllocatorDefinition
     static void operator delete([[maybe_unused]] void* p_, lua_State* L_) { LUA_ASSERT(L_, !"should never be called"); }
 
     AllocatorDefinition(lua_Alloc allocF_, void* allocUD_) noexcept
-    : m_allocF{ allocF_ }
-    , m_allocUD{ allocUD_ }
+    : allocF{ allocF_ }
+    , allocUD{ allocUD_ }
     {
     }
     AllocatorDefinition() = default;
@@ -52,22 +52,22 @@ class AllocatorDefinition
 
     void initFrom(lua_State* L_)
     {
-        m_allocF = lua_getallocf(L_, &m_allocUD);
+        allocF = lua_getallocf(L_, &allocUD);
     }
 
     void* lua_alloc(void* ptr_, size_t osize_, size_t nsize_)
     {
-        m_allocF(m_allocUD, ptr_, osize_, nsize_);
+        allocF(allocUD, ptr_, osize_, nsize_);
     }
 
     void* alloc(size_t nsize_)
     {
-        return m_allocF(m_allocUD, nullptr, 0, nsize_);
+        return allocF(allocUD, nullptr, 0, nsize_);
     }
 
     void free(void* ptr_, size_t osize_)
     {
-        std::ignore = m_allocF(m_allocUD, ptr_, osize_, 0);
+        std::ignore = allocF(allocUD, ptr_, osize_, 0);
     }
 };
 
@@ -78,13 +78,13 @@ class ProtectedAllocator
 : public AllocatorDefinition
 {
     private:
-    std::mutex m_lock;
+    std::mutex mutex;
 
     [[nodiscard]] static void* protected_lua_Alloc(void* ud_, void* ptr_, size_t osize_, size_t nsize_)
     {
         ProtectedAllocator* const allocator{ static_cast<ProtectedAllocator*>(ud_) };
-        std::lock_guard<std::mutex> guard{ allocator->m_lock };
-        return allocator->m_allocF(allocator->m_allocUD, ptr_, osize_, nsize_);
+        std::lock_guard<std::mutex> guard{ allocator->mutex };
+        return allocator->allocF(allocator->allocUD, ptr_, osize_, nsize_);
     }
 
     public:
@@ -105,9 +105,9 @@ class ProtectedAllocator
     void removeFrom(lua_State* L_)
     {
         // remove the protected allocator, if any
-        if (m_allocF != nullptr) {
+        if (allocF != nullptr) {
             // install the non-protected allocator
-            lua_setallocf(L_, m_allocF, m_allocUD);
+            lua_setallocf(L_, allocF, allocUD);
         }
     }
 };
@@ -121,9 +121,9 @@ class Universe
     public:
 #ifdef PLATFORM_LINUX
     // Linux needs to check, whether it's been run as root
-    bool const m_sudo{ geteuid() == 0 };
+    bool const sudo{ geteuid() == 0 };
 #else
-    bool const m_sudo{ false };
+    bool const sudo{ false };
 #endif // PLATFORM_LINUX
 
     // for verbose errors
@@ -132,44 +132,44 @@ class Universe
     bool demoteFullUserdata{ false };
 
     // before a state is created, this function will be called to obtain the allocator
-    lua_CFunction provide_allocator{ nullptr };
+    lua_CFunction provideAllocator{ nullptr };
 
     // after a state is created, this function will be called right after the bases libraries are loaded
-    lua_CFunction on_state_create_func{ nullptr };
+    lua_CFunction onStateCreateFunc{ nullptr };
 
     // if allocator="protected" is found in the configuration settings, a wrapper allocator will protect all allocator calls with a mutex
     // contains a mutex and the original allocator definition
-    ProtectedAllocator protected_allocator;
+    ProtectedAllocator protectedAllocator;
 
-    AllocatorDefinition internal_allocator;
+    AllocatorDefinition internalAllocator;
 
     Keepers* keepers{ nullptr };
 
     // Initialized by 'init_once_LOCKED()': the deep userdata Linda object
     // used for timers (each lane will get a proxy to this)
-    DeepPrelude* timer_deep{ nullptr };
+    DeepPrelude* timerLinda{ nullptr };
 
 #if HAVE_LANE_TRACKING()
-    std::mutex tracking_cs;
-    Lane* volatile tracking_first{ nullptr }; // will change to TRACKING_END if we want to activate tracking
+    std::mutex trackingMutex;
+    Lane* volatile trackingFirst{ nullptr }; // will change to TRACKING_END if we want to activate tracking
 #endif // HAVE_LANE_TRACKING()
 
-    std::mutex selfdestruct_cs;
+    std::mutex selfdestructMutex;
 
     // require() serialization
-    std::recursive_mutex require_cs;
+    std::recursive_mutex requireMutex;
 
     // metatable unique identifiers
-    std::atomic<lua_Integer> next_mt_id{ 1 };
+    std::atomic<lua_Integer> nextMetatableId{ 1 };
 
 #if USE_DEBUG_SPEW()
-    std::atomic<int> debugspew_indent_depth{ 0 };
+    std::atomic<int> debugspewIndentDepth{ 0 };
 #endif // USE_DEBUG_SPEW()
 
-    Lane* volatile selfdestruct_first{ nullptr };
+    Lane* volatile selfdestructFirst{ nullptr };
     // After a lane has removed itself from the chain, it still performs some processing.
     // The terminal desinit sequence should wait for all such processing to terminate before force-killing threads
-    std::atomic<int> selfdestructing_count{ 0 };
+    std::atomic<int> selfdestructingCount{ 0 };
 
     Universe();
     ~Universe() = default;
@@ -201,13 +201,13 @@ class DebugSpewIndentScope
     : U{ U_ }
     {
         if (U)
-            U->debugspew_indent_depth.fetch_add(1, std::memory_order_relaxed);
+            U->debugspewIndentDepth.fetch_add(1, std::memory_order_relaxed);
     }
 
     ~DebugSpewIndentScope()
     {
         if (U)
-            U->debugspew_indent_depth.fetch_sub(1, std::memory_order_relaxed);
+            U->debugspewIndentDepth.fetch_sub(1, std::memory_order_relaxed);
     }
 };
 #endif // USE_DEBUG_SPEW()

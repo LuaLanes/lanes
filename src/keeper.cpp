@@ -580,7 +580,7 @@ void close_keepers(Universe* U_)
             U_->keepers->keeper_array[i].~Keeper();
         }
         // free the keeper bookkeeping structure
-        U_->internal_allocator.free(U_->keepers, sizeof(Keepers) + (nbKeepers - 1) * sizeof(Keeper));
+        U_->internalAllocator.free(U_->keepers, sizeof(Keepers) + (nbKeepers - 1) * sizeof(Keeper));
         U_->keepers = nullptr;
     }
 }
@@ -618,7 +618,7 @@ void init_keepers(Universe* U_, lua_State* L_)
     // Keepers contains an array of 1 Keeper, adjust for the actual number of keeper states
     {
         size_t const bytes = sizeof(Keepers) + (nb_keepers - 1) * sizeof(Keeper);
-        U_->keepers = static_cast<Keepers*>(U_->internal_allocator.alloc(bytes));
+        U_->keepers = static_cast<Keepers*>(U_->internalAllocator.alloc(bytes));
         if (U_->keepers == nullptr) {
             raise_luaL_error(L_, "init_keepers() failed while creating keeper array; out of memory");
         }
@@ -675,7 +675,7 @@ void init_keepers(Universe* U_, lua_State* L_)
         // attempt to call on_state_create(), if we have one and it is a C function
         // (only support a C function because we can't transfer executable Lua code in keepers)
         // will raise an error in L_ in case of problem
-        call_on_state_create(U_, K, L_, LookupMode::ToKeeper);
+        callOnStateCreate(U_, K, L_, LookupMode::ToKeeper);
 
         // to see VM name in Decoda debugger
         lua_pushfstring(K, "Keeper #%d", i + 1);                                                   // L_: settings                                    K: "Keeper #n"
@@ -694,8 +694,8 @@ Keeper* Linda::acquireKeeper() const
     int const nbKeepers{ U->keepers->nb_keepers };
     // can be 0 if this happens during main state shutdown (lanes is being GC'ed -> no keepers)
     if (nbKeepers) {
-        Keeper* const K{ &U->keepers->keeper_array[m_keeper_index] };
-        K->m_mutex.lock();
+        Keeper* const K{ &U->keepers->keeper_array[keeperIndex] };
+        K->mutex.lock();
         return K;
     }
     return nullptr;
@@ -706,8 +706,8 @@ Keeper* Linda::acquireKeeper() const
 void Linda::releaseKeeper(Keeper* K_) const
 {
     if (K_) { // can be nullptr if we tried to acquire during shutdown
-        assert(K_ == &U->keepers->keeper_array[m_keeper_index]);
-        K_->m_mutex.unlock();
+        assert(K_ == &U->keepers->keeper_array[keeperIndex]);
+        K_->mutex.unlock();
     }
 }
 

@@ -7,11 +7,11 @@ local RequireAModuleThatExportsGlobalFunctions = function()
 	-- make one of these a global
 	GlobalFunc = lfs.attributes
 	-- we need to register it so that it is transferable
+	local lanes = require "lanes"
 	if register_func then
-		local lanes = require "lanes"
 		lanes.register( "GlobalFunc", GlobalFunc)
 	end
-	print "RequireAModuleThatExportsGlobalFunctions done"
+	print("RequireAModuleThatExportsGlobalFunctions done:", lanes.nameof(GlobalFunc))
 end
 
 
@@ -25,7 +25,8 @@ local GlobalFuncUpval = GlobalFunc
 -- a lane that makes use of the above global
 local f = function()
 	GlobalFuncUpval("foo")
-	print "f done"
+	print("f done:", lanes.nameof(GlobalFuncUpval))
+	return 33
 end
 
 
@@ -33,3 +34,4 @@ local g = lanes.gen( "*", f)
 
 -- generate a lane, this will transfer f, which pulls GlobalFunc.
 local h = g()
+assert(h[1] == 33)

@@ -60,7 +60,7 @@ Universe::Universe()
     // the launched threads (even -2).
     //
 #ifdef LINUX_SCHED_RR
-    if (m_sudo) {
+    if (sudo) {
         struct sched_param sp;
         sp.sched_priority = _PRIO_0;
         PT_CALL(pthread_setschedparam(pthread_self(), SCHED_RR, &sp));

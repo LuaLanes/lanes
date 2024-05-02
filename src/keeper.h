@@ -24,7 +24,7 @@ using KeeperState = Unique<lua_State*>;
 
 struct Keeper
 {
-    std::mutex m_mutex;
+    std::mutex mutex;
     KeeperState L{ nullptr };
     // int count;
 };

@@ -36,14 +36,14 @@ class Lane
     std::jthread thread;
     // a latch to wait for the lua_State to be ready
     std::latch ready{ 1 };
-    // to wait for stop requests through m_thread's stop_source
-    std::mutex done_mutex;
-    std::condition_variable done_signal; // use condition_variable_any if waiting for a stop_token
+    // to wait for stop requests through thread's stop_source
+    std::mutex doneMutex;
+    std::condition_variable doneCondVar; // use condition_variable_any if waiting for a stop_token
     //
     // M: sub-thread OS thread
     // S: not used
 
-    char const* debug_name{ "<unnamed>" };
+    char const* debugName{ "<unnamed>" };
 
     Universe* const U;
     lua_State* L;
@@ -60,7 +60,7 @@ class Lane
     //
     // When status is Waiting, points on the linda's signal the thread waits on, else nullptr
 
-    CancelRequest volatile cancel_request{ CancelRequest::None };
+    CancelRequest volatile cancelRequest{ CancelRequest::None };
     //
     // M: sets to false, flags true for cancel request
     // S: reads to see if cancel is requested
@@ -77,11 +77,11 @@ class Lane
     //
     // For tracking only
 
-    [[nodiscard]] static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internal_allocator.alloc(size_); }
+    [[nodiscard]] static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internalAllocator.alloc(size_); }
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
-    static void operator delete(void* p_, Universe* U_) { U_->internal_allocator.free(p_, sizeof(Lane)); }
+    static void operator delete(void* p_, Universe* U_) { U_->internalAllocator.free(p_, sizeof(Lane)); }
     // this one is for us, to make sure memory is freed by the correct allocator
-    static void operator delete(void* p_) { static_cast<Lane*>(p_)->U->internal_allocator.free(p_, sizeof(Lane)); }
+    static void operator delete(void* p_) { static_cast<Lane*>(p_)->U->internalAllocator.free(p_, sizeof(Lane)); }
 
     Lane(Universe* U_, lua_State* L_);
     ~Lane();

@@ -32,23 +32,23 @@ class Linda
         char* name{ nullptr };
     };
     // depending on the name length, it is either embedded inside the Linda, or allocated separately
-    std::variant<AllocatedName, EmbeddedName> m_name;
+    std::variant<AllocatedName, EmbeddedName> nameVariant;
 
     public:
-    std::condition_variable m_read_happened;
-    std::condition_variable m_write_happened;
+    std::condition_variable readHappened;
+    std::condition_variable writeHappened;
     Universe* const U{ nullptr }; // the universe this linda belongs to
-    int const m_keeper_index{ -1 }; // the keeper associated to this linda
-    CancelRequest simulate_cancel{ CancelRequest::None };
+    int const keeperIndex{ -1 }; // the keeper associated to this linda
+    CancelRequest cancelRequest{ CancelRequest::None };
 
     public:
     // a fifo full userdata has one uservalue, the table that holds the actual fifo contents
-    [[nodiscard]] static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internal_allocator.alloc(size_); }
+    [[nodiscard]] static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internalAllocator.alloc(size_); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
-    static void operator delete(void* p_, Universe* U_) { U_->internal_allocator.free(p_, sizeof(Linda)); }
+    static void operator delete(void* p_, Universe* U_) { U_->internalAllocator.free(p_, sizeof(Linda)); }
     // this one is for us, to make sure memory is freed by the correct allocator
-    static void operator delete(void* p_) { static_cast<Linda*>(p_)->U->internal_allocator.free(p_, sizeof(Linda)); }
+    static void operator delete(void* p_) { static_cast<Linda*>(p_)->U->internalAllocator.free(p_, sizeof(Linda)); }
 
     ~Linda();
     Linda(Universe* U_, LindaGroup group_, char const* name_, size_t len_);
@@ -66,7 +66,7 @@ class Linda
 
     public:
     [[nodiscard]] char const* getName() const;
-    [[nodiscard]] Keeper* whichKeeper() const { return U->keepers->nb_keepers ? &U->keepers->keeper_array[m_keeper_index] : nullptr; }
+    [[nodiscard]] Keeper* whichKeeper() const { return U->keepers->nb_keepers ? &U->keepers->keeper_array[keeperIndex] : nullptr; }
     [[nodiscard]] Keeper* acquireKeeper() const;
     void releaseKeeper(Keeper* keeper_) const;
 };

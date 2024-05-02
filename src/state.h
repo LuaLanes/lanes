@@ -15,5 +15,5 @@ void serialize_require(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_);
 
 // #################################################################################################
 
-void initialize_on_state_create(Universe* U_, lua_State* L_);
-void call_on_state_create(Universe* U_, lua_State* L_, lua_State* from_, LookupMode mode_);
+void initializeOnStateCreate(Universe* U_, lua_State* L_);
+void callOnStateCreate(Universe* U_, lua_State* L_, lua_State* from_, LookupMode mode_);
