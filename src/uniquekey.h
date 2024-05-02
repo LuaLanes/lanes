@@ -10,19 +10,19 @@
 class UniqueKey
 {
     protected:
-    uintptr_t const m_storage{ 0 };
+    uintptr_t const storage{ 0 };
 
     public:
-    char const* m_debugName{ nullptr };
+    char const* debugName{ nullptr };
 
     // ---------------------------------------------------------------------------------------------
     constexpr explicit UniqueKey(uint64_t val_, char const* debugName_ = nullptr)
 #if LUAJIT_FLAVOR() == 64 // building against LuaJIT headers for 64 bits, light userdata is restricted to 47 significant bits, because LuaJIT uses the other bits for internal optimizations
-    : m_storage{ static_cast<uintptr_t>(val_ & 0x7FFFFFFFFFFFull) }
+    : storage{ static_cast<uintptr_t>(val_ & 0x7FFFFFFFFFFFull) }
 #else // LUAJIT_FLAVOR()
-    : m_storage{ static_cast<uintptr_t>(val_) }
+    : storage{ static_cast<uintptr_t>(val_) }
 #endif // LUAJIT_FLAVOR()
-    , m_debugName{ debugName_ }
+    , debugName{ debugName_ }
     {
     }
     // ---------------------------------------------------------------------------------------------
@@ -32,12 +32,12 @@ class UniqueKey
     // ---------------------------------------------------------------------------------------------
     bool equals(lua_State* const L_, int i_) const
     {
-        return lua_touserdata(L_, i_) == std::bit_cast<void*>(m_storage);
+        return lua_touserdata(L_, i_) == std::bit_cast<void*>(storage);
     }
     // ---------------------------------------------------------------------------------------------
     void pushKey(lua_State* const L_) const
     {
-        lua_pushlightuserdata(L_, std::bit_cast<void*>(m_storage));
+        lua_pushlightuserdata(L_, std::bit_cast<void*>(storage));
     }
 };
 

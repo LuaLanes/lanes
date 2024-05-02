@@ -33,12 +33,12 @@ class Lane
     using enum Status;
 
     // the thread
-    std::jthread m_thread;
+    std::jthread thread;
     // a latch to wait for the lua_State to be ready
-    std::latch m_ready{ 1 };
+    std::latch ready{ 1 };
     // to wait for stop requests through m_thread's stop_source
-    std::mutex m_done_mutex;
-    std::condition_variable m_done_signal; // use condition_variable_any if waiting for a stop_token
+    std::mutex done_mutex;
+    std::condition_variable done_signal; // use condition_variable_any if waiting for a stop_token
     //
     // M: sub-thread OS thread
     // S: not used
@@ -51,12 +51,12 @@ class Lane
     // M: prepares the state, and reads results
     // S: while S is running, M must keep out of modifying the state
 
-    Status volatile m_status{ Pending };
+    Status volatile status{ Pending };
     //
     // M: sets to Pending (before launching)
     // S: updates -> Running/Waiting -> Done/Error/Cancelled
 
-    std::condition_variable* volatile m_waiting_on{ nullptr };
+    std::condition_variable* volatile waiting_on{ nullptr };
     //
     // When status is Waiting, points on the linda's signal the thread waits on, else nullptr
 

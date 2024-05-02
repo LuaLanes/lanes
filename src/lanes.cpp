@@ -176,10 +176,10 @@ bool Lane::waitForCompletion(lua_Duration duration_)
         until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration_);
     }
 
-    std::unique_lock lock{ m_done_mutex };
-    // std::stop_token token{ m_thread.get_stop_token() };
-    // return m_done_signal.wait_until(lock, token, secs_, [this](){ return m_status >= Lane::Done; });
-    return m_done_signal.wait_until(lock, until, [this]() { return m_status >= Lane::Done; });
+    std::unique_lock lock{ done_mutex };
+    // std::stop_token token{ thread.get_stop_token() };
+    // return done_signal.wait_until(lock, token, secs_, [this](){ return status >= Lane::Done; });
+    return done_signal.wait_until(lock, until, [this]() { return status >= Lane::Done; });
 }
 
 // #################################################################################################
@@ -187,9 +187,9 @@ bool Lane::waitForCompletion(lua_Duration duration_)
 static void lane_main(Lane* lane);
 void Lane::startThread(int priority_)
 {
-    m_thread = std::jthread([this]() { lane_main(this); });
+    thread = std::jthread([this]() { lane_main(this); });
     if (priority_ != kThreadPrioDefault) {
-        JTHREAD_SET_PRIORITY(m_thread, priority_, U->m_sudo);
+        JTHREAD_SET_PRIORITY(thread, priority_, U->m_sudo);
     }
 }
 
@@ -441,7 +441,7 @@ static void selfdestruct_add(Lane* lane_)
     // cancel/kill).
     //
     if (lane_->selfdestruct_next != nullptr) {
-        Lane** ref = (Lane**) &lane_->U->selfdestruct_first;
+        Lane* volatile* ref = static_cast<Lane* volatile*>(&lane_->U->selfdestruct_first);
 
         while (*ref != SELFDESTRUCT_END) {
             if (*ref == lane_) {
@@ -452,7 +452,7 @@ static void selfdestruct_add(Lane* lane_)
                 found = true;
                 break;
             }
-            ref = (Lane**) &((*ref)->selfdestruct_next);
+            ref = static_cast<Lane* volatile*>(&((*ref)->selfdestruct_next));
         }
         assert(found);
     }
@@ -479,7 +479,7 @@ static void selfdestruct_add(Lane* lane_)
                 // attempt the requested cancel with a small timeout.
                 // if waiting on a linda, they will raise a cancel_error.
                 // if a cancellation hook is desired, it will be installed to try to raise an error
-                if (lane->m_thread.joinable()) {
+                if (lane->thread.joinable()) {
                     std::ignore = thread_cancel(lane, op, 1, timeout, true);
                 }
                 lane = lane->selfdestruct_next;
@@ -532,7 +532,7 @@ static void selfdestruct_add(Lane* lane_)
 
     // no need to mutex-protect this as all threads in the universe are gone at that point
     if (U->timer_deep != nullptr) { // test ins case some early internal error prevented Lanes from creating the deep timer
-        [[maybe_unused]] int const prev_ref_count{ U->timer_deep->m_refcount.fetch_sub(1, std::memory_order_relaxed) };
+        [[maybe_unused]] int const prev_ref_count{ U->timer_deep->refcount.fetch_sub(1, std::memory_order_relaxed) };
         LUA_ASSERT(L_, prev_ref_count == 1); // this should be the last reference
         DeepFactory::DeleteDeepObject(L_, U->timer_deep);
         U->timer_deep = nullptr;
@@ -784,13 +784,13 @@ static void lane_main(Lane* lane_)
 {
     lua_State* const L{ lane_->L };
     // wait until the launching thread has finished preparing L
-    lane_->m_ready.wait();
+    lane_->ready.wait();
     int rc{ LUA_ERRRUN };
-    if (lane_->m_status == Lane::Pending) { // nothing wrong happened during preparation, we can work
+    if (lane_->status == Lane::Pending) { // nothing wrong happened during preparation, we can work
         // At this point, the lane function and arguments are on the stack
         int const nargs{ lua_gettop(L) - 1 };
         DEBUGSPEW_CODE(Universe* U = universe_get(L));
-        lane_->m_status = Lane::Running; // Pending -> Running
+        lane_->status = Lane::Running; // Pending -> Running
 
         // Tie "set_finalizer()" to the state
         lua_pushcfunction(L, LG_set_finalizer);
@@ -838,7 +838,7 @@ static void lane_main(Lane* lane_)
             // the finalizer generated an error, and left its own error message [and stack trace] on the stack
             rc = rc2; // we're overruling the earlier script error or normal return
         }
-        lane_->m_waiting_on = nullptr;  // just in case
+        lane_->waiting_on = nullptr;  // just in case
         if (selfdestruct_remove(lane_)) { // check and remove (under lock!)
             // We're a free-running thread and no-one's there to clean us up.
             lua_close(lane_->L);
@@ -849,7 +849,7 @@ static void lane_main(Lane* lane_)
             lane_->U->selfdestruct_cs.unlock();
 
             // we destroy our jthread member from inside the thread body, so we have to detach so that we don't try to join, as this doesn't seem a good idea
-            lane_->m_thread.detach();
+            lane_->thread.detach();
             delete lane_;
             lane_ = nullptr;
         }
@@ -860,10 +860,10 @@ static void lane_main(Lane* lane_)
         Lane::Status const st = (rc == LUA_OK) ? Lane::Done : kCancelError.equals(L, 1) ? Lane::Cancelled : Lane::Error;
 
         {
-            // 'm_done_mutex' protects the -> Done|Error|Cancelled state change
-            std::lock_guard lock{ lane_->m_done_mutex };
-            lane_->m_status = st;
-            lane_->m_done_signal.notify_one(); // wake up master (while 'lane_->m_done_mutex' is on)
+            // 'done_mutex' protects the -> Done|Error|Cancelled state change
+            std::lock_guard lock{ lane_->done_mutex };
+            lane_->status = st;
+            lane_->done_signal.notify_one(); // wake up master (while 'lane_->done_mutex' is on)
         }
     }
 }
@@ -994,12 +994,12 @@ LUAG_FUNC(lane_new)
                 lua_settop(m_lane->L, 0);
                 kCancelError.pushKey(m_lane->L);
                 {
-                    std::lock_guard lock{ m_lane->m_done_mutex };
-                    m_lane->m_status = Lane::Cancelled;
-                    m_lane->m_done_signal.notify_one(); // wake up master (while 'lane->m_done_mutex' is on)
+                    std::lock_guard lock{ m_lane->done_mutex };
+                    m_lane->status = Lane::Cancelled;
+                    m_lane->done_signal.notify_one(); // wake up master (while 'lane->done_mutex' is on)
                 }
                 // unblock the thread so that it can terminate gracefully
-                m_lane->m_ready.count_down();
+                m_lane->ready.count_down();
             }
         }
 
@@ -1037,7 +1037,7 @@ LUAG_FUNC(lane_new)
         void success()
         {
             prepareUserData();
-            m_lane->m_ready.count_down();
+            m_lane->ready.count_down();
             m_lane = nullptr;
         }
     } onExit{ L_, lane, gc_cb_idx DEBUGSPEW_COMMA_PARAM(U) };
@@ -1214,7 +1214,7 @@ LUAG_FUNC(lane_new)
     }
 
     // We can read 'lane->status' without locks, but not wait for it
-    if (lane->m_status < Lane::Done) {
+    if (lane->status < Lane::Done) {
         // still running: will have to be cleaned up later
         selfdestruct_add(lane);
         assert(lane->selfdestruct_next);
@@ -1272,7 +1272,7 @@ LUAG_FUNC(lane_new)
 
 void Lane::pushThreadStatus(lua_State* L_)
 {
-    char const* const str{ thread_status_string(m_status) };
+    char const* const str{ thread_status_string(status) };
     LUA_ASSERT(L_, str);
 
     lua_pushstring(L_, str);
@@ -1294,7 +1294,7 @@ LUAG_FUNC(thread_join)
     lua_Duration const duration{ luaL_optnumber(L_, 2, -1.0) };
     lua_State* const L2{ lane->L };
 
-    bool const done{ !lane->m_thread.joinable() || lane->waitForCompletion(duration) };
+    bool const done{ !lane->thread.joinable() || lane->waitForCompletion(duration) };
     if (!done || !L2) {
         STACK_GROW(L_, 2);
         lua_pushnil(L_);                                                                           // L_: lane timeout? nil
@@ -1310,7 +1310,7 @@ LUAG_FUNC(thread_join)
     // debug_name is a pointer to string possibly interned in the lane's state, that no longer exists when the state is closed
     // so store it in the userdata uservalue at a key that can't possibly collide
     securize_debug_threadname(L_, lane);
-    switch (lane->m_status) {
+    switch (lane->status) {
     case Lane::Done:
         {
             int const n{ lua_gettop(L2) }; // whole L2 stack
@@ -1343,7 +1343,7 @@ LUAG_FUNC(thread_join)
         break;
 
     default:
-        DEBUGSPEW_CODE(fprintf(stderr, "Status: %d\n", lane->m_status));
+        DEBUGSPEW_CODE(fprintf(stderr, "Status: %d\n", lane->status));
         LUA_ASSERT(L_, false);
         ret = 0;
     }
@@ -1399,12 +1399,12 @@ LUAG_FUNC(thread_index)
                 lua_pushcfunction(L_, LG_thread_join);
                 lua_pushvalue(L_, kSelf);
                 lua_call(L_, 1, LUA_MULTRET); // all return values are on the stack, at slots 4+
-                switch (lane->m_status) {
+                switch (lane->status) {
                 default:
                     // this is an internal error, we probably never get here
                     lua_settop(L_, 0);
                     lua_pushliteral(L_, "Unexpected status: ");
-                    lua_pushstring(L_, thread_status_string(lane->m_status));
+                    lua_pushstring(L_, thread_status_string(lane->status));
                     lua_concat(L_, 2);
                     raise_lua_error(L_);
                     [[fallthrough]]; // fall through if we are killed, as we got nil, "killed" on the stack
@@ -1666,7 +1666,7 @@ LUAG_FUNC(configure)
         U->tracking_first = lua_toboolean(L_, -1) ? TRACKING_END : nullptr;
         lua_pop(L_, 1);                                                                            // L_: settings
 #endif // HAVE_LANE_TRACKING()
-       // Linked chains handling
+        // Linked chains handling
         U->selfdestruct_first = SELFDESTRUCT_END;
         initialize_allocator_function(U, L_);
         initialize_on_state_create(U, L_);
@@ -1682,7 +1682,7 @@ LUAG_FUNC(configure)
         // Proxy userdata contents is only a 'DeepPrelude*' pointer
         U->timer_deep = *lua_tofulluserdata<DeepPrelude*>(L_, -1);
         // increment refcount so that this linda remains alive as long as the universe exists.
-        U->timer_deep->m_refcount.fetch_add(1, std::memory_order_relaxed);
+        U->timer_deep->refcount.fetch_add(1, std::memory_order_relaxed);
         lua_pop(L_, 1);                                                                            // L_: settings
     }
     STACK_CHECK(L_, 1);

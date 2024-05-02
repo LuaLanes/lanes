@@ -133,7 +133,7 @@ static void check_key_types(lua_State* L_, int start_, int end_)
             static constexpr std::array<std::reference_wrapper<UniqueKey const>, 3> kKeysToCheck{ kLindaBatched, kCancelError, kNilSentinel };
             for (UniqueKey const& key : kKeysToCheck) {
                 if (key.equals(L_, i)) {
-                    raise_luaL_error(L_, "argument #%d: can't use %s as a key", i, key.m_debugName);
+                    raise_luaL_error(L_, "argument #%d: can't use %s as a key", i, key.debugName);
                     break;
                 }
             }
@@ -276,20 +276,20 @@ LUAG_FUNC(linda_send)
                     Lane::Status prev_status{ Lane::Error }; // prevent 'might be used uninitialized' warnings
                     if (lane != nullptr) {
                         // change status of lane to "waiting"
-                        prev_status = lane->m_status;                 // Running, most likely
+                        prev_status = lane->status; // Running, most likely
                         LUA_ASSERT(L_, prev_status == Lane::Running); // but check, just in case
-                        lane->m_status = Lane::Waiting;
-                        LUA_ASSERT(L_, lane->m_waiting_on == nullptr);
-                        lane->m_waiting_on = &linda->m_read_happened;
+                        lane->status = Lane::Waiting;
+                        LUA_ASSERT(L_, lane->waiting_on == nullptr);
+                        lane->waiting_on = &linda->m_read_happened;
                     }
                     // could not send because no room: wait until some data was read before trying again, or until timeout is reached
                     std::unique_lock<std::mutex> keeper_lock{ K->m_mutex, std::adopt_lock };
                     std::cv_status const status{ linda->m_read_happened.wait_until(keeper_lock, until) };
-                    keeper_lock.release();                              // we don't want to release the lock!
+                    keeper_lock.release(); // we don't want to release the lock!
                     try_again = (status == std::cv_status::no_timeout); // detect spurious wakeups
                     if (lane != nullptr) {
-                        lane->m_waiting_on = nullptr;
-                        lane->m_status = prev_status;
+                        lane->waiting_on = nullptr;
+                        lane->status = prev_status;
                     }
                 }
             }
@@ -423,11 +423,11 @@ LUAG_FUNC(linda_receive)
                 Lane::Status prev_status{ Lane::Error }; // prevent 'might be used uninitialized' warnings
                 if (lane != nullptr) {
                     // change status of lane to "waiting"
-                    prev_status = lane->m_status;                 // Running, most likely
+                    prev_status = lane->status; // Running, most likely
                     LUA_ASSERT(L_, prev_status == Lane::Running); // but check, just in case
-                    lane->m_status = Lane::Waiting;
-                    LUA_ASSERT(L_, lane->m_waiting_on == nullptr);
-                    lane->m_waiting_on = &linda->m_write_happened;
+                    lane->status = Lane::Waiting;
+                    LUA_ASSERT(L_, lane->waiting_on == nullptr);
+                    lane->waiting_on = &linda->m_write_happened;
                 }
                 // not enough data to read: wakeup when data was sent, or when timeout is reached
                 std::unique_lock<std::mutex> keeper_lock{ K->m_mutex, std::adopt_lock };
@@ -435,8 +435,8 @@ LUAG_FUNC(linda_receive)
                 keeper_lock.release();                              // we don't want to release the lock!
                 try_again = (status == std::cv_status::no_timeout); // detect spurious wakeups
                 if (lane != nullptr) {
-                    lane->m_waiting_on = nullptr;
-                    lane->m_status = prev_status;
+                    lane->waiting_on = nullptr;
+                    lane->status = prev_status;
                 }
             }
         }

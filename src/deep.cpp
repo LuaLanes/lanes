@@ -111,7 +111,7 @@ static void LookupDeep(lua_State* L_)
     if (mode_ == LookupMode::FromKeeper) {
         DeepPrelude* const proxy{ *lua_tofulluserdata<DeepPrelude*>(L_, index_) };
         // we can (and must) cast and fetch the internally stored factory
-        return &proxy->m_factory;
+        return &proxy->factory;
     } else {
         // essentially we are making sure that the metatable of the object we want to copy is stored in our metatable/factory database
         // it is the only way to ensure that the userdata is indeed a deep userdata!
@@ -138,7 +138,7 @@ static void LookupDeep(lua_State* L_)
 void DeepFactory::DeleteDeepObject(lua_State* L_, DeepPrelude* o_)
 {
     STACK_CHECK_START_REL(L_, 0);
-    o_->m_factory.deleteDeepObjectInternal(L_, o_);
+    o_->factory.deleteDeepObjectInternal(L_, o_);
     STACK_CHECK(L_, 0);
 }
 
@@ -157,7 +157,7 @@ void DeepFactory::DeleteDeepObject(lua_State* L_, DeepPrelude* o_)
 
     // can work without a universe if creating a deep userdata from some external C module when Lanes isn't loaded
     // in that case, we are not multithreaded and locking isn't necessary anyway
-    bool const isLastRef{ p->m_refcount.fetch_sub(1, std::memory_order_relaxed) == 1 };
+    bool const isLastRef{ p->refcount.fetch_sub(1, std::memory_order_relaxed) == 1 };
 
     if (isLastRef) {
         // retrieve wrapped __gc
@@ -205,10 +205,10 @@ char const* DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int 
     DeepPrelude** const proxy{ lua_newuserdatauv<DeepPrelude*>(L_, nuv_) };                        // L_: DPC proxy
     LUA_ASSERT(L_, proxy);
     *proxy = prelude_;
-    prelude_->m_refcount.fetch_add(1, std::memory_order_relaxed); // one more proxy pointing to this deep data
+    prelude_->refcount.fetch_add(1, std::memory_order_relaxed); // one more proxy pointing to this deep data
 
     // Get/create metatable for 'factory' (in this state)
-    DeepFactory& factory = prelude_->m_factory;
+    DeepFactory& factory = prelude_->factory;
     lua_pushlightuserdata(L_, std::bit_cast<void*>(&factory));                                     // L_: DPC proxy factory
     LookupDeep(L_);                                                                                // L_: DPC proxy metatable|nil
 
@@ -323,14 +323,14 @@ int DeepFactory::pushDeepUserdata(DestState L_, int nuv_) const
         raise_luaL_error(L_, "DeepFactory::newDeepObjectInternal failed to create deep userdata (out of memory)");
     }
 
-    if (prelude->m_magic != kDeepVersion) {
+    if (prelude->magic != kDeepVersion) {
         // just in case, don't leak the newly allocated deep userdata object
         deleteDeepObjectInternal(L_, prelude);
         raise_luaL_error(L_, "Bad Deep Factory: kDeepVersion is incorrect, rebuild your implementation with the latest deep implementation");
     }
 
-    LUA_ASSERT(L_, prelude->m_refcount.load(std::memory_order_relaxed) == 0); // 'DeepFactory::PushDeepProxy' will lift it to 1
-    LUA_ASSERT(L_, &prelude->m_factory == this);
+    LUA_ASSERT(L_, prelude->refcount.load(std::memory_order_relaxed) == 0); // 'DeepFactory::PushDeepProxy' will lift it to 1
+    LUA_ASSERT(L_, &prelude->factory == this);
 
     if (lua_gettop(L_) - oldtop != 0) {
         // just in case, don't leak the newly allocated deep userdata object

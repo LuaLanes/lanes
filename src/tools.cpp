@@ -648,14 +648,14 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
             lua_getglobal(L2, "decoda_name");                                                      // L1: ... t ...                                  L2: {} t decoda_name
             to = lua_tostring(L2, -1);
             lua_pop(L2, 1);                                                                        // L1: ... t ...                                  L2: {} t
-            // when mode_ == LookupMode::FromKeeper, L is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
+            // when mode_ == LookupMode::FromKeeper, L1 is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
             raise_luaL_error(
                 (mode == LookupMode::FromKeeper) ? L2 : L1,
                 "INTERNAL ERROR IN %s: table '%s' not found in %s destination transfer database.",
                 from ? from : "main",
                 fqn,
-                to ? to : "main");
-            return false;
+                to ? to : "main"
+            );
         }
         lua_remove(L2, -2);                                                                        // L1: ... t ...                                  L2: t
         break;
@@ -1025,7 +1025,7 @@ void InterCopyContext::copy_func() const
 
     // transfer the bytecode, then the upvalues, to create a similar closure
     {
-        char const* name = nullptr;
+        char const* fname = nullptr;
 #define LOG_FUNC_INFO 0
 #if LOG_FUNC_INFO
         // "To get information about a function you push it onto the
@@ -1034,9 +1034,9 @@ void InterCopyContext::copy_func() const
         {
             lua_Debug ar;
             lua_pushvalue(L1, L1_i);                                                               // L1: ... b f
-            // fills 'name' 'namewhat' and 'linedefined', pops function
+            // fills 'fname' 'namewhat' and 'linedefined', pops function
             lua_getinfo(L1, ">nS", &ar);                                                           // L1: ... b
-            name = ar.namewhat;
+            fname = ar.namewhat;
             DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "FNAME: %s @ %d" INDENT_END(U), ar.short_src, ar.linedefined)); // just gives nullptr
         }
 #endif // LOG_FUNC_INFO
@@ -1046,17 +1046,17 @@ void InterCopyContext::copy_func() const
             LUA_ASSERT(L1, s && sz);
             STACK_GROW(L2, 2);
             // Note: Line numbers seem to be taken precisely from the
-            //       original function. 'name' is not used since the chunk
+            //       original function. 'fname' is not used since the chunk
             //       is precompiled (it seems...).
             //
             // TBD: Can we get the function's original name through, as well?
             //
-            if (luaL_loadbuffer(L2, s, sz, name) != 0) {                                           //                                                L2: ... {cache} ... p function
+            if (luaL_loadbuffer(L2, s, sz, fname) != 0) {                                           //                                                L2: ... {cache} ... p function
                 // chunk is precompiled so only LUA_ERRMEM can happen
                 // "Otherwise, it pushes an error message"
                 //
                 STACK_GROW(L1, 1);
-                raise_luaL_error(L1, "%s: %s", name, lua_tostring(L2, -1));
+                raise_luaL_error(L1, "%s: %s", fname, lua_tostring(L2, -1));
             }
             // remove the dumped string
             lua_pop(L1, 1); // ...
@@ -1285,8 +1285,8 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 
 [[nodiscard]] bool InterCopyContext::tryCopyClonable() const
 {
-    SourceIndex const L1_i{ lua_absindex(L1, this->L1_i) };
-    void* const source{ lua_touserdata(L1, L1_i) };
+    SourceIndex const L1i{ lua_absindex(L1, L1_i) };
+    void* const source{ lua_touserdata(L1, L1i) };
 
     STACK_CHECK_START_REL(L1, 0);
     STACK_CHECK_START_REL(L2, 0);
@@ -1303,7 +1303,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     STACK_CHECK(L2, 0);
 
     // no metatable? -> not clonable
-    if (!lua_getmetatable(L1, L1_i)) {                                                             // L1: ... mt?
+    if (!lua_getmetatable(L1, L1i)) {                                                              // L1: ... mt?
         STACK_CHECK(L1, 0);
         return false;
     }
@@ -1319,10 +1319,10 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     // we need to copy over the uservalues of the userdata as well
     {
         int const mt{ lua_absindex(L1, -2) };                                                      // L1: ... mt __lanesclone
-        size_t const userdata_size{ lua_rawlen(L1, L1_i) };
+        size_t const userdata_size{ lua_rawlen(L1, L1i) };
         // extract all the uservalues, but don't transfer them yet
         int uvi = 0;
-        while (lua_getiuservalue(L1, L1_i, ++uvi) != LUA_TNONE) {}                                 // L1: ... mt __lanesclone [uv]+ nil
+        while (lua_getiuservalue(L1, L1i, ++uvi) != LUA_TNONE) {}                                  // L1: ... mt __lanesclone [uv]+ nil
         // when lua_getiuservalue() returned LUA_TNONE, it pushed a nil. pop it now
         lua_pop(L1, 1);                                                                            // L1: ... mt __lanesclone [uv]+
         --uvi;
@@ -1811,7 +1811,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         DEBUGSPEW_CODE(DebugSpewIndentScope m_scope);
 
         public:
-        OnExit(Universe* U_, lua_State* L2_)
+        OnExit(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L2_)
         : L2{ L2_ }
         , top_L2{ lua_gettop(L2) } DEBUGSPEW_COMMA_PARAM(m_scope{ U_ })
         {
@@ -1821,7 +1821,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         {
             lua_settop(L2, top_L2);
         }
-    } onExit{ U, L2 };
+    } onExit{ DEBUGSPEW_PARAM_COMMA(U) L2 };
 
     STACK_CHECK_START_REL(L1, 0);
     if (lua_type_as_enum(L1, L1_i) != LuaType::TABLE) {

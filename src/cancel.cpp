@@ -112,8 +112,8 @@ LUAG_FUNC(cancel_test)
     lane_->cancel_request = CancelRequest::Soft; // it's now signaled to stop
     // negative timeout: we don't want to truly abort the lane, we just want it to react to cancel_test() on its own
     if (wakeLane_) { // wake the thread so that execution returns from any pending linda operation if desired
-        std::condition_variable* const waiting_on{ lane_->m_waiting_on };
-        if (lane_->m_status == Lane::Waiting && waiting_on != nullptr) {
+        std::condition_variable* const waiting_on{ lane_->waiting_on };
+        if (lane_->status == Lane::Waiting && waiting_on != nullptr) {
             waiting_on->notify_all();
         }
     }
@@ -126,10 +126,10 @@ LUAG_FUNC(cancel_test)
 [[nodiscard]] static CancelResult thread_cancel_hard(Lane* lane_, lua_Duration duration_, bool wakeLane_)
 {
     lane_->cancel_request = CancelRequest::Hard; // it's now signaled to stop
-    // lane_->m_thread.get_stop_source().request_stop();
+    // lane_->thread.get_stop_source().request_stop();
     if (wakeLane_) { // wake the thread so that execution returns from any pending linda operation if desired
-        std::condition_variable* waiting_on = lane_->m_waiting_on;
-        if (lane_->m_status == Lane::Waiting && waiting_on != nullptr) {
+        std::condition_variable* waiting_on = lane_->waiting_on;
+        if (lane_->status == Lane::Waiting && waiting_on != nullptr) {
             waiting_on->notify_all();
         }
     }
@@ -144,7 +144,7 @@ CancelResult thread_cancel(Lane* lane_, CancelOp op_, int hookCount_, lua_Durati
 {
     // remember that lanes are not transferable: only one thread can cancel a lane, so no multithreading issue here
     // We can read 'lane_->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
-    if (lane_->m_status >= Lane::Done) {
+    if (lane_->status >= Lane::Done) {
         // say "ok" by default, including when lane is already done
         return CancelResult::Cancelled;
     }
