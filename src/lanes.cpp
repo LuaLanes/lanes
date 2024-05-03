@@ -973,15 +973,19 @@ LUAG_FUNC(lane_new)
         ~OnExit()
         {
             if (m_lane) {
+                STACK_CHECK_START_REL(m_L, 0);
                 // we still need a full userdata so that garbage collection can do its thing
                 prepareUserData();
+                // remove it immediately from the stack so that the error that landed us here is at the top
+                lua_pop(m_L, 1);
+                STACK_CHECK(m_L, 0);
                 // leave a single cancel_error on the stack for the caller
                 lua_settop(m_lane->L, 0);
                 kCancelError.pushKey(m_lane->L);
                 {
                     std::lock_guard lock{ m_lane->doneMutex };
-                    m_lane->status = Lane::Cancelled;
-                    m_lane->doneCondVar.notify_one(); // wake up master (while 'lane->doneMutex' is on)
+                    // this will cause lane_main to skip actual running (because we are not Pending anymore)
+                    m_lane->status = Lane::Running;
                 }
                 // unblock the thread so that it can terminate gracefully
                 m_lane->ready.count_down();
