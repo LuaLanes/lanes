@@ -68,7 +68,7 @@ class RegistryUniqueKey
     }
     // ---------------------------------------------------------------------------------------------
     template <typename T>
-    T* readLightUserDataValue(lua_State* const L_) const
+    [[nodiscard]] T* readLightUserDataValue(lua_State* const L_) const
     {
         STACK_GROW(L_, 1);
         STACK_CHECK_START_REL(L_, 0);
@@ -79,7 +79,7 @@ class RegistryUniqueKey
         return value;
     }
     // ---------------------------------------------------------------------------------------------
-    bool readBoolValue(lua_State* const L_) const
+    [[nodiscard]] bool readBoolValue(lua_State* const L_) const
     {
         STACK_GROW(L_, 1);
         STACK_CHECK_START_REL(L_, 0);
@@ -88,6 +88,24 @@ class RegistryUniqueKey
         lua_pop(L_, 1);
         STACK_CHECK(L_, 0);
         return value;
+    }
+    // ---------------------------------------------------------------------------------------------
+    // equivalent to luaL_getsubtable
+    [[nodiscard]] bool getSubTable(lua_State* const L_, int narr_, int nrec_) const
+    {
+        STACK_CHECK_START_REL(L_, 0);
+        pushValue(L_);                                                                             // L_: {}|nil
+        if (!lua_isnil(L_, -1)) {
+            LUA_ASSERT(L_, lua_istable(L_, -1));
+            STACK_CHECK(L_, 1);
+            return true; // table already exists
+        }
+        lua_pop(L_, 1);                                                                            // L_:
+        // store a newly created table in the registry, but leave it on the stack too
+        lua_createtable(L_, narr_, nrec_);                                                         // L_: {}
+        setValue(L_, [](lua_State* L_) { lua_pushvalue(L_, -2); });                                // L_: {}
+        STACK_CHECK(L_, 1);
+        return false;
     }
 };
 

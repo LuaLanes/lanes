@@ -8,9 +8,6 @@ class Universe;
 
 // #################################################################################################
 
-void push_registry_subtable_mode(lua_State* L_, RegistryUniqueKey key_, const char* mode_);
-void push_registry_subtable(lua_State* L_, RegistryUniqueKey key_);
-
 enum class VT
 {
     NORMAL, // keep this one first so that it's the value we get when we default-construct

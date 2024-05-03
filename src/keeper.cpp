@@ -658,7 +658,7 @@ void init_keepers(Universe* U_, lua_State* L_)
         STACK_CHECK(K, 0);
 
         // copy package.path and package.cpath from the source state
-        if (luaG_getpackage(L_) != LUA_TNIL) {                                                     // L_: settings package                            K:
+        if (luaG_getmodule(L_, LUA_LOADLIBNAME) != LuaType::NIL) {                                 // L_: settings package                            K:
             // when copying with mode LookupMode::ToKeeper, error message is pushed at the top of the stack, not raised immediately
             InterCopyContext c{ U_, DestState{ K }, SourceState{ L_ }, {}, SourceIndex{ lua_absindex(L_, -1) }, {}, LookupMode::ToKeeper, {} };
             if (c.inter_copy_package() != InterCopyResult::Success) {                              // L_: settings ... error_msg                      K:

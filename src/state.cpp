@@ -233,7 +233,7 @@ void initializeOnStateCreate(Universe* U_, lua_State* L_)
 
 // #################################################################################################
 
-lua_State* create_state(Universe* U_, lua_State* from_)
+lua_State* create_state([[maybe_unused]] Universe* U_, lua_State* from_)
 {
     lua_State* L;
 #if LUAJIT_FLAVOR() == 64

@@ -21,6 +21,7 @@ extern "C"
 #endif // 64 bits
 #else // LUA_JITLIBNAME
 #define LUAJIT_FLAVOR() 0
+#define LUA_JITLIBNAME "jit"
 #endif // LUA_JITLIBNAME
 
 // code is now preferring Lua 5.4 API
@@ -219,4 +220,4 @@ inline char const* lua_typename(lua_State* L_, LuaType t_)
     return lua_typename(L_, static_cast<int>(t_));
 }
 
-int luaG_getpackage(lua_State* L_);
+LuaType luaG_getmodule(lua_State* L_, char const* name_);

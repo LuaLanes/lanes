@@ -71,7 +71,7 @@ void DeepFactory::storeDeepLookup(lua_State* L_) const
     // the deep metatable is at the top of the stack                                               // L_: mt
     STACK_GROW(L_, 3);
     STACK_CHECK_START_REL(L_, 0);                                                                  // L_: mt
-    push_registry_subtable(L_, kDeepLookupRegKey);                                                 // L_: mt {}
+    std::ignore = kDeepLookupRegKey.getSubTable(L_, 0, 0);                                         // L_: mt {}
     lua_pushvalue(L_, -2);                                                                         // L_: mt {} mt
     lua_pushlightuserdata(L_, std::bit_cast<void*>(this));                                         // L_: mt {} mt factory
     lua_rawset(L_, -3);                                                                            // L_: mt {}
@@ -176,6 +176,26 @@ void DeepFactory::DeleteDeepObject(lua_State* L_, DeepPrelude* o_)
 
 // #################################################################################################
 
+// TODO: convert to UniqueKey::getSubTableMode
+static void push_registry_subtable_mode(lua_State* L_, RegistryUniqueKey key_, const char* mode_)
+{
+    STACK_GROW(L_, 4);
+    STACK_CHECK_START_REL(L_, 0);
+    if (!key_.getSubTable(L_, 0, 0)) {                                                             // L_: {}
+        // Set its metatable if requested
+        if (mode_) {
+            lua_createtable(L_, 0, 1);                                                             // L_: {} mt
+            lua_pushliteral(L_, "__mode");                                                         // L_: {} mt "__mode"
+            lua_pushstring(L_, mode_);                                                             // L_: {} mt "__mode" mode
+            lua_rawset(L_, -3);                                                                    // L_: {} mt
+            lua_setmetatable(L_, -2);                                                              // L_: {}
+        }
+    }
+    STACK_CHECK(L_, 1);
+}
+
+// #################################################################################################
+
 /*
  * Push a proxy userdata on the stack.
  * returns nullptr if ok, else some error string related to bad factory behavior or module require problem
@@ -228,7 +248,7 @@ char const* DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int 
             lua_getfield(L_, -1, "__gc");                                                          // L_: DPC proxy metatable __gc
         } else {
             // keepers need a minimal metatable that only contains our own __gc
-            lua_newtable(L_);                                                                      // L_: DPC proxy metatable
+            lua_createtable(L_, 0, 1);                                                             // L_: DPC proxy metatable
             lua_pushnil(L_);                                                                       // L_: DPC proxy metatable nil
         }
         if (lua_isnil(L_, -1)) {

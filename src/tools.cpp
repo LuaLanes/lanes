@@ -42,48 +42,6 @@ static constexpr RegistryUniqueKey kLookupCacheRegKey{ 0x9BF75F84E54B691Bull };
 
 // #################################################################################################
 
-// does what the original 'push_registry_subtable' function did, but adds an optional mode argument to it
-void push_registry_subtable_mode(lua_State* L_, RegistryUniqueKey key_, const char* mode_)
-{
-    STACK_GROW(L_, 3);
-    STACK_CHECK_START_REL(L_, 0);
-
-    key_.pushValue(L_);                                                                            // L_: {}|nil
-    STACK_CHECK(L_, 1);
-
-    if (lua_isnil(L_, -1)) {
-        lua_pop(L_, 1);                                                                            // L_:
-        lua_newtable(L_);                                                                          // L_: {}
-        // _R[key_] = {}
-        key_.setValue(L_, [](lua_State* L_) { lua_pushvalue(L_, -2); });                           // L_: {}
-        STACK_CHECK(L_, 1);
-
-        // Set its metatable if requested
-        if (mode_) {
-            lua_newtable(L_);                                                                      // L_: {} mt
-            lua_pushliteral(L_, "__mode");                                                         // L_: {} mt "__mode"
-            lua_pushstring(L_, mode_);                                                             // L_: {} mt "__mode" mode
-            lua_rawset(L_, -3);                                                                    // L_: {} mt
-            lua_setmetatable(L_, -2);                                                              // L_: {}
-        }
-    }
-    STACK_CHECK(L_, 1);
-    LUA_ASSERT(L_, lua_istable(L_, -1));
-}
-
-// #################################################################################################
-
-/*
- * Push a registry subtable (keyed by unique 'key_') onto the stack.
- * If the subtable does not exist, it is created and chained.
- */
-void push_registry_subtable(lua_State* L_, RegistryUniqueKey key_)
-{
-    push_registry_subtable_mode(L_, key_, nullptr);
-}
-
-// #################################################################################################
-
 // same as PUC-Lua l_alloc
 extern "C" [[nodiscard]] static void* libc_lua_Alloc([[maybe_unused]] void* ud, [[maybe_unused]] void* ptr_, [[maybe_unused]] size_t osize_, size_t nsize_)
 {
@@ -459,13 +417,7 @@ void populate_func_lookup_table(lua_State* L_, int i_, char const* name_)
             STACK_CHECK(L_, 2);
         }
         // retrieve the cache, create it if we haven't done it yet
-        kLookupCacheRegKey.pushValue(L_);                                                          // L_: {} {fqn} {cache}?
-        if (lua_isnil(L_, -1)) {
-            lua_pop(L_, 1);                                                                        // L_: {} {fqn}
-            lua_newtable(L_);                                                                      // L_: {} {fqn} {cache}
-            kLookupCacheRegKey.setValue(L_, [](lua_State* L_) { lua_pushvalue(L_, -2); });
-            STACK_CHECK(L_, 3);
-        }
+        std::ignore = kLookupCacheRegKey.getSubTable(L_, 0, 0);                                    // L_: {} {fqn} {cache}
         // process everything we find in that table, filling in lookup data for all functions and tables we see there
         populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(U) L_, dbIdx, in_base, startDepth);
         lua_pop(L_, 3);                                                                            // L_:
@@ -491,7 +443,7 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
     STACK_GROW(L_, 3);
 
     STACK_CHECK_START_REL(L_, 0);
-    push_registry_subtable(L_, kMtIdRegKey);                                                       // L_: ... _R[kMtIdRegKey]
+    std::ignore = kMtIdRegKey.getSubTable(L_, 0, 0);                                               // L_: ... _R[kMtIdRegKey]
     lua_pushvalue(L_, idx_);                                                                       // L_: ... _R[kMtIdRegKey] {mt}
     lua_rawget(L_, -2);                                                                            // L_: ... _R[kMtIdRegKey] mtk?
 
@@ -1186,7 +1138,7 @@ void InterCopyContext::copy_cached_func() const
     STACK_CHECK_START_REL(L2, 0);
     STACK_GROW(L2, 4);
     // do we already know this metatable?
-    push_registry_subtable(L2, kMtIdRegKey);                                                       //                                                L2: _R[kMtIdRegKey]
+    std::ignore = kMtIdRegKey.getSubTable(L2, 0, 0);                                               //                                                L2: _R[kMtIdRegKey]
     lua_pushinteger(L2, mt_id);                                                                    //                                                L2: _R[kMtIdRegKey] id
     lua_rawget(L2, -2);                                                                            //                                                L2: _R[kMtIdRegKey] mt|nil
     STACK_CHECK(L2, 2);
@@ -1830,7 +1782,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         }
         return InterCopyResult::Error;
     }
-    if (luaG_getpackage(L2) == LUA_TNIL) { // package library not loaded: do nothing
+    if (luaG_getmodule(L2, LUA_LOADLIBNAME) == LuaType::NIL) { // package library not loaded: do nothing
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "'package' not loaded, nothing to do\n" INDENT_END(U)));
         STACK_CHECK(L1, 0);
         return InterCopyResult::Success;

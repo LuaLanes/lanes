@@ -206,13 +206,16 @@ static void securize_debug_threadname(lua_State* L_, Lane* lane_)
 {
     STACK_CHECK_START_REL(L_, 0);
     STACK_GROW(L_, 3);
-    lua_getiuservalue(L_, 1, 1);
-    lua_newtable(L_);
+    // a Lane's uservalue should be a table
+    lua_getiuservalue(L_, 1, 1);                                                                   // L_: lane ... {uv}
+    LUA_ASSERT(L_, lua_istable(L_, -1));
+    // we don't care about the actual key, so long as it's unique and can't collide with anything.
+    lua_newtable(L_);                                                                              // L_: lane ... {uv} {}
     // Lua 5.1 can't do 'lane_->debugName = lua_pushstring(L_, lane_->debugName);'
-    lua_pushstring(L_, lane_->debugName);
+    lua_pushstring(L_, lane_->debugName);                                                          // L_: lane ... {uv} {} name
     lane_->debugName = lua_tostring(L_, -1);
-    lua_rawset(L_, -3);
-    lua_pop(L_, 1);
+    lua_rawset(L_, -3);                                                                            // L_: lane ... {uv}
+    lua_pop(L_, 1);                                                                                // L_: lane
     STACK_CHECK(L_, 0);
 }
 
@@ -253,25 +256,6 @@ Lane::~Lane()
 // ########################################## Finalizer ############################################
 // #################################################################################################
 
-// Push the finalizers table on the stack.
-// If there is no existing table, create ti.
-static void push_finalizers_table(lua_State* L_)
-{
-    STACK_GROW(L_, 3);
-    STACK_CHECK_START_REL(L_, 0);
-
-    kFinalizerRegKey.pushValue(L_);                                                                // L_: ?
-    if (lua_isnil(L_, -1)) {                                                                       // L_: nil?
-        lua_pop(L_, 1);                                                                            // L_:
-        // store a newly created table in the registry, but leave it on the stack too
-        lua_newtable(L_);                                                                          // L_: t
-        kFinalizerRegKey.setValue(L_, [](lua_State* L_) { lua_pushvalue(L_, -2); });               // L_: t
-    }
-    STACK_CHECK(L_, 1);
-}
-
-// #################################################################################################
-
 // void= finalizer( finalizer_func )
 //
 // finalizer_func( [err, stack_tbl] )
@@ -283,13 +267,14 @@ LUAG_FUNC(set_finalizer)
 {
     luaL_argcheck(L_, lua_isfunction(L_, 1), 1, "finalizer should be a function");
     luaL_argcheck(L_, lua_gettop(L_) == 1, 1, "too many arguments");
+    STACK_GROW(L_, 3);
     // Get the current finalizer table (if any), create one if it doesn't exist
-    push_finalizers_table(L_);                                                                     // L_: finalizer {finalisers}
-    STACK_GROW(L_, 2);
-    lua_pushinteger(L_, lua_rawlen(L_, -1) + 1);                                                   // L_: finalizer {finalisers} idx
-    lua_pushvalue(L_, 1);                                                                          // L_: finalizer {finalisers} idx finalizer
-    lua_rawset(L_, -3);                                                                            // L_: finalizer {finalisers}
-    lua_pop(L_, 2);                                                                                // L_:
+    std::ignore = kFinalizerRegKey.getSubTable(L_, 1, 0);                                          // L_: finalizer {finalisers}
+    // must cast to int, not lua_Integer, because LuaJIT signature of lua_rawseti is not the same as PUC-Lua.
+    int const idx{ static_cast<int>(lua_rawlen(L_, -1) + 1) };
+    lua_pushvalue(L_, 1);                                                                          // L_: finalizer {finalisers} finalizer
+    lua_rawseti(L_, -2, idx);                                                                      // L_: finalizer {finalisers}
+    // no need to adjust the stack, Lua does this for us
     return 0;
 }
 
@@ -1020,13 +1005,13 @@ LUAG_FUNC(lane_new)
 
             // Create uservalue for the userdata
             // (this is where lane body return values will be stored when the handle is indexed by a numeric key)
-            lua_newtable(m_L);                                                                     // m_L: ... lane uv
+            lua_newtable(m_L);                                                                     // m_L: ... lane {uv}
 
             // Store the gc_cb callback in the uservalue
             if (m_gc_cb_idx > 0) {
-                kLaneGC.pushKey(m_L);                                                              // m_L: ... lane uv k
-                lua_pushvalue(m_L, m_gc_cb_idx);                                                   // m_L: ... lane uv k gc_cb
-                lua_rawset(m_L, -3);                                                               // m_L: ... lane uv
+                kLaneGC.pushKey(m_L);                                                              // m_L: ... lane {uv} k
+                lua_pushvalue(m_L, m_gc_cb_idx);                                                   // m_L: ... lane {uv} k gc_cb
+                lua_rawset(m_L, -3);                                                               // m_L: ... lane {uv}
             }
 
             lua_setiuservalue(m_L, -2, 1);                                                         // m_L: ... lane
@@ -1515,7 +1500,7 @@ LUAG_FUNC(threads)
         lua_newtable(L_);                                                                          // L_: {}
         while (lane != TRACKING_END) {
             // insert a { name, status } tuple, so that several lanes with the same name can't clobber each other
-            lua_newtable(L_);                                                                      // L_: {} {}
+            lua_createtable(L_, 0, 2);                                                             // L_: {} {}
             lua_pushstring(L_, lane->debugName);                                                   // L_: {} {} "name"
             lua_setfield(L_, -2, "name");                                                          // L_: {} {}
             lane->pushThreadStatus(L_);                                                            // L_: {} {} "status"
@@ -1648,11 +1633,11 @@ LUAG_FUNC(configure)
     if (U == nullptr) {
         U = universe_create(L_);                                                                   // L_: settings universe
         DEBUGSPEW_CODE(DebugSpewIndentScope scope2{ U });
-        lua_newtable(L_);                                                                          // L_: settings universe mt
-        lua_getfield(L_, 1, "shutdown_timeout");                                                   // L_: settings universe mt shutdown_timeout
-        lua_getfield(L_, 1, "shutdown_mode");                                                      // L_: settings universe mt shutdown_timeout shutdown_mode
-        lua_pushcclosure(L_, universe_gc, 2);                                                      // L_: settings universe mt universe_gc
-        lua_setfield(L_, -2, "__gc");                                                              // L_: settings universe mt
+        lua_createtable(L_, 0, 1);                                                                 // L_: settings universe {mt}
+        lua_getfield(L_, 1, "shutdown_timeout");                                                   // L_: settings universe {mt} shutdown_timeout
+        lua_getfield(L_, 1, "shutdown_mode");                                                      // L_: settings universe {mt} shutdown_timeout shutdown_mode
+        lua_pushcclosure(L_, universe_gc, 2);                                                      // L_: settings universe {mt} universe_gc
+        lua_setfield(L_, -2, "__gc");                                                              // L_: settings universe {mt}
         lua_setmetatable(L_, -2);                                                                  // L_: settings universe
         lua_pop(L_, 1);                                                                            // L_: settings
         lua_getfield(L_, 1, "verbose_errors");                                                     // L_: settings verbose_errors
@@ -1862,12 +1847,11 @@ LANES_API int luaopen_lanes_core(lua_State* L_)
     STACK_CHECK_START_REL(L_, 0);
 
     // Prevent PUC-Lua/LuaJIT mismatch. Hopefully this works for MoonJIT too
-    lua_getglobal(L_, "jit");                                                                      // L_: {jit?}
 #if LUAJIT_FLAVOR() == 0
-    if (!lua_isnil(L_, -1))
+    if (luaG_getmodule(L_, LUA_JITLIBNAME) != LuaType::NIL)
         raise_luaL_error(L_, "Lanes is built for PUC-Lua, don't run from LuaJIT");
 #else
-    if (lua_isnil(L_, -1))
+    if (luaG_getmodule(L_, LUA_JITLIBNAME) == LuaType::NIL)
         raise_luaL_error(L_, "Lanes is built for LuaJIT, don't run from PUC-Lua");
 #endif
     lua_pop(L_, 1);                                                                                // L_:

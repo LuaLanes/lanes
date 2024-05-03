@@ -7,17 +7,17 @@
 
 // #################################################################################################
 
-// a small helper to obtain the "package" module table from the registry instead of relying on the presence of _G.package
-int luaG_getpackage(lua_State* L_)
+// a small helper to obtain a module's table from the registry instead of relying on the presence of _G["<name>"]
+LuaType luaG_getmodule(lua_State* L_, char const* name_)
 {
     STACK_CHECK_START_REL(L_, 0);
-    int type{ lua503_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE) };                          // L_: _R._LOADED|nil
-    if (type != LUA_TTABLE) {                                                                      // L_: _R._LOADED|nil
+    LuaType type{ static_cast<LuaType>(lua503_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE)) };// L_: _R._LOADED|nil
+    if (type != LuaType::TABLE) {                                                                  // L_: _R._LOADED|nil
         STACK_CHECK(L_, 1);
         return type;
     }
-    type = lua503_getfield(L_, -1, LUA_LOADLIBNAME);                                               // L_: _R._LOADED package|nil
-    lua_remove(L_, -2);                                                                            // L_: package|nil
+    type = static_cast<LuaType>(lua503_getfield(L_, -1, name_));                                   // L_: _R._LOADED {module}|nil
+    lua_remove(L_, -2);                                                                            // L_: {module}|nil
     STACK_CHECK(L_, 1);
     return type;
 }

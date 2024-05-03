@@ -81,6 +81,7 @@ test:
 	$(MAKE) errhangtest
 	$(MAKE) fibonacci
 	$(MAKE) fifo
+	$(MAKE) finalizer
 	$(MAKE) func_is_string
 	$(MAKE) irayo_closure
 	$(MAKE) irayo_recursive
