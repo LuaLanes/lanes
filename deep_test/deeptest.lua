@@ -7,7 +7,7 @@ local dt = lanes.require "deep_test"
 local test_deep = true
 local test_clonable = true
 local test_uvtype = "string"
-local nupvals = _VERSION == "Lua 5.4" and 3 or 1
+local nupvals = _VERSION == "Lua 5.4" and 2 or 1
 
 local makeUserValue = function( obj_)
 	if test_uvtype == "string" then
@@ -43,8 +43,7 @@ local performTest = function( obj_)
 	obj_:setuv( 1, makeUserValue( obj_))
 	-- lua 5.4 supports multiple uservalues of arbitrary types
 	if nupvals > 1 then
-		-- keep uv #2 as nil
-		obj_:setuv( 3, "ENDUV")
+		obj_:setuv( 2, "ENDUV")
 	end
 
 	local t =

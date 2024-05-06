@@ -208,25 +208,29 @@ end
 
 local opt_validators =
 {
-    priority = function(v_)
+    gc_cb = function(v_)
         local tv = type(v_)
-        return (tv == "number") and v_ or raise_option_error("priority", tv, v_)
+        return (tv == "function") and v_ or raise_option_error("gc_cb", tv, v_)
     end,
     globals = function(v_)
         local tv = type(v_)
         return (tv == "table") and v_ or raise_option_error("globals", tv, v_)
     end,
+    name = function(v_)
+        local tv = type(v_)
+        return (tv == "string") and v_ or raise_option_error("name", tv, v_)
+    end,
     package = function(v_)
         local tv = type(v_)
         return (tv == "table") and v_ or raise_option_error("package", tv, v_)
     end,
+    priority = function(v_)
+        local tv = type(v_)
+        return (tv == "number") and v_ or raise_option_error("priority", tv, v_)
+    end,
     required = function(v_)
         local tv = type(v_)
         return (tv == "table") and v_ or raise_option_error("required", tv, v_)
-    end,
-    gc_cb = function(v_)
-        local tv = type(v_)
-        return (tv == "function") and v_ or raise_option_error("gc_cb", tv, v_)
     end
 }
 
@@ -338,10 +342,10 @@ local gen = function(...)
     end
 
     local core_lane_new = assert(core.lane_new)
-    local priority, globals, package, required, gc_cb = opt.priority, opt.globals, opt.package or package, opt.required, opt.gc_cb
+    local priority, globals, package, required, gc_cb, name = opt.priority, opt.globals, opt.package or package, opt.required, opt.gc_cb, opt.name
     return function(...)
         -- must pass functions args last else they will be truncated to the first one
-        return core_lane_new(func, libs, priority, globals, package, required, gc_cb, ...)
+        return core_lane_new(func, libs, priority, globals, package, required, gc_cb, name, ...)
     end
 end -- gen()
 
@@ -569,7 +573,7 @@ local configure_timers = function()
                 end
             end
         end -- timer_body()
-        timer_lane = gen("*", { package= {}, priority = core.max_prio}, timer_body)() -- "*" instead of "io,package" for LuaJIT compatibility...
+        timer_lane = gen("*", { package= {}, priority = core.max_prio, name = "LanesTimer"}, timer_body)() -- "*" instead of "io,package" for LuaJIT compatibility...
     end -- first_time
 
     -----

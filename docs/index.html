@@ -684,7 +684,7 @@
 			<td>table</td>
 			<td>
 				Sets the globals table for the launched threads. This can be used for giving them constants. The key/value pairs of <tt>table</tt> are transfered in the lane globals after the libraries have been loaded and the modules required.
-				<br/>
+				<br />
 				The global values of different lanes are in no manner connected; modifying one will only affect the particular lane.
 			</td>
 		</tr>
@@ -698,11 +698,20 @@
 				These tables are built from the modules listed here. <tt>required</tt> must be a list of strings, each one being the name of a module to be required. Each module is required with <tt>require()</tt> before the lanes function is invoked.
 				So, from the required module's point of view, requiring it manually from inside the lane body or having it required this way doesn't change anything. From the lane body's point of view, the only difference is that a module not creating a global won't be accessible.
 				Therefore, a lane body will also have to require a module manually, but this won't do anything more (see Lua's <tt>require</tt> documentation).
-				<br/>
+				<br />
 				ATTEMPTING TO TRANSFER A FUNCTION REGISTERED BY A MODULE NOT LISTED HERE WILL RAISE AN ERROR.
 			</td>
 		</tr>
-		<tr id="Tr1" valign=top>
+		<tr id=".name" valign=top>
+			<td>
+				<code>.name</code>
+			</td>
+			<td>string</td>
+			<td>
+				Name of the lane. If <tt>"auto"</tt>, name is built from <tt>ar.short_src:ar.linedefined</tt>. Can be changed later from the inside of the lane with <tt>set_debug_threadname()</tt> (see below).
+			</td>
+		</tr>
+		<tr id=".gc_cb" valign=top>
 			<td>
 				<code>.gc_cb</code>
 			</td>
@@ -719,9 +728,9 @@
 			<td>
 				The priority of lanes generated in the range -3..+3 (default is 0).
 				These values are a mapping over the actual priority range of the underlying implementation.
-				<br/>
+				<br />
 				Implementation and dependability of priorities varies by platform. Especially Linux kernel 2.6 is not supporting priorities in user mode.
-				<br/>
+				<br />
 				A lane can also change its own thread priority dynamically with <a href="#priority"><tt>lanes.set_thread_priority()</tt></a>.
 			</td>
 		</tr>
@@ -732,7 +741,7 @@
 			<td> table</td>
 			<td>
 				Specifying it when <code>libs_str</code> doesn't cause the <code>package</code> library to be loaded will generate an error.
-				<br/>
+				<br />
 				If not specified, the created lane will receive the current values of <tt>package</tt>. Only <tt>path</tt>, <tt>cpath</tt>, <tt>preload</tt> and <tt>loaders</tt> (Lua 5.1)/<tt>searchers</tt> (Lua 5.2) are transfered.
 			</td>
 		</tr>
