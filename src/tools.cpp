@@ -590,19 +590,19 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
             lua_pop(L2, 2);                                                                        // L1: ... t ...                                   L2:
             STACK_CHECK(L2, 0);
             return false;
-        } else if (!lua_istable(L2, -1)) {
-            char const *from, *to;
+        } else if (!lua_istable(L2, -1)) { // this can happen if someone decides to replace same already registered item (for a example a standard lib function) with a table
             lua_getglobal(L1, "decoda_name");                                                      // L1: ... t ... decoda_name
-            from = lua_tostring(L1, -1);
+            char const* from{ lua_tostring(L1, -1) };
             lua_pop(L1, 1);                                                                        // L1: ... t ...
             lua_getglobal(L2, "decoda_name");                                                      // L1: ... t ...                                  L2: {} t decoda_name
-            to = lua_tostring(L2, -1);
+            char const* to{ lua_tostring(L2, -1) };
             lua_pop(L2, 1);                                                                        // L1: ... t ...                                  L2: {} t
             raise_luaL_error(
                 getErrL(),
-                "INTERNAL ERROR IN %s: table '%s' not found in %s destination transfer database.",
+                "%s: source table '%s' found as %s in %s destination transfer database.",
                 from ? from : "main",
                 fqn,
+                lua_typename(L2, lua_type_as_enum(L2, -1)),
                 to ? to : "main"
             );
         }
