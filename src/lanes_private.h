@@ -89,6 +89,8 @@ class Lane
     [[nodiscard]] bool waitForCompletion(lua_Duration duration_);
     void startThread(int priority_);
     void pushThreadStatus(lua_State* L_);
+    void changeDebugName(int nameIdx_);
+    void securizeDebugName(lua_State* L_);
 };
 
 // xxh64 of string "kLanePointerRegKey" generated at https://www.pelock.com/products/hash-calculator
