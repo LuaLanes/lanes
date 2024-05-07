@@ -1,22 +1,20 @@
 local lanes = require "lanes" .configure{ with_timers = false, track_lanes = true}
-
-local wait
-do
-    local linda = lanes.linda()
-    wait = function( seconds_)
-        linda:receive( seconds_, "dummy_key")
-    end
-end
+local wait = lanes.sleep
 
 print "hello"
 
-local track = function( title_)
+local track = function( title_, expected_count_)
     print( title_)
-    for k, v in pairs( lanes.threads())
+    local count = 0
+    local threads = lanes.threads()
+    for k, v in pairs(threads)
     do
         print( k, v.name, v.status)
+        count = count + 1
     end
+    assert(count == expected_count_, "unexpected active lane count")
     print( "\n")
+    return threads
 end
 
 local sleeper = function( name_, seconds_)
@@ -29,7 +27,7 @@ local sleeper = function( name_, seconds_)
         set_debug_threadname( name_)
     end
     -- suspend the lane for the specified duration with a failed linda read
-    wait( seconds_)
+    lanes.sleep(seconds_)
     -- print( "exiting '" .. name_ .. "'")
 end
 
@@ -39,7 +37,7 @@ end
 local g = lanes.gen( "*", sleeper)
 
 -- start a forever-waiting lane (nil timeout)
-g( "forever")
+g( "forever", 'indefinitely')
 
 -- start a lane that will last 2 seconds
 g( "two_seconds", 2)
@@ -47,18 +45,17 @@ g( "two_seconds", 2)
 -- give a bit of time to reach the linda waiting call
 wait( 0.1)
 
--- list the known lanes
-track( "============= START")
+-- list the known lanes (should be living lanes)
+local threads = track( "============= START", 2)
+--     two_seconds                        forever
+assert(threads[1].status == 'waiting' and threads[2].status == 'waiting')
 
 -- wait until "two_seconds has completed"
 wait(2.1)
 
-track( "============= two_seconds dead")
-
--- this will collect the completed lane (and remove it from the tracking queue)
--- collectgarbage()
-
--- track( "============= two_seconds dead (after collectgarbage)")
+local threads = track( "============= two_seconds dead", 2)
+--     two_seconds                        forever
+assert(threads[1].status == 'done' and threads[2].status == 'waiting')
 
 -- start another lane that will last 2 seconds, with the same name
 g( "two_seconds", 2)
@@ -67,6 +64,17 @@ g( "two_seconds", 2)
 wait( 0.1)
 
 -- list the known lanes
-track( "============= ANOTHER")
+-- unless garbage collector cleaned it, we should have 3 lanes
+local threads = track( "============= ANOTHER", 3)
+--     two_seconds #2                     two_seconds #1                  forever
+assert(threads[1].status == 'waiting' and threads[2].status == 'done' and threads[3].status == 'waiting')
+
+-- this will collect the completed lane (and remove it from the tracking queue)
+collectgarbage()
+
+-- list the known lanes
+local threads = track( "============= AFTER COLLECTGARBAGE", 2)
+--     two_seconds #2                     forever
+assert(threads[1].status == 'waiting' and threads[2].status == 'waiting')
 
 print "done"

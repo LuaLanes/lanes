@@ -71,7 +71,7 @@ local default_params =
     on_state_create = nil,
     shutdown_timeout = 0.25,
     shutdown_mode = "hard",
-    with_timers = true,
+    with_timers = false,
     track_lanes = false,
     demote_full_userdata = nil,
     verbose_errors = false,
@@ -626,7 +626,9 @@ end
 -- PUBLIC LANES API
 local sleep = function(seconds_)
     seconds_ = seconds_ or 0.0 -- this causes false and nil to be a valid input, equivalent to 0.0, but that's ok
-    if type(seconds_) ~= "number" then
+    if seconds_ == 'indefinitely' then
+        seconds_ = nil
+    elseif type(seconds_) ~= "number" then
         error("invalid duration " .. string_format("%q", tostring(seconds_)))
     end
     -- receive data on a channel no-one ever sends anything, thus blocking for the specified duration
