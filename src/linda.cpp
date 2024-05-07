@@ -180,7 +180,7 @@ int Linda::ProtectedCall(lua_State* L_, lua_CFunction f_)
 // #################################################################################################
 
 /*
- * bool= linda_send( linda_ud, [timeout_secs=-1,] [linda.null,] key_num|str|bool|lightuserdata, ... )
+ * bool= linda:linda_send([timeout_secs=nil,] key_num|str|bool|lightuserdata, ...)
  *
  * Send one or more values to a Linda. If there is a limit, all values must fit.
  *
@@ -192,22 +192,18 @@ LUAG_FUNC(linda_send)
 {
     auto send = [](lua_State* L_) {
         Linda* const linda{ ToLinda<false>(L_, 1) };
-        std::chrono::time_point<std::chrono::steady_clock> until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
         int key_i{ 2 }; // index of first key, if timeout not there
 
+        std::chrono::time_point<std::chrono::steady_clock> until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
         if (lua_type(L_, 2) == LUA_TNUMBER) { // we don't want to use lua_isnumber() because of autocoercion
             lua_Duration const duration{ lua_tonumber(L_, 2) };
             if (duration.count() >= 0.0) {
                 until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration);
+            } else {
+                raise_luaL_argerror(L_, 2, "duration cannot be < 0");
             }
             ++key_i;
         } else if (lua_isnil(L_, 2)) { // alternate explicit "infinite timeout" by passing nil before the key
-            ++key_i;
-        }
-
-        bool const as_nil_sentinel{ kNilSentinel.equals(L_, key_i) }; // if not nullptr, send() will silently send a single nil if nothing is provided
-        if (as_nil_sentinel) {
-            // the real key to send data to is after the kNilSentinel marker
             ++key_i;
         }
 
@@ -218,12 +214,7 @@ LUAG_FUNC(linda_send)
 
         // make sure there is something to send
         if (lua_gettop(L_) == key_i) {
-            if (as_nil_sentinel) {
-                // send a single nil if nothing is provided
-                kNilSentinel.pushKey(L_);
-            } else {
-                raise_luaL_error(L_, "no data to send");
-            }
+            raise_luaL_error(L_, "no data to send");
         }
 
         // convert nils to some special non-nil sentinel in sent values
@@ -322,7 +313,7 @@ LUAG_FUNC(linda_send)
 
 /*
  * 2 modes of operation
- * [val, key]= linda_receive( linda_ud, [timeout_secs_num=-1], key_num|str|bool|lightuserdata [, ...] )
+ * [val, key]= linda_receive( linda_ud, [timeout_secs_num=nil], key_num|str|bool|lightuserdata [, ...] )
  * Consumes a single value from the Linda, in any key.
  * Returns: received value (which is consumed from the slot), and the key which had it
 
@@ -335,13 +326,15 @@ LUAG_FUNC(linda_receive)
 {
     auto receive = [](lua_State* L_) {
         Linda* const linda{ ToLinda<false>(L_, 1) };
-        std::chrono::time_point<std::chrono::steady_clock> until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
         int key_i{ 2 }; // index of first key, if timeout not there
 
+        std::chrono::time_point<std::chrono::steady_clock> until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
         if (lua_type(L_, 2) == LUA_TNUMBER) { // we don't want to use lua_isnumber() because of autocoercion
             lua_Duration const duration{ lua_tonumber(L_, 2) };
             if (duration.count() >= 0.0) {
                 until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration);
+            } else {
+                raise_luaL_argerror(L_, 2, "duration cannot be < 0");
             }
             ++key_i;
         } else if (lua_isnil(L_, 2)) { // alternate explicit "infinite timeout" by passing nil before the key

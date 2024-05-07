@@ -89,13 +89,12 @@ void Universe::terminateFreeRunningLanes(lua_State* L_, lua_Duration shutdownTim
         {
             std::lock_guard<std::mutex> guard{ selfdestructMutex };
             Lane* lane{ selfdestructFirst };
-            lua_Duration timeout{ 1us };
             while (lane != SELFDESTRUCT_END) {
                 // attempt the requested cancel with a small timeout.
                 // if waiting on a linda, they will raise a cancel_error.
                 // if a cancellation hook is desired, it will be installed to try to raise an error
                 if (lane->thread.joinable()) {
-                    std::ignore = thread_cancel(lane, op_, 1, timeout, true);
+                    std::ignore = thread_cancel(lane, op_, 1, std::chrono::steady_clock::now() + 1us, true);
                 }
                 lane = lane->selfdestruct_next;
             }
