@@ -34,6 +34,7 @@ THE SOFTWARE.
 #include "state.h"
 
 #include "lanes.h"
+#include "lanes_private.h"
 #include "tools.h"
 #include "universe.h"
 
@@ -111,71 +112,82 @@ void serialize_require(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_)
 [[nodiscard]] static int require_lanes_core(lua_State* L_)
 {
     // leaves a copy of 'lanes.core' module table on the stack
-    luaL_requiref(L_, "lanes.core", luaopen_lanes_core, 0);
+    luaL_requiref(L_, kLanesCoreLibName, luaopen_lanes_core, 0);
     return 1;
 }
 
 // #################################################################################################
 
-static luaL_Reg const libs[] = {
-    { LUA_LOADLIBNAME, luaopen_package },
-    { LUA_TABLIBNAME, luaopen_table },
-    { LUA_STRLIBNAME, luaopen_string },
-    { LUA_MATHLIBNAME, luaopen_math },
-#ifndef PLATFORM_XBOX // no os/io libs on xbox
-    { LUA_OSLIBNAME, luaopen_os },
-    { LUA_IOLIBNAME, luaopen_io },
-#endif // PLATFORM_XBOX
-#if LUA_VERSION_NUM >= 503
-    { LUA_UTF8LIBNAME, luaopen_utf8 },
-#endif
+namespace global
+{
+    static luaL_Reg const sLibs[] = {
+        { "base", nullptr }, // ignore "base" (already acquired it)
 #if LUA_VERSION_NUM >= 502
 #ifdef luaopen_bit32
-    { LUA_BITLIBNAME, luaopen_bit32 },
+        { LUA_BITLIBNAME, luaopen_bit32 },
 #endif
-    { LUA_COLIBNAME, luaopen_coroutine }, // Lua 5.2: coroutine is no longer a part of base!
-#else                                     // LUA_VERSION_NUM
-    { LUA_COLIBNAME, nullptr },          // Lua 5.1: part of base package
-#endif                                    // LUA_VERSION_NUM
-    { LUA_DBLIBNAME, luaopen_debug },
+        { LUA_COLIBNAME, luaopen_coroutine }, // Lua 5.2: coroutine is no longer a part of base!
+#else // LUA_VERSION_NUM
+        { LUA_COLIBNAME, nullptr }, // Lua 5.1: part of base package
+#endif // LUA_VERSION_NUM
+        { LUA_DBLIBNAME, luaopen_debug },
+#ifndef PLATFORM_XBOX // no os/io libs on xbox
+        { LUA_IOLIBNAME, luaopen_io },
+        { LUA_OSLIBNAME, luaopen_os },
+#endif // PLATFORM_XBOX
+        { LUA_LOADLIBNAME, luaopen_package },
+        { LUA_MATHLIBNAME, luaopen_math },
+        { LUA_STRLIBNAME, luaopen_string },
+        { LUA_TABLIBNAME, luaopen_table },
+#if LUA_VERSION_NUM >= 503
+        { LUA_UTF8LIBNAME, luaopen_utf8 },
+#endif
 #if LUAJIT_FLAVOR() != 0 // building against LuaJIT headers, add some LuaJIT-specific libs
-                         // #pragma message( "supporting JIT base libs")
-    { LUA_BITLIBNAME, luaopen_bit },
-    { LUA_JITLIBNAME, luaopen_jit },
-    { LUA_FFILIBNAME, luaopen_ffi },
+        { LUA_BITLIBNAME, luaopen_bit },
+        { LUA_FFILIBNAME, luaopen_ffi },
+        { LUA_JITLIBNAME, luaopen_jit },
 #endif // LUAJIT_FLAVOR()
 
-    { LUA_DBLIBNAME, luaopen_debug },
-    { "lanes.core", require_lanes_core }, // So that we can open it like any base library (possible since we have access to the init function)
-                                          //
-    { "base", nullptr },                  // ignore "base" (already acquired it)
-    { nullptr, nullptr }
-};
+        { kLanesCoreLibName, require_lanes_core }, // So that we can open it like any base library (possible since we have access to the init function)
+                                                   //
+        { nullptr, nullptr }
+    };
+
+} // namespace global
 
 // #################################################################################################
 
 static void open1lib(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_, char const* name_, size_t len_)
 {
-    for (int i{ 0 }; libs[i].name; ++i) {
-        if (strncmp(name_, libs[i].name, len_) == 0) {
-            lua_CFunction libfunc = libs[i].func;
-            name_ = libs[i].name; // note that the provided name_ doesn't necessarily ends with '\0', hence len_
-            if (libfunc != nullptr) {
-                bool const isLanesCore{ libfunc == require_lanes_core }; // don't want to create a global for "lanes.core"
-                DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "opening %.*s library\n" INDENT_END(U_), (int) len_, name_));
-                STACK_CHECK_START_REL(L_, 0);
-                // open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
-                luaL_requiref(L_, name_, libfunc, !isLanesCore);
-                // lanes.core doesn't declare a global, so scan it here and now
-                if (isLanesCore == true) {
-                    populate_func_lookup_table(L_, -1, name_);
-                }
-                lua_pop(L_, 1);
-                STACK_CHECK(L_, 0);
+    for (int i{ 0 }; global::sLibs[i].name; ++i) {
+        if (strncmp(name_, global::sLibs[i].name, len_) == 0) {
+            lua_CFunction const libfunc{ global::sLibs[i].func };
+            if (!libfunc) {
+                continue;
             }
+            name_ = global::sLibs[i].name; // note that the provided name_ doesn't necessarily ends with '\0', hence len_
+            DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "opening %.*s library\n" INDENT_END(U_), (int) len_, name_));
+            STACK_CHECK_START_REL(L_, 0);
+            // open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
+            bool const isLanesCore{ libfunc == require_lanes_core }; // don't want to create a global for "lanes.core"
+            luaL_requiref(L_, name_, libfunc, !isLanesCore);                                       // L_: {lib}
+            // lanes.core doesn't declare a global, so scan it here and now
+            if (isLanesCore) {
+                populate_func_lookup_table(L_, -1, name_);
+            }
+            lua_pop(L_, 1);                                                                        // L_:
+            STACK_CHECK(L_, 0);
             break;
         }
     }
+}
+
+// #################################################################################################
+
+template<size_t N>
+static inline void open1lib(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_, char const (&name_)[N])
+{
+    open1lib(DEBUGSPEW_PARAM_COMMA(U_) L_, name_, N - 1);
 }
 
 // #################################################################################################
@@ -195,7 +207,7 @@ static void copy_one_time_settings(Universe* U_, SourceState L1_, DestState L2_)
     // copy settings from from source to destination registry
     InterCopyContext c{ U_, L2_, L1_, {}, {}, {}, {}, {} };
     if (c.inter_move(1) != InterCopyResult::Success) {                                             // L1_:                                           L2_: config
-        raise_luaL_error(L1_, "failed to copy settings when loading lanes.core");
+        raise_luaL_error(L1_, "failed to copy settings when loading " kLanesCoreLibName);
     }
     // set L2:_R[kConfigRegKey] = settings
     kConfigRegKey.setValue(L2_, [](lua_State* L_) { lua_insert(L_, -2); });                        // L1_:                                           L2_: config
@@ -334,11 +346,10 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
     // copy settings (for example because it may contain a Lua on_state_create function)
     copy_one_time_settings(U_, from_, L);
 
-    // 'lua.c' stops GC during initialization so perhaps its a good idea. :)
+    // 'lua.c' stops GC during initialization so perhaps it is a good idea. :)
     lua_gc(L, LUA_GCSTOP, 0);
 
     // Anything causes 'base' to be taken in
-    //
     if (libs_ != nullptr) {
         // special "*" case (mainly to help with LuaJIT compatibility)
         // as we are called from luaopen_lanes_core() already, and that would deadlock
@@ -346,7 +357,7 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
             DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "opening ALL standard libraries\n" INDENT_END(U_)));
             luaL_openlibs(L);
             // don't forget lanes.core for regular lane states
-            open1lib(DEBUGSPEW_PARAM_COMMA(U_) L, "lanes.core", 10);
+            open1lib(DEBUGSPEW_PARAM_COMMA(U_) L, kLanesCoreLibName);
             libs_ = nullptr; // done with libs
         } else {
             DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "opening base library\n" INDENT_END(U_)));

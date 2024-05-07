@@ -710,13 +710,13 @@
     <ClCompile Include="..\src\compat.cpp" />
     <ClCompile Include="..\src\deep.cpp" />
     <ClCompile Include="..\src\tools.cpp" />
-    <ClCompile Include="..\src\universe.cpp" />
     <ClCompile Include="deep_test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\compat.h" />
     <ClInclude Include="..\src\deep.h" />
     <ClInclude Include="..\src\tools.h" />
+    <ClInclude Include="..\src\uniquekey.h" />
     <ClInclude Include="..\src\universe.h" />
   </ItemGroup>
   <ItemGroup>

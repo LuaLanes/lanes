@@ -8,7 +8,7 @@
 io.stderr:setvbuf "no"
 
 
-local lanes = require "lanes".configure()
+local lanes = require "lanes".configure{with_timers=true}
 
 local linda= lanes.linda()
 

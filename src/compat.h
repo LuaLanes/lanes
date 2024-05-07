@@ -68,6 +68,8 @@ inline int lua504_dump(lua_State* L_, lua_Writer writer_, void* data_, [[maybe_u
 }
 #define LUA_LOADED_TABLE "_LOADED" // // doesn't exist in Lua 5.1
 
+int luaL_getsubtable(lua_State* L_, int idx_, const char* fname_);
+
 #endif // LUA_VERSION_NUM == 501
 
 // #################################################################################################

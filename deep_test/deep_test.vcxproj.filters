@@ -24,9 +24,6 @@
     <ClCompile Include="..\src\tools.cpp">
       <Filter>Lanes</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\universe.cpp">
-      <Filter>Lanes</Filter>
-    </ClCompile>
     <ClCompile Include="deep_test.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -42,6 +39,9 @@
       <Filter>Lanes</Filter>
     </ClInclude>
     <ClInclude Include="..\src\tools.h">
+      <Filter>Lanes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\uniquekey.h">
       <Filter>Lanes</Filter>
     </ClInclude>
   </ItemGroup>
