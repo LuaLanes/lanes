@@ -72,6 +72,7 @@ rock:
 #--- Testing ---
 #
 test:
+	$(MAKE) appendud
 	$(MAKE) atexit
 	$(MAKE) atomic
 	$(MAKE) basic
@@ -94,6 +95,7 @@ test:
 	$(MAKE) recursive
 	$(MAKE) rupval
 	$(MAKE) timer
+	$(MAKE) track_lanes
 
 appendud: tests/appendud.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
@@ -155,6 +157,9 @@ launchtest: tests/launchtest.lua $(_TARGET_SO)
 linda_perf: tests/linda_perf.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
+manual_register: tests/manual_register.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
 objects: tests/objects.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
@@ -179,6 +184,14 @@ pingpong: tests/pingpong.lua $(_TARGET_SO)
 recursive: tests/recursive.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
+rupval: tests/rupval.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+timer: tests/timer.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+track_lanes: tests/track_lanes.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
 #
 # This tries to show out a bug which happens in lane cleanup (multicore CPU's only)
 #

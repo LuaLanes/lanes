@@ -29,7 +29,7 @@ LuaType luaG_getmodule(lua_State* L_, char const* name_)
 // #################################################################################################
 
 // Copied from Lua 5.2 loadlib.c
-static int luaL_getsubtable(lua_State* L_, int idx_, const char* fname_)
+int luaL_getsubtable(lua_State* L_, int idx_, const char* fname_)
 {
     lua_getfield(L_, idx_, fname_);
     if (lua_istable(L_, -1))

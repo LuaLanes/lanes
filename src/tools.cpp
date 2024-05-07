@@ -348,7 +348,7 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U_)
     while (lua_next(L_, breadthFirstCache) != 0) {                                                 // L_: ... {i_} {bfc} k {}
         DEBUGSPEW_CODE(char const* key = (lua_type(L_, -2) == LUA_TSTRING) ? lua_tostring(L_, -2) : "not a string");
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "table '%s'\n" INDENT_END(U_), key));
-        DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U_ });
+        DEBUGSPEW_CODE(DebugSpewIndentScope scope2{ U_ });
         // un-visit this table in case we do need to process it
         lua_pushvalue(L_, -1);                                                                     // L_: ... {i_} {bfc} k {} {}
         lua_rawget(L_, cache);                                                                     // L_: ... {i_} {bfc} k {} n

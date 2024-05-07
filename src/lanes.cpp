@@ -393,14 +393,6 @@ static void push_stack_trace(lua_State* L_, int rc_, int stk_base_)
 // ########################################### Threads #############################################
 // #################################################################################################
 
-//
-// Protects modifying the selfdestruct chain
-
-#define SELFDESTRUCT_END ((Lane*) (-1))
-//
-// The chain is ended by '(Lane*)(-1)', not nullptr:
-//      'selfdestructFirst -> ... -> ... -> (-1)'
-
 /*
  * Add the lane to selfdestruct chain; the ones still running at the end of the
  * whole process will be cancelled.
@@ -442,99 +434,6 @@ static void selfdestruct_add(Lane* lane_)
         assert(found);
     }
     return found;
-}
-
-// #################################################################################################
-
-// process end: cancel any still free-running threads
-[[nodiscard]] static int universe_gc(lua_State* L_)
-{
-    Universe* const U{ lua_tofulluserdata<Universe>(L_, 1) };
-    lua_Duration const shutdown_timeout{ lua_tonumber(L_, lua_upvalueindex(1)) };
-    [[maybe_unused]] char const* const op_string{ lua_tostring(L_, lua_upvalueindex(2)) };
-    CancelOp const op{ which_cancel_op(op_string) };
-
-    if (U->selfdestructFirst != SELFDESTRUCT_END) {
-        // Signal _all_ still running threads to exit (including the timer thread)
-        {
-            std::lock_guard<std::mutex> guard{ U->selfdestructMutex };
-            Lane* lane{ U->selfdestructFirst };
-            lua_Duration timeout{ 1us };
-            while (lane != SELFDESTRUCT_END) {
-                // attempt the requested cancel with a small timeout.
-                // if waiting on a linda, they will raise a cancel_error.
-                // if a cancellation hook is desired, it will be installed to try to raise an error
-                if (lane->thread.joinable()) {
-                    std::ignore = thread_cancel(lane, op, 1, timeout, true);
-                }
-                lane = lane->selfdestruct_next;
-            }
-        }
-
-        // When noticing their cancel, the lanes will remove themselves from the selfdestruct chain.
-        {
-            std::chrono::time_point<std::chrono::steady_clock> t_until{ std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(shutdown_timeout) };
-
-            while (U->selfdestructFirst != SELFDESTRUCT_END) {
-                // give threads time to act on their cancel
-                std::this_thread::yield();
-                // count the number of cancelled thread that didn't have the time to act yet
-                int n{ 0 };
-                {
-                    std::lock_guard<std::mutex> guard{ U->selfdestructMutex };
-                    Lane* lane{ U->selfdestructFirst };
-                    while (lane != SELFDESTRUCT_END) {
-                        if (lane->cancelRequest != CancelRequest::None)
-                            ++n;
-                        lane = lane->selfdestruct_next;
-                    }
-                }
-                // if timeout elapsed, or we know all threads have acted, stop waiting
-                std::chrono::time_point<std::chrono::steady_clock> t_now = std::chrono::steady_clock::now();
-                if (n == 0 || (t_now >= t_until)) {
-                    DEBUGSPEW_CODE(fprintf(stderr, "%d uncancelled lane(s) remain after waiting %fs at process end.\n", n, shutdown_timeout.count()));
-                    break;
-                }
-            }
-        }
-
-        // If some lanes are currently cleaning after themselves, wait until they are done.
-        // They are no longer listed in the selfdestruct chain, but they still have to lua_close().
-        while (U->selfdestructingCount.load(std::memory_order_acquire) > 0) {
-            std::this_thread::yield();
-        }
-    }
-
-    // If after all this, we still have some free-running lanes, it's an external user error, they should have stopped appropriately
-    {
-        std::lock_guard<std::mutex> guard{ U->selfdestructMutex };
-        Lane* lane{ U->selfdestructFirst };
-        if (lane != SELFDESTRUCT_END) {
-            // this causes a leak because we don't call U's destructor (which could be bad if the still running lanes are accessing it)
-            raise_luaL_error(L_, "Zombie thread %s refuses to die!", lane->debugName);
-        }
-    }
-
-    // no need to mutex-protect this as all threads in the universe are gone at that point
-    if (U->timerLinda != nullptr) { // test in case some early internal error prevented Lanes from creating the deep timer
-        [[maybe_unused]] int const prev_ref_count{ U->timerLinda->refcount.fetch_sub(1, std::memory_order_relaxed) };
-        LUA_ASSERT(L_, prev_ref_count == 1); // this should be the last reference
-        DeepFactory::DeleteDeepObject(L_, U->timerLinda);
-        U->timerLinda = nullptr;
-    }
-
-    close_keepers(U);
-
-    // remove the protected allocator, if any
-    U->protectedAllocator.removeFrom(L_);
-
-    U->Universe::~Universe();
-
-    // universe is no longer available (nor necessary)
-    // we need to do this in case some deep userdata objects were created before Lanes was initialized,
-    // as potentially they will be garbage collected after Lanes at application shutdown
-    universe_store(L_, nullptr);
-    return 0;
 }
 
 // #################################################################################################
@@ -1526,14 +1425,13 @@ LUAG_FUNC(threads)
     Universe* const U{ universe_get(L_) };
 
     // List _all_ still running threads
-    //
     std::lock_guard<std::mutex> guard{ U->trackingMutex };
     if (U->trackingFirst && U->trackingFirst != TRACKING_END) {
         Lane* lane{ U->trackingFirst };
         int index{ 0 };
         lua_newtable(L_);                                                                          // L_: {}
         while (lane != TRACKING_END) {
-            // insert a { name, status } tuple, so that several lanes with the same name can't clobber each other
+            // insert a { name='<name>', status='<status>' } tuple, so that several lanes with the same name can't clobber each other
             lua_createtable(L_, 0, 2);                                                             // L_: {} {}
             lua_pushstring(L_, lane->debugName);                                                   // L_: {} {} "name"
             lua_setfield(L_, -2, "name");                                                          // L_: {} {}
@@ -1622,17 +1520,20 @@ LUAG_FUNC(wakeup_conv)
 // #################################################################################################
 
 extern int LG_linda(lua_State* L_);
-static struct luaL_Reg const lanes_functions[] = {
-    { "linda", LG_linda },
-    { "now_secs", LG_now_secs },
-    { "wakeup_conv", LG_wakeup_conv },
-    { "set_thread_priority", LG_set_thread_priority },
-    { "set_thread_affinity", LG_set_thread_affinity },
-    { "nameof", luaG_nameof },
-    { "register", LG_register },
-    { "set_singlethreaded", LG_set_singlethreaded },
-    { nullptr, nullptr }
-};
+
+namespace global {
+    static struct luaL_Reg const sLanesFunctions[] = {
+        { "linda", LG_linda },
+        { "now_secs", LG_now_secs },
+        { "wakeup_conv", LG_wakeup_conv },
+        { "set_thread_priority", LG_set_thread_priority },
+        { "set_thread_affinity", LG_set_thread_affinity },
+        { "nameof", luaG_nameof },
+        { "register", LG_register },
+        { "set_singlethreaded", LG_set_singlethreaded },
+        { nullptr, nullptr }
+    };
+} // namespace global
 
 // #################################################################################################
 
@@ -1715,7 +1616,7 @@ LUAG_FUNC(configure)
     lua_pushnil(L_);                                                                               // L_: settings M nil
     lua_setfield(L_, -2, "configure");                                                             // L_: settings M
     // add functions to the module's table
-    luaG_registerlibfuncs(L_, lanes_functions);
+    luaG_registerlibfuncs(L_, global::sLanesFunctions);
 #if HAVE_LANE_TRACKING()
     // register core.threads() only if settings say it should be available
     if (U->trackingFirst != nullptr) {
@@ -1739,7 +1640,7 @@ LUAG_FUNC(configure)
     // prepare the metatable for threads
     // contains keys: { __gc, __index, cached_error, cached_tostring, cancel, join, get_debug_threadname }
     //
-    if (luaL_newmetatable(L_, "Lane")) {                                                           // L_: settings M mt
+    if (luaL_newmetatable(L_, kLaneMetatableName)) {                                               // L_: settings M mt
         lua_pushcfunction(L_, lane_gc);                                                            // L_: settings M mt lane_gc
         lua_setfield(L_, -2, "__gc");                                                              // L_: settings M mt
         lua_pushcfunction(L_, LG_thread_index);                                                    // L_: settings M mt LG_thread_index
@@ -1756,7 +1657,7 @@ LUAG_FUNC(configure)
         lua_setfield(L_, -2, "get_debug_threadname");                                              // L_: settings M mt
         lua_pushcfunction(L_, LG_thread_cancel);                                                   // L_: settings M mt LG_thread_cancel
         lua_setfield(L_, -2, "cancel");                                                            // L_: settings M mt
-        lua_pushliteral(L_, "Lane");                                                               // L_: settings M mt "Lane"
+        lua_pushliteral(L_, kLaneMetatableName);                                                   // L_: settings M mt "Lane"
         lua_setfield(L_, -2, "__metatable");                                                       // L_: settings M mt
     }
 

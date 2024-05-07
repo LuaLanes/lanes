@@ -11,12 +11,14 @@ extern "C"
 
 #include "compat.h"
 #include "macros_and_utils.h"
+#include "uniquekey.h"
 
 #include <mutex>
 
 // #################################################################################################
 
 // forwards
+enum class CancelOp;
 struct DeepPrelude;
 struct Keepers;
 class Lane;
@@ -114,6 +116,13 @@ class ProtectedAllocator
 
 // #################################################################################################
 
+// xxh64 of string "kUniverseFullRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kUniverseFullRegKey{ 0x1C2D76870DD9DD9Full };
+// xxh64 of string "kUniverseLightRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kUniverseLightRegKey{ 0x48BBE9CEAB0BA04Full };
+
+// #################################################################################################
+
 // everything regarding the Lanes universe is stored in that global structure
 // held as a full userdata in the master Lua state that required it for the first time
 class Universe
@@ -154,6 +163,7 @@ class Universe
     Lane* volatile trackingFirst{ nullptr }; // will change to TRACKING_END if we want to activate tracking
 #endif // HAVE_LANE_TRACKING()
 
+    // Protects modifying the selfdestruct chain
     std::mutex selfdestructMutex;
 
     // require() serialization
@@ -178,6 +188,8 @@ class Universe
     Universe(Universe&&) = delete;
     Universe& operator=(Universe const&) = delete;
     Universe& operator=(Universe&&) = delete;
+
+    void terminateFreeRunningLanes(lua_State* L_, lua_Duration shutdownTimeout_, CancelOp op_);
 };
 
 // #################################################################################################
@@ -211,3 +223,27 @@ class DebugSpewIndentScope
     }
 };
 #endif // USE_DEBUG_SPEW()
+
+// #################################################################################################
+
+[[nodiscard]] inline Universe* universe_get(lua_State* L_)
+{
+    STACK_CHECK_START_REL(L_, 0);
+    Universe* const universe{ kUniverseLightRegKey.readLightUserDataValue<Universe>(L_) };
+    STACK_CHECK(L_, 0);
+    return universe;
+}
+
+// #################################################################################################
+
+inline void universe_store(lua_State* L_, Universe* U_)
+{
+    LUA_ASSERT(L_, !U_ || universe_get(L_) == nullptr);
+    STACK_CHECK_START_REL(L_, 0);
+    kUniverseLightRegKey.setValue(L_, [U = U_](lua_State* L_) { U ? lua_pushlightuserdata(L_, U) : lua_pushnil(L_); });
+    STACK_CHECK(L_, 0);
+}
+
+// #################################################################################################
+
+int universe_gc(lua_State* L_);
