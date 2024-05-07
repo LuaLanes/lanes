@@ -311,7 +311,7 @@
 			</td>
 			<td>
 				If equal to <tt>false</tt> or <tt>nil</tt>, Lanes doesn't start the timer service, and the associated API will be absent from the interface (see below).
-				Default is <tt>true</tt>.
+				Default is <tt>false</tt>.
 			</td>
 		</tr>
 
@@ -1328,7 +1328,7 @@ events to a common Linda, but... :).</font>
 </pre></td></tr></table>
 
 <p>
-	Timers are implemented as a lane. They can be disabled by setting "<tt><a href="#with_timers">with_timers</a></tt>" to <tt>nil</tt> or <tt>false</tt> to <tt>lanes.configure()</tt>.
+	Timers are implemented as a lane. They can be enabled by setting "<tt><a href="#with_timers">with_timers</a></tt>" to <tt>true</tt> in <tt>lanes.configure()</tt> settings.
 </p>
 
 <p>
@@ -1395,7 +1395,7 @@ events to a common Linda, but... :).</font>
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	void = lanes.sleep([seconds|false])
+	void = lanes.sleep(['indefinitely'|seconds|false])
 </pre></td></tr></table>
 
 <p>
