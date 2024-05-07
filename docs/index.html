@@ -953,26 +953,29 @@
 </pre></td></tr></table>
 
 <p>
-	Waits until the lane finishes, or <tt>timeout</tt> seconds have passed. Returns <tt>nil, "timeout"</tt> on timeout, <tt>nil,err,stack_tbl</tt> if the lane hit an error, <tt>nil, "killed"</tt> if forcefully killed, or the return values of the lane.
+	<tt>timeout</tt> is an optional number &gt= 0 (the default if unspecified).
+	<br/>
+	Waits until the lane finishes, or <tt>timeout</tt> seconds have passed.
+	<br/>
+	Returns <tt>nil, "timeout"</tt> on timeout, <tt>nil,err,stack_tbl</tt> if the lane hit an error, <tt>nil, "killed"</tt> if forcefully killed, or the return values of the lane.
+	<br/>
 	Unlike in reading the results in table fashion, errors are not propagated.
 </p>
 
 <p>
 <tt>stack_tbl</tt> is a table describing where the error was thrown.
 	<br/>
-  In <tt>"extended"</tt> mode, <tt>stack_tbl</tt> is an array of tables containing info gathered with <tt>lua_getinfo()</tt> (<tt>"source"</tt>,<tt>"currentline"</tt>,<tt>"name"</tt>,<tt>"namewhat"</tt>,<tt>"what"</tt>).
+	In <tt>"extended"</tt> mode, <tt>stack_tbl</tt> is an array of tables containing info gathered with <tt>lua_getinfo()</tt> (<tt>"source"</tt>,<tt>"currentline"</tt>,<tt>"name"</tt>,<tt>"namewhat"</tt>,<tt>"what"</tt>).
 	<br/>
-	In <tt>"basic mode"</tt>, <tt>stack_tbl</tt> is an array of "&lt;filename&gt;:&lt;line&gt;" strings. Use <tt>table.concat()</tt> to format it to your liking (or just ignore it).
+	In <tt>"basic"</tt> mode, <tt>stack_tbl</tt> is an array of <tt>"&lt;filename&gt;:&lt;line&gt;"</tt> strings. Use <tt>table.concat()</tt> to format it to your liking (or just ignore it).
 </p>
 
 <p>
-	If you use <tt>:join</tt>, make sure your lane main function returns a non-nil value so you can tell timeout and error cases apart from succesful return (using the <tt>.status</tt> property may be risky, since it might change between a timed out join and the moment you read it).
+	If you use <tt>:join()</tt>, make sure your lane main function returns a non-nil value so you can tell timeout and error cases apart from succesful return (using the <tt>.status</tt> property may be risky, since it might change between a timed out join and the moment you read it).
 </p>
-
-<p>
 
 <table border=1 bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
-	require "lanes".configure()
+	local lanes = require "lanes".configure()
 
 	f = lanes.gen(function() error "!!!" end)
 	a = f(1)
@@ -990,7 +993,7 @@
 </p>
 
 <table border=1 bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
-	require "lanes".configure()
+	local lanes = require "lanes".configure()
 
 	local sync_linda = lanes.linda()
 	f = lanes.gen(function() dostuff() sync_linda:send("done", true) end)
@@ -1012,7 +1015,10 @@
 </pre></td></tr></table>
 
 <p>
-	<tt>cancel()</tt> sends a cancellation request to the lane.<br/>
+	<tt>timeout</tt> is an optional number &gt= 0. Defaults to 0 if left unspecified or <tt>nil</tt>.
+	<br/>
+	<tt>cancel()</tt> sends a cancellation request to the lane.
+	<br/>
 	First argument is a <tt>mode</tt> can be one of <tt>"hard"</tt>, <tt>"soft"</tt>, <tt>"call"</tt>, <tt>"ret"</tt>, <tt>"line"</tt>, <tt>"count"</tt>.
 	If <tt>mode</tt> is not specified, it defaults to <tt>"hard"</tt>.
 	If <tt>wake_lane</tt> is <tt>true</tt>, the lane is also signalled so that execution returns from any pending linda operation. Linda operations detecting the cancellation request return <tt>lanes.cancel_error</tt>.
@@ -1056,17 +1062,17 @@
 </pre></td></tr></table>
 
 <p>
-	The <tt>error</tt> call is used for throwing exceptions in Lua. What Lua does not offer, however, is scoped <a href="http://en.wikipedia.org/wiki/Finalizer">finalizers</a>
+	The regular Lua <tt>error</tt> function is usable in lanes for throwing exceptions. What Lua does not offer, however, is scoped <a href="http://en.wikipedia.org/wiki/Finalizer">finalizers</a>
 	that would get called when a certain block of instructions gets exited, whether through peaceful return or abrupt <tt>error</tt>.
 </p>
 
 <p>
-	Since 2.0.3, Lanes registers a function <tt>set_finalizer</tt> in the lane's Lua state for doing this.
+	Lanes registers a function <tt>set_finalizer</tt> in the lane's Lua state for doing this.
 	Any functions given to it will be called in the lane Lua state, just prior to closing it. It is possible to set more than one finalizer. They are not called in any particular order.
 </p>
 
 <p>
-	An error in a finalizer itself overrides the state of the regular chunk (in practise, it would be highly preferable <i>not</i> to have errors in finalizers). If one finalizer errors, the others may not get called.
+	An error in a finalizer itself overrides the state of the regular chunk (in practice, it would be highly preferable <i>not</i> to have errors in finalizers). If one finalizer errors, the others may not get called.
 	If a finalizer error occurs after an error in the lane body, then this new error replaces the previous one (including the full stack trace).
 </p>
 
@@ -1103,18 +1109,18 @@
 </p>
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
-	require "lanes".configure()
+	local lanes = require "lanes".configure()
 
-	local linda = lanes.linda()
+	local linda = lanes.linda("my linda")
 
 	local function loop(max)
 		for i = 1, max do
 			print("sending: " .. i)
-			linda:send("x", i)    -- linda as upvalue
+			linda:send("x", i)    -- linda as upvalue of loop()
 		end
 	end
 
-	a = lanes.gen("", loop)(10000)
+	lane_h = lanes.gen("", loop)(10000)
 
 	while true do
 		local key, val = linda:receive(3.0, "x")    -- timeout in seconds
@@ -1124,6 +1130,8 @@
 		end
 		print(tostring(linda) .. " received: " .. val)
 	end
+
+	lane_h:join()
 </pre></td></tr></table>
 
 <p>
@@ -1147,7 +1155,7 @@
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
 	h = lanes.linda([opt_name, [opt_group]])
 
-	[true|lanes.cancel_error] = h:send([timeout_secs,] [h.null,] key, ...)
+	[true|lanes.cancel_error] = h:send([timeout_secs,] key, ...)
 
 	[key, val]|[lanes.cancel_error] = h:receive([timeout_secs,] key [, ...])
 
@@ -1157,10 +1165,11 @@
 </pre></td></tr></table>
 
 <p>
-	The <tt>send()</tt> and <tt>receive()</tt> methods use Linda keys as FIFO stacks (first in, first out). Timeouts are given in seconds (millisecond accuracy). If using numbers as the first Linda key, one must explicitly give <tt>nil</tt> as the timeout parameter to avoid ambiguities.
+	Timeouts are given in seconds (&gt= 0, millisecond accuracy) or <tt>nil</tt>. Timeout can be omitted only if the first key is not a number (then it's equivalent to an infinite duration).
 </p>
 
 <p>
+	The <tt>send()</tt> and <tt>receive()</tt> methods use Linda keys as FIFO stacks (first in, first out).<br/>
 	By default, stack sizes are unlimited but limits can be enforced using the <tt>limit()</tt> method. This can be useful to balance execution speeds in a producer/consumer scenario. Any negative value removes the limit.
 	<br/>
 	A limit of 0 is allowed to block everything.
@@ -1181,7 +1190,7 @@
 	<br/>
 	<tt>send()</tt> returns <tt>lanes.cancel_error</tt> if interrupted by a soft cancel request.
 	<br/>
-	If no data is provided after the key, <tt>send()</tt> raises an error. If provided with <tt>linda.null</tt> or <tt>lanes.null</tt> before the actual key and there is no data to send, <tt>send()</tt> sends a single <tt>nil</tt>.
+	If no data is provided after the key, <tt>send()</tt> raises an error.
 	<br/>
 	Also, if <tt>linda.null</tt> or <tt>lanes.null</tt> is sent as data in a linda, it will be read as a <tt>nil</tt>.
 </p>
@@ -1395,7 +1404,7 @@ events to a common Linda, but... :).</font>
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	void = lanes.sleep(['indefinitely'|seconds|false])
+	void = lanes.sleep(['indefinitely'|seconds|nil])
 </pre></td></tr></table>
 
 <p>
@@ -1775,7 +1784,7 @@ static MyDeepFactory g_MyDeepFactory;
 	<ul>
 		<li>Data passing (parameters, upvalues, Linda messages) is generally fast, doing two binary state-to-state copies (from source state to hidden state, hidden state to target state). Remember that not only the function you specify but also its upvalues, their upvalues, etc. etc. will get copied.</li>
 		<li>Lane startup is fast (1000's of lanes a second), depending on the number of standard libraries initialized. Initializing all standard libraries is about 3-4 times slower than having no standard libraries at all. If you throw in a lot of lanes per second, make sure you give them minimal necessary set of libraries.</li>
-		<li>Waiting Lindas are woken up (and execute some hidden Lua code) each time <u>any</u> key in the Lindas they are waiting for are changed. This may give essential slow-down (not measured, just a gut feeling) if a lot of Linda keys are used. Using separate Linda objects for logically separate issues will help (which is good practise anyhow).</li>
+		<li>Waiting Lindas are woken up (and execute some hidden Lua code) each time <u>any</u> key in the Lindas they are waiting for are changed. This may give essential slow-down (not measured, just a gut feeling) if a lot of Linda keys are used. Using separate Linda objects for logically separate issues will help (which is good practice anyhow).</li>
 		<li>Linda objects are light. The memory footprint is two OS-level signalling objects (<tt>HANDLE</tt> or <tt>pthread_cond_t</tt>) for each, plus one C pointer for the proxies per each Lua state using the Linda. Barely nothing.</li>
 		<li>Timers are light. You can probably expect timers up to 0.01 second resolution to be useful, but that is very system specific. All timers are merged into one main timer state (see <tt>timer.lua</tt>); no OS side timers are utilized.</li>
 		<li>If you are using a lot of Linda objects, it may be useful to try having more of these keeper states. By default, only one is used (see <a href="#initialization"><tt>lanes.configure()</tt></a>).</li>

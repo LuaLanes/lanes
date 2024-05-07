@@ -49,7 +49,7 @@ enum class CancelOp
 static constexpr UniqueKey kCancelError{ 0x0630345FEF912746ull, "lanes.cancel_error" }; // 'raise_cancel_error' sentinel
 
 [[nodiscard]] CancelOp which_cancel_op(char const* opString_);
-[[nodiscard]] CancelResult thread_cancel(Lane* lane_, CancelOp op_, int hookCount_, lua_Duration secs_, bool wakeLane_);
+[[nodiscard]] CancelResult thread_cancel(Lane* lane_, CancelOp op_, int hookCount_, std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_);
 
 [[noreturn]] static inline void raise_cancel_error(lua_State* L_)
 {

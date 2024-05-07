@@ -94,7 +94,7 @@ class Lane
     Lane(Universe* U_, lua_State* L_);
     ~Lane();
 
-    [[nodiscard]] bool waitForCompletion(lua_Duration duration_);
+    [[nodiscard]] bool waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_);
     void startThread(int priority_);
     void pushThreadStatus(lua_State* L_);
     void changeDebugName(int nameIdx_);

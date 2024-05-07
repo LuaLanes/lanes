@@ -51,16 +51,17 @@ local lanes = setmetatable({}, lanesMeta)
 -- and 'table' visible.
 --
 local assert = assert(assert)
+local error = assert(error)
 local io = assert(io)
+local pairs = assert(pairs)
 local string_gmatch = assert(string.gmatch)
 local string_format = assert(string.format)
 local select = assert(select)
 local setmetatable = assert(setmetatable)
 local table_insert = assert(table.insert)
-local type = assert(type)
-local pairs = assert(pairs)
+local tonumber = assert(tonumber)
 local tostring = assert(tostring)
-local error = assert(error)
+local type = assert(type)
 
 -- #################################################################################################
 
@@ -625,10 +626,12 @@ end
 --
 -- PUBLIC LANES API
 local sleep = function(seconds_)
-    seconds_ = seconds_ or 0.0 -- this causes false and nil to be a valid input, equivalent to 0.0, but that's ok
-    if seconds_ == 'indefinitely' then
-        seconds_ = nil
-    elseif type(seconds_) ~= "number" then
+    local type = type(seconds_)
+    if type == "string" then
+        seconds_ = (seconds_ ~= 'indefinitely') and tonumber(seconds_) or nil
+    elseif type == "nil" then
+        seconds_ = 0
+    elseif type ~= "number" then
         error("invalid duration " .. string_format("%q", tostring(seconds_)))
     end
     -- receive data on a channel no-one ever sends anything, thus blocking for the specified duration

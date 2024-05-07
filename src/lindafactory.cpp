@@ -32,6 +32,7 @@ THE SOFTWARE.
 
 #include "lindafactory.h"
 
+#include "lanes_private.h"
 #include "linda.h"
 
 // must be a #define instead of a constexpr to work with lua_pushliteral (until I templatize it)

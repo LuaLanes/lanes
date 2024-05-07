@@ -169,17 +169,12 @@ Lane::Lane(Universe* U_, lua_State* L_)
 
 // #################################################################################################
 
-bool Lane::waitForCompletion(lua_Duration duration_)
+bool Lane::waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_)
 {
-    std::chrono::time_point<std::chrono::steady_clock> until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
-    if (duration_.count() >= 0.0) {
-        until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration_);
-    }
-
     std::unique_lock lock{ doneMutex };
     // std::stop_token token{ thread.get_stop_token() };
     // return doneCondVar.wait_until(lock, token, secs_, [this](){ return status >= Lane::Done; });
-    return doneCondVar.wait_until(lock, until, [this]() { return status >= Lane::Done; });
+    return doneCondVar.wait_until(lock, until_, [this]() { return status >= Lane::Done; });
 }
 
 // #################################################################################################
@@ -1209,22 +1204,33 @@ void Lane::pushThreadStatus(lua_State* L_)
 LUAG_FUNC(thread_join)
 {
     Lane* const lane{ ToLane(L_, 1) };
-    lua_Duration const duration{ luaL_optnumber(L_, 2, -1.0) };
     lua_State* const L2{ lane->L };
 
-    bool const done{ !lane->thread.joinable() || lane->waitForCompletion(duration) };
+    std::chrono::time_point<std::chrono::steady_clock> until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
+    if (lua_type(L_, 2) == LUA_TNUMBER) { // we don't want to use lua_isnumber() because of autocoercion
+        lua_Duration const duration{ lua_tonumber(L_, 2) };
+        if (duration.count() >= 0.0) {
+            until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration);
+        } else {
+            raise_luaL_argerror(L_, 2, "duration cannot be < 0");
+        }
+
+    } else if (!lua_isnoneornil(L_, 2)) { // alternate explicit "infinite timeout" by passing nil before the key
+        raise_luaL_argerror(L_, 2, "incorrect duration type");
+    }
+
+    bool const done{ !lane->thread.joinable() || lane->waitForCompletion(until) };
+    lua_settop(L_, 1);                                                                             // L_: lane
     if (!done || !L2) {
-        STACK_GROW(L_, 2);
-        lua_pushnil(L_);                                                                           // L_: lane timeout? nil
-        lua_pushliteral(L_, "timeout");                                                            // L_: lane timeout? nil "timeout"
+        lua_pushnil(L_);                                                                           // L_: lane nil
+        lua_pushliteral(L_, "timeout");                                                            // L_: lane nil "timeout"
         return 2;
     }
 
-    STACK_CHECK_START_REL(L_, 0);
+    STACK_CHECK_START_REL(L_, 0);                                                                  // L_: lane
     // Thread is Done/Error/Cancelled; all ours now
 
     int ret{ 0 };
-    Universe* const U{ lane->U };
     // debugName is a pointer to string possibly interned in the lane's state, that no longer exists when the state is closed
     // so store it in the userdata uservalue at a key that can't possibly collide
     lane->securizeDebugName(L_);
@@ -1234,8 +1240,8 @@ LUAG_FUNC(thread_join)
             int const n{ lua_gettop(L2) }; // whole L2 stack
             if (
                 (n > 0) &&
-                (InterCopyContext{ U, DestState{ L_ }, SourceState{ L2 }, {}, {}, {}, {}, {} }.inter_move(n) != InterCopyResult::Success)
-            ) {                                                                                    // L_: lane timeout? results                       L2:
+                (InterCopyContext{ lane->U, DestState{ L_ }, SourceState{ L2 }, {}, {}, {}, {}, {} }.inter_move(n) != InterCopyResult::Success)
+            ) {                                                                                    // L_: lane results                                L2:
                 raise_luaL_error(L_, "tried to copy unsupported types");
             }
             ret = n;
@@ -1244,12 +1250,12 @@ LUAG_FUNC(thread_join)
 
     case Lane::Error:
         {
-            int const n{ lua_gettop(L2) };                                                         // L_: lane timeout?                               L2: "err" [trace]
+            int const n{ lua_gettop(L2) };                                                         // L_: lane                                        L2: "err" [trace]
             STACK_GROW(L_, 3);
-            lua_pushnil(L_);                                                                       // L_: lane timeout? nil
+            lua_pushnil(L_);                                                                       // L_: lane nil
             // even when ERROR_FULL_STACK, if the error is not LUA_ERRRUN, the handler wasn't called, and we only have 1 error message on the stack ...
-            InterCopyContext c{ U, DestState{ L_ }, SourceState{ L2 }, {}, {}, {}, {}, {} };
-            if (c.inter_move(n) != InterCopyResult::Success) {                                     // L_: lane timeout? nil "err" [trace]             L2:
+            InterCopyContext c{ lane->U, DestState{ L_ }, SourceState{ L2 }, {}, {}, {}, {}, {} };
+            if (c.inter_move(n) != InterCopyResult::Success) {                                     // L_: lane nil "err" [trace]                      L2:
                 raise_luaL_error(L_, "tried to copy unsupported types: %s", lua_tostring(L_, -n));
             }
             ret = 1 + n;

@@ -107,7 +107,7 @@ LUAG_FUNC(cancel_test)
 
 // #################################################################################################
 
-[[nodiscard]] static CancelResult thread_cancel_soft(Lane* lane_, lua_Duration duration_, bool wakeLane_)
+[[nodiscard]] static CancelResult thread_cancel_soft(Lane* lane_, std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_)
 {
     lane_->cancelRequest = CancelRequest::Soft; // it's now signaled to stop
     // negative timeout: we don't want to truly abort the lane, we just want it to react to cancel_test() on its own
@@ -118,12 +118,12 @@ LUAG_FUNC(cancel_test)
         }
     }
 
-    return lane_->waitForCompletion(duration_) ? CancelResult::Cancelled : CancelResult::Timeout;
+    return lane_->waitForCompletion(until_) ? CancelResult::Cancelled : CancelResult::Timeout;
 }
 
 // #################################################################################################
 
-[[nodiscard]] static CancelResult thread_cancel_hard(Lane* lane_, lua_Duration duration_, bool wakeLane_)
+[[nodiscard]] static CancelResult thread_cancel_hard(Lane* lane_, std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_)
 {
     lane_->cancelRequest = CancelRequest::Hard; // it's now signaled to stop
     // lane_->thread.get_stop_source().request_stop();
@@ -134,13 +134,13 @@ LUAG_FUNC(cancel_test)
         }
     }
 
-    CancelResult result{ lane_->waitForCompletion(duration_) ? CancelResult::Cancelled : CancelResult::Timeout };
+    CancelResult result{ lane_->waitForCompletion(until_) ? CancelResult::Cancelled : CancelResult::Timeout };
     return result;
 }
 
 // #################################################################################################
 
-CancelResult thread_cancel(Lane* lane_, CancelOp op_, int hookCount_, lua_Duration duration_, bool wakeLane_)
+CancelResult thread_cancel(Lane* lane_, CancelOp op_, int hookCount_, std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_)
 {
     // remember that lanes are not transferable: only one thread can cancel a lane, so no multithreading issue here
     // We can read 'lane_->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
@@ -152,12 +152,12 @@ CancelResult thread_cancel(Lane* lane_, CancelOp op_, int hookCount_, lua_Durati
     // signal the linda the wake up the thread so that it can react to the cancel query
     // let us hope we never land here with a pointer on a linda that has been destroyed...
     if (op_ == CancelOp::Soft) {
-        return thread_cancel_soft(lane_, duration_, wakeLane_);
+        return thread_cancel_soft(lane_, until_, wakeLane_);
     } else if (static_cast<int>(op_) > static_cast<int>(CancelOp::Soft)) {
         lua_sethook(lane_->L, cancel_hook, static_cast<int>(op_), hookCount_);
     }
 
-    return thread_cancel_hard(lane_, duration_, wakeLane_);
+    return thread_cancel_hard(lane_, until_, wakeLane_);
 }
 
 // #################################################################################################
@@ -200,7 +200,7 @@ CancelOp which_cancel_op(char const* opString_)
 
 // #################################################################################################
 
-// bool[,reason] = lane_h:cancel( [mode, hookcount] [, timeout] [, wake_lindas])
+// bool[,reason] = lane_h:cancel( [mode, hookcount] [, timeout] [, wake_lane])
 LUAG_FUNC(thread_cancel)
 {
     Lane* const lane{ ToLane(L_, 1) };
@@ -215,14 +215,19 @@ LUAG_FUNC(thread_cancel)
         }
     }
 
-    lua_Duration wait_timeout{ 0.0 };
-    if (lua_type(L_, 2) == LUA_TNUMBER) {
-        wait_timeout = lua_Duration{ lua_tonumber(L_, 2) };
-        lua_remove(L_, 2); // argument is processed, remove it
-        if (wait_timeout.count() < 0.0) {
-            raise_luaL_error(L_, "cancel timeout cannot be < 0");
+    std::chrono::time_point<std::chrono::steady_clock> until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
+    if (lua_type(L_, 2) == LUA_TNUMBER) { // we don't want to use lua_isnumber() because of autocoercion
+        lua_Duration const duration{ lua_tonumber(L_, 2) };
+        if (duration.count() >= 0.0) {
+            until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration);
+        } else {
+            raise_luaL_argerror(L_, 2, "duration cannot be < 0");
         }
+        lua_remove(L_, 2); // argument is processed, remove it
+    } else if (lua_isnil(L_, 2)) { // alternate explicit "infinite timeout" by passing nil before the key
+        lua_remove(L_, 2); // argument is processed, remove it
     }
+
     // we wake by default in "hard" mode (remember that hook is hard too), but this can be turned off if desired
     bool wake_lane{ op != CancelOp::Soft };
     if (lua_gettop(L_) >= 2) {
@@ -233,7 +238,7 @@ LUAG_FUNC(thread_cancel)
         lua_remove(L_, 2); // argument is processed, remove it
     }
     STACK_CHECK_START_REL(L_, 0);
-    switch (thread_cancel(lane, op, hook_count, wait_timeout, wake_lane)) {
+    switch (thread_cancel(lane, op, hook_count, until, wake_lane)) {
     default: // should never happen unless we added a case and forgot to handle it
         LUA_ASSERT(L_, false);
         break;
