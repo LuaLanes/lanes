@@ -1157,12 +1157,13 @@ static char const* vt_names[] = {
         private:
         lua_State* const L2;
         int const top_L2;
-        DEBUGSPEW_CODE(DebugSpewIndentScope m_scope);
+        DEBUGSPEW_CODE(DebugSpewIndentScope scope);
 
         public:
         OnExit(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L2_)
         : L2{ L2_ }
-        , top_L2{ lua_gettop(L2) } DEBUGSPEW_COMMA_PARAM(m_scope{ U_ })
+        , top_L2{ lua_gettop(L2) }
+        DEBUGSPEW_COMMA_PARAM(scope{ U_ })
         {
         }
 
