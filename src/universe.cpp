@@ -30,12 +30,9 @@ THE SOFTWARE.
 
 #include "universe.h"
 
-#include "cancel.h"
-#include "compat.h"
 #include "deep.h"
 #include "keeper.h"
 #include "lanes_private.h"
-#include "tools.h"
 
 // #################################################################################################
 

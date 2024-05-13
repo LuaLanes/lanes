@@ -1,88 +1,30 @@
 #pragma once
 
-#include "deep.h"
-#include "macros_and_utils.h"
+#include "uniquekey.h"
 
-// forwards
 class Universe;
 
-// #################################################################################################
-
-enum class VT
+enum class LookupMode
 {
-    NORMAL, // keep this one first so that it's the value we get when we default-construct
-    KEY,
-    METATABLE
+    LaneBody, // send the lane body directly from the source to the destination lane. keep this one first so that it's the value we get when we default-construct
+    ToKeeper, // send a function from a lane to a keeper state
+    FromKeeper // send a function from a keeper state to a lane
 };
 
-enum class InterCopyResult
+enum class FuncSubType
 {
-    Success,
-    NotEnoughValues,
-    Error
+    Bytecode,
+    Native,
+    FastJIT
 };
 
-// #################################################################################################
-
-using CacheIndex = Unique<int>;
-using SourceIndex = Unique<int>;
-class InterCopyContext
-{
-    public:
-    Universe* const U;
-    DestState const L2;
-    SourceState const L1;
-    CacheIndex const L2_cache_i;
-    SourceIndex L1_i; // that one can change when we reuse the context
-    VT vt; // that one can change when we reuse the context
-    LookupMode const mode;
-    char const* name; // that one can change when we reuse the context
-
-    private:
-    // when mode == LookupMode::FromKeeper, L1 is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
-    // whon mode != LookupMode::FromKeeper, L1 is not a keeper state, therefore L1 is the state where we want to raise the error
-    lua_State* getErrL() const { return (mode == LookupMode::FromKeeper) ? L2 : L1; }
-
-    // for use in copy_cached_func
-    void copy_func() const;
-    void lookup_native_func() const;
-
-    // for use in inter_copy_function
-    void copy_cached_func() const;
-    [[nodiscard]] bool lookup_table() const;
-
-    // for use in inter_copy_table
-    void inter_copy_keyvaluepair() const;
-    [[nodiscard]] bool push_cached_metatable() const;
-    [[nodiscard]] bool push_cached_table() const;
-
-    // for use in inter_copy_userdata
-    [[nodiscard]] bool tryCopyClonable() const;
-    [[nodiscard]] bool tryCopyDeep() const;
-
-    // copying a single Lua stack item
-    [[nodiscard]] bool inter_copy_boolean() const;
-    [[nodiscard]] bool inter_copy_function() const;
-    [[nodiscard]] bool inter_copy_lightuserdata() const;
-    [[nodiscard]] bool inter_copy_nil() const;
-    [[nodiscard]] bool inter_copy_number() const;
-    [[nodiscard]] bool inter_copy_string() const;
-    [[nodiscard]] bool inter_copy_table() const;
-    [[nodiscard]] bool inter_copy_userdata() const;
-
-    public:
-    [[nodiscard]] bool inter_copy_one() const;
-    [[nodiscard]] InterCopyResult inter_copy_package() const;
-    [[nodiscard]] InterCopyResult inter_copy(int n_) const;
-    [[nodiscard]] InterCopyResult inter_move(int n_) const;
-};
+[[nodiscard]] FuncSubType luaG_getfuncsubtype(lua_State* L_, int _i);
 
 // #################################################################################################
 
 [[nodiscard]] int luaG_nameof(lua_State* L_);
 
 void populate_func_lookup_table(lua_State* L_, int i_, char const* name_);
-void initialize_allocator_function(Universe* U_, lua_State* L_);
 
 // #################################################################################################
 

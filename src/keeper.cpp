@@ -39,12 +39,9 @@
  */
 #include "keeper.h"
 
-#include "compat.h"
+#include "intercopycontext.h"
 #include "linda.h"
 #include "state.h"
-#include "tools.h"
-#include "uniquekey.h"
-#include "universe.h"
 
 #include <algorithm>
 #include <cassert>

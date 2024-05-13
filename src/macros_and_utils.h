@@ -61,7 +61,7 @@ template <typename... ARGS>
 
 // #################################################################################################
 
-#define USE_DEBUG_SPEW() 0
+#define USE_DEBUG_SPEW() 1
 #if USE_DEBUG_SPEW()
 #define INDENT_BEGIN "%.*s "
 #define INDENT_END(U_) , (U_ ? U_->debugspewIndentDepth.load(std::memory_order_relaxed) : 0), DebugSpewIndentScope::debugspew_indent
