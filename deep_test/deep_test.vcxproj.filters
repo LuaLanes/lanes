@@ -21,9 +21,6 @@
     <ClCompile Include="..\src\deep.cpp">
       <Filter>Lanes</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\tools.cpp">
-      <Filter>Lanes</Filter>
-    </ClCompile>
     <ClCompile Include="deep_test.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -32,16 +29,19 @@
     <ClInclude Include="..\src\deep.h">
       <Filter>Lanes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\universe.h">
-      <Filter>Lanes</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\compat.h">
       <Filter>Lanes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\tools.h">
+    <ClInclude Include="..\src\uniquekey.h">
       <Filter>Lanes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\uniquekey.h">
+    <ClInclude Include="..\src\lanesconf.h">
+      <Filter>Lanes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\macros_and_utils.h">
+      <Filter>Lanes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\platform.h">
       <Filter>Lanes</Filter>
     </ClInclude>
   </ItemGroup>
