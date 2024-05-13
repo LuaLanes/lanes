@@ -159,26 +159,26 @@ class StackChecker
 };
 
 #define STACK_CHECK_START_REL(L, offset_) \
-    StackChecker stackChecker_##L \
+    StackChecker _stackChecker_##L \
     { \
         L, StackChecker::Relative{ offset_ }, __FILE__, __LINE__ \
     }
 #define STACK_CHECK_START_ABS(L, offset_) \
-    StackChecker stackChecker_##L \
+    StackChecker _stackChecker_##L \
     { \
         L, StackChecker::Absolute{ offset_ }, __FILE__, __LINE__ \
     }
 #define STACK_CHECK_RESET_REL(L, offset_) \
-    stackChecker_##L = StackChecker \
+    _stackChecker_##L = StackChecker \
     { \
         L, StackChecker::Relative{ offset_ }, __FILE__, __LINE__ \
     }
 #define STACK_CHECK_RESET_ABS(L, offset_) \
-    stackChecker_##L = StackChecker \
+    _stackChecker_##L = StackChecker \
     { \
         L, StackChecker::Absolute{ offset_ }, __FILE__, __LINE__ \
     }
-#define STACK_CHECK(L, offset_) stackChecker_##L.check(offset_, __FILE__, __LINE__)
+#define STACK_CHECK(L, offset_) _stackChecker_##L.check(offset_, __FILE__, __LINE__)
 
 #endif // NDEBUG
 
