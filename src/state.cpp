@@ -53,9 +53,8 @@ THE SOFTWARE.
 //
 [[nodiscard]] static int luaG_new_require(lua_State* L_)
 {
-    int rc;
-    int const args = lua_gettop(L_);                                                               // L_: args
-    Universe* U = universe_get(L_);
+    int const _args{ lua_gettop(L_) };                                                             // L_: args
+    Universe* const _U{ universe_get(L_) };
     // char const* modname = luaL_checkstring(L_, 1);
 
     STACK_GROW(L_, 1);
@@ -66,18 +65,18 @@ THE SOFTWARE.
     // Using 'lua_pcall()' to catch errors; otherwise a failing 'require' would
     // leave us locked, blocking any future 'require' calls from other lanes.
 
-    U->requireMutex.lock();
+    _U->requireMutex.lock();
     // starting with Lua 5.4, require may return a second optional value, so we need LUA_MULTRET
-    rc = lua_pcall(L_, args, LUA_MULTRET, 0 /*errfunc*/);                                          // L_: err|result(s)
-    U->requireMutex.unlock();
+    int _rc{ lua_pcall(L_, _args, LUA_MULTRET, 0 /*errfunc*/) };                                   // L_: err|result(s)
+    _U->requireMutex.unlock();
 
     // the required module (or an error message) is left on the stack as returned value by original require function
 
-    if (rc != LUA_OK) { // LUA_ERRRUN / LUA_ERRMEM ?
+    if (_rc != LUA_OK) { // LUA_ERRRUN / LUA_ERRMEM ?
         raise_lua_error(L_);
     }
     // should be 1 for Lua <= 5.3, 1 or 2 starting with Lua 5.4
-    return lua_gettop(L_); // L_: result(s)
+    return lua_gettop(L_);                                                                         // L_: result(s)
 }
 
 // #################################################################################################
@@ -149,9 +148,7 @@ namespace global
         { LUA_JITLIBNAME, luaopen_jit },
 #endif // LUAJIT_FLAVOR()
 
-        { kLanesCoreLibName, require_lanes_core }, // So that we can open it like any base library (possible since we have access to the init function)
-                                                   //
-        { nullptr, nullptr }
+        { kLanesCoreLibName, require_lanes_core } // So that we can open it like any base library (possible since we have access to the init function)
     };
 
 } // namespace global
@@ -160,18 +157,18 @@ namespace global
 
 static void open1lib(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_, char const* name_, size_t len_)
 {
-    for (int i{ 0 }; global::sLibs[i].name; ++i) {
-        if (strncmp(name_, global::sLibs[i].name, len_) == 0) {
-            lua_CFunction const libfunc{ global::sLibs[i].func };
-            if (!libfunc) {
+    for (luaL_Reg const& _entry : global::sLibs) {
+        if (strncmp(name_, _entry.name, len_) == 0) {
+            lua_CFunction const _libfunc{ _entry.func };
+            if (!_libfunc) {
                 continue;
             }
-            name_ = global::sLibs[i].name; // note that the provided name_ doesn't necessarily ends with '\0', hence len_
+            name_ = _entry.name; // note that the provided name_ doesn't necessarily ends with '\0', hence len_
             DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "opening %.*s library\n" INDENT_END(U_), (int) len_, name_));
             STACK_CHECK_START_REL(L_, 0);
             // open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
-            bool const isLanesCore{ libfunc == require_lanes_core }; // don't want to create a global for "lanes.core"
-            luaL_requiref(L_, name_, libfunc, !isLanesCore);                                       // L_: {lib}
+            bool const isLanesCore{ _libfunc == require_lanes_core }; // don't want to create a global for "lanes.core"
+            luaL_requiref(L_, name_, _libfunc, !isLanesCore);                                      // L_: {lib}
             // lanes.core doesn't declare a global, so scan it here and now
             if (isLanesCore) {
                 populate_func_lookup_table(L_, -1, name_);
@@ -196,7 +193,7 @@ static inline void open1lib(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_, c
 // just like lua_xmove, args are (from, to)
 static void copy_one_time_settings(Universe* U_, SourceState L1_, DestState L2_)
 {
-    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U_ });
+    DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U_ });
 
     STACK_GROW(L1_, 2);
     STACK_CHECK_START_REL(L1_, 0);
@@ -206,8 +203,8 @@ static void copy_one_time_settings(Universe* U_, SourceState L1_, DestState L2_)
 
     kConfigRegKey.pushValue(L1_);                                                                  // L1_: config
     // copy settings from from source to destination registry
-    InterCopyContext c{ U_, L2_, L1_, {}, {}, {}, {}, {} };
-    if (c.inter_move(1) != InterCopyResult::Success) {                                             // L1_:                                           L2_: config
+    InterCopyContext _c{ U_, L2_, L1_, {}, {}, {}, {}, {} };
+    if (_c.inter_move(1) != InterCopyResult::Success) {                                            // L1_:                                           L2_: config
         raise_luaL_error(L1_, "failed to copy settings when loading " kLanesCoreLibName);
     }
     // set L2:_R[kConfigRegKey] = settings
@@ -227,8 +224,8 @@ void initializeOnStateCreate(Universe* U_, lua_State* L_)
         U_->onStateCreateFunc = lua_tocfunction(L_, -1);                                           // L_: settings on_state_create
         if (U_->onStateCreateFunc != nullptr) {
             // make sure the function doesn't have upvalues
-            char const* upname = lua_getupvalue(L_, -1, 1);                                        // L_: settings on_state_create upval?
-            if (upname != nullptr) { // should be "" for C functions with upvalues if any
+            char const* _upname{ lua_getupvalue(L_, -1, 1) };                                      // L_: settings on_state_create upval?
+            if (_upname != nullptr) { // should be "" for C functions with upvalues if any
                 raise_luaL_error(L_, "on_state_create shouldn't have upvalues");
             }
             // remove this C function from the config table so that it doesn't cause problems
@@ -248,29 +245,29 @@ void initializeOnStateCreate(Universe* U_, lua_State* L_)
 
 lua_State* create_state([[maybe_unused]] Universe* U_, lua_State* from_)
 {
-    lua_State* L;
+    lua_State* _L;
 #if LUAJIT_FLAVOR() == 64
     // for some reason, LuaJIT 64 bits does not support creating a state with lua_newstate...
-    L = luaL_newstate();
+    _L = luaL_newstate();
 #else  // LUAJIT_FLAVOR() == 64
     if (U_->provideAllocator != nullptr) { // we have a function we can call to obtain an allocator
         lua_pushcclosure(from_, U_->provideAllocator, 0);
         lua_call(from_, 0, 1);
         {
             AllocatorDefinition* const def{ lua_tofulluserdata<AllocatorDefinition>(from_, -1) };
-            L = lua_newstate(def->allocF, def->allocUD);
+            _L = lua_newstate(def->allocF, def->allocUD);
         }
         lua_pop(from_, 1);
     } else {
         // reuse the allocator provided when the master state was created
-        L = lua_newstate(U_->protectedAllocator.allocF, U_->protectedAllocator.allocUD);
+        _L = lua_newstate(U_->protectedAllocator.allocF, U_->protectedAllocator.allocUD);
     }
 #endif // LUAJIT_FLAVOR() == 64
 
-    if (L == nullptr) {
+    if (_L == nullptr) {
         raise_luaL_error(from_, "luaG_newstate() failed while creating state; out of memory");
     }
-    return L;
+    return _L;
 }
 
 // #################################################################################################
@@ -321,34 +318,34 @@ void callOnStateCreate(Universe* U_, lua_State* L_, lua_State* from_, LookupMode
  */
 lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
 {
-    DestState const L{ create_state(U_, from_) };
+    DestState const _L{ create_state(U_, from_) };
 
-    STACK_GROW(L, 2);
-    STACK_CHECK_START_ABS(L, 0);
+    STACK_GROW(_L, 2);
+    STACK_CHECK_START_ABS(_L, 0);
 
     // copy the universe as a light userdata (only the master state holds the full userdata)
     // that way, if Lanes is required in this new state, we'll know we are part of this universe
-    universe_store(L, U_);
-    STACK_CHECK(L, 0);
+    universe_store(_L, U_);
+    STACK_CHECK(_L, 0);
 
     // we'll need this every time we transfer some C function from/to this state
-    kLookupRegKey.setValue(L, [](lua_State* L_) { lua_newtable(L_); });
-    STACK_CHECK(L, 0);
+    kLookupRegKey.setValue(_L, [](lua_State* L_) { lua_newtable(L_); });
+    STACK_CHECK(_L, 0);
 
     // neither libs (not even 'base') nor special init func: we are done
     if (libs_ == nullptr && U_->onStateCreateFunc == nullptr) {
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "luaG_newstate(nullptr)\n" INDENT_END(U_)));
-        return L;
+        return _L;
     }
 
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "luaG_newstate()\n" INDENT_END(U_)));
     DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U_ });
 
     // copy settings (for example because it may contain a Lua on_state_create function)
-    copy_one_time_settings(U_, from_, L);
+    copy_one_time_settings(U_, from_, _L);
 
     // 'lua.c' stops GC during initialization so perhaps it is a good idea. :)
-    lua_gc(L, LUA_GCSTOP, 0);
+    lua_gc(_L, LUA_GCSTOP, 0);
 
     // Anything causes 'base' to be taken in
     if (libs_ != nullptr) {
@@ -356,24 +353,24 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
         // as we are called from luaopen_lanes_core() already, and that would deadlock
         if (libs_[0] == '*' && libs_[1] == 0) {
             DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "opening ALL standard libraries\n" INDENT_END(U_)));
-            luaL_openlibs(L);
+            luaL_openlibs(_L);
             // don't forget lanes.core for regular lane states
-            open1lib(DEBUGSPEW_PARAM_COMMA(U_) L, kLanesCoreLibName);
+            open1lib(DEBUGSPEW_PARAM_COMMA(U_) _L, kLanesCoreLibName);
             libs_ = nullptr; // done with libs
         } else {
             DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "opening base library\n" INDENT_END(U_)));
 #if LUA_VERSION_NUM >= 502
             // open base library the same way as in luaL_openlibs()
-            luaL_requiref(L, "_G", luaopen_base, 1);
-            lua_pop(L, 1);
+            luaL_requiref(_L, "_G", luaopen_base, 1);
+            lua_pop(_L, 1);
 #else  // LUA_VERSION_NUM
-            lua_pushcfunction(L, luaopen_base);
-            lua_pushstring(L, "");
-            lua_call(L, 1, 0);
+            lua_pushcfunction(_L, luaopen_base);
+            lua_pushstring(_L, "");
+            lua_call(_L, 1, 0);
 #endif // LUA_VERSION_NUM
         }
     }
-    STACK_CHECK(L, 0);
+    STACK_CHECK(_L, 0);
 
     // scan all libraries, open them one by one
     if (libs_) {
@@ -387,40 +384,40 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
             while (isalnum(p[len]) || p[len] == '.')
                 ++len;
             // open library
-            open1lib(DEBUGSPEW_PARAM_COMMA(U_) L, p, len);
+            open1lib(DEBUGSPEW_PARAM_COMMA(U_) _L, p, len);
         }
     }
-    lua_gc(L, LUA_GCRESTART, 0);
+    lua_gc(_L, LUA_GCRESTART, 0);
 
-    serialize_require(DEBUGSPEW_PARAM_COMMA(U_) L);
+    serialize_require(DEBUGSPEW_PARAM_COMMA(U_) _L);
 
     // call this after the base libraries are loaded and GC is restarted
     // will raise an error in from_ in case of problem
-    callOnStateCreate(U_, L, from_, LookupMode::LaneBody);
+    callOnStateCreate(U_, _L, from_, LookupMode::LaneBody);
 
-    STACK_CHECK(L, 0);
+    STACK_CHECK(_L, 0);
     // after all this, register everything we find in our name<->function database
-    lua_pushglobaltable(L); // Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
-    STACK_CHECK(L, 1);
-    populate_func_lookup_table(L, -1, nullptr);
+    lua_pushglobaltable(_L); // Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
+    STACK_CHECK(_L, 1);
+    populate_func_lookup_table(_L, -1, nullptr);
 
 #if 1 && USE_DEBUG_SPEW()
     // dump the lookup database contents
-    kLookupRegKey.pushValue(L);                                                                    // L: {}
-    lua_pushnil(L);                                                                                // L: {} nil
-    while (lua_next(L, -2)) {                                                                      // L: {} k v
-        lua_getglobal(L, "print");                                                                 // L: {} k v print
+    kLookupRegKey.pushValue(_L);                                                                   // L: {}
+    lua_pushnil(_L);                                                                               // L: {} nil
+    while (lua_next(_L, -2)) {                                                                     // L: {} k v
+        lua_getglobal(_L, "print");                                                                // L: {} k v print
         int const indent{ U_->debugspewIndentDepth.load(std::memory_order_relaxed) };
-        lua_pushlstring(L, DebugSpewIndentScope::debugspew_indent, indent);                        // L: {} k v print " "
-        lua_pushvalue(L, -4);                                                                      // L: {} k v print " " k
-        lua_pushvalue(L, -4);                                                                      // L: {} k v print " " k v
-        lua_call(L, 3, 0);                                                                         // L: {} k v
-        lua_pop(L, 1);                                                                             // L: {} k
+        lua_pushlstring(_L, DebugSpewIndentScope::debugspew_indent, indent);                       // L: {} k v print " "
+        lua_pushvalue(_L, -4);                                                                     // L: {} k v print " " k
+        lua_pushvalue(_L, -4);                                                                     // L: {} k v print " " k v
+        lua_call(_L, 3, 0);                                                                        // L: {} k v
+        lua_pop(_L, 1);                                                                            // L: {} k
     }
-    lua_pop(L, 1);                                                                                 // L: {}
+    lua_pop(_L, 1);                                                                                // L: {}
 #endif // USE_DEBUG_SPEW()
 
-    lua_pop(L, 1);
-    STACK_CHECK(L, 0);
-    return L;
+    lua_pop(_L, 1);
+    STACK_CHECK(_L, 0);
+    return _L;
 }

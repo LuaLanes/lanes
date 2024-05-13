@@ -23,7 +23,7 @@
 // regular class member/method: no prefix, start with a lowercase letter
 // function argument: suffix _
 // static function variable: prefix s, followed by an uppercase letter
-// function local variable: prefix l, followed by an uppercase letter
+// function local variable: prefix _, followed by an uppercase letter
 // named lambda capture: no prefix, start with a lowercase letter
 
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
