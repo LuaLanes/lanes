@@ -34,10 +34,7 @@ THE SOFTWARE.
 
 #include "deep.h"
 
-#include "compat.h"
 #include "tools.h"
-#include "uniquekey.h"
-#include "universe.h"
 
 #include <bit>
 #include <cassert>
@@ -105,7 +102,7 @@ static void LookupDeep(lua_State* L_)
 // #################################################################################################
 
 // Return the registered factory for 'index' (deep userdata proxy),  or nullptr if 'index' is not a deep userdata proxy.
-[[nodiscard]] static inline DeepFactory* LookupFactory(lua_State* L_, int index_, LookupMode mode_)
+[[nodiscard]] DeepFactory* LookupFactory(lua_State* L_, int index_, LookupMode mode_)
 {
     // when looking inside a keeper, we are 100% sure the object is a deep userdata
     if (mode_ == LookupMode::FromKeeper) {
@@ -385,55 +382,4 @@ DeepPrelude* DeepFactory::toDeep(lua_State* L_, int index_) const
 
     DeepPrelude** const proxy{ lua_tofulluserdata<DeepPrelude*>(L_, index_) };
     return *proxy;
-}
-
-// #################################################################################################
-
-// Copy deep userdata between two separate Lua states (from L1 to L2)
-// Returns false if not a deep userdata, else true (unless an error occured)
-[[nodiscard]] bool InterCopyContext::tryCopyDeep() const
-{
-    DeepFactory* const factory{ LookupFactory(L1, L1_i, mode) };
-    if (factory == nullptr) {
-        return false; // not a deep userdata
-    }
-
-    STACK_CHECK_START_REL(L1, 0);
-    STACK_CHECK_START_REL(L2, 0);
-
-    // extract all uservalues of the source. unfortunately, the only way to know their count is to iterate until we fail
-    int nuv = 0;
-    while (lua_getiuservalue(L1, L1_i, nuv + 1) != LUA_TNONE) {                                    // L1: ... u [uv]* nil
-        ++nuv;
-    }
-    // last call returned TNONE and pushed nil, that we don't need
-    lua_pop(L1, 1);                                                                                // L1: ... u [uv]*
-    STACK_CHECK(L1, nuv);
-
-    DeepPrelude* const u{ *lua_tofulluserdata<DeepPrelude*>(L1, L1_i) };
-    char const* errmsg{ DeepFactory::PushDeepProxy(L2, u, nuv, mode) };                            // L1: ... u [uv]*                               L2: u
-    if (errmsg != nullptr) {
-        raise_luaL_error(getErrL(), errmsg);
-    }
-
-    // transfer all uservalues of the source in the destination
-    {
-        InterCopyContext c{ U, L2, L1, L2_cache_i, {}, VT::NORMAL, mode, name };
-        int const clone_i{ lua_gettop(L2) };
-        while (nuv) {
-            c.L1_i = SourceIndex{ lua_absindex(L1, -1) };
-            if (!c.inter_copy_one()) {                                                             // L1: ... u [uv]*                               L2: u uv
-                raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
-            }
-            lua_pop(L1, 1);                                                                        // L1: ... u [uv]*
-            // this pops the value from the stack
-            lua_setiuservalue(L2, clone_i, nuv);                                                   //                                               L2: u
-            --nuv;
-        }
-    }
-
-    STACK_CHECK(L2, 1);
-    STACK_CHECK(L1, 0);
-
-    return true;
 }

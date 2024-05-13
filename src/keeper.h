@@ -9,7 +9,6 @@ extern "C"
 }
 #endif // __cplusplus
 
-#include "threading.h"
 #include "uniquekey.h"
 
 #include <optional>

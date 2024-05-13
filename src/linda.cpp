@@ -32,13 +32,9 @@ THE SOFTWARE.
 
 #include "linda.h"
 
-#include "compat.h"
-#include "keeper.h"
 #include "lanes_private.h"
 #include "lindafactory.h"
-#include "threading.h"
 #include "tools.h"
-#include "universe.h"
 
 #include <functional>
 

@@ -20,14 +20,8 @@ extern "C"
 #include <atomic>
 
 // forwards
+enum class LookupMode;
 class Universe;
-
-enum class LookupMode
-{
-    LaneBody, // send the lane body directly from the source to the destination lane. keep this one first so that it's the value we get when we default-construct
-    ToKeeper, // send a function from a lane to a keeper state
-    FromKeeper // send a function from a keeper state to a lane
-};
 
 // #################################################################################################
 
@@ -80,3 +74,5 @@ class DeepFactory
     static void DeleteDeepObject(lua_State* L_, DeepPrelude* o_);
     [[nodiscard]] static char const* PushDeepProxy(DestState L_, DeepPrelude* o_, int nuv_, LookupMode mode_);
 };
+
+[[nodiscard]] DeepFactory* LookupFactory(lua_State* L_, int index_, LookupMode mode_);

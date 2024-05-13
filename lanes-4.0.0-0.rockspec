@@ -63,6 +63,7 @@ build = {
 				"src/cancel.cpp",
 				"src/compat.cpp",
 				"src/deep.cpp",
+				"src/intercopycontext.cpp",
 				"src/keeper.cpp",
 				"src/lanes.cpp",
 				"src/linda.cpp",
