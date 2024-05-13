@@ -116,7 +116,7 @@ THE SOFTWARE.
  */
 static void tracking_add(Lane* lane_)
 {
-    std::lock_guard<std::mutex> guard{ lane_->U->trackingMutex };
+    std::lock_guard<std::mutex> _guard{ lane_->U->trackingMutex };
     assert(lane_->tracking_next == nullptr);
 
     lane_->tracking_next = lane_->U->trackingFirst;
@@ -130,27 +130,27 @@ static void tracking_add(Lane* lane_)
  */
 [[nodiscard]] static bool tracking_remove(Lane* lane_)
 {
-    bool found{ false };
-    std::lock_guard<std::mutex> guard{ lane_->U->trackingMutex };
+    bool _found{ false };
+    std::lock_guard<std::mutex> _guard{ lane_->U->trackingMutex };
     // Make sure (within the MUTEX) that we actually are in the chain
     // still (at process exit they will remove us from chain and then
     // cancel/kill).
     //
     if (lane_->tracking_next != nullptr) {
-        Lane** ref = (Lane**) &lane_->U->trackingFirst;
+        Lane** _ref = (Lane**) &lane_->U->trackingFirst;
 
-        while (*ref != TRACKING_END) {
-            if (*ref == lane_) {
-                *ref = lane_->tracking_next;
+        while (*_ref != TRACKING_END) {
+            if (*_ref == lane_) {
+                *_ref = lane_->tracking_next;
                 lane_->tracking_next = nullptr;
-                found = true;
+                _found = true;
                 break;
             }
-            ref = (Lane**) &((*ref)->tracking_next);
+            _ref = (Lane**) &((*_ref)->tracking_next);
         }
-        assert(found);
+        assert(_found);
     }
-    return found;
+    return _found;
 }
 
 #endif // HAVE_LANE_TRACKING()
@@ -172,15 +172,15 @@ Lane::Lane(Universe* U_, lua_State* L_)
 
 bool Lane::waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_)
 {
-    std::unique_lock lock{ doneMutex };
+    std::unique_lock _guard{ doneMutex };
     // std::stop_token token{ thread.get_stop_token() };
     // return doneCondVar.wait_until(lock, token, secs_, [this](){ return status >= Lane::Done; });
-    return doneCondVar.wait_until(lock, until_, [this]() { return status >= Lane::Done; });
+    return doneCondVar.wait_until(_guard, until_, [this]() { return status >= Lane::Done; });
 }
 
 // #################################################################################################
 
-static void lane_main(Lane* lane);
+static void lane_main(Lane* lane_);
 void Lane::startThread(int priority_)
 {
     thread = std::jthread([this]() { lane_main(this); });
@@ -267,9 +267,9 @@ LUAG_FUNC(set_finalizer)
     // Get the current finalizer table (if any), create one if it doesn't exist
     std::ignore = kFinalizerRegKey.getSubTable(L_, 1, 0);                                          // L_: finalizer {finalisers}
     // must cast to int, not lua_Integer, because LuaJIT signature of lua_rawseti is not the same as PUC-Lua.
-    int const idx{ static_cast<int>(lua_rawlen(L_, -1) + 1) };
+    int const _idx{ static_cast<int>(lua_rawlen(L_, -1) + 1) };
     lua_pushvalue(L_, 1);                                                                          // L_: finalizer {finalisers} finalizer
-    lua_rawseti(L_, -2, idx);                                                                      // L_: finalizer {finalisers}
+    lua_rawseti(L_, -2, _idx);                                                                     // L_: finalizer {finalisers}
     // no need to adjust the stack, Lua does this for us
     return 0;
 }
@@ -337,28 +337,28 @@ static void push_stack_trace(lua_State* L_, int rc_, int stk_base_)
 
     STACK_GROW(L_, 5);
 
-    int const finalizers_index{ lua_gettop(L_) };
-    int const err_handler_index{ ERROR_FULL_STACK ? (lua_pushcfunction(L_, lane_error), lua_gettop(L_)) : 0 };
+    int const _finalizers_index{ lua_gettop(L_) };
+    int const _err_handler_index{ ERROR_FULL_STACK ? (lua_pushcfunction(L_, lane_error), lua_gettop(L_)) : 0 };
 
     int rc{ LUA_OK };
-    for (int n = static_cast<int>(lua_rawlen(L_, finalizers_index)); n > 0; --n) {
+    for (int n = static_cast<int>(lua_rawlen(L_, _finalizers_index)); n > 0; --n) {
         int args = 0;
         lua_pushinteger(L_, n);                                                                    // L_: ... finalizers lane_error n
-        lua_rawget(L_, finalizers_index);                                                          // L_: ... finalizers lane_error finalizer
+        lua_rawget(L_, _finalizers_index);                                                         // L_: ... finalizers lane_error finalizer
         LUA_ASSERT(L_, lua_isfunction(L_, -1));
         if (lua_rc_ != LUA_OK) { // we have an error message and an optional stack trace at the bottom of the stack
-            LUA_ASSERT(L_, finalizers_index == 2 || finalizers_index == 3);
+            LUA_ASSERT(L_, _finalizers_index == 2 || _finalizers_index == 3);
             // char const* err_msg = lua_tostring(L_, 1);
             lua_pushvalue(L_, 1);                                                                  // L_: ... finalizers lane_error finalizer err_msg
             // note we don't always have a stack trace for example when kCancelError, or when we got an error that doesn't call our handler, such as LUA_ERRMEM
-            if (finalizers_index == 3) {
+            if (_finalizers_index == 3) {
                 lua_pushvalue(L_, 2); // L_: ... finalizers lane_error finalizer err_msg stack_trace
             }
-            args = finalizers_index - 1;
+            args = _finalizers_index - 1;
         }
 
         // if no error from the main body, finalizer doesn't receive any argument, else it gets the error message and optional stack trace
-        rc = lua_pcall(L_, args, 0, err_handler_index);                                            // L_: ... finalizers lane_error err_msg2?
+        rc = lua_pcall(L_, args, 0, _err_handler_index);                                           // L_: ... finalizers lane_error err_msg2?
         if (rc != LUA_OK) {
             push_stack_trace(L_, rc, lua_gettop(L_));                                              // L_: ... finalizers lane_error err_msg2? trace
             // If one finalizer fails, don't run the others. Return this
@@ -371,7 +371,7 @@ static void push_stack_trace(lua_State* L_, int rc_, int stk_base_)
 
     if (rc != LUA_OK) {
         // ERROR_FULL_STACK accounts for the presence of lane_error on the stack
-        int const nb_err_slots{ lua_gettop(L_) - finalizers_index - ERROR_FULL_STACK };
+        int const nb_err_slots{ lua_gettop(L_) - _finalizers_index - ERROR_FULL_STACK };
         // a finalizer generated an error, this is what we leave of the stack
         for (int n = nb_err_slots; n > 0; --n) {
             lua_replace(L_, n);
@@ -379,7 +379,7 @@ static void push_stack_trace(lua_State* L_, int rc_, int stk_base_)
         // leave on the stack only the error and optional stack trace produced by the error in the finalizer
         lua_settop(L_, nb_err_slots);                                                              // L_: ... lane_error trace
     } else { // no error from the finalizers, make sure only the original return values from the lane body remain on the stack
-        lua_settop(L_, finalizers_index - 1);
+        lua_settop(L_, _finalizers_index - 1);
     }
 
     return rc;
@@ -395,7 +395,7 @@ static void push_stack_trace(lua_State* L_, int rc_, int stk_base_)
  */
 static void selfdestruct_add(Lane* lane_)
 {
-    std::lock_guard<std::mutex> guard{ lane_->U->selfdestructMutex };
+    std::lock_guard<std::mutex> _guard{ lane_->U->selfdestructMutex };
     assert(lane_->selfdestruct_next == nullptr);
 
     lane_->selfdestruct_next = lane_->U->selfdestructFirst;
@@ -407,29 +407,29 @@ static void selfdestruct_add(Lane* lane_)
 // A free-running lane has ended; remove it from selfdestruct chain
 [[nodiscard]] static bool selfdestruct_remove(Lane* lane_)
 {
-    bool found{ false };
-    std::lock_guard<std::mutex> guard{ lane_->U->selfdestructMutex };
+    bool _found{ false };
+    std::lock_guard<std::mutex> _guard{ lane_->U->selfdestructMutex };
     // Make sure (within the MUTEX) that we actually are in the chain
     // still (at process exit they will remove us from chain and then
     // cancel/kill).
     //
     if (lane_->selfdestruct_next != nullptr) {
-        Lane* volatile* ref = static_cast<Lane* volatile*>(&lane_->U->selfdestructFirst);
+        Lane* volatile* _ref = static_cast<Lane* volatile*>(&lane_->U->selfdestructFirst);
 
-        while (*ref != SELFDESTRUCT_END) {
-            if (*ref == lane_) {
-                *ref = lane_->selfdestruct_next;
+        while (*_ref != SELFDESTRUCT_END) {
+            if (*_ref == lane_) {
+                *_ref = lane_->selfdestruct_next;
                 lane_->selfdestruct_next = nullptr;
                 // the terminal shutdown should wait until the lane is done with its lua_close()
                 lane_->U->selfdestructingCount.fetch_add(1, std::memory_order_release);
-                found = true;
+                _found = true;
                 break;
             }
-            ref = static_cast<Lane* volatile*>(&((*ref)->selfdestruct_next));
+            _ref = static_cast<Lane* volatile*>(&((*_ref)->selfdestruct_next));
         }
-        assert(found);
+        assert(_found);
     }
-    return found;
+    return _found;
 }
 
 // #################################################################################################
@@ -442,11 +442,11 @@ static void selfdestruct_add(Lane* lane_)
 //
 LUAG_FUNC(set_singlethreaded)
 {
-    [[maybe_unused]] lua_Integer const cores{ luaL_optinteger(L_, 1, 1) };
+    [[maybe_unused]] lua_Integer const _cores{ luaL_optinteger(L_, 1, 1) };
 
 #ifdef PLATFORM_OSX
 #ifdef _UTILBINDTHREADTOCPU
-    if (cores > 1) {
+    if (_cores > 1) {
         raise_luaL_error(L_, "Limiting to N>1 cores not possible");
     }
     // requires 'chudInitialize()'
@@ -486,15 +486,15 @@ static constexpr RegistryUniqueKey kExtendedStackTraceRegKey{ 0x38147AD48FB426E2
 LUAG_FUNC(set_error_reporting)
 {
     luaL_checktype(L_, 1, LUA_TSTRING);
-    char const* mode{ lua_tostring(L_, 1) };
+    char const* _mode{ lua_tostring(L_, 1) };
     lua_pushliteral(L_, "extended");
-    bool const extended{ strcmp(mode, "extended") == 0 };
-    bool const basic{ strcmp(mode, "basic") == 0 };
-    if (!extended && !basic) {
-        raise_luaL_error(L_, "unsupported error reporting model %s", mode);
+    bool const _extended{ strcmp(_mode, "extended") == 0 };
+    bool const _basic{ strcmp(_mode, "basic") == 0 };
+    if (!_extended && !_basic) {
+        raise_luaL_error(L_, "unsupported error reporting model %s", _mode);
     }
 
-    kExtendedStackTraceRegKey.setValue(L_, [extended](lua_State* L_) { lua_pushboolean(L_, extended ? 1 : 0); });
+    kExtendedStackTraceRegKey.setValue(L_, [extended = _extended](lua_State* L_) { lua_pushboolean(L_, extended ? 1 : 0); });
     return 0;
 }
 
@@ -512,7 +512,7 @@ LUAG_FUNC(set_error_reporting)
     }
 
     STACK_GROW(L_, 3);
-    bool const extended{ kExtendedStackTraceRegKey.readBoolValue(L_) };
+    bool const _extended{ kExtendedStackTraceRegKey.readBoolValue(L_) };
     STACK_CHECK(L_, 1);
 
     // Place stack trace at 'registry[kStackTraceRegKey]' for the 'lua_pcall()'
@@ -531,32 +531,32 @@ LUAG_FUNC(set_error_reporting)
     // and we don't get '.currentline' for that. It's okay - just keep level
     // and table index growing separate.    --AKa 22-Jan-2009
     //
-    lua_Debug ar;
-    for (int n = 1; lua_getstack(L_, n, &ar); ++n) {
-        lua_getinfo(L_, extended ? "Sln" : "Sl", &ar);
-        if (extended) {
+    lua_Debug _ar;
+    for (int _n = 1; lua_getstack(L_, _n, &_ar); ++_n) {
+        lua_getinfo(L_, _extended ? "Sln" : "Sl", &_ar);
+        if (_extended) {
             lua_newtable(L_);                                                                      // L_: some_error {} {}
 
-            lua_pushstring(L_, ar.source);                                                         // L_: some_error {} {} source
+            lua_pushstring(L_, _ar.source);                                                        // L_: some_error {} {} source
             lua_setfield(L_, -2, "source");                                                        // L_: some_error {} {}
 
-            lua_pushinteger(L_, ar.currentline);                                                   // L_: some_error {} {} currentline
+            lua_pushinteger(L_, _ar.currentline);                                                  // L_: some_error {} {} currentline
             lua_setfield(L_, -2, "currentline");                                                   // L_: some_error {} {}
 
-            lua_pushstring(L_, ar.name);                                                           // L_: some_error {} {} name
+            lua_pushstring(L_, _ar.name);                                                          // L_: some_error {} {} name
             lua_setfield(L_, -2, "name");                                                          // L_: some_error {} {}
 
-            lua_pushstring(L_, ar.namewhat);                                                       // L_: some_error {} {} namewhat
+            lua_pushstring(L_, _ar.namewhat);                                                      // L_: some_error {} {} namewhat
             lua_setfield(L_, -2, "namewhat");                                                      // L_: some_error {} {}
 
-            lua_pushstring(L_, ar.what);                                                           // L_: some_error {} {} what
+            lua_pushstring(L_, _ar.what);                                                          // L_: some_error {} {} what
             lua_setfield(L_, -2, "what");                                                          // L_: some_error {} {}
-        } else if (ar.currentline > 0) {
-            lua_pushfstring(L_, "%s:%d", ar.short_src, ar.currentline);                            // L_: some_error {} "blah:blah"
+        } else if (_ar.currentline > 0) {
+            lua_pushfstring(L_, "%s:%d", _ar.short_src, _ar.currentline);                          // L_: some_error {} "blah:blah"
         } else {
-            lua_pushfstring(L_, "%s:?", ar.short_src);                                             // L_: some_error {} "blah"
+            lua_pushfstring(L_, "%s:?", _ar.short_src);                                            // L_: some_error {} "blah"
         }
-        lua_rawseti(L_, -2, (lua_Integer) n);                                                      // L_: some_error {}
+        lua_rawseti(L_, -2, static_cast<lua_Integer>(_n));                                         // L_: some_error {}
     }
 
     // store the stack trace table in the registry
@@ -572,12 +572,12 @@ LUAG_FUNC(set_error_reporting)
 void Lane::changeDebugName(int nameIdx_)
 {
     // xxh64 of string "debugName" generated at https://www.pelock.com/products/hash-calculator
-    static constexpr RegistryUniqueKey hidden_regkey{ 0xA194E2645C57F6DDull };
+    static constexpr RegistryUniqueKey kRegKey{ 0xA194E2645C57F6DDull };
     nameIdx_ = lua_absindex(L, nameIdx_);
     luaL_checktype(L, nameIdx_, LUA_TSTRING);                                                      // L: ... "name" ...
     STACK_CHECK_START_REL(L, 0);
     // store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...
-    hidden_regkey.setValue(L, [nameIdx = nameIdx_](lua_State* L_) { lua_pushvalue(L_, nameIdx); });// L: ... "name" ...
+    kRegKey.setValue(L, [nameIdx = nameIdx_](lua_State* L_) { lua_pushvalue(L_, nameIdx); });      // L: ... "name" ...
     // keep a direct pointer on the string
     debugName = lua_tostring(L, nameIdx_);
     // to see VM name in Decoda debugger Virtual Machine window
@@ -594,11 +594,11 @@ void Lane::changeDebugName(int nameIdx_)
 LUAG_FUNC(set_debug_threadname)
 {
     // C s_lane structure is a light userdata upvalue
-    Lane* const lane{ lua_tolightuserdata<Lane>(L_, lua_upvalueindex(1)) };
-    LUA_ASSERT(L_, L_ == lane->L); // this function is exported in a lane's state, therefore it is callable only from inside the Lane's state
+    Lane* const _lane{ lua_tolightuserdata<Lane>(L_, lua_upvalueindex(1)) };
+    LUA_ASSERT(L_, L_ == _lane->L); // this function is exported in a lane's state, therefore it is callable only from inside the Lane's state
     lua_settop(L_, 1);
     STACK_CHECK_START_REL(L_, 0);
-    lane->changeDebugName(-1);
+    _lane->changeDebugName(-1);
     STACK_CHECK(L_, 0);
     return 0;
 }
@@ -607,9 +607,9 @@ LUAG_FUNC(set_debug_threadname)
 
 LUAG_FUNC(get_debug_threadname)
 {
-    Lane* const lane{ ToLane(L_, 1) };
+    Lane* const _lane{ ToLane(L_, 1) };
     luaL_argcheck(L_, lua_gettop(L_) == 1, 2, "too many arguments");
-    lua_pushstring(L_, lane->debugName);
+    lua_pushstring(L_, _lane->debugName);
     return 1;
 }
 
@@ -617,14 +617,14 @@ LUAG_FUNC(get_debug_threadname)
 
 LUAG_FUNC(set_thread_priority)
 {
-    lua_Integer const prio{ luaL_checkinteger(L_, 1) };
+    lua_Integer const _prio{ luaL_checkinteger(L_, 1) };
     // public Lanes API accepts a generic range -3/+3
     // that will be remapped into the platform-specific scheduler priority scheme
     // On some platforms, -3 is equivalent to -2 and +3 to +2
-    if (prio < kThreadPrioMin || prio > kThreadPrioMax) {
-        raise_luaL_error(L_, "priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, prio);
+    if (_prio < kThreadPrioMin || _prio > kThreadPrioMax) {
+        raise_luaL_error(L_, "priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, _prio);
     }
-    THREAD_SET_PRIORITY(static_cast<int>(prio), universe_get(L_)->sudo);
+    THREAD_SET_PRIORITY(static_cast<int>(_prio), universe_get(L_)->sudo);
     return 0;
 }
 
@@ -632,11 +632,11 @@ LUAG_FUNC(set_thread_priority)
 
 LUAG_FUNC(set_thread_affinity)
 {
-    lua_Integer const affinity{ luaL_checkinteger(L_, 1) };
-    if (affinity <= 0) {
-        raise_luaL_error(L_, "invalid affinity (%d)", affinity);
+    lua_Integer const _affinity{ luaL_checkinteger(L_, 1) };
+    if (_affinity <= 0) {
+        raise_luaL_error(L_, "invalid affinity (%d)", _affinity);
     }
-    THREAD_SET_AFFINITY(static_cast<unsigned int>(affinity));
+    THREAD_SET_AFFINITY(static_cast<unsigned int>(_affinity));
     return 0;
 }
 
@@ -662,9 +662,9 @@ static struct errcode_name s_errcodes[] = {
 };
 static char const* get_errcode_name(int _code)
 {
-    for (int i{ 0 }; i < 7; ++i) {
-        if (s_errcodes[i].code == _code) {
-            return s_errcodes[i].name;
+    for (errcode_name const& _entry : s_errcodes) {
+        if (_entry.code == _code) {
+            return _entry.name;
         }
     }
     return "<nullptr>";
@@ -675,61 +675,61 @@ static char const* get_errcode_name(int _code)
 
 static void lane_main(Lane* lane_)
 {
-    lua_State* const L{ lane_->L };
+    lua_State* const _L{ lane_->L };
     // wait until the launching thread has finished preparing L
     lane_->ready.wait();
-    int rc{ LUA_ERRRUN };
+    int _rc{ LUA_ERRRUN };
     if (lane_->status == Lane::Pending) { // nothing wrong happened during preparation, we can work
         // At this point, the lane function and arguments are on the stack
-        int const nargs{ lua_gettop(L) - 1 };
-        DEBUGSPEW_CODE(Universe* U = universe_get(L));
+        int const nargs{ lua_gettop(_L) - 1 };
+        DEBUGSPEW_CODE(Universe* U = universe_get(_L));
         lane_->status = Lane::Running; // Pending -> Running
 
         // Tie "set_finalizer()" to the state
-        lua_pushcfunction(L, LG_set_finalizer);
-        populate_func_lookup_table(L, -1, "set_finalizer");
-        lua_setglobal(L, "set_finalizer");
+        lua_pushcfunction(_L, LG_set_finalizer);
+        populate_func_lookup_table(_L, -1, "set_finalizer");
+        lua_setglobal(_L, "set_finalizer");
 
         // Tie "set_debug_threadname()" to the state
         // But don't register it in the lookup database because of the Lane pointer upvalue
-        lua_pushlightuserdata(L, lane_);
-        lua_pushcclosure(L, LG_set_debug_threadname, 1);
-        lua_setglobal(L, "set_debug_threadname");
+        lua_pushlightuserdata(_L, lane_);
+        lua_pushcclosure(_L, LG_set_debug_threadname, 1);
+        lua_setglobal(_L, "set_debug_threadname");
 
         // Tie "cancel_test()" to the state
-        lua_pushcfunction(L, LG_cancel_test);
-        populate_func_lookup_table(L, -1, "cancel_test");
-        lua_setglobal(L, "cancel_test");
+        lua_pushcfunction(_L, LG_cancel_test);
+        populate_func_lookup_table(_L, -1, "cancel_test");
+        lua_setglobal(_L, "cancel_test");
 
         // this could be done in lane_new before the lane body function is pushed on the stack to avoid unnecessary stack slot shifting around
 #if ERROR_FULL_STACK
         // Tie "set_error_reporting()" to the state
-        lua_pushcfunction(L, LG_set_error_reporting);
-        populate_func_lookup_table(L, -1, "set_error_reporting");
-        lua_setglobal(L, "set_error_reporting");
+        lua_pushcfunction(_L, LG_set_error_reporting);
+        populate_func_lookup_table(_L, -1, "set_error_reporting");
+        lua_setglobal(_L, "set_error_reporting");
 
-        STACK_GROW(L, 1);
-        lua_pushcfunction(L, lane_error);                                                          // L: func args handler
-        lua_insert(L, 1);                                                                          // L: handler func args
+        STACK_GROW(_L, 1);
+        lua_pushcfunction(_L, lane_error);                                                         // L: func args handler
+        lua_insert(_L, 1);                                                                         // L: handler func args
 #endif                                                                                             // L: ERROR_FULL_STACK
 
-        rc = lua_pcall(L, nargs, LUA_MULTRET, ERROR_FULL_STACK);                                   // L: retvals|err
+        _rc = lua_pcall(_L, nargs, LUA_MULTRET, ERROR_FULL_STACK);                                 // L: retvals|err
 
 #if ERROR_FULL_STACK
-        lua_remove(L, 1);                                                                          // L: retvals|error
+        lua_remove(_L, 1);                                                                         // L: retvals|error
 #endif // ERROR_FULL_STACK
 
         // in case of error and if it exists, fetch stack trace from registry and push it
-        push_stack_trace(L, rc, 1);                                                                // L: retvals|error [trace]
+        push_stack_trace(_L, _rc, 1);                                                              // L: retvals|error [trace]
 
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p body: %s (%s)\n" INDENT_END(U), L, get_errcode_name(rc), kCancelError.equals(L, 1) ? "cancelled" : lua_typename(L, lua_type(L, 1))));
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p body: %s (%s)\n" INDENT_END(U), _L, get_errcode_name(_rc), kCancelError.equals(_L, 1) ? "cancelled" : lua_typename(_L, lua_type(_L, 1))));
         //  Call finalizers, if the script has set them up.
         //
-        int rc2{ run_finalizers(L, rc) };
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p finalizer: %s\n" INDENT_END(U), L, get_errcode_name(rc2)));
-        if (rc2 != LUA_OK) { // Error within a finalizer!
+        int _rc2{ run_finalizers(_L, _rc) };
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p finalizer: %s\n" INDENT_END(U), _L, get_errcode_name(_rc2)));
+        if (_rc2 != LUA_OK) { // Error within a finalizer!
             // the finalizer generated an error, and left its own error message [and stack trace] on the stack
-            rc = rc2; // we're overruling the earlier script error or normal return
+            _rc = _rc2; // we're overruling the earlier script error or normal return
         }
         lane_->waiting_on = nullptr;  // just in case
         if (selfdestruct_remove(lane_)) { // check and remove (under lock!)
@@ -750,12 +750,12 @@ static void lane_main(Lane* lane_)
     if (lane_) {
         // leave results (1..top) or error message + stack trace (1..2) on the stack - master will copy them
 
-        Lane::Status const st = (rc == LUA_OK) ? Lane::Done : kCancelError.equals(L, 1) ? Lane::Cancelled : Lane::Error;
+        Lane::Status const _st = (_rc == LUA_OK) ? Lane::Done : kCancelError.equals(_L, 1) ? Lane::Cancelled : Lane::Error;
 
         {
             // 'doneMutex' protects the -> Done|Error|Cancelled state change
             std::lock_guard lock{ lane_->doneMutex };
-            lane_->status = st;
+            lane_->status = _st;
             lane_->doneCondVar.notify_one(); // wake up master (while 'lane_->doneMutex' is on)
         }
     }
@@ -769,17 +769,17 @@ static void lane_main(Lane* lane_)
 // upvalue[1]: _G.require
 LUAG_FUNC(require)
 {
-    char const* name = lua_tostring(L_, 1);                                                        // L_: "name" ...
-    int const nargs{ lua_gettop(L_) };
-    DEBUGSPEW_CODE(Universe* U = universe_get(L_));
+    char const* _name{ lua_tostring(L_, 1) };                                                      // L_: "name" ...
+    int const _nargs{ lua_gettop(L_) };
+    DEBUGSPEW_CODE(Universe * _U{ universe_get(L_) });
     STACK_CHECK_START_REL(L_, 0);
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.require %s BEGIN\n" INDENT_END(U), name));
-    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.require %s BEGIN\n" INDENT_END(_U), _name));
+    DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
     lua_pushvalue(L_, lua_upvalueindex(1));                                                        // L_: "name" ... require
     lua_insert(L_, 1);                                                                             // L_: require "name" ...
-    lua_call(L_, nargs, 1);                                                                        // L_: module
-    populate_func_lookup_table(L_, -1, name);
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.require %s END\n" INDENT_END(U), name));
+    lua_call(L_, _nargs, 1);                                                                       // L_: module
+    populate_func_lookup_table(L_, -1, _name);
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.require %s END\n" INDENT_END(_U), _name));
     STACK_CHECK(L_, 0);
     return 1;
 }
@@ -791,17 +791,17 @@ LUAG_FUNC(require)
 // lanes.register( "modname", module)
 LUAG_FUNC(register)
 {
-    char const* name = luaL_checkstring(L_, 1);
-    LuaType const mod_type{ lua_type_as_enum(L_, 2) };
+    char const* _name{ luaL_checkstring(L_, 1) };
+    LuaType const _mod_type{ lua_type_as_enum(L_, 2) };
     // ignore extra parameters, just in case
     lua_settop(L_, 2);
-    luaL_argcheck(L_, (mod_type == LuaType::TABLE) || (mod_type == LuaType::FUNCTION), 2, "unexpected module type");
+    luaL_argcheck(L_, (_mod_type == LuaType::TABLE) || (_mod_type == LuaType::FUNCTION), 2, "unexpected module type");
     DEBUGSPEW_CODE(Universe* U = universe_get(L_));
     STACK_CHECK_START_REL(L_, 0); // "name" mod_table
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.register %s BEGIN\n" INDENT_END(U), name));
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.register %s BEGIN\n" INDENT_END(U), _name));
     DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
-    populate_func_lookup_table(L_, -1, name);
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.register %s END\n" INDENT_END(U), name));
+    populate_func_lookup_table(L_, -1, _name);
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.register %s END\n" INDENT_END(U), _name));
     STACK_CHECK(L_, 0);
     return 0;
 }
@@ -827,37 +827,37 @@ static constexpr UniqueKey kLaneGC{ 0x5D6122141727F960ull };
 LUAG_FUNC(lane_new)
 {
     // first 8 args: func libs priority globals package required gc_cb name
-    char const* const libs_str{ lua_tostring(L_, 2) };
-    bool const have_priority{ !lua_isnoneornil(L_, 3) };
-    int const priority{ have_priority ? static_cast<int>(lua_tointeger(L_, 3)) : kThreadPrioDefault };
-    int const globals_idx{ lua_isnoneornil(L_, 4) ? 0 : 4 };
-    int const package_idx{ lua_isnoneornil(L_, 5) ? 0 : 5 };
-    int const required_idx{ lua_isnoneornil(L_, 6) ? 0 : 6 };
-    int const gc_cb_idx{ lua_isnoneornil(L_, 7) ? 0 : 7 };
-    int const name_idx{ lua_isnoneornil(L_, 8) ? 0 : 8 };
+    char const* const _libs_str{ lua_tostring(L_, 2) };
+    bool const _have_priority{ !lua_isnoneornil(L_, 3) };
+    int const _priority{ _have_priority ? static_cast<int>(lua_tointeger(L_, 3)) : kThreadPrioDefault };
+    int const _globals_idx{ lua_isnoneornil(L_, 4) ? 0 : 4 };
+    int const _package_idx{ lua_isnoneornil(L_, 5) ? 0 : 5 };
+    int const _required_idx{ lua_isnoneornil(L_, 6) ? 0 : 6 };
+    int const _gc_cb_idx{ lua_isnoneornil(L_, 7) ? 0 : 7 };
+    int const _name_idx{ lua_isnoneornil(L_, 8) ? 0 : 8 };
 
     static constexpr int kFixedArgsIdx{ 8 };
-    int const nargs{ lua_gettop(L_) - kFixedArgsIdx };
-    Universe* const U{ universe_get(L_) };
-    LUA_ASSERT(L_, nargs >= 0);
+    int const _nargs{ lua_gettop(L_) - kFixedArgsIdx };
+    Universe* const _U{ universe_get(L_) };
+    LUA_ASSERT(L_, _nargs >= 0);
 
     // public Lanes API accepts a generic range -3/+3
     // that will be remapped into the platform-specific scheduler priority scheme
     // On some platforms, -3 is equivalent to -2 and +3 to +2
-    if (have_priority && (priority < kThreadPrioMin || priority > kThreadPrioMax)) {
-        raise_luaL_error(L_, "Priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, priority);
+    if (_have_priority && (_priority < kThreadPrioMin || _priority > kThreadPrioMax)) {
+        raise_luaL_error(L_, "Priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, _priority);
     }
 
     /* --- Create and prepare the sub state --- */
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: setup\n" INDENT_END(U)));
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: setup\n" INDENT_END(_U)));
 
     // populate with selected libraries at the same time. 
-    lua_State* const L2{ luaG_newstate(U, SourceState{ L_ }, libs_str) };                          // L_: [8 args] ...                               L2:
-    STACK_CHECK_START_REL(L2, 0);
+    lua_State* const _L2{ luaG_newstate(_U, SourceState{ L_ }, _libs_str) };                       // L_: [8 args] ...                               L2:
+    STACK_CHECK_START_REL(_L2, 0);
 
     // 'lane' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
-    Lane* const lane{ new (U) Lane{ U, L2 } };
-    if (lane == nullptr) {
+    Lane* const _lane{ new (_U) Lane{ _U, _L2 } };
+    if (_lane == nullptr) {
         raise_luaL_error(L_, "could not create lane: out of memory");
     }
 
@@ -959,135 +959,135 @@ LUAG_FUNC(lane_new)
             m_lane->ready.count_down();
             m_lane = nullptr;
         }
-    } onExit{ L_, lane, gc_cb_idx, name_idx DEBUGSPEW_COMMA_PARAM(U) };
+    } onExit{ L_, _lane, _gc_cb_idx, _name_idx DEBUGSPEW_COMMA_PARAM(_U) };
     // launch the thread early, it will sync with a std::latch to parallelize OS thread warmup and L2 preparation
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: launching thread\n" INDENT_END(U)));
-    lane->startThread(priority);
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: launching thread\n" INDENT_END(_U)));
+    _lane->startThread(_priority);
 
-    STACK_GROW(L2, nargs + 3);
+    STACK_GROW(_L2, _nargs + 3);
     STACK_GROW(L_, 3);
     STACK_CHECK_START_REL(L_, 0);
 
     // package
-    if (package_idx != 0) {
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: update 'package'\n" INDENT_END(U)));
+    if (_package_idx != 0) {
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: update 'package'\n" INDENT_END(_U)));
         // when copying with mode LookupMode::LaneBody, should raise an error in case of problem, not leave it one the stack
-        InterCopyContext c{ U, DestState{ L2 }, SourceState{ L_ }, {}, SourceIndex{ package_idx }, {}, {}, {} };
+        InterCopyContext c{ _U, DestState{ _L2 }, SourceState{ L_ }, {}, SourceIndex{ _package_idx }, {}, {}, {} };
         [[maybe_unused]] InterCopyResult const ret{ c.inter_copy_package() };
         LUA_ASSERT(L_, ret == InterCopyResult::Success); // either all went well, or we should not even get here
     }
 
     // modules to require in the target lane *before* the function is transfered!
-    if (required_idx != 0) {
-        int nbRequired = 1;
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: require 'required' list\n" INDENT_END(U)));
-        DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
+    if (_required_idx != 0) {
+        int _nbRequired{ 1 };
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: require 'required' list\n" INDENT_END(_U)));
+        DEBUGSPEW_CODE(DebugSpewIndentScope scope{ _U });
         // should not happen, was checked in lanes.lua before calling lane_new()
-        if (lua_type(L_, required_idx) != LUA_TTABLE) {
-            raise_luaL_error(L_, "expected required module list as a table, got %s", luaL_typename(L_, required_idx));
+        if (lua_type(L_, _required_idx) != LUA_TTABLE) {
+            raise_luaL_error(L_, "expected required module list as a table, got %s", luaL_typename(L_, _required_idx));
         }
 
         lua_pushnil(L_);                                                                           // L_: [8 args] args... nil                       L2:
-        while (lua_next(L_, required_idx) != 0) {                                                  // L_: [8 args] args... n "modname"               L2:
-            if (lua_type(L_, -1) != LUA_TSTRING || lua_type(L_, -2) != LUA_TNUMBER || lua_tonumber(L_, -2) != nbRequired) {
+        while (lua_next(L_, _required_idx) != 0) {                                                 // L_: [8 args] args... n "modname"               L2:
+            if (lua_type(L_, -1) != LUA_TSTRING || lua_type(L_, -2) != LUA_TNUMBER || lua_tonumber(L_, -2) != _nbRequired) {
                 raise_luaL_error(L_, "required module list should be a list of strings");
             } else {
                 // require the module in the target state, and populate the lookup table there too
                 size_t len;
                 char const* name = lua_tolstring(L_, -1, &len);
-                DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: require '%s'\n" INDENT_END(U), name));
+                DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: require '%s'\n" INDENT_END(_U), name));
 
                 // require the module in the target lane
-                lua_getglobal(L2, "require");                                                      // L_: [8 args] args... n "modname"               L2: require()?
-                if (lua_isnil(L2, -1)) {
-                    lua_pop(L2, 1);                                                                // L_: [8 args] args... n "modname"               L2:
+                lua_getglobal(_L2, "require");                                                     // L_: [8 args] args... n "modname"               L2: require()?
+                if (lua_isnil(_L2, -1)) {
+                    lua_pop(_L2, 1);                                                               // L_: [8 args] args... n "modname"               L2:
                     raise_luaL_error(L_, "cannot pre-require modules without loading 'package' library first");
                 } else {
-                    lua_pushlstring(L2, name, len);                                                // L_: [8 args] args... n "modname"               L2: require() name
-                    if (lua_pcall(L2, 1, 1, 0) != LUA_OK) {                                        // L_: [8 args] args... n "modname"               L2: ret/errcode
+                    lua_pushlstring(_L2, name, len);                                               // L_: [8 args] args... n "modname"               L2: require() name
+                    if (lua_pcall(_L2, 1, 1, 0) != LUA_OK) {                                       // L_: [8 args] args... n "modname"               L2: ret/errcode
                         // propagate error to main state if any
-                        InterCopyContext c{ U, DestState{ L_ }, SourceState{ L2 }, {}, {}, {}, {}, {} };
-                        std::ignore = c.inter_move(1);                                             // L_: [8 args] args... n "modname" error         L2:
+                        InterCopyContext _c{ _U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} };
+                        std::ignore = _c.inter_move(1);                                            // L_: [8 args] args... n "modname" error         L2:
                         raise_lua_error(L_);
                     }
                     // here the module was successfully required                                   // L_: [8 args] args... n "modname"               L2: ret
                     // after requiring the module, register the functions it exported in our name<->function database
-                    populate_func_lookup_table(L2, -1, name);
-                    lua_pop(L2, 1);                                                                // L_: [8 args] args... n "modname"               L2:
+                    populate_func_lookup_table(_L2, -1, name);
+                    lua_pop(_L2, 1);                                                               // L_: [8 args] args... n "modname"               L2:
                 }
             }
             lua_pop(L_, 1); // L_: func libs priority globals package required gc_cb [... args ...] n
-            ++nbRequired;
+            ++_nbRequired;
         }                                                                                          // L_: [8 args] args...
     }
     STACK_CHECK(L_, 0);
-    STACK_CHECK(L2, 0);                                                                            // L_: [8 args] args...                           L2:
+    STACK_CHECK(_L2, 0);                                                                           // L_: [8 args] args...                           L2:
 
     // Appending the specified globals to the global environment
     // *after* stdlibs have been loaded and modules required, in case we transfer references to native functions they exposed...
     //
-    if (globals_idx != 0) {
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: transfer globals\n" INDENT_END(U)));
-        if (!lua_istable(L_, globals_idx)) {
-            raise_luaL_error(L_, "Expected table, got %s", luaL_typename(L_, globals_idx));
+    if (_globals_idx != 0) {
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: transfer globals\n" INDENT_END(_U)));
+        if (!lua_istable(L_, _globals_idx)) {
+            raise_luaL_error(L_, "Expected table, got %s", luaL_typename(L_, _globals_idx));
         }
 
-        DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
+        DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
         lua_pushnil(L_);                                                                           // L_: [8 args] args... nil                       L2:
         // Lua 5.2 wants us to push the globals table on the stack
-        InterCopyContext c{ U, DestState{ L2 }, SourceState{ L_ }, {}, {}, {}, {}, {} };
-        lua_pushglobaltable(L2);                                                                   // L_: [8 args] args... nil                       L2: _G
-        while (lua_next(L_, globals_idx)) {                                                        // L_: [8 args] args... k v                       L2: _G
-            std::ignore = c.inter_copy(2);                                                         // L_: [8 args] args... k v                       L2: _G k v
+        InterCopyContext _c{ _U, DestState{ _L2 }, SourceState{ L_ }, {}, {}, {}, {}, {} };
+        lua_pushglobaltable(_L2);                                                                  // L_: [8 args] args... nil                       L2: _G
+        while (lua_next(L_, _globals_idx)) {                                                       // L_: [8 args] args... k v                       L2: _G
+            std::ignore = _c.inter_copy(2);                                                        // L_: [8 args] args... k v                       L2: _G k v
             // assign it in L2's globals table
-            lua_rawset(L2, -3);                                                                    // L_: [8 args] args... k v                       L2: _G
+            lua_rawset(_L2, -3);                                                                   // L_: [8 args] args... k v                       L2: _G
             lua_pop(L_, 1);                                                                        // L_: [8 args] args... k
         }                                                                                          // L_: [8 args] args...
-        lua_pop(L2, 1);                                                                            // L_: [8 args] args...                           L2:
+        lua_pop(_L2, 1);                                                                           // L_: [8 args] args...                           L2:
     }
     STACK_CHECK(L_, 0);
-    STACK_CHECK(L2, 0);
+    STACK_CHECK(_L2, 0);
 
     // Lane main function
-    LuaType const func_type{ lua_type_as_enum(L_, 1) };
-    if (func_type == LuaType::FUNCTION) {
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: transfer lane body\n" INDENT_END(U)));
-        DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
+    LuaType const _func_type{ lua_type_as_enum(L_, 1) };
+    if (_func_type == LuaType::FUNCTION) {
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: transfer lane body\n" INDENT_END(_U)));
+        DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
         lua_pushvalue(L_, 1);                                                                      // L_: [8 args] args... func                      L2:
-        InterCopyContext c{ U, DestState{ L2 }, SourceState{ L_ }, {}, {}, {}, {}, {} };
-        InterCopyResult const res{ c.inter_move(1) };                                              // L_: [8 args] args...                           L2: func
-        if (res != InterCopyResult::Success) {
+        InterCopyContext _c{ _U, DestState{ _L2 }, SourceState{ L_ }, {}, {}, {}, {}, {} };
+        InterCopyResult const _res{ _c.inter_move(1) };                                             // L_: [8 args] args...                           L2: func
+        if (_res != InterCopyResult::Success) {
             raise_luaL_error(L_, "tried to copy unsupported types");
         }
-    } else if (func_type == LuaType::STRING) {
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: compile lane body\n" INDENT_END(U)));
+    } else if (_func_type == LuaType::STRING) {
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: compile lane body\n" INDENT_END(_U)));
         // compile the string
-        if (luaL_loadstring(L2, lua_tostring(L_, 1)) != 0) {                                       // L_: [8 args] args...                           L2: func
+        if (luaL_loadstring(_L2, lua_tostring(L_, 1)) != 0) {                                      // L_: [8 args] args...                           L2: func
             raise_luaL_error(L_, "error when parsing lane function code");
         }
     } else {
-        raise_luaL_error(L_, "Expected function, got %s", lua_typename(L_, func_type));
+        raise_luaL_error(L_, "Expected function, got %s", lua_typename(L_, _func_type));
     }
     STACK_CHECK(L_, 0);
-    STACK_CHECK(L2, 1);
-    LUA_ASSERT(L_, lua_isfunction(L2, 1));
+    STACK_CHECK(_L2, 1);
+    LUA_ASSERT(L_, lua_isfunction(_L2, 1));
 
     // revive arguments
-    if (nargs > 0) {
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: transfer lane arguments\n" INDENT_END(U)));
-        DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
-        InterCopyContext c{ U, DestState{ L2 }, SourceState{ L_ }, {}, {}, {}, {}, {} };
-        InterCopyResult const res{ c.inter_move(nargs) };                                          // L_: [8 args]                                   L2: func args...
+    if (_nargs > 0) {
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: transfer lane arguments\n" INDENT_END(_U)));
+        DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
+        InterCopyContext _c{ _U, DestState{ _L2 }, SourceState{ L_ }, {}, {}, {}, {}, {} };
+        InterCopyResult const res{ _c.inter_move(_nargs) };                                        // L_: [8 args]                                   L2: func args...
         if (res != InterCopyResult::Success) {
             raise_luaL_error(L_, "tried to copy unsupported types");
         }
     }
-    STACK_CHECK(L_, -nargs);
+    STACK_CHECK(L_, -_nargs);
     LUA_ASSERT(L_, lua_gettop(L_) == kFixedArgsIdx);
 
     // Store 'lane' in the lane's registry, for 'cancel_test()' (we do cancel tests at pending send/receive).
-    kLanePointerRegKey.setValue(L2, [lane](lua_State* L_) { lua_pushlightuserdata(L_, lane); });   // L_: [8 args]                                   L2: func args...
-    STACK_CHECK(L2, 1 + nargs);
+    kLanePointerRegKey.setValue(_L2, [lane = _lane](lua_State* L_) { lua_pushlightuserdata(L_, lane); });// L_: [8 args]                             L2: func args...
+    STACK_CHECK(_L2, 1 + _nargs);
 
     STACK_CHECK_RESET_REL(L_, 0);
     // all went well, the lane's thread can start working
@@ -1112,8 +1112,8 @@ LUAG_FUNC(lane_new)
 //
 [[nodiscard]] static int lane_gc(lua_State* L_)
 {
-    bool have_gc_cb{ false };
-    Lane* const lane{ ToLane(L_, 1) };                                                             // L_: ud
+    bool _have_gc_cb{ false };
+    Lane* const _lane{ ToLane(L_, 1) };                                                             // L_: ud
 
     // if there a gc callback?
     lua_getiuservalue(L_, 1, 1);                                                                   // L_: ud uservalue
@@ -1121,35 +1121,35 @@ LUAG_FUNC(lane_new)
     lua_rawget(L_, -2);                                                                            // L_: ud uservalue gc_cb|nil
     if (!lua_isnil(L_, -1)) {
         lua_remove(L_, -2);                                                                        // L_: ud gc_cb|nil
-        lua_pushstring(L_, lane->debugName);                                                       // L_: ud gc_cb name
-        have_gc_cb = true;
+        lua_pushstring(L_, _lane->debugName);                                                      // L_: ud gc_cb name
+        _have_gc_cb = true;
     } else {
         lua_pop(L_, 2);                                                                            // L_: ud
     }
 
     // We can read 'lane->status' without locks, but not wait for it
-    if (lane->status < Lane::Done) {
+    if (_lane->status < Lane::Done) {
         // still running: will have to be cleaned up later
-        selfdestruct_add(lane);
-        assert(lane->selfdestruct_next);
-        if (have_gc_cb) {
+        selfdestruct_add(_lane);
+        assert(_lane->selfdestruct_next);
+        if (_have_gc_cb) {
             lua_pushliteral(L_, "selfdestruct");                                                   // L_: ud gc_cb name status
             lua_call(L_, 2, 0);                                                                    // L_: ud
         }
         return 0;
-    } else if (lane->L) {
+    } else if (_lane->L) {
         // no longer accessing the Lua VM: we can close right now
-        lua_close(lane->L);
-        lane->L = nullptr;
+        lua_close(_lane->L);
+        _lane->L = nullptr;
         // just in case, but s will be freed soon so...
-        lane->debugName = "<gc>";
+        _lane->debugName = "<gc>";
     }
 
     // Clean up after a (finished) thread
-    delete lane;
+    delete _lane;
 
     // do this after lane cleanup in case the callback triggers an error
-    if (have_gc_cb) {
+    if (_have_gc_cb) {
         lua_pushliteral(L_, "closed");                                                             // L_: ud gc_cb name status
         lua_call(L_, 2, 0);                                                                        // L_: ud
     }
@@ -1170,7 +1170,7 @@ LUAG_FUNC(lane_new)
 //
 [[nodiscard]] static char const* thread_status_string(Lane::Status status_)
 {
-    char const* const str{
+    char const* const _str{
         (status_ == Lane::Pending) ? "pending" :
         (status_ == Lane::Running) ? "running" :    // like in 'co.status()'
         (status_ == Lane::Waiting) ? "waiting" :
@@ -1179,17 +1179,17 @@ LUAG_FUNC(lane_new)
         (status_ == Lane::Cancelled) ? "cancelled" :
         nullptr
     };
-    return str;
+    return _str;
 }
 
 // #################################################################################################
 
 void Lane::pushThreadStatus(lua_State* L_)
 {
-    char const* const str{ thread_status_string(status) };
-    LUA_ASSERT(L_, str);
+    char const* const _str{ thread_status_string(status) };
+    LUA_ASSERT(L_, _str);
 
-    lua_pushstring(L_, str);
+    lua_pushstring(L_, _str);
 }
 
 // #################################################################################################
@@ -1204,14 +1204,14 @@ void Lane::pushThreadStatus(lua_State* L_)
 //
 LUAG_FUNC(thread_join)
 {
-    Lane* const lane{ ToLane(L_, 1) };
-    lua_State* const L2{ lane->L };
+    Lane* const _lane{ ToLane(L_, 1) };
+    lua_State* const _L2{ _lane->L };
 
-    std::chrono::time_point<std::chrono::steady_clock> until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
+    std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
     if (lua_type(L_, 2) == LUA_TNUMBER) { // we don't want to use lua_isnumber() because of autocoercion
         lua_Duration const duration{ lua_tonumber(L_, 2) };
         if (duration.count() >= 0.0) {
-            until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration);
+            _until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration);
         } else {
             raise_luaL_argerror(L_, 2, "duration cannot be < 0");
         }
@@ -1220,9 +1220,9 @@ LUAG_FUNC(thread_join)
         raise_luaL_argerror(L_, 2, "incorrect duration type");
     }
 
-    bool const done{ !lane->thread.joinable() || lane->waitForCompletion(until) };
+    bool const done{ !_lane->thread.joinable() || _lane->waitForCompletion(_until) };
     lua_settop(L_, 1);                                                                             // L_: lane
-    if (!done || !L2) {
+    if (!done || !_L2) {
         lua_pushnil(L_);                                                                           // L_: lane nil
         lua_pushliteral(L_, "timeout");                                                            // L_: lane nil "timeout"
         return 2;
@@ -1231,51 +1231,51 @@ LUAG_FUNC(thread_join)
     STACK_CHECK_START_REL(L_, 0);                                                                  // L_: lane
     // Thread is Done/Error/Cancelled; all ours now
 
-    int ret{ 0 };
+    int _ret{ 0 };
     // debugName is a pointer to string possibly interned in the lane's state, that no longer exists when the state is closed
     // so store it in the userdata uservalue at a key that can't possibly collide
-    lane->securizeDebugName(L_);
-    switch (lane->status) {
+    _lane->securizeDebugName(L_);
+    switch (_lane->status) {
     case Lane::Done:
         {
-            int const n{ lua_gettop(L2) }; // whole L2 stack
+            int const _n{ lua_gettop(_L2) }; // whole L2 stack
             if (
-                (n > 0) &&
-                (InterCopyContext{ lane->U, DestState{ L_ }, SourceState{ L2 }, {}, {}, {}, {}, {} }.inter_move(n) != InterCopyResult::Success)
+                (_n > 0) &&
+                (InterCopyContext{ _lane->U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} }.inter_move(_n) != InterCopyResult::Success)
             ) {                                                                                    // L_: lane results                                L2:
                 raise_luaL_error(L_, "tried to copy unsupported types");
             }
-            ret = n;
+            _ret = _n;
         }
         break;
 
     case Lane::Error:
         {
-            int const n{ lua_gettop(L2) };                                                         // L_: lane                                        L2: "err" [trace]
+            int const _n{ lua_gettop(_L2) };                                                       // L_: lane                                        L2: "err" [trace]
             STACK_GROW(L_, 3);
             lua_pushnil(L_);                                                                       // L_: lane nil
             // even when ERROR_FULL_STACK, if the error is not LUA_ERRRUN, the handler wasn't called, and we only have 1 error message on the stack ...
-            InterCopyContext c{ lane->U, DestState{ L_ }, SourceState{ L2 }, {}, {}, {}, {}, {} };
-            if (c.inter_move(n) != InterCopyResult::Success) {                                     // L_: lane nil "err" [trace]                      L2:
-                raise_luaL_error(L_, "tried to copy unsupported types: %s", lua_tostring(L_, -n));
+            InterCopyContext _c{ _lane->U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} };
+            if (_c.inter_move(_n) != InterCopyResult::Success) {                                     // L_: lane nil "err" [trace]                      L2:
+                raise_luaL_error(L_, "tried to copy unsupported types: %s", lua_tostring(L_, -_n));
             }
-            ret = 1 + n;
+            _ret = 1 + _n;
         }
         break;
 
     case Lane::Cancelled:
-        ret = 0;
+        _ret = 0;
         break;
 
     default:
-        DEBUGSPEW_CODE(fprintf(stderr, "Status: %d\n", lane->status));
+        DEBUGSPEW_CODE(fprintf(stderr, "Status: %d\n", _lane->status));
         LUA_ASSERT(L_, false);
-        ret = 0;
+        _ret = 0;
     }
-    lua_close(L2);
-    lane->L = nullptr;
-    STACK_CHECK(L_, ret);
-    return ret;
+    lua_close(_L2);
+    _lane->L = nullptr;
+    STACK_CHECK(L_, _ret);
+    return _ret;
 }
 
 // #################################################################################################
@@ -1291,7 +1291,7 @@ LUAG_FUNC(thread_index)
 {
     static constexpr int kSelf{ 1 };
     static constexpr int kKey{ 2 };
-    Lane* const lane{ ToLane(L_, kSelf) };
+    Lane* const _lane{ ToLane(L_, kSelf) };
     LUA_ASSERT(L_, lua_gettop(L_) == 2);
 
     STACK_GROW(L_, 8); // up to 8 positions are needed in case of error propagation
@@ -1314,9 +1314,9 @@ LUAG_FUNC(thread_index)
             // check if we already fetched the values from the thread or not
             lua_pushinteger(L_, 0);
             lua_rawget(L_, kUsr);
-            bool const fetched{ !lua_isnil(L_, -1) };
+            bool const _fetched{ !lua_isnil(L_, -1) };
             lua_pop(L_, 1); // back to our 2 args + uservalue on the stack
-            if (!fetched) {
+            if (!_fetched) {
                 lua_pushinteger(L_, 0);
                 lua_pushboolean(L_, 1);
                 lua_rawset(L_, kUsr);
@@ -1324,22 +1324,22 @@ LUAG_FUNC(thread_index)
                 lua_pushcfunction(L_, LG_thread_join);
                 lua_pushvalue(L_, kSelf);
                 lua_call(L_, 1, LUA_MULTRET); // all return values are on the stack, at slots 4+
-                switch (lane->status) {
+                switch (_lane->status) {
                 default:
                     // this is an internal error, we probably never get here
                     lua_settop(L_, 0);
                     lua_pushliteral(L_, "Unexpected status: ");
-                    lua_pushstring(L_, thread_status_string(lane->status));
+                    lua_pushstring(L_, thread_status_string(_lane->status));
                     lua_concat(L_, 2);
                     raise_lua_error(L_);
                     [[fallthrough]]; // fall through if we are killed, as we got nil, "killed" on the stack
 
                 case Lane::Done: // got regular return values
                     {
-                        int const nvalues{ lua_gettop(L_) - 3 };
-                        for (int i = nvalues; i > 0; --i) {
+                        int const _nvalues{ lua_gettop(L_) - 3 };
+                        for (int _i = _nvalues; _i > 0; --_i) {
                             // pop the last element of the stack, to store it in the uservalue at its proper index
-                            lua_rawseti(L_, kUsr, i);
+                            lua_rawseti(L_, kUsr, _i);
                         }
                     }
                     break;
@@ -1361,8 +1361,8 @@ LUAG_FUNC(thread_index)
                 }
             }
             lua_settop(L_, 3);                                                                     // L_: self KEY ENV
-            int const key{ static_cast<int>(lua_tointeger(L_, kKey)) };
-            if (key != -1) {
+            int const _key{ static_cast<int>(lua_tointeger(L_, kKey)) };
+            if (_key != -1) {
                 lua_pushnumber(L_, -1);                                                            // L_: self KEY ENV -1
                 lua_rawget(L_, kUsr);                                                              // L_: self KEY ENV "error"|nil
                 if (!lua_isnil(L_, -1)) {                                                          // L_: an error was stored
@@ -1388,15 +1388,15 @@ LUAG_FUNC(thread_index)
                     lua_pop(L_, 1);                                                                // L_: self KEY ENV
                 }
             }
-            lua_rawgeti(L_, kUsr, key);
+            lua_rawgeti(L_, kUsr, _key);
         }
         return 1;
     }
     if (lua_type(L_, kKey) == LUA_TSTRING) {
-        char const* const keystr{ lua_tostring(L_, kKey) };
+        char const* const _keystr{ lua_tostring(L_, kKey) };
         lua_settop(L_, 2); // keep only our original arguments on the stack
-        if (strcmp(keystr, "status") == 0) {
-            lane->pushThreadStatus(L_); // push the string representing the status
+        if (strcmp(_keystr, "status") == 0) {
+            _lane->pushThreadStatus(L_); // push the string representing the status
             return 1;
         }
         // return self.metatable[key]
@@ -1405,7 +1405,7 @@ LUAG_FUNC(thread_index)
         lua_rawget(L_, -2);                                                                        // L_: mt value
         // only "cancel" and "join" are registered as functions, any other string will raise an error
         if (!lua_iscfunction(L_, -1)) {
-            raise_luaL_error(L_, "can't index a lane with '%s'", keystr);
+            raise_luaL_error(L_, "can't index a lane with '%s'", _keystr);
         }
         return 1;
     }
@@ -1428,27 +1428,27 @@ LUAG_FUNC(thread_index)
 // Return a list of all known lanes
 LUAG_FUNC(threads)
 {
-    int const top{ lua_gettop(L_) };
-    Universe* const U{ universe_get(L_) };
+    int const _top{ lua_gettop(L_) };
+    Universe* const _U{ universe_get(L_) };
 
     // List _all_ still running threads
-    std::lock_guard<std::mutex> guard{ U->trackingMutex };
-    if (U->trackingFirst && U->trackingFirst != TRACKING_END) {
-        Lane* lane{ U->trackingFirst };
-        int index{ 0 };
+    std::lock_guard<std::mutex> _guard{ _U->trackingMutex };
+    if (_U->trackingFirst && _U->trackingFirst != TRACKING_END) {
+        Lane* _lane{ _U->trackingFirst };
+        int _index{ 0 };
         lua_newtable(L_);                                                                          // L_: {}
-        while (lane != TRACKING_END) {
+        while (_lane != TRACKING_END) {
             // insert a { name='<name>', status='<status>' } tuple, so that several lanes with the same name can't clobber each other
             lua_createtable(L_, 0, 2);                                                             // L_: {} {}
-            lua_pushstring(L_, lane->debugName);                                                   // L_: {} {} "name"
+            lua_pushstring(L_, _lane->debugName);                                                  // L_: {} {} "name"
             lua_setfield(L_, -2, "name");                                                          // L_: {} {}
-            lane->pushThreadStatus(L_);                                                            // L_: {} {} "status"
+            _lane->pushThreadStatus(L_);                                                           // L_: {} {} "status"
             lua_setfield(L_, -2, "status");                                                        // L_: {} {}
-            lua_rawseti(L_, -2, ++index);                                                          // L_: {}
-            lane = lane->tracking_next;
+            lua_rawseti(L_, -2, ++_index);                                                         // L_: {}
+            _lane = _lane->tracking_next;
         }
     }
-    return lua_gettop(L_) - top;                                                                   // L_: 0 or 1
+    return lua_gettop(L_) - _top;                                                                  // L_: 0 or 1
 }
 #endif // HAVE_LANE_TRACKING()
 
@@ -1464,8 +1464,8 @@ LUAG_FUNC(threads)
  */
 LUAG_FUNC(now_secs)
 {
-    auto const now{ std::chrono::system_clock::now() };
-    lua_Duration duration{ now.time_since_epoch() };
+    auto const _now{ std::chrono::system_clock::now() };
+    lua_Duration duration{ _now.time_since_epoch() };
 
     lua_pushnumber(L_, duration.count());
     return 1;
@@ -1487,38 +1487,38 @@ LUAG_FUNC(wakeup_conv)
     // .isdst (daylight saving on/off)
 
     STACK_CHECK_START_REL(L_, 0);
-    auto readInteger = [L = L_](char const* name_) {
+    auto _readInteger = [L = L_](char const* name_) {
         lua_getfield(L, 1, name_);
         lua_Integer const val{ lua_tointeger(L, -1) };
         lua_pop(L, 1);
         return static_cast<int>(val);
     };
-    int const year{ readInteger("year") };
-    int const month{ readInteger("month") };
-    int const day{ readInteger("day") };
-    int const hour{ readInteger("hour") };
-    int const min{ readInteger("min") };
-    int const sec{ readInteger("sec") };
+    int const _year{ _readInteger("year") };
+    int const _month{ _readInteger("month") };
+    int const _day{ _readInteger("day") };
+    int const _hour{ _readInteger("hour") };
+    int const _min{ _readInteger("min") };
+    int const _sec{ _readInteger("sec") };
     STACK_CHECK(L_, 0);
 
     // If Lua table has '.isdst' we trust that. If it does not, we'll let
     // 'mktime' decide on whether the time is within DST or not (value -1).
     //
     lua_getfield(L_, 1, "isdst");
-    int const isdst{ lua_isboolean(L_, -1) ? lua_toboolean(L_, -1) : -1 };
+    int const _isdst{ lua_isboolean(L_, -1) ? lua_toboolean(L_, -1) : -1 };
     lua_pop(L_, 1);
     STACK_CHECK(L_, 0);
 
-    std::tm t{};
-    t.tm_year = year - 1900;
-    t.tm_mon = month - 1; // 0..11
-    t.tm_mday = day;      // 1..31
-    t.tm_hour = hour;     // 0..23
-    t.tm_min = min;       // 0..59
-    t.tm_sec = sec;       // 0..60
-    t.tm_isdst = isdst;   // 0/1/negative
+    std::tm _t{};
+    _t.tm_year = _year - 1900;
+    _t.tm_mon = _month - 1; // 0..11
+    _t.tm_mday = _day;      // 1..31
+    _t.tm_hour = _hour;     // 0..23
+    _t.tm_min = _min;       // 0..59
+    _t.tm_sec = _sec;       // 0..60
+    _t.tm_isdst = _isdst;   // 0/1/negative
 
-    lua_pushnumber(L_, static_cast<lua_Number>(std::mktime(&t))); // resolution: 1 second
+    lua_pushnumber(L_, static_cast<lua_Number>(std::mktime(&_t))); // resolution: 1 second
     return 1;
 }
 
@@ -1527,7 +1527,7 @@ LUAG_FUNC(wakeup_conv)
 // #################################################################################################
 
 // same as PUC-Lua l_alloc
-extern "C" [[nodiscard]] static void* libc_lua_Alloc([[maybe_unused]] void* ud, [[maybe_unused]] void* ptr_, [[maybe_unused]] size_t osize_, size_t nsize_)
+extern "C" [[nodiscard]] static void* libc_lua_Alloc([[maybe_unused]] void* ud_, [[maybe_unused]] void* ptr_, [[maybe_unused]] size_t osize_, size_t nsize_)
 {
     if (nsize_ == 0) {
         free(ptr_);
@@ -1541,9 +1541,9 @@ extern "C" [[nodiscard]] static void* libc_lua_Alloc([[maybe_unused]] void* ud, 
 
 [[nodiscard]] static int luaG_provide_protected_allocator(lua_State* L_)
 {
-    Universe* const U{ universe_get(L_) };
+    Universe* const _U{ universe_get(L_) };
     // push a new full userdata on the stack, giving access to the universe's protected allocator
-    [[maybe_unused]] AllocatorDefinition* const def{ new (L_) AllocatorDefinition{ U->protectedAllocator.makeDefinition() } };
+    [[maybe_unused]] AllocatorDefinition* const def{ new (L_) AllocatorDefinition{ _U->protectedAllocator.makeDefinition() } };
     return 1;
 }
 
@@ -1585,8 +1585,8 @@ static void initialize_allocator_function(Universe* U_, lua_State* L_)
 
     lua_getfield(L_, -1, "internal_allocator");                                                    // L_: settings "libc"|"allocator"
     {
-        char const* allocator = lua_tostring(L_, -1);
-        if (strcmp(allocator, "libc") == 0) {
+        char const* const _allocator{ lua_tostring(L_, -1) };
+        if (strcmp(_allocator, "libc") == 0) {
             U_->internalAllocator = AllocatorDefinition{ libc_lua_Alloc, nullptr };
         } else if (U_->provideAllocator == luaG_provide_protected_allocator) {
             // user wants mutex protection on the state's allocator. Use protection for our own allocations too, just in case.
@@ -1639,20 +1639,20 @@ LUAG_FUNC(configure)
             });
     }
 
-    Universe* U = universe_get(L_);
-    bool const from_master_state{ U == nullptr };
-    char const* name = luaL_checkstring(L_, lua_upvalueindex(1));
+    Universe* _U{ universe_get(L_) };
+    bool const _from_master_state{ _U == nullptr };
+    char const* const _name{ luaL_checkstring(L_, lua_upvalueindex(1)) };
     LUA_ASSERT(L_, lua_type(L_, 1) == LUA_TTABLE);
 
     STACK_GROW(L_, 4);
     STACK_CHECK_START_ABS(L_, 1);                                                                  // L_: settings
 
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END(U), L_));
-    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END(_U), L_));
+    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ _U });
 
-    if (U == nullptr) {
-        U = universe_create(L_);                                                                   // L_: settings universe
-        DEBUGSPEW_CODE(DebugSpewIndentScope scope2{ U });
+    if (_U == nullptr) {
+        _U = universe_create(L_);                                                                  // L_: settings universe
+        DEBUGSPEW_CODE(DebugSpewIndentScope _scope2{ _U });
         lua_createtable(L_, 0, 1);                                                                 // L_: settings universe {mt}
         lua_getfield(L_, 1, "shutdown_timeout");                                                   // L_: settings universe {mt} shutdown_timeout
         lua_getfield(L_, 1, "shutdown_mode");                                                      // L_: settings universe {mt} shutdown_timeout shutdown_mode
@@ -1661,21 +1661,21 @@ LUAG_FUNC(configure)
         lua_setmetatable(L_, -2);                                                                  // L_: settings universe
         lua_pop(L_, 1);                                                                            // L_: settings
         lua_getfield(L_, 1, "verbose_errors");                                                     // L_: settings verbose_errors
-        U->verboseErrors = lua_toboolean(L_, -1) ? true : false;
+        _U->verboseErrors = lua_toboolean(L_, -1) ? true : false;
         lua_pop(L_, 1);                                                                            // L_: settings
         lua_getfield(L_, 1, "demote_full_userdata");                                               // L_: settings demote_full_userdata
-        U->demoteFullUserdata = lua_toboolean(L_, -1) ? true : false;
+        _U->demoteFullUserdata = lua_toboolean(L_, -1) ? true : false;
         lua_pop(L_, 1);                                                                            // L_: settings
 #if HAVE_LANE_TRACKING()
         lua_getfield(L_, 1, "track_lanes");                                                        // L_: settings track_lanes
-        U->trackingFirst = lua_toboolean(L_, -1) ? TRACKING_END : nullptr;
+        _U->trackingFirst = lua_toboolean(L_, -1) ? TRACKING_END : nullptr;
         lua_pop(L_, 1);                                                                            // L_: settings
 #endif // HAVE_LANE_TRACKING()
         // Linked chains handling
-        U->selfdestructFirst = SELFDESTRUCT_END;
-        initialize_allocator_function(U, L_);
-        initializeOnStateCreate(U, L_);
-        init_keepers(U, L_);
+        _U->selfdestructFirst = SELFDESTRUCT_END;
+        initialize_allocator_function(_U, L_);
+        initializeOnStateCreate(_U, L_);
+        init_keepers(_U, L_);
         STACK_CHECK(L_, 1);
 
         // Initialize 'timerLinda'; a common Linda object shared by all states
@@ -1685,15 +1685,15 @@ LUAG_FUNC(configure)
         STACK_CHECK(L_, 2);
 
         // Proxy userdata contents is only a 'DeepPrelude*' pointer
-        U->timerLinda = *lua_tofulluserdata<DeepPrelude*>(L_, -1);
+        _U->timerLinda = *lua_tofulluserdata<DeepPrelude*>(L_, -1);
         // increment refcount so that this linda remains alive as long as the universe exists.
-        U->timerLinda->refcount.fetch_add(1, std::memory_order_relaxed);
+        _U->timerLinda->refcount.fetch_add(1, std::memory_order_relaxed);
         lua_pop(L_, 1);                                                                            // L_: settings
     }
     STACK_CHECK(L_, 1);
 
     // Serialize calls to 'require' from now on, also in the primary state
-    serialize_require(DEBUGSPEW_PARAM_COMMA(U) L_);
+    serialize_require(DEBUGSPEW_PARAM_COMMA(_U) L_);
 
     // Retrieve main module interface table
     lua_pushvalue(L_, lua_upvalueindex(2));                                                        // L_: settings M
@@ -1704,7 +1704,7 @@ LUAG_FUNC(configure)
     luaG_registerlibfuncs(L_, global::sLanesFunctions);
 #if HAVE_LANE_TRACKING()
     // register core.threads() only if settings say it should be available
-    if (U->trackingFirst != nullptr) {
+    if (_U->trackingFirst != nullptr) {
         lua_pushcfunction(L_, LG_threads);                                                         // L_: settings M LG_threads()
         lua_setfield(L_, -2, "threads");                                                           // L_: settings M
     }
@@ -1712,11 +1712,11 @@ LUAG_FUNC(configure)
     STACK_CHECK(L_, 2);
 
     {
-        char const* errmsg{
-            DeepFactory::PushDeepProxy(DestState{ L_ }, U->timerLinda, 0, LookupMode::LaneBody)
+        char const* _errmsg{
+            DeepFactory::PushDeepProxy(DestState{ L_ }, _U->timerLinda, 0, LookupMode::LaneBody)
         };                                                                                         // L_: settings M timerLinda
-        if (errmsg != nullptr) {
-            raise_luaL_error(L_, errmsg);
+        if (_errmsg != nullptr) {
+            raise_luaL_error(L_, _errmsg);
         }
         lua_setfield(L_, -2, "timer_gateway");                                                     // L_: settings M
     }
@@ -1780,12 +1780,12 @@ LUAG_FUNC(configure)
     // register all native functions found in that module in the transferable functions database
     // we process it before _G because we don't want to find the module when scanning _G (this would generate longer names)
     // for example in package.loaded["lanes.core"].*
-    populate_func_lookup_table(L_, -1, name);
+    populate_func_lookup_table(L_, -1, _name);
     STACK_CHECK(L_, 2);
 
     // record all existing C/JIT-fast functions
     // Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
-    if (from_master_state) {
+    if (_from_master_state) {
         // don't do this when called during the initialization of a new lane,
         // because we will do it after on_state_create() is called,
         // and we don't want to skip _G because of caching in case globals are created then
@@ -1798,7 +1798,7 @@ LUAG_FUNC(configure)
     // set _R[kConfigRegKey] = settings
     kConfigRegKey.setValue(L_, [](lua_State* L_) { lua_pushvalue(L_, -2); });
     STACK_CHECK(L_, 1);
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%p: lanes.configure() END\n" INDENT_END(U), L_));
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%p: lanes.configure() END\n" INDENT_END(_U), L_));
     // Return the settings table
     return 1;
 }
@@ -1809,9 +1809,9 @@ LUAG_FUNC(configure)
 #include <signal.h>
 #include <conio.h>
 
-void signal_handler(int signal)
+void signal_handler(int signal_)
 {
-    if (signal == SIGABRT) {
+    if (signal_ == SIGABRT) {
         _cprintf("caught abnormal termination!");
         abort();
     }
@@ -1830,18 +1830,18 @@ static void EnableCrashingOnCrashes(void)
         typedef BOOL(WINAPI * tSetPolicy)(DWORD dwFlags);
         const DWORD EXCEPTION_SWALLOWING = 0x1;
 
-        HMODULE kernel32 = LoadLibraryA("kernel32.dll");
-        if (kernel32) {
-            tGetPolicy pGetPolicy = (tGetPolicy) GetProcAddress(kernel32, "GetProcessUserModeExceptionPolicy");
-            tSetPolicy pSetPolicy = (tSetPolicy) GetProcAddress(kernel32, "SetProcessUserModeExceptionPolicy");
+        HMODULE _kernel32 = LoadLibraryA("kernel32.dll");
+        if (_kernel32) {
+            tGetPolicy pGetPolicy = (tGetPolicy) GetProcAddress(_kernel32, "GetProcessUserModeExceptionPolicy");
+            tSetPolicy pSetPolicy = (tSetPolicy) GetProcAddress(_kernel32, "SetProcessUserModeExceptionPolicy");
             if (pGetPolicy && pSetPolicy) {
-                DWORD dwFlags;
-                if (pGetPolicy(&dwFlags)) {
+                DWORD _dwFlags;
+                if (pGetPolicy(&_dwFlags)) {
                     // Turn off the filter
-                    pSetPolicy(dwFlags & ~EXCEPTION_SWALLOWING);
+                    pSetPolicy(_dwFlags & ~EXCEPTION_SWALLOWING);
                 }
             }
-            FreeLibrary(kernel32);
+            FreeLibrary(_kernel32);
         }
         // typedef void (* SignalHandlerPointer)( int);
         /*SignalHandlerPointer previousHandler =*/signal(SIGABRT, signal_handler);
@@ -1902,8 +1902,8 @@ LANES_API int luaopen_lanes_core(lua_State* L_)
 
 [[nodiscard]] static int default_luaopen_lanes(lua_State* L_)
 {
-    int const rc{ luaL_loadfile(L_, "lanes.lua") || lua_pcall(L_, 0, 1, 0) };
-    if (rc != LUA_OK) {
+    int const _rc{ luaL_loadfile(L_, "lanes.lua") || lua_pcall(L_, 0, 1, 0) };
+    if (_rc != LUA_OK) {
         raise_luaL_error(L_, "failed to initialize embedded Lanes");
     }
     return 1;

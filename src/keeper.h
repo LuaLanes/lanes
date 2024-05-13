@@ -58,4 +58,4 @@ using keeper_api_t = lua_CFunction;
 [[nodiscard]] int keepercall_count(lua_State* L_);
 
 using KeeperCallResult = Unique<std::optional<int>>;
-[[nodiscard]] KeeperCallResult keeper_call(Universe* U_, KeeperState K_, keeper_api_t func_, lua_State* L_, void* linda_, int starting_index_);
+[[nodiscard]] KeeperCallResult keeper_call(KeeperState K_, keeper_api_t func_, lua_State* L_, Linda* linda_, int starting_index_);

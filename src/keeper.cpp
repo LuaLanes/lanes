@@ -738,9 +738,9 @@ void keeper_toggle_nil_sentinels(lua_State* L_, int start_, LookupMode const mod
  *
  * Returns: number of return values (pushed to 'L'), unset in case of error
  */
-KeeperCallResult keeper_call(Universe* U_, KeeperState K_, keeper_api_t func_, lua_State* L_, void* linda_, int starting_index_)
+KeeperCallResult keeper_call(KeeperState K_, keeper_api_t func_, lua_State* L_, Linda* linda_, int starting_index_)
 {
-    KeeperCallResult _result{};
+    KeeperCallResult _result;
     int const _args{ starting_index_ ? (lua_gettop(L_) - starting_index_ + 1) : 0 };               // L: ... args...                                  K_:
     int const _top_K{ lua_gettop(K_) };
     // if we didn't do anything wrong, the keeper stack should be clean
@@ -751,7 +751,7 @@ KeeperCallResult keeper_call(Universe* U_, KeeperState K_, keeper_api_t func_, l
     lua_pushlightuserdata(K_, linda_);                                                             // L: ... args...                                  K_: func_ linda
     if (
         (_args == 0) ||
-        (InterCopyContext{ U_, DestState{ K_ }, SourceState{ L_ }, {}, {}, {}, LookupMode::ToKeeper, {} }.inter_copy(_args) == InterCopyResult::Success)
+        (InterCopyContext{ linda_->U, DestState{ K_ }, SourceState{ L_ }, {}, {}, {}, LookupMode::ToKeeper, {} }.inter_copy(_args) == InterCopyResult::Success)
     ) {                                                                                            // L: ... args...                                  K_: func_ linda args...
         lua_call(K_, 1 + _args, LUA_MULTRET);                                                      // L: ... args...                                  K_: result...
         int const retvals{ lua_gettop(K_) - _top_K };
@@ -761,7 +761,7 @@ KeeperCallResult keeper_call(Universe* U_, KeeperState K_, keeper_api_t func_, l
         // when attempting to grab the mutex again (WINVER <= 0x400 does this, but locks just fine, I don't know about pthread)
         if (
             (retvals == 0) ||
-            (InterCopyContext{ U_, DestState{ L_ }, SourceState{ K_ }, {}, {}, {}, LookupMode::FromKeeper, {} }.inter_move(retvals) == InterCopyResult::Success)
+            (InterCopyContext{ linda_->U, DestState{ L_ }, SourceState{ K_ }, {}, {}, {}, LookupMode::FromKeeper, {} }.inter_move(retvals) == InterCopyResult::Success)
         ) {                                                                                        // L: ... args... result...                        K_: result...
             _result.emplace(retvals);
         }
@@ -772,7 +772,7 @@ KeeperCallResult keeper_call(Universe* U_, KeeperState K_, keeper_api_t func_, l
     // don't do this for this particular function, as it is only called during Linda destruction, and we don't want to raise an error, ever
     if (func_ != KEEPER_API(clear)) [[unlikely]] {
         // since keeper state GC is stopped, let's run a step once in a while if required
-        int const _gc_threshold{ U_->keepers->gc_threshold };
+        int const _gc_threshold{ linda_->U->keepers->gc_threshold };
         if (_gc_threshold == 0) [[unlikely]] {
             lua_gc(K_, LUA_GCSTEP, 0);
         } else if (_gc_threshold > 0) [[likely]] {
