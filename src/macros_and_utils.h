@@ -100,48 +100,48 @@ inline void LUA_ASSERT_IMPL(lua_State* L_, bool cond_, char const* file_, size_t
 class StackChecker
 {
     private:
-    lua_State* const m_L;
-    int m_oldtop;
+    lua_State* const L;
+    int oldtop;
 
     public:
     struct Relative
     {
-        int const m_offset;
+        int const offset;
 
-        operator int() const { return m_offset; }
+        operator int() const { return offset; }
     };
 
     struct Absolute
     {
-        int const m_offset;
+        int const offset;
 
-        operator int() const { return m_offset; }
+        operator int() const { return offset; }
     };
 
     StackChecker(lua_State* const L_, Relative offset_, char const* file_, size_t const line_)
-    : m_L{ L_ }
-    , m_oldtop{ lua_gettop(L_) - offset_ }
+    : L{ L_ }
+    , oldtop{ lua_gettop(L_) - offset_ }
     {
-        if ((offset_ < 0) || (m_oldtop < 0)) {
+        if ((offset_ < 0) || (oldtop < 0)) {
             assert(false);
-            raise_luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%llu", lua_gettop(m_L), offset_, file_, line_);
+            raise_luaL_error(L, "STACK INIT ASSERT failed (%d not %d): %s:%llu", lua_gettop(L), offset_, file_, line_);
         }
     }
 
     StackChecker(lua_State* const L_, Absolute pos_, char const* file_, size_t const line_)
-    : m_L{ L_ }
-    , m_oldtop{ 0 }
+    : L{ L_ }
+    , oldtop{ 0 }
     {
-        if (lua_gettop(m_L) != pos_) {
+        if (lua_gettop(L) != pos_) {
             assert(false);
-            raise_luaL_error(m_L, "STACK INIT ASSERT failed (%d not %d): %s:%llu", lua_gettop(m_L), pos_, file_, line_);
+            raise_luaL_error(L, "STACK INIT ASSERT failed (%d not %d): %s:%llu", lua_gettop(L), pos_, file_, line_);
         }
     }
 
     StackChecker& operator=(StackChecker const& rhs_)
     {
-        assert(m_L == rhs_.m_L);
-        m_oldtop = rhs_.m_oldtop;
+        assert(L == rhs_.L);
+        oldtop = rhs_.oldtop;
         return *this;
     }
 
@@ -149,10 +149,10 @@ class StackChecker
     void check(int expected_, char const* file_, size_t const line_)
     {
         if (expected_ != LUA_MULTRET) {
-            int const actual{ lua_gettop(m_L) - m_oldtop };
+            int const actual{ lua_gettop(L) - oldtop };
             if (actual != expected_) {
                 assert(false);
-                raise_luaL_error(m_L, "STACK ASSERT failed (%d not %d): %s:%llu", actual, expected_, file_, line_);
+                raise_luaL_error(L, "STACK ASSERT failed (%d not %d): %s:%llu", actual, expected_, file_, line_);
             }
         }
     }
@@ -233,13 +233,13 @@ template <typename T, auto = [] {}, typename specialization = void>
 class Unique
 {
     private:
-    T m_val;
+    T val;
 
     public:
     Unique() = default;
-    operator T() const { return m_val; }
+    operator T() const { return val; }
     explicit Unique(T b_)
-    : m_val{ b_ }
+    : val{ b_ }
     {
     }
 };

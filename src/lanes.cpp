@@ -864,43 +864,43 @@ LUAG_FUNC(lane_new)
     class OnExit
     {
         private:
-        lua_State* const m_L;
-        Lane* m_lane{ nullptr };
-        int const m_gc_cb_idx;
-        int const m_name_idx;
+        lua_State* const L;
+        Lane* lane{ nullptr };
+        int const gc_cb_idx;
+        int const name_idx;
         DEBUGSPEW_CODE(Universe* const U);
-        DEBUGSPEW_CODE(DebugSpewIndentScope m_scope);
+        DEBUGSPEW_CODE(DebugSpewIndentScope scope);
 
         public:
         OnExit(lua_State* L_, Lane* lane_, int gc_cb_idx_, int name_idx_ DEBUGSPEW_COMMA_PARAM(Universe* U_))
-        : m_L{ L_ }
-        , m_lane{ lane_ }
-        , m_gc_cb_idx{ gc_cb_idx_ }
-        , m_name_idx{ name_idx_ }
+        : L{ L_ }
+        , lane{ lane_ }
+        , gc_cb_idx{ gc_cb_idx_ }
+        , name_idx{ name_idx_ }
         DEBUGSPEW_COMMA_PARAM(U{ U_ })
-        DEBUGSPEW_COMMA_PARAM(m_scope{ U_ })
+        DEBUGSPEW_COMMA_PARAM(scope{ U_ })
         {
         }
 
         ~OnExit()
         {
-            if (m_lane) {
-                STACK_CHECK_START_REL(m_L, 0);
+            if (lane) {
+                STACK_CHECK_START_REL(L, 0);
                 // we still need a full userdata so that garbage collection can do its thing
                 prepareUserData();
                 // remove it immediately from the stack so that the error that landed us here is at the top
-                lua_pop(m_L, 1);
-                STACK_CHECK(m_L, 0);
+                lua_pop(L, 1);
+                STACK_CHECK(L, 0);
                 // leave a single cancel_error on the stack for the caller
-                lua_settop(m_lane->L, 0);
-                kCancelError.pushKey(m_lane->L);
+                lua_settop(lane->L, 0);
+                kCancelError.pushKey(lane->L);
                 {
-                    std::lock_guard lock{ m_lane->doneMutex };
+                    std::lock_guard _guard{ lane->doneMutex };
                     // this will cause lane_main to skip actual running (because we are not Pending anymore)
-                    m_lane->status = Lane::Running;
+                    lane->status = Lane::Running;
                 }
                 // unblock the thread so that it can terminate gracefully
-                m_lane->ready.count_down();
+                lane->ready.count_down();
             }
         }
 
@@ -908,56 +908,56 @@ LUAG_FUNC(lane_new)
         void prepareUserData()
         {
             DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: preparing lane userdata\n" INDENT_END(U)));
-            STACK_CHECK_START_REL(m_L, 0);
+            STACK_CHECK_START_REL(L, 0);
             // a Lane full userdata needs a single uservalue
-            Lane** const ud{ lua_newuserdatauv<Lane*>(m_L, 1) };                                   // m_L: ... lane
-            *ud = m_lane; // don't forget to store the pointer in the userdata!
+            Lane** const _ud{ lua_newuserdatauv<Lane*>(L, 1) };                                    // L: ... lane
+            *_ud = lane; // don't forget to store the pointer in the userdata!
 
             // Set metatable for the userdata
             //
-            lua_pushvalue(m_L, lua_upvalueindex(1));                                               // m_L: ... lane mt
-            lua_setmetatable(m_L, -2);                                                             // m_L: ... lane
-            STACK_CHECK(m_L, 1);
+            lua_pushvalue(L, lua_upvalueindex(1));                                                 // L: ... lane mt
+            lua_setmetatable(L, -2);                                                               // L: ... lane
+            STACK_CHECK(L, 1);
 
             // Create uservalue for the userdata
             // (this is where lane body return values will be stored when the handle is indexed by a numeric key)
-            lua_newtable(m_L);                                                                     // m_L: ... lane {uv}
+            lua_newtable(L);                                                                       // L: ... lane {uv}
 
             // Store the gc_cb callback in the uservalue
-            if (m_gc_cb_idx > 0) {
-                kLaneGC.pushKey(m_L);                                                              // m_L: ... lane {uv} k
-                lua_pushvalue(m_L, m_gc_cb_idx);                                                   // m_L: ... lane {uv} k gc_cb
-                lua_rawset(m_L, -3);                                                               // m_L: ... lane {uv}
+            if (gc_cb_idx > 0) {
+                kLaneGC.pushKey(L);                                                                // L: ... lane {uv} k
+                lua_pushvalue(L, gc_cb_idx);                                                       // L: ... lane {uv} k gc_cb
+                lua_rawset(L, -3);                                                                 // L: ... lane {uv}
             }
 
-            lua_setiuservalue(m_L, -2, 1);                                                         // m_L: ... lane
+            lua_setiuservalue(L, -2, 1);                                                           // L: ... lane
 
-            lua_State* L2{ m_lane->L };
-            STACK_CHECK_START_REL(L2, 0);
-            char const* const debugName{ (m_name_idx > 0) ? lua_tostring(m_L, m_name_idx) : nullptr };
+            lua_State* _L2{ lane->L };
+            STACK_CHECK_START_REL(_L2, 0);
+            char const* const debugName{ (name_idx > 0) ? lua_tostring(L, name_idx) : nullptr };
             if (debugName)
             {
                 if (strcmp(debugName, "auto") != 0) {
-                    lua_pushstring(L2, debugName);                                                 // m_L: ... lane                                     L2: "<name>"
+                    lua_pushstring(_L2, debugName);                                                // L: ... lane                                       L2: "<name>"
                 } else {
                     lua_Debug ar;
-                    lua_pushvalue(m_L, 1);                                                         // m_L: ... lane func
-                    lua_getinfo(m_L, ">S", &ar);                                                   // m_L: ... lane
-                    lua_pushfstring(L2, "%s:%d", ar.short_src, ar.linedefined);                    // m_L: ... lane                                     L2: "<name>"
+                    lua_pushvalue(L, 1);                                                           // L: ... lane func
+                    lua_getinfo(L, ">S", &ar);                                                     // L: ... lane
+                    lua_pushfstring(_L2, "%s:%d", ar.short_src, ar.linedefined);                   // L: ... lane                                       L2: "<name>"
                 }
-                m_lane->changeDebugName(-1);
-                lua_pop(L2, 1);                                                                    // m_L: ... lane                                     L2:
+                lane->changeDebugName(-1);
+                lua_pop(_L2, 1);                                                                   // L: ... lane                                       L2:
             }
-            STACK_CHECK(L2, 0);
-            STACK_CHECK(m_L, 1);
+            STACK_CHECK(_L2, 0);
+            STACK_CHECK(L, 1);
         }
 
         public:
         void success()
         {
             prepareUserData();
-            m_lane->ready.count_down();
-            m_lane = nullptr;
+            lane->ready.count_down();
+            lane = nullptr;
         }
     } onExit{ L_, _lane, _gc_cb_idx, _name_idx DEBUGSPEW_COMMA_PARAM(_U) };
     // launch the thread early, it will sync with a std::latch to parallelize OS thread warmup and L2 preparation
