@@ -523,4 +523,3 @@ int luaG_nameof(lua_State* L_)
     lua_replace(L_, -3);                                                                           // L_: "type" "result"
     return 2;
 }
-    

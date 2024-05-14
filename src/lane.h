@@ -122,7 +122,7 @@ class Lane
     void pushThreadStatus(lua_State* L_) const;
     void securizeDebugName(lua_State* L_);
     void startThread(int priority_);
-    char const* threadStatusString() const;
+    [[nodiscard]] char const* threadStatusString() const;
     [[nodiscard]] bool waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_);
 
     static void PushMetatable(lua_State* L_);

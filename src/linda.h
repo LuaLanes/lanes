@@ -59,14 +59,13 @@ class Linda
     Linda& operator=(Linda const&) = delete;
     Linda& operator=(Linda const&&) = delete;
 
-    [[nodiscard]] static int ProtectedCall(lua_State* L_, lua_CFunction f_);
-
     private:
     void setName(char const* name_, size_t len_);
 
     public:
-    [[nodiscard]] char const* getName() const;
-    [[nodiscard]] Keeper* whichKeeper() const { return U->keepers->nb_keepers ? &U->keepers->keeper_array[keeperIndex] : nullptr; }
     [[nodiscard]] Keeper* acquireKeeper() const;
+    [[nodiscard]] char const* getName() const;
     void releaseKeeper(Keeper* keeper_) const;
+    [[nodiscard]] static int ProtectedCall(lua_State* L_, lua_CFunction f_);
+    [[nodiscard]] Keeper* whichKeeper() const { return U->keepers->nb_keepers ? &U->keepers->keeper_array[keeperIndex] : nullptr; }
 };

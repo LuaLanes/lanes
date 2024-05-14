@@ -396,7 +396,6 @@ local configure_timers = function()
         -- remains.
         --
         local timer_body = function()
-            set_debug_threadname("LanesTimer")
             --
             -- { [deep_linda_lightuserdata]= { [deep_linda_lightuserdata]=linda_h,
             --                                 [key]= { wakeup_secs [,period_secs] } [, ...] },
@@ -787,6 +786,7 @@ lanes.configure = function(settings_)
     lanes.set_thread_priority = core.set_thread_priority
     lanes.threads = core.threads or function() error "lane tracking is not available" end -- core.threads isn't registered if settings.track_lanes is false
 
+    lanes.configure = nil -- no need to call configure() ever again
     lanes.gen = gen
     lanes.genatomic = genatomic
     lanes.genlock = genlock
@@ -794,7 +794,6 @@ lanes.configure = function(settings_)
     lanes.timer = timer
     lanes.timer_lane = timer_lane
     lanes.timers = timers
-    lanes.configure = nil -- no need to call configure() ever again
     return lanes
 end -- lanes.configure
 

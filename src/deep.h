@@ -44,6 +44,8 @@ struct DeepPrelude
     }
 };
 
+// #################################################################################################
+
 // external C modules should create a single object implementing that interface for each Deep userdata class they want to expose
 class DeepFactory
 {
@@ -74,5 +76,7 @@ class DeepFactory
     static void DeleteDeepObject(lua_State* L_, DeepPrelude* o_);
     [[nodiscard]] static char const* PushDeepProxy(DestState L_, DeepPrelude* o_, int nuv_, LookupMode mode_);
 };
+
+// #################################################################################################
 
 [[nodiscard]] DeepFactory* LookupFactory(lua_State* L_, int index_, LookupMode mode_);
