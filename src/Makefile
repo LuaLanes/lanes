@@ -7,7 +7,7 @@
 
 MODULE=lanes
 
-SRC=cancel.cpp compat.cpp deep.cpp intercopycontext.cpp keeper.cpp lanes.cpp linda.cpp lindafactory.cpp state.cpp threading.cpp tools.cpp tracker.cpp universe.cpp
+SRC=cancel.cpp compat.cpp deep.cpp intercopycontext.cpp keeper.cpp lane.cpp lanes.cpp linda.cpp lindafactory.cpp state.cpp threading.cpp tools.cpp tracker.cpp universe.cpp
 
 OBJ=$(SRC:.cpp=.o)
 

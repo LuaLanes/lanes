@@ -10,6 +10,30 @@
 #include <stop_token>
 #include <thread>
 
+// #################################################################################################
+
+/*
+ * registry[FINALIZER_REG_KEY] is either nil (no finalizers) or a table
+ * of functions that Lanes will call after the executing 'pcall' has ended.
+ *
+ * We're NOT using the GC system for finalizer mainly because providing the
+ * error (and maybe stack trace) parameters to the finalizer functions would
+ * anyways complicate that approach.
+ */
+// xxh64 of string "kFinalizerRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kFinalizerRegKey{ 0xFE936BFAA718FEEAull };
+
+// xxh64 of string "kExtendedStackTraceRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kExtendedStackTraceRegKey{ 0x38147AD48FB426E2ull }; // used as registry key
+
+// xxh64 of string "kLaneGC" generated at https://www.pelock.com/products/hash-calculator
+static constexpr UniqueKey kLaneGC{ 0x5D6122141727F960ull };
+
+// xxh64 of string "kLanePointerRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kLanePointerRegKey{ 0x2D8CF03FE9F0A51Aull }; // used as registry key
+
+// #################################################################################################
+
 // The chain is ended by '(Lane*)(-1)', not nullptr: 'selfdestructFirst -> ... -> ... -> (-1)'
 #define SELFDESTRUCT_END ((Lane*) (-1))
 
@@ -94,15 +118,17 @@ class Lane
     Lane(Universe* U_, lua_State* L_);
     ~Lane();
 
-    [[nodiscard]] bool waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_);
-    void startThread(int priority_);
-    void pushThreadStatus(lua_State* L_);
     void changeDebugName(int nameIdx_);
+    void pushThreadStatus(lua_State* L_) const;
     void securizeDebugName(lua_State* L_);
+    void startThread(int priority_);
+    char const* threadStatusString() const;
+    [[nodiscard]] bool waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_);
+
+    static void PushMetatable(lua_State* L_);
 };
 
-// xxh64 of string "kLanePointerRegKey" generated at https://www.pelock.com/products/hash-calculator
-static constexpr RegistryUniqueKey kLanePointerRegKey{ 0x2D8CF03FE9F0A51Aull }; // used as registry key
+// #################################################################################################
 
 // To allow free-running threads (longer lifespan than the handle's)
 // 'Lane' are malloc/free'd and the handle only carries a pointer.

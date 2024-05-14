@@ -32,7 +32,7 @@ THE SOFTWARE.
 
 #include "linda.h"
 
-#include "lanes_private.h"
+#include "lane.h"
 #include "lindafactory.h"
 #include "tools.h"
 

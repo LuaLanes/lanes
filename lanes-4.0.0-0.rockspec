@@ -65,6 +65,7 @@ build = {
 				"src/deep.cpp",
 				"src/intercopycontext.cpp",
 				"src/keeper.cpp",
+				"src/lane.cpp",
 				"src/lanes.cpp",
 				"src/linda.cpp",
 				"src/lindafactory.cpp",
