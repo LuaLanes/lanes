@@ -39,3 +39,5 @@
 #define LANES_API extern
 #endif // __cplusplus
 #endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
+
+#define USE_DEBUG_SPEW() 0

@@ -9,7 +9,7 @@ extern "C"
 }
 #endif // __cplusplus
 
-#include "macros_and_utils.h"
+#include "lanesconf.h"
 #include "tracker.h"
 #include "uniquekey.h"
 
@@ -52,11 +52,6 @@ class AllocatorDefinition
     void initFrom(lua_State* L_)
     {
         allocF = lua_getallocf(L_, &allocUD);
-    }
-
-    void* lua_alloc(void* ptr_, size_t osize_, size_t nsize_)
-    {
-        allocF(allocUD, ptr_, osize_, nsize_);
     }
 
     void* alloc(size_t nsize_)
@@ -185,6 +180,9 @@ class Universe
     Universe& operator=(Universe const&) = delete;
     Universe& operator=(Universe&&) = delete;
 
+    void closeKeepers();
+    void initializeAllocatorFunction(lua_State* L_);
+    void initializeKeepers(lua_State* L_);
     void terminateFreeRunningLanes(lua_State* L_, lua_Duration shutdownTimeout_, CancelOp op_);
 };
 
@@ -193,32 +191,6 @@ class Universe
 [[nodiscard]] Universe* universe_get(lua_State* L_);
 [[nodiscard]] Universe* universe_create(lua_State* L_);
 void universe_store(lua_State* L_, Universe* U_);
-
-// #################################################################################################
-
-#if USE_DEBUG_SPEW()
-class DebugSpewIndentScope
-{
-    private:
-    Universe* const U;
-
-    public:
-    static char const* const debugspew_indent;
-
-    DebugSpewIndentScope(Universe* U_)
-    : U{ U_ }
-    {
-        if (U)
-            U->debugspewIndentDepth.fetch_add(1, std::memory_order_relaxed);
-    }
-
-    ~DebugSpewIndentScope()
-    {
-        if (U)
-            U->debugspewIndentDepth.fetch_sub(1, std::memory_order_relaxed);
-    }
-};
-#endif // USE_DEBUG_SPEW()
 
 // #################################################################################################
 

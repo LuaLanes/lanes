@@ -215,7 +215,7 @@ static void copy_one_time_settings(Universe* U_, SourceState L1_, DestState L2_)
 
 // #################################################################################################
 
-void initializeOnStateCreate(Universe* U_, lua_State* L_)
+void InitializeOnStateCreate(Universe* U_, lua_State* L_)
 {
     STACK_CHECK_START_REL(L_, 1);                                                                  // L_: settings
     lua_getfield(L_, -1, "on_state_create");                                                       // L_: settings on_state_create|nil
@@ -234,7 +234,7 @@ void initializeOnStateCreate(Universe* U_, lua_State* L_)
             lua_setfield(L_, -3, "on_state_create");                                               // L_: settings on_state_create
         } else {
             // optim: store marker saying we have such a function in the config table
-            U_->onStateCreateFunc = reinterpret_cast<lua_CFunction>(initializeOnStateCreate);
+            U_->onStateCreateFunc = reinterpret_cast<lua_CFunction>(InitializeOnStateCreate);
         }
     }
     lua_pop(L_, 1);                                                                                // L_: settings
@@ -272,12 +272,12 @@ lua_State* create_state([[maybe_unused]] Universe* U_, lua_State* from_)
 
 // #################################################################################################
 
-void callOnStateCreate(Universe* U_, lua_State* L_, lua_State* from_, LookupMode mode_)
+void CallOnStateCreate(Universe* U_, lua_State* L_, lua_State* from_, LookupMode mode_)
 {
     if (U_->onStateCreateFunc != nullptr) {
         STACK_CHECK_START_REL(L_, 0);
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "calling on_state_create()\n" INDENT_END(U_)));
-        if (U_->onStateCreateFunc != reinterpret_cast<lua_CFunction>(initializeOnStateCreate)) {
+        if (U_->onStateCreateFunc != reinterpret_cast<lua_CFunction>(InitializeOnStateCreate)) {
             // C function: recreate a closure in the new state, bypassing the lookup scheme
             lua_pushcfunction(L_, U_->onStateCreateFunc); // on_state_create()
         } else { // Lua function located in the config table, copied when we opened "lanes.core"
@@ -393,7 +393,7 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
 
     // call this after the base libraries are loaded and GC is restarted
     // will raise an error in from_ in case of problem
-    callOnStateCreate(U_, _L, from_, LookupMode::LaneBody);
+    CallOnStateCreate(U_, _L, from_, LookupMode::LaneBody);
 
     STACK_CHECK(_L, 0);
     // after all this, register everything we find in our name<->function database

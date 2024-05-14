@@ -26,6 +26,7 @@ THE SOFTWARE.
 
 #include "lane.h"
 
+#include "debugspew.h"
 #include "intercopycontext.h"
 #include "tools.h"
 #include "threading.h"

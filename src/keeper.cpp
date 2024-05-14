@@ -545,146 +545,6 @@ int keepercall_count(lua_State* L_)
 // Keeper API, accessed from linda methods
 // #################################################################################################
 
-/*
- * Pool of keeper states
- *
- * Access to keeper states is locked (only one OS thread at a time) so the
- * bigger the pool, the less chances of unnecessary waits. Lindas map to the
- * keepers randomly, by a hash.
- */
-
-// called as __gc for the keepers array userdata
-void close_keepers(Universe* U_)
-{
-    if (U_->keepers != nullptr) {
-        int _nbKeepers{ U_->keepers->nb_keepers };
-        // NOTE: imagine some keeper state N+1 currently holds a linda that uses another keeper N, and a _gc that will make use of it
-        // when keeper N+1 is closed, object is GCed, linda operation is called, which attempts to acquire keeper N, whose Lua state no longer exists
-        // in that case, the linda operation should do nothing. which means that these operations must check for keeper acquisition success
-        // which is early-outed with a U->keepers->nbKeepers null-check
-        U_->keepers->nb_keepers = 0;
-        for (int _i = 0; _i < _nbKeepers; ++_i) {
-            lua_State* const K{ U_->keepers->keeper_array[_i].L };
-            U_->keepers->keeper_array[_i].L = KeeperState{ nullptr };
-            if (K != nullptr) {
-                lua_close(K);
-            } else {
-                // detected partial init: destroy only the mutexes that got initialized properly
-                _nbKeepers = _i;
-            }
-        }
-        for (int _i = 0; _i < _nbKeepers; ++_i) {
-            U_->keepers->keeper_array[_i].~Keeper();
-        }
-        // free the keeper bookkeeping structure
-        U_->internalAllocator.free(U_->keepers, sizeof(Keepers) + (_nbKeepers - 1) * sizeof(Keeper));
-        U_->keepers = nullptr;
-    }
-}
-
-// #################################################################################################
-
-/*
- * Initialize keeper states
- *
- * If there is a problem, returns nullptr and pushes the error message on the stack
- * else returns the keepers bookkeeping structure.
- *
- * Note: Any problems would be design flaws; the created Lua state is left
- *       unclosed, because it does not really matter. In production code, this
- *       function never fails.
- * settings table is expected at position 1 on the stack
- */
-void init_keepers(Universe* U_, lua_State* L_)
-{
-    LUA_ASSERT(L_, lua_gettop(L_) == 1 && lua_istable(L_, 1));
-    STACK_CHECK_START_REL(L_, 0);                                                                  // L_: settings
-    lua_getfield(L_, 1, "nb_keepers");                                                             // L_: settings nb_keepers
-    int const _nb_keepers{ static_cast<int>(lua_tointeger(L_, -1)) };
-    lua_pop(L_, 1);                                                                                // L_: settings
-    if (_nb_keepers < 1) {
-        raise_luaL_error(L_, "Bad number of keepers (%d)", _nb_keepers);
-    }
-    STACK_CHECK(L_, 0);
-
-    lua_getfield(L_, 1, "keepers_gc_threshold");                                                   // L_: settings keepers_gc_threshold
-    int const keepers_gc_threshold{ static_cast<int>(lua_tointeger(L_, -1)) };
-    lua_pop(L_, 1);                                                                                // L_: settings
-    STACK_CHECK(L_, 0);
-
-    // Keepers contains an array of 1 Keeper, adjust for the actual number of keeper states
-    {
-        size_t const bytes = sizeof(Keepers) + (_nb_keepers - 1) * sizeof(Keeper);
-        U_->keepers = static_cast<Keepers*>(U_->internalAllocator.alloc(bytes));
-        if (U_->keepers == nullptr) {
-            raise_luaL_error(L_, "init_keepers() failed while creating keeper array; out of memory");
-        }
-        U_->keepers->Keepers::Keepers();
-        U_->keepers->gc_threshold = keepers_gc_threshold;
-        U_->keepers->nb_keepers = _nb_keepers;
-
-        for (int _i = 0; _i < _nb_keepers; ++_i) {
-            U_->keepers->keeper_array[_i].Keeper::Keeper();
-        }
-    }
-    for (int _i = 0; _i < _nb_keepers; ++_i) {
-        // note that we will leak K if we raise an error later
-        KeeperState const _K{ create_state(U_, L_) };                                              // L_: settings                                    K:
-        if (_K == nullptr) {
-            raise_luaL_error(L_, "init_keepers() failed while creating keeper states; out of memory");
-        }
-
-        U_->keepers->keeper_array[_i].L = _K;
-
-        if (U_->keepers->gc_threshold >= 0) {
-            lua_gc(_K, LUA_GCSTOP, 0);
-        }
-
-        STACK_CHECK_START_ABS(_K, 0);
-
-        // copy the universe pointer in the keeper itself
-        universe_store(_K, U_);
-        STACK_CHECK(_K, 0);
-
-        // make sure 'package' is initialized in keeper states, so that we have require()
-        // this because this is needed when transferring deep userdata object
-        luaL_requiref(_K, LUA_LOADLIBNAME, luaopen_package, 1);                                    // L_: settings                                    K: package
-        lua_pop(_K, 1);                                                                            // L_: settings                                    K:
-        STACK_CHECK(_K, 0);
-        serialize_require(DEBUGSPEW_PARAM_COMMA(U_) _K);
-        STACK_CHECK(_K, 0);
-
-        // copy package.path and package.cpath from the source state
-        if (luaG_getmodule(L_, LUA_LOADLIBNAME) != LuaType::NIL) {                                 // L_: settings package                            K:
-            // when copying with mode LookupMode::ToKeeper, error message is pushed at the top of the stack, not raised immediately
-            InterCopyContext _c{ U_, DestState{ _K }, SourceState{ L_ }, {}, SourceIndex{ lua_absindex(L_, -1) }, {}, LookupMode::ToKeeper, {} };
-            if (_c.inter_copy_package() != InterCopyResult::Success) {                             // L_: settings ... error_msg                      K:
-                // if something went wrong, the error message is at the top of the stack
-                lua_remove(L_, -2);                                                                // L_: settings error_msg
-                raise_lua_error(L_);
-            }
-        }
-        lua_pop(L_, 1);                                                                            // L_: settings                                    K:
-        STACK_CHECK(L_, 0);
-        STACK_CHECK(_K, 0);
-
-        // attempt to call on_state_create(), if we have one and it is a C function
-        // (only support a C function because we can't transfer executable Lua code in keepers)
-        // will raise an error in L_ in case of problem
-        callOnStateCreate(U_, _K, L_, LookupMode::ToKeeper);
-
-        // to see VM name in Decoda debugger
-        lua_pushfstring(_K, "Keeper #%d", _i + 1);                                                 // L_: settings                                    K: "Keeper #n"
-        lua_setglobal(_K, "decoda_name");                                                          // L_: settings                                    K:
-        // create the fifos table in the keeper state
-        kFifosRegKey.setValue(_K, [](lua_State* L_) { lua_newtable(L_); });                        // L_: settings                                    K:
-        STACK_CHECK(_K, 0);
-    }
-    STACK_CHECK(L_, 0);
-}
-
-// #################################################################################################
-
 Keeper* Linda::acquireKeeper() const
 {
     int const _nbKeepers{ U->keepers->nb_keepers };
@@ -788,4 +648,11 @@ KeeperCallResult keeper_call(KeeperState K_, keeper_api_t func_, lua_State* L_, 
     }
 
     return _result;
+}
+
+// #################################################################################################
+
+void Keepers::CreateFifosTable(lua_State* L_)
+{
+    kFifosRegKey.setValue(L_, [](lua_State* L_) { lua_newtable(L_); });
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "debugspew.h"
 #include "macros_and_utils.h"
 
 // forwards
@@ -15,5 +16,5 @@ void serialize_require(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_);
 
 // #################################################################################################
 
-void initializeOnStateCreate(Universe* U_, lua_State* L_);
-void callOnStateCreate(Universe* U_, lua_State* L_, lua_State* from_, LookupMode mode_);
+void InitializeOnStateCreate(Universe* U_, lua_State* L_);
+void CallOnStateCreate(Universe* U_, lua_State* L_, lua_State* from_, LookupMode mode_);

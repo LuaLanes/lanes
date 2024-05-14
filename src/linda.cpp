@@ -39,6 +39,72 @@ THE SOFTWARE.
 #include <functional>
 
 // #################################################################################################
+
+static void check_key_types(lua_State* L_, int start_, int end_)
+{
+    for (int _i{ start_ }; _i <= end_; ++_i) {
+        LuaType const t{ lua_type_as_enum(L_, _i) };
+        switch (t) {
+        case LuaType::BOOLEAN:
+        case LuaType::NUMBER:
+        case LuaType::STRING:
+            continue;
+
+        case LuaType::LIGHTUSERDATA:
+            static constexpr std::array<std::reference_wrapper<UniqueKey const>, 3> kKeysToCheck{ kLindaBatched, kCancelError, kNilSentinel };
+            for (UniqueKey const& key : kKeysToCheck) {
+                if (key.equals(L_, _i)) {
+                    raise_luaL_error(L_, "argument #%d: can't use %s as a key", _i, key.debugName);
+                    break;
+                }
+            }
+            break;
+        }
+        raise_luaL_error(L_, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", _i);
+    }
+}
+
+// #################################################################################################
+
+/*
+ * string = linda:__tostring( linda_ud)
+ *
+ * Return the stringification of a linda
+ *
+ * Useful for concatenation or debugging purposes
+ */
+
+template <bool OPT>
+[[nodiscard]] static int LindaToString(lua_State* L_, int idx_)
+{
+    Linda* const _linda{ ToLinda<OPT>(L_, idx_) };
+    if (_linda != nullptr) {
+        char _text[128];
+        int _len;
+        if (_linda->getName())
+            _len = sprintf(_text, "Linda: %.*s", (int) sizeof(_text) - 8, _linda->getName());
+        else
+            _len = sprintf(_text, "Linda: %p", _linda);
+        lua_pushlstring(L_, _text, _len);
+        return 1;
+    }
+    return 0;
+}
+
+// #################################################################################################
+
+template <bool OPT>
+[[nodiscard]] static inline Linda* ToLinda(lua_State* L_, int idx_)
+{
+    Linda* const _linda{ static_cast<Linda*>(LindaFactory::Instance.toDeep(L_, idx_)) };
+    if constexpr (!OPT) {
+        luaL_argcheck(L_, _linda != nullptr, idx_, "expecting a linda object"); // doesn't return if linda is nullptr
+        LUA_ASSERT(L_, _linda->U == universe_get(L_));
+    }
+    return _linda;
+}
+
+// #################################################################################################
 // #################################################################################################
 
 // Any hashing will do that maps pointers to [0..Universe::nb_keepers[ consistently.
@@ -66,27 +132,6 @@ Linda::~Linda()
 
 // #################################################################################################
 
-void Linda::setName(char const* name_, size_t len_)
-{
-    // keep default
-    if (!name_ || len_ == 0) {
-        return;
-    }
-    ++len_; // don't forget terminating 0
-    if (len_ < kEmbeddedNameLength) {
-        nameVariant.emplace<EmbeddedName>();
-        char* const _name{ std::get<EmbeddedName>(nameVariant).data() };
-        memcpy(_name, name_, len_);
-    } else {
-        AllocatedName& _name = std::get<AllocatedName>(nameVariant);
-        _name.name = static_cast<char*>(U->internalAllocator.alloc(len_));
-        _name.len = len_;
-        memcpy(_name.name, name_, len_);
-    }
-}
-
-// #################################################################################################
-
 char const* Linda::getName() const
 {
     if (std::holds_alternative<AllocatedName>(nameVariant)) {
@@ -98,45 +143,6 @@ char const* Linda::getName() const
         return _name;
     }
     return nullptr;
-}
-
-// #################################################################################################
-
-template <bool OPT>
-[[nodiscard]] static inline Linda* ToLinda(lua_State* L_, int idx_)
-{
-    Linda* const _linda{ static_cast<Linda*>(LindaFactory::Instance.toDeep(L_, idx_)) };
-    if constexpr (!OPT) {
-        luaL_argcheck(L_, _linda != nullptr, idx_, "expecting a linda object"); // doesn't return if linda is nullptr
-        LUA_ASSERT(L_, _linda->U == universe_get(L_));
-    }
-    return _linda;
-}
-
-// #################################################################################################
-
-static void check_key_types(lua_State* L_, int start_, int end_)
-{
-    for (int _i{ start_ }; _i <= end_; ++_i) {
-        LuaType const t{ lua_type_as_enum(L_, _i) };
-        switch (t) {
-        case LuaType::BOOLEAN:
-        case LuaType::NUMBER:
-        case LuaType::STRING:
-            continue;
-
-        case LuaType::LIGHTUSERDATA:
-            static constexpr std::array<std::reference_wrapper<UniqueKey const>, 3> kKeysToCheck{ kLindaBatched, kCancelError, kNilSentinel };
-            for (UniqueKey const& key : kKeysToCheck) {
-                if (key.equals(L_, _i)) {
-                    raise_luaL_error(L_, "argument #%d: can't use %s as a key", _i, key.debugName);
-                    break;
-                }
-            }
-            break;
-        }
-        raise_luaL_error(L_, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", _i);
-    }
 }
 
 // #################################################################################################
@@ -173,6 +179,29 @@ int Linda::ProtectedCall(lua_State* L_, lua_CFunction f_)
     return lua_gettop(L_);
 }
 
+// #################################################################################################
+
+void Linda::setName(char const* name_, size_t len_)
+{
+    // keep default
+    if (!name_ || len_ == 0) {
+        return;
+    }
+    ++len_; // don't forget terminating 0
+    if (len_ < kEmbeddedNameLength) {
+        nameVariant.emplace<EmbeddedName>();
+        char* const _name{ std::get<EmbeddedName>(nameVariant).data() };
+        memcpy(_name, name_, len_);
+    } else {
+        AllocatedName& _name = std::get<AllocatedName>(nameVariant);
+        _name.name = static_cast<char*>(U->internalAllocator.alloc(len_));
+        _name.len = len_;
+        memcpy(_name.name, name_, len_);
+    }
+}
+
+// #################################################################################################
+// ########################################## Lua API ##############################################
 // #################################################################################################
 
 /*
@@ -645,33 +674,6 @@ LUAG_FUNC(linda_deep)
     Linda* const _linda{ ToLinda<false>(L_, 1) };
     lua_pushlightuserdata(L_, _linda); // just the address
     return 1;
-}
-
-// #################################################################################################
-
-/*
- * string = linda:__tostring( linda_ud)
- *
- * Return the stringification of a linda
- *
- * Useful for concatenation or debugging purposes
- */
-
-template <bool OPT>
-[[nodiscard]] static int LindaToString(lua_State* L_, int idx_)
-{
-    Linda* const _linda{ ToLinda<OPT>(L_, idx_) };
-    if (_linda != nullptr) {
-        char _text[128];
-        int _len;
-        if (_linda->getName())
-            _len = sprintf(_text, "Linda: %.*s", (int) sizeof(_text) - 8, _linda->getName());
-        else
-            _len = sprintf(_text, "Linda: %p", _linda);
-        lua_pushlstring(L_, _text, _len);
-        return 1;
-    }
-    return 0;
 }
 
 // #################################################################################################

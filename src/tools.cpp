@@ -34,6 +34,7 @@ THE SOFTWARE.
 
 #include "tools.h"
 
+#include "debugspew.h"
 #include "universe.h"
 
 DEBUGSPEW_CODE(char const* const DebugSpewIndentScope::debugspew_indent = "----+----!----+----!----+----!----+----!----+----!----+----!----+----!----+");

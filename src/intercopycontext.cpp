@@ -26,6 +26,7 @@ THE SOFTWARE.
 
 #include "intercopycontext.h"
 
+#include "debugspew.h"
 #include "deep.h"
 #include "universe.h"
 

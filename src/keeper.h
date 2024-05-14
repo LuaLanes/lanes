@@ -33,13 +33,12 @@ struct Keepers
     int gc_threshold{ 0 };
     int nb_keepers{ 0 };
     Keeper keeper_array[1];
+
+    static void CreateFifosTable(lua_State* L_);
 };
 
 // xxh64 of string "kNilSentinel" generated at https://www.pelock.com/products/hash-calculator
 static constexpr UniqueKey kNilSentinel{ 0xC457D4EDDB05B5E4ull, "lanes.null" };
-
-void init_keepers(Universe* U_, lua_State* L_);
-void close_keepers(Universe* U_);
 
 void keeper_toggle_nil_sentinels(lua_State* L_, int start_, LookupMode const mode_);
 [[nodiscard]] int keeper_push_linda_storage(Linda& linda_, DestState L_);
