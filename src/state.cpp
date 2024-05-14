@@ -339,7 +339,7 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
     }
 
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "luaG_newstate()\n" INDENT_END(U_)));
-    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U_ });
+    DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U_ });
 
     // copy settings (for example because it may contain a Lua on_state_create function)
     copy_one_time_settings(U_, from_, _L);
@@ -361,7 +361,7 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
             DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "opening base library\n" INDENT_END(U_)));
 #if LUA_VERSION_NUM >= 502
             // open base library the same way as in luaL_openlibs()
-            luaL_requiref(_L, "_G", luaopen_base, 1);
+            luaL_requiref(_L, LUA_GNAME, luaopen_base, 1);
             lua_pop(_L, 1);
 #else  // LUA_VERSION_NUM
             lua_pushcfunction(_L, luaopen_base);

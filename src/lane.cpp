@@ -630,7 +630,7 @@ static void lane_main(Lane* lane_)
     if (lane_->status == Lane::Pending) { // nothing wrong happened during preparation, we can work
         // At this point, the lane function and arguments are on the stack
         int const nargs{ lua_gettop(_L) - 1 };
-        DEBUGSPEW_CODE(Universe* U = universe_get(_L));
+        DEBUGSPEW_CODE(Universe* _U = universe_get(_L));
         lane_->status = Lane::Running; // Pending -> Running
 
         // Tie "set_finalizer()" to the state
@@ -670,11 +670,11 @@ static void lane_main(Lane* lane_)
         // in case of error and if it exists, fetch stack trace from registry and push it
         push_stack_trace(_L, _rc, 1);                                                              // L: retvals|error [trace]
 
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p body: %s (%s)\n" INDENT_END(U), _L, get_errcode_name(_rc), kCancelError.equals(_L, 1) ? "cancelled" : lua_typename(_L, lua_type(_L, 1))));
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p body: %s (%s)\n" INDENT_END(_U), _L, get_errcode_name(_rc), kCancelError.equals(_L, 1) ? "cancelled" : lua_typename(_L, lua_type(_L, 1))));
         //  Call finalizers, if the script has set them up.
         //
         int _rc2{ run_finalizers(_L, _rc) };
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p finalizer: %s\n" INDENT_END(U), _L, get_errcode_name(_rc2)));
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p finalizer: %s\n" INDENT_END(_U), _L, get_errcode_name(_rc2)));
         if (_rc2 != LUA_OK) { // Error within a finalizer!
             // the finalizer generated an error, and left its own error message [and stack trace] on the stack
             _rc = _rc2; // we're overruling the earlier script error or normal return

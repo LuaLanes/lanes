@@ -130,7 +130,7 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L
 
     DEBUGSPEW_CODE(char const* _newName);
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "update_lookup_entry()\n" INDENT_END(U_)));
-    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U_ });
+    DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U_ });
 
     STACK_CHECK_START_REL(L_, 0);
     // first, raise an error if the function is already known
@@ -198,7 +198,7 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U_)
     // slot dbIdx_ + 2 contains a cache that stores all already visited tables to avoid infinite recursion loops
     int const _cache{ dbIdx_ + 2 };
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "populate_func_lookup_table_recur()\n" INDENT_END(U_)));
-    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U_ });
+    DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U_ });
 
     STACK_GROW(L_, 6);
     // slot i_ contains a table where we search for functions (or a full userdata with a metatable)
@@ -264,9 +264,9 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U_)
     ++depth_;
     lua_pushnil(L_);                                                                               // L_: ... {i_} {bfc} nil
     while (lua_next(L_, breadthFirstCache) != 0) {                                                 // L_: ... {i_} {bfc} k {}
-        DEBUGSPEW_CODE(char const* key = (lua_type(L_, -2) == LUA_TSTRING) ? lua_tostring(L_, -2) : "not a string");
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "table '%s'\n" INDENT_END(U_), key));
-        DEBUGSPEW_CODE(DebugSpewIndentScope scope2{ U_ });
+        DEBUGSPEW_CODE(char const* _key = (lua_type(L_, -2) == LUA_TSTRING) ? lua_tostring(L_, -2) : "not a string");
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "table '%s'\n" INDENT_END(U_), _key));
+        DEBUGSPEW_CODE(DebugSpewIndentScope _scope2{ U_ });
         // un-visit this table in case we do need to process it
         lua_pushvalue(L_, -1);                                                                     // L_: ... {i_} {bfc} k {} {}
         lua_rawget(L_, _cache);                                                                    // L_: ... {i_} {bfc} k {} n
@@ -505,7 +505,7 @@ int luaG_nameof(lua_State* L_)
     // push a table whose contents are strings that, when concatenated, produce unique name
     lua_newtable(L_);                                                                              // L_: o nil {c} {fqn}
     // {fqn}[1] = "_G"
-    lua_pushliteral(L_, "_G");                                                                     // L_: o nil {c} {fqn} "_G"
+    lua_pushliteral(L_, LUA_GNAME);                                                                // L_: o nil {c} {fqn} "_G"
     lua_rawseti(L_, -2, 1);                                                                        // L_: o nil {c} {fqn}
     // this is where we start the search
     lua_pushglobaltable(L_);                                                                       // L_: o nil {c} {fqn} _G

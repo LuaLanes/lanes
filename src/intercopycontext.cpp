@@ -96,8 +96,8 @@ THE SOFTWARE.
         lua_rawget(L_, -2);                                                                        // L_: ... v ... {} "f.q.n"
     }
     char const* _fqn{ lua_tolstring(L_, -1, len_) };
-    DEBUGSPEW_CODE(Universe* const U = universe_get(L_));
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "function [C] %s \n" INDENT_END(U), _fqn));
+    DEBUGSPEW_CODE(Universe* const _U = universe_get(L_));
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "function [C] %s \n" INDENT_END(_U), _fqn));
     // popping doesn't invalidate the pointer since this is an interned string gotten from the lookup database
     lua_pop(L_, (mode_ == LookupMode::FromKeeper) ? 1 : 2);                                        // L_: ... v ...
     STACK_CHECK(L_, 0);
@@ -878,7 +878,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         lua_call(L2, 3, 0);                                                                        //                                                L2: ... u
     } else { // regular function
         DEBUGSPEW_CODE(fprintf(stderr, "FUNCTION %s\n", name));
-        DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
+        DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
         copy_cached_func(); // L2: ... f
     }
     STACK_CHECK(L2, 1);
@@ -1080,7 +1080,7 @@ static char const* vt_names[] = {
     STACK_CHECK_START_REL(L2, 0);
 
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "inter_copy_one()\n" INDENT_END(U)));
-    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
+    DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
 
     LuaType _val_type{ lua_type_as_enum(L1, L1_i) };
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%s %s: " INDENT_END(U), lua_type_names[static_cast<int>(_val_type)], vt_names[static_cast<int>(vt)]));
@@ -1205,7 +1205,7 @@ static char const* vt_names[] = {
             lua_pop(L1, 1);
         } else {
             {
-                DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
+                DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
                 _result = inter_move(1); // moves the entry to L2
                 STACK_CHECK(L1, 0);
             }
@@ -1235,7 +1235,7 @@ static char const* vt_names[] = {
     LUA_ASSERT(L1, vt == VT::NORMAL);
 
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "InterCopyContext::inter_copy()\n" INDENT_END(U)));
-    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
+    DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
 
     int const _top_L1{ lua_gettop(L1) };
     if (n_ > _top_L1) {

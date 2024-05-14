@@ -193,12 +193,12 @@ LUAG_FUNC(register)
     // ignore extra parameters, just in case
     lua_settop(L_, 2);
     luaL_argcheck(L_, (_mod_type == LuaType::TABLE) || (_mod_type == LuaType::FUNCTION), 2, "unexpected module type");
-    DEBUGSPEW_CODE(Universe* U = universe_get(L_));
+    DEBUGSPEW_CODE(Universe* _U = universe_get(L_));
     STACK_CHECK_START_REL(L_, 0); // "name" mod_table
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.register %s BEGIN\n" INDENT_END(U), _name));
-    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ U });
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.register %s BEGIN\n" INDENT_END(_U), _name));
+    DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
     populate_func_lookup_table(L_, -1, _name);
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.register %s END\n" INDENT_END(U), _name));
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lanes.register %s END\n" INDENT_END(_U), _name));
     STACK_CHECK(L_, 0);
     return 0;
 }
@@ -375,7 +375,7 @@ LUAG_FUNC(lane_new)
     if (_required_idx != 0) {
         int _nbRequired{ 1 };
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: require 'required' list\n" INDENT_END(_U)));
-        DEBUGSPEW_CODE(DebugSpewIndentScope scope{ _U });
+        DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
         // should not happen, was checked in lanes.lua before calling lane_new()
         if (lua_type(L_, _required_idx) != LUA_TTABLE) {
             raise_luaL_error(L_, "expected required module list as a table, got %s", luaL_typename(L_, _required_idx));
@@ -701,7 +701,7 @@ LUAG_FUNC(configure)
     STACK_CHECK_START_ABS(L_, 1);                                                                  // L_: settings
 
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%p: lanes.configure() BEGIN\n" INDENT_END(_U), L_));
-    DEBUGSPEW_CODE(DebugSpewIndentScope scope{ _U });
+    DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
 
     if (_U == nullptr) {
         _U = universe_create(L_);                                                                  // L_: settings universe
