@@ -104,67 +104,12 @@ THE SOFTWARE.
 
 // #################################################################################################
 
-#if HAVE_LANE_TRACKING()
-
-// The chain is ended by '(Lane*)(-1)', not nullptr:
-// 'trackingFirst -> ... -> ... -> (-1)'
-#define TRACKING_END ((Lane*) (-1))
-
-/*
- * Add the lane to tracking chain; the ones still running at the end of the
- * whole process will be cancelled.
- */
-static void tracking_add(Lane* lane_)
-{
-    std::lock_guard<std::mutex> _guard{ lane_->U->trackingMutex };
-    assert(lane_->tracking_next == nullptr);
-
-    lane_->tracking_next = lane_->U->trackingFirst;
-    lane_->U->trackingFirst = lane_;
-}
-
-// #################################################################################################
-
-/*
- * A free-running lane has ended; remove it from tracking chain
- */
-[[nodiscard]] static bool tracking_remove(Lane* lane_)
-{
-    bool _found{ false };
-    std::lock_guard<std::mutex> _guard{ lane_->U->trackingMutex };
-    // Make sure (within the MUTEX) that we actually are in the chain
-    // still (at process exit they will remove us from chain and then
-    // cancel/kill).
-    //
-    if (lane_->tracking_next != nullptr) {
-        Lane** _ref = (Lane**) &lane_->U->trackingFirst;
-
-        while (*_ref != TRACKING_END) {
-            if (*_ref == lane_) {
-                *_ref = lane_->tracking_next;
-                lane_->tracking_next = nullptr;
-                _found = true;
-                break;
-            }
-            _ref = (Lane**) &((*_ref)->tracking_next);
-        }
-        assert(_found);
-    }
-    return _found;
-}
-
-#endif // HAVE_LANE_TRACKING()
-
-// #################################################################################################
-
 Lane::Lane(Universe* U_, lua_State* L_)
 : U{ U_ }
 , L{ L_ }
 {
 #if HAVE_LANE_TRACKING()
-    if (U->trackingFirst) {
-        tracking_add(this);
-    }
+    U->tracker.tracking_add(this);
 #endif // HAVE_LANE_TRACKING()
 }
 
@@ -241,10 +186,7 @@ Lane::~Lane()
     // Clean up after a (finished) thread
     //
 #if HAVE_LANE_TRACKING()
-    if (U->trackingFirst != nullptr) {
-        // Lane was cleaned up, no need to handle at process termination
-        std::ignore = tracking_remove(this);
-    }
+    std::ignore = U->tracker.tracking_remove(this);
 #endif // HAVE_LANE_TRACKING()
 }
 
@@ -1428,27 +1370,8 @@ LUAG_FUNC(thread_index)
 // Return a list of all known lanes
 LUAG_FUNC(threads)
 {
-    int const _top{ lua_gettop(L_) };
-    Universe* const _U{ universe_get(L_) };
-
-    // List _all_ still running threads
-    std::lock_guard<std::mutex> _guard{ _U->trackingMutex };
-    if (_U->trackingFirst && _U->trackingFirst != TRACKING_END) {
-        Lane* _lane{ _U->trackingFirst };
-        int _index{ 0 };
-        lua_newtable(L_);                                                                          // L_: {}
-        while (_lane != TRACKING_END) {
-            // insert a { name='<name>', status='<status>' } tuple, so that several lanes with the same name can't clobber each other
-            lua_createtable(L_, 0, 2);                                                             // L_: {} {}
-            lua_pushstring(L_, _lane->debugName);                                                  // L_: {} {} "name"
-            lua_setfield(L_, -2, "name");                                                          // L_: {} {}
-            _lane->pushThreadStatus(L_);                                                           // L_: {} {} "status"
-            lua_setfield(L_, -2, "status");                                                        // L_: {} {}
-            lua_rawseti(L_, -2, ++_index);                                                         // L_: {}
-            _lane = _lane->tracking_next;
-        }
-    }
-    return lua_gettop(L_) - _top;                                                                  // L_: 0 or 1
+    LaneTracker const& _tracker = universe_get(L_)->tracker;
+    return _tracker.pushThreadsTable(L_);
 }
 #endif // HAVE_LANE_TRACKING()
 
@@ -1668,7 +1591,9 @@ LUAG_FUNC(configure)
         lua_pop(L_, 1);                                                                            // L_: settings
 #if HAVE_LANE_TRACKING()
         lua_getfield(L_, 1, "track_lanes");                                                        // L_: settings track_lanes
-        _U->trackingFirst = lua_toboolean(L_, -1) ? TRACKING_END : nullptr;
+        if (lua_toboolean(L_, -1)) {
+            _U->tracker.activate();
+        }
         lua_pop(L_, 1);                                                                            // L_: settings
 #endif // HAVE_LANE_TRACKING()
         // Linked chains handling
@@ -1704,7 +1629,7 @@ LUAG_FUNC(configure)
     luaG_registerlibfuncs(L_, global::sLanesFunctions);
 #if HAVE_LANE_TRACKING()
     // register core.threads() only if settings say it should be available
-    if (_U->trackingFirst != nullptr) {
+    if (_U->tracker.isActive()) {
         lua_pushcfunction(L_, LG_threads);                                                         // L_: settings M LG_threads()
         lua_setfield(L_, -2, "threads");                                                           // L_: settings M
     }

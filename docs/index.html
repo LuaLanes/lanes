@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 9-Apr-24, and applies to version <tt>4.0.0</tt>.
+				This document was revised on 15-May-24, and applies to version <tt>4.0.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -1723,7 +1723,7 @@ static MyDeepFactory g_MyDeepFactory;
 		</ul>
 		Take a look at <tt>LindaFactory</tt> in <tt>linda.cpp</tt> or <tt>MyDeepFactory</tt> in <tt>deep_test.cpp</tt>.
 	</li>
-	<li>Include <tt>"deep.h"</tt> and either link against Lanes or statically compile <tt>compat.cpp deep.cpp tools.cpp universe.cpp</tt> into your module if you want to avoid a runtime dependency for users that will use your module without Lanes.
+	<li>Include <tt>"deep.h"</tt> and either link against Lanes or statically compile <tt>compat.cpp deep.cpp</tt> into your module if you want to avoid a runtime dependency for users that will use your module without Lanes.
 	<li>Instanciate your userdata using <tt>yourFactoryObject.pushDeepUserdata()</tt>, instead of the regular <tt>lua_newuserdata()</tt>. Given a <tt>factory</tt>, it sets up the support structures and returns a state-specific proxy userdata for accessing your data. This proxy can also be copied over to other lanes.</li>
 	<li>Accessing the deep userdata from your C code, use <tt>yourFactoryObject.toDeep()</tt> instead of the regular <tt>lua_touserdata()</tt>.</li>
 </ol>

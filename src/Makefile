@@ -7,9 +7,9 @@
 
 MODULE=lanes
 
-SRC=lanes.c cancel.cpp compat.cpp threading.cpp tools.cpp state.cpp linda.cpp lindafactory.cpp deep.cpp keeper.cpp universe.cpp intercopycontext.cpp
+SRC=cancel.cpp compat.cpp deep.cpp intercopycontext.cpp keeper.cpp lanes.cpp linda.cpp lindafactory.cpp state.cpp threading.cpp tools.cpp tracker.cpp universe.cpp
 
-OBJ=$(SRC:.c=.o)
+OBJ=$(SRC:.cpp=.o)
 
 # LuaRocks gives 'LIBFLAG' from the outside
 #

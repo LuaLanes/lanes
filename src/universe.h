@@ -10,6 +10,7 @@ extern "C"
 #endif // __cplusplus
 
 #include "macros_and_utils.h"
+#include "tracker.h"
 #include "uniquekey.h"
 
 #include <mutex>
@@ -21,9 +22,6 @@ enum class CancelOp;
 struct DeepPrelude;
 struct Keepers;
 class Lane;
-
-// Do we want to activate full lane tracking feature?
-#define HAVE_LANE_TRACKING() 1
 
 // #################################################################################################
 
@@ -158,8 +156,7 @@ class Universe
     DeepPrelude* timerLinda{ nullptr };
 
 #if HAVE_LANE_TRACKING()
-    std::mutex trackingMutex;
-    Lane* volatile trackingFirst{ nullptr }; // will change to TRACKING_END if we want to activate tracking
+    LaneTracker tracker;
 #endif // HAVE_LANE_TRACKING()
 
     // Protects modifying the selfdestruct chain

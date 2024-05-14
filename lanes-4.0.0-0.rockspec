@@ -71,6 +71,7 @@ build = {
 				"src/tools.cpp",
 				"src/state.cpp",
 				"src/threading.cpp",
+				"src/tracker.cpp",
 				"src/universe.cpp"
 			},
 			incdirs = { "src"},
