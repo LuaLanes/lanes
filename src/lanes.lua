@@ -779,6 +779,7 @@ lanes.configure = function(settings_)
     lanes.linda = core.linda
     lanes.nameof = core.nameof
     lanes.now_secs = core.now_secs
+    lanes.null = core.null
     lanes.require = core.require
     lanes.register = core.register
     lanes.set_singlethreaded = core.set_singlethreaded
