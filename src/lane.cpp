@@ -43,7 +43,7 @@ THE SOFTWARE.
 // ######################################### Lua API ###############################################
 // #################################################################################################
 
-LUAG_FUNC(get_debug_threadname)
+static LUAG_FUNC(get_debug_threadname)
 {
     Lane* const _lane{ ToLane(L_, 1) };
     luaL_argcheck(L_, lua_gettop(L_) == 1, 2, "too many arguments");
@@ -60,7 +60,7 @@ LUAG_FUNC(get_debug_threadname)
 // Add a function that will be called when exiting the lane, either via
 // normal return or an error.
 //
-LUAG_FUNC(set_finalizer)
+static LUAG_FUNC(set_finalizer)
 {
     luaL_argcheck(L_, lua_isfunction(L_, 1), 1, "finalizer should be a function");
     luaL_argcheck(L_, lua_gettop(L_) == 1, 1, "too many arguments");
@@ -98,7 +98,7 @@ LUAG_FUNC(set_error_reporting)
 // #################################################################################################
 
 // upvalue #1 is the lane userdata
-LUAG_FUNC(set_debug_threadname)
+static LUAG_FUNC(set_debug_threadname)
 {
     // C s_lane structure is a light userdata upvalue
     Lane* const _lane{ lua_tolightuserdata<Lane>(L_, lua_upvalueindex(1)) };
@@ -120,10 +120,9 @@ LUAG_FUNC(set_debug_threadname)
 //  error:     returns nil + error value [+ stack table]
 //  cancelled: returns nil
 //
-LUAG_FUNC(thread_join)
+static LUAG_FUNC(thread_join)
 {
     Lane* const _lane{ ToLane(L_, 1) };
-    lua_State* const _L2{ _lane->L };
 
     std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
     if (lua_type(L_, 2) == LUA_TNUMBER) { // we don't want to use lua_isnumber() because of autocoercion
@@ -138,9 +137,10 @@ LUAG_FUNC(thread_join)
         raise_luaL_argerror(L_, 2, "incorrect duration type");
     }
 
-    bool const done{ !_lane->thread.joinable() || _lane->waitForCompletion(_until) };
+    bool const _done{ !_lane->thread.joinable() || _lane->waitForCompletion(_until) };
     lua_settop(L_, 1);                                                                             // L_: lane
-    if (!done || !_L2) {
+    lua_State* const _L2{ _lane->L };
+    if (!_done || !_L2) {
         lua_pushnil(L_);                                                                           // L_: lane nil
         lua_pushliteral(L_, "timeout");                                                            // L_: lane nil "timeout"
         return 2;
@@ -484,17 +484,18 @@ static void push_stack_trace(lua_State* L_, LuaError rc_, int stk_base_)
             // For other errors, the message can be whatever was thrown, and we should have a stack trace table
             LUA_ASSERT(L_, lua_type(L_, 1 + stk_base_) == (kCancelError.equals(L_, stk_base_) ? LUA_TNIL : LUA_TTABLE));
             // Just leaving the stack trace table on the stack is enough to get it through to the master.
-            break;
         }
 #else // !ERROR_FULL_STACK
-        [[fallthrough]]; // fall through if not ERROR_FULL_STACK
+        // any kind of error can be thrown with error(), or through a lane/linda cancellation
+        LUA_ASSERT(L_, lua_gettop(L_) == stk_base_);
 #endif // !ERROR_FULL_STACK
+        break;
 
     case LuaError::ERRMEM: // memory allocation error (handler not called)
     case LuaError::ERRERR: // error while running the error handler (if any, for example an out-of-memory condition)
     default:
-        // we should have a single value which is either a string (the error message) or kCancelError
-        LUA_ASSERT(L_, (lua_gettop(L_) == stk_base_) && ((lua_type(L_, stk_base_) == LUA_TSTRING) || kCancelError.equals(L_, stk_base_)));
+        // the Lua core provides a string error message in those situations
+        LUA_ASSERT(L_, (lua_gettop(L_) == stk_base_) && (lua_type(L_, stk_base_) == LUA_TSTRING));
         break;
     }
 }
@@ -621,6 +622,28 @@ static void selfdestruct_add(Lane* lane_)
 // ########################################## Main #################################################
 // #################################################################################################
 
+static void PrepareLaneHelpers(Lane* lane_)
+{
+    lua_State* const _L{ lane_->L };
+    // Tie "set_finalizer()" to the state
+    lua_pushcfunction(_L, LG_set_finalizer);
+    populate_func_lookup_table(_L, -1, "set_finalizer");
+    lua_setglobal(_L, "set_finalizer");
+
+    // Tie "set_debug_threadname()" to the state
+    // But don't register it in the lookup database because of the Lane pointer upvalue
+    lua_pushlightuserdata(_L, lane_);
+    lua_pushcclosure(_L, LG_set_debug_threadname, 1);
+    lua_setglobal(_L, "set_debug_threadname");
+
+    // Tie "cancel_test()" to the state
+    lua_pushcfunction(_L, LG_cancel_test);
+    populate_func_lookup_table(_L, -1, "cancel_test");
+    lua_setglobal(_L, "cancel_test");
+}
+
+// #################################################################################################
+
 static void lane_main(Lane* lane_)
 {
     lua_State* const _L{ lane_->L };
@@ -629,25 +652,11 @@ static void lane_main(Lane* lane_)
     LuaError _rc{ LuaError::ERRRUN };
     if (lane_->status == Lane::Pending) { // nothing wrong happened during preparation, we can work
         // At this point, the lane function and arguments are on the stack
-        int const nargs{ lua_gettop(_L) - 1 };
+        int const _nargs{ lua_gettop(_L) - 1 };
         DEBUGSPEW_CODE(Universe* _U = universe_get(_L));
         lane_->status = Lane::Running; // Pending -> Running
 
-        // Tie "set_finalizer()" to the state
-        lua_pushcfunction(_L, LG_set_finalizer);
-        populate_func_lookup_table(_L, -1, "set_finalizer");
-        lua_setglobal(_L, "set_finalizer");
-
-        // Tie "set_debug_threadname()" to the state
-        // But don't register it in the lookup database because of the Lane pointer upvalue
-        lua_pushlightuserdata(_L, lane_);
-        lua_pushcclosure(_L, LG_set_debug_threadname, 1);
-        lua_setglobal(_L, "set_debug_threadname");
-
-        // Tie "cancel_test()" to the state
-        lua_pushcfunction(_L, LG_cancel_test);
-        populate_func_lookup_table(_L, -1, "cancel_test");
-        lua_setglobal(_L, "cancel_test");
+        PrepareLaneHelpers(lane_);
 
         // this could be done in lane_new before the lane body function is pushed on the stack to avoid unnecessary stack slot shifting around
 #if ERROR_FULL_STACK
@@ -661,7 +670,7 @@ static void lane_main(Lane* lane_)
         lua_insert(_L, 1);                                                                         // L: handler func args
 #endif                                                                                             // L: ERROR_FULL_STACK
 
-        _rc = ToLuaError(lua_pcall(_L, nargs, LUA_MULTRET, ERROR_FULL_STACK));                     // L: retvals|err
+        _rc = ToLuaError(lua_pcall(_L, _nargs, LUA_MULTRET, ERROR_FULL_STACK));                    // L: retvals|err
 
 #if ERROR_FULL_STACK
         lua_remove(_L, 1);                                                                         // L: retvals|error
@@ -813,29 +822,35 @@ void Lane::changeDebugName(int nameIdx_)
 
 // #################################################################################################
 
-// contains keys: { __gc, __index, cached_error, cached_tostring, cancel, join, get_debug_threadname }
+namespace global {
+    static struct luaL_Reg const sLaneFunctions[] = {
+        { "__gc", lane_gc },
+        { "__index", LG_thread_index },
+        { "cancel", LG_thread_cancel },
+        { "get_debug_threadname", LG_get_debug_threadname },
+        { "join", LG_thread_join },
+        { nullptr, nullptr }
+    };
+} // namespace global
+
+  // contains keys: { __gc, __index, cached_error, cached_tostring, cancel, join, get_debug_threadname }
 void Lane::PushMetatable(lua_State* L_)
 {
+    STACK_CHECK_START_REL(L_, 0);
     if (luaL_newmetatable(L_, kLaneMetatableName)) {                                               // L_: mt
-        lua_pushcfunction(L_, lane_gc);                                                            // L_: mt lane_gc
-        lua_setfield(L_, -2, "__gc");                                                              // L_: mt
-        lua_pushcfunction(L_, LG_thread_index);                                                    // L_: mt LG_thread_index
-        lua_setfield(L_, -2, "__index");                                                           // L_: mt
+        luaG_registerlibfuncs(L_, global::sLaneFunctions);
+        // cache error() and tostring()
         lua_getglobal(L_, "error");                                                                // L_: mt error
         LUA_ASSERT(L_, lua_isfunction(L_, -1));
         lua_setfield(L_, -2, "cached_error");                                                      // L_: mt
         lua_getglobal(L_, "tostring");                                                             // L_: mt tostring
         LUA_ASSERT(L_, lua_isfunction(L_, -1));
         lua_setfield(L_, -2, "cached_tostring");                                                   // L_: mt
-        lua_pushcfunction(L_, LG_thread_join);                                                     // L_: mt LG_thread_join
-        lua_setfield(L_, -2, "join");                                                              // L_: mt
-        lua_pushcfunction(L_, LG_get_debug_threadname);                                            // L_: mt LG_get_debug_threadname
-        lua_setfield(L_, -2, "get_debug_threadname");                                              // L_: mt
-        lua_pushcfunction(L_, LG_thread_cancel);                                                   // L_: mt LG_thread_cancel
-        lua_setfield(L_, -2, "cancel");                                                            // L_: mt
+        // hide the actual metatable from getmetatable()
         lua_pushliteral(L_, kLaneMetatableName);                                                   // L_: mt "Lane"
         lua_setfield(L_, -2, "__metatable");                                                       // L_: mt
     }
+    STACK_CHECK(L_, 1);
 }
 // #################################################################################################
 
