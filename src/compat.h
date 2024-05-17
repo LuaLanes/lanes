@@ -24,6 +24,8 @@ extern "C"
 #define LUA_JITLIBNAME "jit"
 #endif // LUA_JITLIBNAME
 
+#include <cassert>
+
 // code is now preferring Lua 5.4 API
 
 // #################################################################################################
@@ -160,6 +162,8 @@ void* lua_newuserdatauv(lua_State* L_, size_t sz_, int nuvalue_);
 int lua_getiuservalue(lua_State* L_, int idx_, int n_);
 int lua_setiuservalue(lua_State* L_, int idx_, int n_);
 
+#define LUA_GNAME "_G"
+
 #endif // LUA_VERSION_NUM < 504
 
 // #################################################################################################
@@ -197,7 +201,7 @@ inline int luaL_optint(lua_State* L_, int n_, lua_Integer d_)
 
 // #################################################################################################
 
-// a wrapper over lua types to see them easier in a debugger
+// a strong-typed wrapper over lua types to see them easier in a debugger
 enum class LuaType
 {
     NONE = LUA_TNONE,
@@ -221,5 +225,27 @@ inline char const* lua_typename(lua_State* L_, LuaType t_)
 {
     return lua_typename(L_, static_cast<int>(t_));
 }
+
+// #################################################################################################
+
+// a strong-typed wrapper over lua error codes to see them easier in a debugger
+enum class LuaError
+{
+    OK = LUA_OK,
+    YIELD = LUA_YIELD,
+    ERRRUN = LUA_ERRRUN,
+    ERRSYNTAX = LUA_ERRSYNTAX,
+    ERRMEM = LUA_ERRMEM,
+    ERRGCMM = LUA_ERRGCMM, // pre-5.4
+    ERRERR = LUA_ERRERR
+};
+
+inline constexpr LuaError ToLuaError(int rc_)
+{
+    assert(rc_ == LUA_OK || rc_ == LUA_YIELD || rc_ == LUA_ERRRUN || rc_ == LUA_ERRSYNTAX || rc_ == LUA_ERRMEM || rc_ == LUA_ERRGCMM || rc_ == LUA_ERRERR);
+    return static_cast<LuaError>(rc_);
+}
+
+// #################################################################################################
 
 LuaType luaG_getmodule(lua_State* L_, char const* name_);

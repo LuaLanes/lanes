@@ -346,20 +346,20 @@ LUAG_FUNC(thread_index)
 // LUA_ERRERR doesn't have the same value
 struct errcode_name
 {
-    int code;
+    LuaError code;
     char const* name;
 };
 
 static struct errcode_name s_errcodes[] = {
-    { LUA_OK, "LUA_OK" },
-    { LUA_YIELD, "LUA_YIELD" },
-    { LUA_ERRRUN, "LUA_ERRRUN" },
-    { LUA_ERRSYNTAX, "LUA_ERRSYNTAX" },
-    { LUA_ERRMEM, "LUA_ERRMEM" },
-    { LUA_ERRGCMM, "LUA_ERRGCMM" },
-    { LUA_ERRERR, "LUA_ERRERR" },
+    { LuaError::OK, "LUA_OK" },
+    { LuaError::YIELD, "LUA_YIELD" },
+    { LuaError::ERRRUN, "LUA_ERRRUN" },
+    { LuaError::ERRSYNTAX, "LUA_ERRSYNTAX" },
+    { LuaError::ERRMEM, "LUA_ERRMEM" },
+    { LuaError::ERRGCMM, "LUA_ERRGCMM" },
+    { LuaError::ERRERR, "LUA_ERRERR" },
 };
-static char const* get_errcode_name(int _code)
+static char const* get_errcode_name(LuaError _code)
 {
     for (errcode_name const& _entry : s_errcodes) {
         if (_entry.code == _code) {
@@ -464,14 +464,14 @@ static constexpr RegistryUniqueKey kStackTraceRegKey{ 0x3F327747CACAA904ull };
 // ########################################## Finalizer ############################################
 // #################################################################################################
 
-static void push_stack_trace(lua_State* L_, int rc_, int stk_base_)
+static void push_stack_trace(lua_State* L_, LuaError rc_, int stk_base_)
 {
     // Lua 5.1 error handler is limited to one return value; it stored the stack trace in the registry
     switch (rc_) {
-    case LUA_OK: // no error, body return values are on the stack
+    case LuaError::OK: // no error, body return values are on the stack
         break;
 
-    case LUA_ERRRUN: // cancellation or a runtime error
+    case LuaError::ERRRUN: // cancellation or a runtime error
 #if ERROR_FULL_STACK // when ERROR_FULL_STACK, we installed a handler
         {
             STACK_CHECK_START_REL(L_, 0);
@@ -491,8 +491,8 @@ static void push_stack_trace(lua_State* L_, int rc_, int stk_base_)
         [[fallthrough]]; // fall through if not ERROR_FULL_STACK
 #endif // !ERROR_FULL_STACK
 
-    case LUA_ERRMEM: // memory allocation error (handler not called)
-    case LUA_ERRERR: // error while running the error handler (if any, for example an out-of-memory condition)
+    case LuaError::ERRMEM: // memory allocation error (handler not called)
+    case LuaError::ERRERR: // error while running the error handler (if any, for example an out-of-memory condition)
     default:
         // we should have a single value which is either a string (the error message) or kCancelError
         LUA_ASSERT(L_, (lua_gettop(L_) == stk_base_) && ((lua_type(L_, stk_base_) == LUA_TSTRING) || kCancelError.equals(L_, stk_base_)));
@@ -515,12 +515,12 @@ static void push_stack_trace(lua_State* L_, int rc_, int stk_base_)
 // TBD: should we add stack trace on failing finalizer, wouldn't be hard..
 //
 
-[[nodiscard]] static int run_finalizers(lua_State* L_, int lua_rc_)
+[[nodiscard]] static LuaError run_finalizers(lua_State* L_, LuaError lua_rc_)
 {
     kFinalizerRegKey.pushValue(L_);                                                                // L_: ... finalizers?
     if (lua_isnil(L_, -1)) {
         lua_pop(L_, 1);
-        return 0; // no finalizers
+        return LuaError::OK; // no finalizers
     }
 
     STACK_GROW(L_, 5);
@@ -528,13 +528,13 @@ static void push_stack_trace(lua_State* L_, int rc_, int stk_base_)
     int const _finalizers_index{ lua_gettop(L_) };
     int const _err_handler_index{ ERROR_FULL_STACK ? (lua_pushcfunction(L_, lane_error), lua_gettop(L_)) : 0 };
 
-    int rc{ LUA_OK };
-    for (int n = static_cast<int>(lua_rawlen(L_, _finalizers_index)); n > 0; --n) {
-        int args = 0;
-        lua_pushinteger(L_, n);                                                                    // L_: ... finalizers lane_error n
+    LuaError _rc{ LuaError::OK };
+    for (int _n = static_cast<int>(lua_rawlen(L_, _finalizers_index)); _n > 0; --_n) {
+        int _args{ 0 };
+        lua_pushinteger(L_, _n);                                                                   // L_: ... finalizers lane_error n
         lua_rawget(L_, _finalizers_index);                                                         // L_: ... finalizers lane_error finalizer
         LUA_ASSERT(L_, lua_isfunction(L_, -1));
-        if (lua_rc_ != LUA_OK) { // we have an error message and an optional stack trace at the bottom of the stack
+        if (lua_rc_ != LuaError::OK) { // we have an error message and an optional stack trace at the bottom of the stack
             LUA_ASSERT(L_, _finalizers_index == 2 || _finalizers_index == 3);
             // char const* err_msg = lua_tostring(L_, 1);
             lua_pushvalue(L_, 1);                                                                  // L_: ... finalizers lane_error finalizer err_msg
@@ -542,13 +542,13 @@ static void push_stack_trace(lua_State* L_, int rc_, int stk_base_)
             if (_finalizers_index == 3) {
                 lua_pushvalue(L_, 2); // L_: ... finalizers lane_error finalizer err_msg stack_trace
             }
-            args = _finalizers_index - 1;
+            _args = _finalizers_index - 1;
         }
 
         // if no error from the main body, finalizer doesn't receive any argument, else it gets the error message and optional stack trace
-        rc = lua_pcall(L_, args, 0, _err_handler_index);                                           // L_: ... finalizers lane_error err_msg2?
-        if (rc != LUA_OK) {
-            push_stack_trace(L_, rc, lua_gettop(L_));                                              // L_: ... finalizers lane_error err_msg2? trace
+        _rc = ToLuaError(lua_pcall(L_, _args, 0, _err_handler_index));                             // L_: ... finalizers lane_error err_msg2?
+        if (_rc != LuaError::OK) {
+            push_stack_trace(L_, _rc, lua_gettop(L_));                                             // L_: ... finalizers lane_error err_msg2? trace
             // If one finalizer fails, don't run the others. Return this
             // as the 'real' error, replacing what we could have had (or not)
             // from the actual code.
@@ -557,20 +557,20 @@ static void push_stack_trace(lua_State* L_, int rc_, int stk_base_)
         // no error, proceed to next finalizer                                                     // L_: ... finalizers lane_error
     }
 
-    if (rc != LUA_OK) {
+    if (_rc != LuaError::OK) {
         // ERROR_FULL_STACK accounts for the presence of lane_error on the stack
-        int const nb_err_slots{ lua_gettop(L_) - _finalizers_index - ERROR_FULL_STACK };
+        int const _nb_err_slots{ lua_gettop(L_) - _finalizers_index - ERROR_FULL_STACK };
         // a finalizer generated an error, this is what we leave of the stack
-        for (int n = nb_err_slots; n > 0; --n) {
-            lua_replace(L_, n);
+        for (int _n = _nb_err_slots; _n > 0; --_n) {
+            lua_replace(L_, _n);
         }
         // leave on the stack only the error and optional stack trace produced by the error in the finalizer
-        lua_settop(L_, nb_err_slots);                                                              // L_: ... lane_error trace
+        lua_settop(L_, _nb_err_slots);                                                             // L_: ... lane_error trace
     } else { // no error from the finalizers, make sure only the original return values from the lane body remain on the stack
         lua_settop(L_, _finalizers_index - 1);
     }
 
-    return rc;
+    return _rc;
 }
 
 // #################################################################################################
@@ -627,7 +627,7 @@ static void lane_main(Lane* lane_)
     lua_State* const _L{ lane_->L };
     // wait until the launching thread has finished preparing L
     lane_->ready.wait();
-    int _rc{ LUA_ERRRUN };
+    LuaError _rc{ LuaError::ERRRUN };
     if (lane_->status == Lane::Pending) { // nothing wrong happened during preparation, we can work
         // At this point, the lane function and arguments are on the stack
         int const nargs{ lua_gettop(_L) - 1 };
@@ -662,7 +662,7 @@ static void lane_main(Lane* lane_)
         lua_insert(_L, 1);                                                                         // L: handler func args
 #endif                                                                                             // L: ERROR_FULL_STACK
 
-        _rc = lua_pcall(_L, nargs, LUA_MULTRET, ERROR_FULL_STACK);                                 // L: retvals|err
+        _rc = ToLuaError(lua_pcall(_L, nargs, LUA_MULTRET, ERROR_FULL_STACK));                     // L: retvals|err
 
 #if ERROR_FULL_STACK
         lua_remove(_L, 1);                                                                         // L: retvals|error
@@ -674,9 +674,9 @@ static void lane_main(Lane* lane_)
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p body: %s (%s)\n" INDENT_END(_U), _L, get_errcode_name(_rc), kCancelError.equals(_L, 1) ? "cancelled" : lua_typename(_L, lua_type(_L, 1))));
         //  Call finalizers, if the script has set them up.
         //
-        int _rc2{ run_finalizers(_L, _rc) };
+        LuaError const _rc2{ run_finalizers(_L, _rc) };
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p finalizer: %s\n" INDENT_END(_U), _L, get_errcode_name(_rc2)));
-        if (_rc2 != LUA_OK) { // Error within a finalizer!
+        if (_rc2 != LuaError::OK) { // Error within a finalizer!
             // the finalizer generated an error, and left its own error message [and stack trace] on the stack
             _rc = _rc2; // we're overruling the earlier script error or normal return
         }
@@ -699,11 +699,11 @@ static void lane_main(Lane* lane_)
     if (lane_) {
         // leave results (1..top) or error message + stack trace (1..2) on the stack - master will copy them
 
-        Lane::Status const _st = (_rc == LUA_OK) ? Lane::Done : kCancelError.equals(_L, 1) ? Lane::Cancelled : Lane::Error;
+        Lane::Status const _st{ (_rc == LuaError::OK) ? Lane::Done : kCancelError.equals(_L, 1) ? Lane::Cancelled : Lane::Error };
 
         {
             // 'doneMutex' protects the -> Done|Error|Cancelled state change
-            std::lock_guard lock{ lane_->doneMutex };
+            std::lock_guard _guard{ lane_->doneMutex };
             lane_->status = _st;
             lane_->doneCondVar.notify_one(); // wake up master (while 'lane_->doneMutex' is on)
         }
