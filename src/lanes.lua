@@ -65,6 +65,8 @@ local type = assert(type)
 
 -- #################################################################################################
 
+local isLuaJIT = (package and package.loaded.jit and jit.version) and true or false
+
 local default_params =
 {
     nb_keepers = 1,
@@ -77,9 +79,9 @@ local default_params =
     demote_full_userdata = nil,
     verbose_errors = false,
     -- LuaJIT provides a thread-unsafe allocator by default, so we need to protect it when used in parallel lanes
-    allocator = (package and package.loaded.jit and jit.version) and "protected" or nil,
+    allocator = isLuaJIT and "protected" or nil,
     -- it looks also like LuaJIT allocator may not appreciate direct use of its allocator for other purposes than the VM operation
-    internal_allocator = (package and package.loaded.jit and jit.version) and "libc" or "allocator"
+    internal_allocator = isLuaJIT and "libc" or "allocator"
 }
 
 -- #################################################################################################
@@ -207,11 +209,22 @@ end
 
 -- #################################################################################################
 
+-- must match Lane::ErrorTraceLevel values
+local error_trace_levels = {
+    minimal = 0,
+    basic = 1,
+    extended = 2
+}
+
 local opt_validators =
 {
     gc_cb = function(v_)
         local tv = type(v_)
         return (tv == "function") and v_ or raise_option_error("gc_cb", tv, v_)
+    end,
+    error_trace_level = function(v_)
+        local tv = type(v_)
+        return (error_trace_levels[v_] ~= nil) and v_ or raise_option_error("error_trace_level", tv, v_)
     end,
     globals = function(v_)
         local tv = type(v_)
@@ -343,10 +356,10 @@ local gen = function(...)
     end
 
     local core_lane_new = assert(core.lane_new)
-    local priority, globals, package, required, gc_cb, name = opt.priority, opt.globals, opt.package or package, opt.required, opt.gc_cb, opt.name
+    local priority, globals, package, required, gc_cb, name, error_trace_level = opt.priority, opt.globals, opt.package or package, opt.required, opt.gc_cb, opt.name, error_trace_levels[opt.error_trace_level]
     return function(...)
         -- must pass functions args last else they will be truncated to the first one
-        return core_lane_new(func, libs, priority, globals, package, required, gc_cb, name, ...)
+        return core_lane_new(func, libs, priority, globals, package, required, gc_cb, name, error_trace_level, ...)
     end
 end -- gen()
 

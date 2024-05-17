@@ -64,6 +64,14 @@ class Lane
     };
     using enum Status;
 
+    enum class ErrorTraceLevel
+    {
+        Minimal, // no error handler function when running the lane body
+        Basic, // lane body errors caught by a error handler
+        Extended // same as above, but with more data extracted from the debug infos
+    };
+    using enum ErrorTraceLevel;
+
     // the thread
     std::jthread thread;
     // a latch to wait for the lua_State to be ready
@@ -104,10 +112,11 @@ class Lane
     // S: cleans up after itself if non-nullptr at lane exit
 
 #if HAVE_LANE_TRACKING()
+    // For tracking only
     Lane* volatile tracking_next{ nullptr };
 #endif // HAVE_LANE_TRACKING()
-    //
-    // For tracking only
+
+    ErrorTraceLevel const errorTraceLevel{ Basic };
 
     [[nodiscard]] static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internalAllocator.alloc(size_); }
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
@@ -115,18 +124,20 @@ class Lane
     // this one is for us, to make sure memory is freed by the correct allocator
     static void operator delete(void* p_) { static_cast<Lane*>(p_)->U->internalAllocator.free(p_, sizeof(Lane)); }
 
-    Lane(Universe* U_, lua_State* L_);
+    Lane(Universe* U_, lua_State* L_, ErrorTraceLevel errorTraceLevel_);
     ~Lane();
 
     void changeDebugName(int nameIdx_);
     void close() { lua_State* _L{ L }; L = nullptr; lua_close(_L); }
+    [[nodiscard]] char const* errorTraceLevelString() const;
+    [[nodiscard]] int pushErrorHandler() const;
+    void pushErrorTraceLevel(lua_State* L_) const;
+    static void PushMetatable(lua_State* L_);
     void pushThreadStatus(lua_State* L_) const;
     void securizeDebugName(lua_State* L_);
     void startThread(int priority_);
     [[nodiscard]] char const* threadStatusString() const;
     [[nodiscard]] bool waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_);
-
-    static void PushMetatable(lua_State* L_);
 };
 
 // #################################################################################################

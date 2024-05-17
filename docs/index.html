@@ -702,6 +702,17 @@
 				ATTEMPTING TO TRANSFER A FUNCTION REGISTERED BY A MODULE NOT LISTED HERE WILL RAISE AN ERROR.
 			</td>
 		</tr>
+		<tr id=".error_trace_level" valign=top>
+			<td>
+				<code>.error_trace_level</code>
+			</td>
+			<td>string</td>
+			<td>
+				Sets the error reporting mode. One of <tt>"minimal"</tt> (the default), <tt>"basic"</tt>, <tt>"extended"</tt>.<br />
+				<tt>"minimal"</tt> yields only the location of the error.<br />
+				The other 2 yield a full stack trace, with different amounts of data extracted from the debug infos. See <a href="#results">Results</a>.
+			</td>
+		</tr>
 		<tr id=".name" valign=top>
 			<td>
 				<code>.name</code>
@@ -819,6 +830,21 @@
 
 <!-- status +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
 <hr/>
+<h2 id="error_trace_level">Error trace level</h2>
+
+	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
+		<tr>
+			<td>
+				<pre>	str = lane_h.error_trace_level</pre>
+			</td>
+		</tr>
+	</table>
+<p>
+	Read back the value set during lane generation, one of <tt>"basic", "minimal", "extended"</tt>.
+</p>
+
+<!-- status +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+<hr/>
 <h2 id="status">Status</h2>
 
 	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
@@ -926,12 +952,8 @@
 <hr/>
 <h2 id="results">Results and errors</h2>
 
-<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	set_error_reporting("basic"|"extended")
-</pre></td></tr></table>
-
 <p>
-	Sets the error reporting mode. "basic" is selected by default.
+	Error reporting level is set in the lane generator <a href="#.error_trace_level">settings</a>.
 </p>
 
 <p>

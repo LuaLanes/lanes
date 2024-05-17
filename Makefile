@@ -80,6 +80,7 @@ test:
 	$(MAKE) cyclic
 	$(MAKE) deadlock
 	$(MAKE) errhangtest
+	$(MAKE) error
 	$(MAKE) fibonacci
 	$(MAKE) fifo
 	$(MAKE) finalizer
@@ -124,7 +125,7 @@ ehynes: tests/ehynes.lua $(_TARGET_SO)
 errhangtest: tests/errhangtest.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
-error-test: tests/error.lua $(_TARGET_SO)
+error: tests/error.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 fibonacci: tests/fibonacci.lua $(_TARGET_SO)

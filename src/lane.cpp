@@ -28,16 +28,15 @@ THE SOFTWARE.
 
 #include "debugspew.h"
 #include "intercopycontext.h"
-#include "tools.h"
 #include "threading.h"
+#include "tools.h"
 
 // #################################################################################################
 
-/* Do you want full call stacks, or just the line where the error happened?
- *
- * TBD: The full stack feature does not seem to work (try 'make error').
- */
-#define ERROR_FULL_STACK 1 // must be either 0 or 1 as we do some index arithmetics with it!
+// xxh64 of string "error" generated at https://www.pelock.com/products/hash-calculator
+static constexpr UniqueKey kCachedError{ 0xD6F35DD608D0A203ull };
+// xxh64 of string "tostring" generated at https://www.pelock.com/products/hash-calculator
+static constexpr UniqueKey kCachedTostring{ 0xAB5EA23BCEA0C35Cull };
 
 // #################################################################################################
 // ######################################### Lua API ###############################################
@@ -74,26 +73,6 @@ static LUAG_FUNC(set_finalizer)
     // no need to adjust the stack, Lua does this for us
     return 0;
 }
-
-// #################################################################################################
-
-#if ERROR_FULL_STACK
-LUAG_FUNC(set_error_reporting)
-{
-    luaL_checktype(L_, 1, LUA_TSTRING);
-    char const* _mode{ lua_tostring(L_, 1) };
-    lua_pushliteral(L_, "extended");
-    bool const _extended{ strcmp(_mode, "extended") == 0 };
-    bool const _basic{ strcmp(_mode, "basic") == 0 };
-    if (!_extended && !_basic) {
-        raise_luaL_error(L_, "unsupported error reporting model %s", _mode);
-    }
-
-    kExtendedStackTraceRegKey.setValue(L_, [extended = _extended](lua_State* L_) { lua_pushboolean(L_, extended ? 1 : 0); });
-    return 0;
-}
-
-#endif // ERROR_FULL_STACK
 
 // #################################################################################################
 
@@ -172,7 +151,7 @@ static LUAG_FUNC(thread_join)
             int const _n{ lua_gettop(_L2) };                                                       // L_: lane                                        L2: "err" [trace]
             STACK_GROW(L_, 3);
             lua_pushnil(L_);                                                                       // L_: lane nil
-            // even when ERROR_FULL_STACK, if the error is not LUA_ERRRUN, the handler wasn't called, and we only have 1 error message on the stack ...
+            // even when _lane->errorTraceLevel != Minimal, if the error is not LUA_ERRRUN, the handler wasn't called, and we only have 1 error message on the stack ...
             InterCopyContext _c{ _lane->U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} };
             if (_c.inter_move(_n) != InterCopyResult::Success) {                                   // L_: lane nil "err" [trace]                      L2:
                 raise_luaL_error(L_, "tried to copy unsupported types: %s", lua_tostring(L_, -_n));
@@ -197,143 +176,177 @@ static LUAG_FUNC(thread_join)
 
 // #################################################################################################
 
-// lane:__index(key,usr) -> value
-//
-// If key is found in the environment, return it
-// If key is numeric, wait until the thread returns and populate the environment with the return values
+// key is numeric, wait until the thread returns and populate the environment with the return values
 // If the return values signal an error, propagate it
+// Else If key is found in the environment, return it
+static int thread_index_number(lua_State* L_)
+{
+    static constexpr int kSelf{ 1 };
+    static constexpr int kKey{ 2 };
+    static constexpr int kUsr{ 3 };
+
+    Lane* const _lane{ ToLane(L_, kSelf) };
+    LUA_ASSERT(L_, lua_gettop(L_) == 2);                                                           // L_: lane n
+
+    // first, check that we don't already have an environment that holds the requested value
+    // If key is found in the uservalue, return it
+    lua_getiuservalue(L_, kSelf, 1);                                                               // L_: lane n {uv}
+    lua_pushvalue(L_, kKey);                                                                       // L_: lane n {uv} n
+    lua_rawget(L_, kUsr);                                                                          // L_: lane n {uv} v|nil
+    if (!lua_isnil(L_, -1)) {
+        return 1;
+    }
+    lua_pop(L_, 1);                                                                                // L_: lane n {uv}
+
+    // check if we already fetched the values from the thread or not
+    lua_pushinteger(L_, 0);                                                                        // L_: lane n {uv} 0
+    lua_rawget(L_, kUsr);                                                                          // L_: lane n {uv} uv[0]|nil
+    bool const _fetched{ !lua_isnil(L_, -1) };
+    lua_pop(L_, 1);                                                                                // L_: lane n {uv}
+    if (!_fetched) {
+        lua_pushinteger(L_, 0);                                                                    // L_: lane n {uv} 0
+        lua_pushboolean(L_, 1);                                                                    // L_: lane n {uv} 0 true
+        lua_rawset(L_, kUsr);                                                                      // L_: lane n {uv}
+        // wait until thread has completed, transfer everything from the lane's stack to our side
+        lua_pushcfunction(L_, LG_thread_join);                                                     // L_: lane n {uv} join
+        lua_pushvalue(L_, kSelf);                                                                  // L_: lane n {uv} join lane
+        lua_call(L_, 1, LUA_MULTRET); // lane:join()                                               // L_: lane n {uv} ...
+        switch (_lane->status) {
+        default:
+            // this is an internal error, we probably never get here
+            lua_settop(L_, 0);                                                                     // L_:
+            lua_pushliteral(L_, "Unexpected status: ");                                            // L_: "Unexpected status: "
+            _lane->pushThreadStatus(L_);                                                           // L_: "Unexpected status: " "<status>"
+            lua_concat(L_, 2);                                                                     // L_: "Unexpected status: <status>"
+            raise_lua_error(L_);
+
+        case Lane::Done: // got regular return values
+            {
+                int const _nvalues{ lua_gettop(L_) - 3 };                                          // L_: lane n {uv} ...
+                for (int _i = _nvalues; _i > 0; --_i) {
+                    // pop the last element of the stack, to store it in the uservalue at its proper index
+                    lua_rawseti(L_, kUsr, _i);                                                     // L_: lane n {uv}
+                }
+            }
+            break;
+
+        case Lane::Error: // got 2 or 3 values: nil, errstring, and possibly a callstack table
+            if (_lane->errorTraceLevel == Lane::Minimal) {
+                LUA_ASSERT(L_, lua_gettop(L_) == 5 && lua_isnil(L_, 4) && !lua_isnil(L_, 5));      // L_: lane n {uv} nil "<msg>"
+            } else {
+                LUA_ASSERT(L_, lua_gettop(L_) == 6 && lua_isnil(L_, 4) && !lua_isnil(L_, 5) && lua_istable(L_, 6));
+                lua_insert(L_, -2);                                                                // L_: lane n {uv} nil {trace} "<msg>"
+            }
+            // uv[-1] = "<msg>"
+            lua_rawseti(L_, kUsr, -1);                                                             // L_: lane n {uv} nil {trace}?
+            break;
+
+        case Lane::Cancelled:
+            // do nothing
+            break;
+        }
+    }
+    STACK_GROW(L_, 6); // up to 6 positions are needed in case of error propagation
+    lua_settop(L_, 3);                                                                             // L_: lane n {uv}
+    int const _key{ static_cast<int>(lua_tointeger(L_, kKey)) };
+    if (_key != -1) {
+        lua_rawgeti(L_, kUsr, -1);                                                                 // L_: lane n {uv} <error>|nil
+        if (!lua_isnil(L_, -1)) { // an error was stored                                           // L_: lane n {uv} <error>
+            lua_getmetatable(L_, 1);                                                               // L_: lane n {uv} <error> {mt}
+            lua_replace(L_, -3);                                                                   // L_: lane n {mt} <error>
+#if LUA_VERSION_NUM == 501
+            // Note: Lua 5.1 interpreter is not prepared to show
+            //       non-string errors, so we use 'tostring()' here
+            //       to get meaningful output.  --AKa 22-Jan-2009
+            //
+            //       Also, the stack dump we get is no good; it only
+            //       lists our internal Lanes functions. There seems
+            //       to be no way to switch it off, though.
+            //
+            // Level 3 should show the line where 'h[x]' was read
+            // but this only seems to work for string messages
+            // (Lua 5.1.4). No idea, why.   --AKa 22-Jan-2009
+            if (!lua_isstring(L_, -1)) {
+                kCachedTostring.pushKey(L_);                                                       // L_: lane n {mt} <error> kCachedTostring
+                lua_rawget(L_, -3);                                                                // L_: lane n {mt} <error> tostring()
+                lua_insert(L_, -2);                                                                // L_: lane n {mt} tostring() <error>
+                lua_call(L_, 1, 1); // tostring(errstring)                                         // L_: lane n {mt} "error"
+            }
+#endif // LUA_VERSION_NUM == 501
+            kCachedError.pushKey(L_);                                                              // L_: lane n {mt} "error" kCachedError
+            lua_rawget(L_, -3);                                                                    // L_: lane n {mt} "error" error()
+            lua_replace(L_, -3);                                                                   // L_: lane n error() "error"
+            lua_pushinteger(L_, 3);                                                                // L_: lane n error() "error" 3
+            lua_call(L_, 2, 0); // error(tostring(errstring), 3) -> doesn't return                 // L_: lane n
+            raise_luaL_error(L_, "%s: should not get here!", _lane->debugName);
+        } else {
+            lua_pop(L_, 1);                                                                        // L_: lane n {uv}
+        }
+    }
+    lua_rawgeti(L_, kUsr, _key);                                                                   // L_: lane n {uv} uv[n]
+    return 1;
+}
+
+// #################################################################################################
+
 // If key is "status" return the thread status
+// If key is found in the environment, return it
 // Else raise an error
-LUAG_FUNC(thread_index)
+static int thread_index_string(lua_State* L_)
+{
+    static constexpr int kSelf{ 1 };
+    static constexpr int kKey{ 2 };
+
+    Lane* const _lane{ ToLane(L_, kSelf) };
+    LUA_ASSERT(L_, lua_gettop(L_) == 2);                                                           // L_: lane "key"
+
+    char const* const _keystr{ lua_tostring(L_, kKey) };
+    lua_settop(L_, 2); // keep only our original arguments on the stack
+    if (strcmp(_keystr, "status") == 0) {
+        _lane->pushThreadStatus(L_);                                                               // L_: lane "key" "<status>"
+        return 1;
+    }
+    if (strcmp(_keystr, "error_trace_level") == 0) {
+        _lane->pushErrorTraceLevel(L_);                                                            // L_: lane "key" "<level>"
+        return 1;
+    }
+    // return self.metatable[key]
+    lua_getmetatable(L_, kSelf);                                                                   // L_: lane "key" mt
+    lua_replace(L_, -3);                                                                           // L_: mt "key"
+    lua_rawget(L_, -2);                                                                            // L_: mt value
+    // only "cancel" and "join" are registered as functions, any other string will raise an error
+    if (!lua_iscfunction(L_, -1)) {
+        raise_luaL_error(L_, "can't index a lane with '%s'", _keystr);
+    }
+    return 1;
+}
+
+// #################################################################################################
+
+// lane:__index(key,usr) -> value
+static LUAG_FUNC(thread_index)
 {
     static constexpr int kSelf{ 1 };
     static constexpr int kKey{ 2 };
     Lane* const _lane{ ToLane(L_, kSelf) };
     LUA_ASSERT(L_, lua_gettop(L_) == 2);
 
-    STACK_GROW(L_, 8); // up to 8 positions are needed in case of error propagation
+    switch (lua_type(L_, kKey)) {
+    case LUA_TNUMBER:
+        return thread_index_number(L_); // stack modification is undefined, returned value is at the top
 
-    // If key is numeric, wait until the thread returns and populate the environment with the return values
-    if (lua_type(L_, kKey) == LUA_TNUMBER) {
-        static constexpr int kUsr{ 3 };
-        // first, check that we don't already have an environment that holds the requested value
-        {
-            // If key is found in the uservalue, return it
-            lua_getiuservalue(L_, kSelf, 1);
-            lua_pushvalue(L_, kKey);
-            lua_rawget(L_, kUsr);
-            if (!lua_isnil(L_, -1)) {
-                return 1;
-            }
-            lua_pop(L_, 1);
-        }
-        {
-            // check if we already fetched the values from the thread or not
-            lua_pushinteger(L_, 0);
-            lua_rawget(L_, kUsr);
-            bool const _fetched{ !lua_isnil(L_, -1) };
-            lua_pop(L_, 1); // back to our 2 args + uservalue on the stack
-            if (!_fetched) {
-                lua_pushinteger(L_, 0);
-                lua_pushboolean(L_, 1);
-                lua_rawset(L_, kUsr);
-                // wait until thread has completed
-                lua_pushcfunction(L_, LG_thread_join);
-                lua_pushvalue(L_, kSelf);
-                lua_call(L_, 1, LUA_MULTRET); // all return values are on the stack, at slots 4+
-                switch (_lane->status) {
-                default:
-                    // this is an internal error, we probably never get here
-                    lua_settop(L_, 0);
-                    lua_pushliteral(L_, "Unexpected status: ");
-                    _lane->pushThreadStatus(L_);
-                    lua_concat(L_, 2);
-                    raise_lua_error(L_);
-                    [[fallthrough]]; // fall through if we are killed, as we got nil, "killed" on the stack
+    case LUA_TSTRING:
+        return thread_index_string(L_); // stack modification is undefined, returned value is at the top
 
-                case Lane::Done: // got regular return values
-                    {
-                        int const _nvalues{ lua_gettop(L_) - 3 };
-                        for (int _i = _nvalues; _i > 0; --_i) {
-                            // pop the last element of the stack, to store it in the uservalue at its proper index
-                            lua_rawseti(L_, kUsr, _i);
-                        }
-                    }
-                    break;
-
-                case Lane::Error: // got 3 values: nil, errstring, callstack table
-                    // me[-2] could carry the stack table, but even
-                    // me[-1] is rather unnecessary (and undocumented);
-                    // use ':join()' instead.   --AKa 22-Jan-2009
-                    LUA_ASSERT(L_, lua_isnil(L_, 4) && !lua_isnil(L_, 5) && lua_istable(L_, 6));
-                    // store errstring at key -1
-                    lua_pushnumber(L_, -1);
-                    lua_pushvalue(L_, 5);
-                    lua_rawset(L_, kUsr);
-                    break;
-
-                case Lane::Cancelled:
-                    // do nothing
-                    break;
-                }
-            }
-            lua_settop(L_, 3);                                                                     // L_: self KEY ENV
-            int const _key{ static_cast<int>(lua_tointeger(L_, kKey)) };
-            if (_key != -1) {
-                lua_pushnumber(L_, -1);                                                            // L_: self KEY ENV -1
-                lua_rawget(L_, kUsr);                                                              // L_: self KEY ENV "error"|nil
-                if (!lua_isnil(L_, -1)) {                                                          // L_: an error was stored
-                    // Note: Lua 5.1 interpreter is not prepared to show
-                    //       non-string errors, so we use 'tostring()' here
-                    //       to get meaningful output.  --AKa 22-Jan-2009
-                    //
-                    //       Also, the stack dump we get is no good; it only
-                    //       lists our internal Lanes functions. There seems
-                    //       to be no way to switch it off, though.
-                    //
-                    // Level 3 should show the line where 'h[x]' was read
-                    // but this only seems to work for string messages
-                    // (Lua 5.1.4). No idea, why.   --AKa 22-Jan-2009
-                    lua_getmetatable(L_, kSelf);                                                   // L_: self KEY ENV "error" mt
-                    lua_getfield(L_, -1, "cached_error");                                          // L_: self KEY ENV "error" mt error()
-                    lua_getfield(L_, -2, "cached_tostring");                                       // L_: self KEY ENV "error" mt error() tostring()
-                    lua_pushvalue(L_, 4);                                                          // L_: self KEY ENV "error" mt error() tostring() "error"
-                    lua_call(L_, 1, 1); // tostring(errstring) -- just in case                     // L_: self KEY ENV "error" mt error() "error"
-                    lua_pushinteger(L_, 3);                                                        // L_: self KEY ENV "error" mt error() "error" 3
-                    lua_call(L_, 2, 0); // error(tostring(errstring), 3) -> doesn't return         // L_: self KEY ENV "error" mt
-                } else {
-                    lua_pop(L_, 1);                                                                // L_: self KEY ENV
-                }
-            }
-            lua_rawgeti(L_, kUsr, _key);
-        }
-        return 1;
+    default: // unknown key
+        lua_getmetatable(L_, kSelf);                                                               // L_: mt
+        lua_getfield(L_, -1, "cached_error");                                                      // L_: mt error
+        lua_pushliteral(L_, "Unknown key: ");                                                      // L_: mt error "Unknown key: "
+        lua_pushvalue(L_, kKey);                                                                   // L_: mt error "Unknown key: " k
+        lua_concat(L_, 2);                                                                         // L_: mt error "Unknown key: <k>"
+        lua_call(L_, 1, 0); // error( "Unknown key: " .. key) -> doesn't return                    // L_: mt
+        raise_luaL_error(L_, "%s[%s]: should not get here!", _lane->debugName, lua_typename(L_, lua_type(L_, kKey)));
     }
-    if (lua_type(L_, kKey) == LUA_TSTRING) {
-        char const* const _keystr{ lua_tostring(L_, kKey) };
-        lua_settop(L_, 2); // keep only our original arguments on the stack
-        if (strcmp(_keystr, "status") == 0) {
-            _lane->pushThreadStatus(L_); // push the string representing the status
-            return 1;
-        }
-        // return self.metatable[key]
-        lua_getmetatable(L_, kSelf);                                                               // L_: self KEY mt
-        lua_replace(L_, -3);                                                                       // L_: mt KEY
-        lua_rawget(L_, -2);                                                                        // L_: mt value
-        // only "cancel" and "join" are registered as functions, any other string will raise an error
-        if (!lua_iscfunction(L_, -1)) {
-            raise_luaL_error(L_, "can't index a lane with '%s'", _keystr);
-        }
-        return 1;
-    }
-    // unknown key
-    lua_getmetatable(L_, kSelf);                                                                   // L_: mt
-    lua_getfield(L_, -1, "cached_error");                                                          // L_: mt error
-    lua_pushliteral(L_, "Unknown key: ");                                                          // L_: mt error "Unknown key: "
-    lua_pushvalue(L_, kKey);                                                                       // L_: mt error "Unknown key: " k
-    lua_concat(L_, 2);                                                                             // L_: mt error "Unknown key: <k>"
-    lua_call(L_, 1, 0); // error( "Unknown key: " .. key) -> doesn't return                        // L_: mt
-    return 0;
 }
 
 // #################################################################################################
@@ -387,7 +400,6 @@ static char const* get_errcode_name(LuaError _code)
  *     implement a Lanes-specific 'pcall' of our own that does this). TBD!!! :)
  *       --AKa 22-Jan-2009
  */
-#if ERROR_FULL_STACK
 
 // xxh64 of string "kStackTraceRegKey" generated at https://www.pelock.com/products/hash-calculator
 static constexpr RegistryUniqueKey kStackTraceRegKey{ 0x3F327747CACAA904ull };
@@ -457,13 +469,12 @@ static constexpr RegistryUniqueKey kStackTraceRegKey{ 0x3F327747CACAA904ull };
     STACK_CHECK(L_, 1);
     return 1; // the untouched error value
 }
-#endif // ERROR_FULL_STACK
 
 // #################################################################################################
 // ########################################## Finalizer ############################################
 // #################################################################################################
 
-static void push_stack_trace(lua_State* L_, LuaError rc_, int stk_base_)
+static void push_stack_trace(lua_State* L_, Lane::ErrorTraceLevel errorTraceLevel_, LuaError rc_, int stk_base_)
 {
     // Lua 5.1 error handler is limited to one return value; it stored the stack trace in the registry
     switch (rc_) {
@@ -471,8 +482,7 @@ static void push_stack_trace(lua_State* L_, LuaError rc_, int stk_base_)
         break;
 
     case LuaError::ERRRUN: // cancellation or a runtime error
-#if ERROR_FULL_STACK // when ERROR_FULL_STACK, we installed a handler
-        {
+        if (errorTraceLevel_ != Lane::Minimal) { // when not Minimal, we installed a handler
             STACK_CHECK_START_REL(L_, 0);
             // fetch the call stack table from the registry where the handler stored it
             STACK_GROW(L_, 1);
@@ -484,11 +494,10 @@ static void push_stack_trace(lua_State* L_, LuaError rc_, int stk_base_)
             // For other errors, the message can be whatever was thrown, and we should have a stack trace table
             LUA_ASSERT(L_, lua_type(L_, 1 + stk_base_) == (kCancelError.equals(L_, stk_base_) ? LUA_TNIL : LUA_TTABLE));
             // Just leaving the stack trace table on the stack is enough to get it through to the master.
+        } else {
+            // any kind of error can be thrown with error(), or through a lane/linda cancellation
+            LUA_ASSERT(L_, lua_gettop(L_) == stk_base_);
         }
-#else // !ERROR_FULL_STACK
-        // any kind of error can be thrown with error(), or through a lane/linda cancellation
-        LUA_ASSERT(L_, lua_gettop(L_) == stk_base_);
-#endif // !ERROR_FULL_STACK
         break;
 
     case LuaError::ERRMEM: // memory allocation error (handler not called)
@@ -504,7 +513,7 @@ static void push_stack_trace(lua_State* L_, LuaError rc_, int stk_base_)
 //---
 // Run finalizers - if any - with the given parameters
 //
-// If 'rc' is nonzero, error message and stack index (the latter only when ERROR_FULL_STACK == 1) are available as:
+// If 'rc' is nonzero, error message and stack index (the latter only when errorTraceLevel_ == 1) are available as:
 //      [-1]: stack trace (table)
 //      [-2]: error message (any type)
 //
@@ -515,7 +524,7 @@ static void push_stack_trace(lua_State* L_, LuaError rc_, int stk_base_)
 // TBD: should we add stack trace on failing finalizer, wouldn't be hard..
 //
 
-[[nodiscard]] static LuaError run_finalizers(lua_State* L_, LuaError lua_rc_)
+[[nodiscard]] static LuaError run_finalizers(lua_State* L_, Lane::ErrorTraceLevel errorTraceLevel_, LuaError lua_rc_)
 {
     kFinalizerRegKey.pushValue(L_);                                                                // L_: ... finalizers?
     if (lua_isnil(L_, -1)) {
@@ -526,7 +535,7 @@ static void push_stack_trace(lua_State* L_, LuaError rc_, int stk_base_)
     STACK_GROW(L_, 5);
 
     int const _finalizers_index{ lua_gettop(L_) };
-    int const _err_handler_index{ ERROR_FULL_STACK ? (lua_pushcfunction(L_, lane_error), lua_gettop(L_)) : 0 };
+    int const _err_handler_index{ (errorTraceLevel_ != Lane::Minimal) ? (lua_pushcfunction(L_, lane_error), lua_gettop(L_)) : 0 };
 
     LuaError _rc{ LuaError::OK };
     for (int _n = static_cast<int>(lua_rawlen(L_, _finalizers_index)); _n > 0; --_n) {
@@ -548,7 +557,7 @@ static void push_stack_trace(lua_State* L_, LuaError rc_, int stk_base_)
         // if no error from the main body, finalizer doesn't receive any argument, else it gets the error message and optional stack trace
         _rc = ToLuaError(lua_pcall(L_, _args, 0, _err_handler_index));                             // L_: ... finalizers lane_error err_msg2?
         if (_rc != LuaError::OK) {
-            push_stack_trace(L_, _rc, lua_gettop(L_));                                             // L_: ... finalizers lane_error err_msg2? trace
+            push_stack_trace(L_, errorTraceLevel_, _rc, lua_gettop(L_));                           // L_: ... finalizers lane_error err_msg2? trace
             // If one finalizer fails, don't run the others. Return this
             // as the 'real' error, replacing what we could have had (or not)
             // from the actual code.
@@ -558,8 +567,8 @@ static void push_stack_trace(lua_State* L_, LuaError rc_, int stk_base_)
     }
 
     if (_rc != LuaError::OK) {
-        // ERROR_FULL_STACK accounts for the presence of lane_error on the stack
-        int const _nb_err_slots{ lua_gettop(L_) - _finalizers_index - ERROR_FULL_STACK };
+        // errorTraceLevel_ accounts for the presence of lane_error on the stack
+        int const _nb_err_slots{ lua_gettop(L_) - _finalizers_index - ((errorTraceLevel_ != Lane::Minimal) ? 1 : 0) };
         // a finalizer generated an error, this is what we leave of the stack
         for (int _n = _nb_err_slots; _n > 0; --_n) {
             lua_replace(L_, _n);
@@ -651,38 +660,27 @@ static void lane_main(Lane* lane_)
     lane_->ready.wait();
     LuaError _rc{ LuaError::ERRRUN };
     if (lane_->status == Lane::Pending) { // nothing wrong happened during preparation, we can work
-        // At this point, the lane function and arguments are on the stack
-        int const _nargs{ lua_gettop(_L) - 1 };
+        // At this point, the lane function and arguments are on the stack, possibly preceded by the error handler
+        int const _errorHandlerCount{ lane_->errorTraceLevel == Lane::Minimal ? 0 : 1};
+        int const _nargs{ lua_gettop(_L) - 1 - _errorHandlerCount };
         DEBUGSPEW_CODE(Universe* _U = universe_get(_L));
         lane_->status = Lane::Running; // Pending -> Running
 
         PrepareLaneHelpers(lane_);
 
-        // this could be done in lane_new before the lane body function is pushed on the stack to avoid unnecessary stack slot shifting around
-#if ERROR_FULL_STACK
-        // Tie "set_error_reporting()" to the state
-        lua_pushcfunction(_L, LG_set_error_reporting);
-        populate_func_lookup_table(_L, -1, "set_error_reporting");
-        lua_setglobal(_L, "set_error_reporting");
+        _rc = ToLuaError(lua_pcall(_L, _nargs, LUA_MULTRET, _errorHandlerCount));                  // L: eh? retvals|err
 
-        STACK_GROW(_L, 1);
-        lua_pushcfunction(_L, lane_error);                                                         // L: func args handler
-        lua_insert(_L, 1);                                                                         // L: handler func args
-#endif                                                                                             // L: ERROR_FULL_STACK
-
-        _rc = ToLuaError(lua_pcall(_L, _nargs, LUA_MULTRET, ERROR_FULL_STACK));                    // L: retvals|err
-
-#if ERROR_FULL_STACK
-        lua_remove(_L, 1);                                                                         // L: retvals|error
-#endif // ERROR_FULL_STACK
+        if (_errorHandlerCount) {
+            lua_remove(_L, 1);                                                                     // L: retvals|error
+        }
 
         // in case of error and if it exists, fetch stack trace from registry and push it
-        push_stack_trace(_L, _rc, 1);                                                              // L: retvals|error [trace]
+        push_stack_trace(_L, lane_->errorTraceLevel, _rc, 1);                                      // L: retvals|error [trace]
 
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p body: %s (%s)\n" INDENT_END(_U), _L, get_errcode_name(_rc), kCancelError.equals(_L, 1) ? "cancelled" : lua_typename(_L, lua_type(_L, 1))));
         //  Call finalizers, if the script has set them up.
         //
-        LuaError const _rc2{ run_finalizers(_L, _rc) };
+        LuaError const _rc2{ run_finalizers(_L, lane_->errorTraceLevel, _rc) };
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p finalizer: %s\n" INDENT_END(_U), _L, get_errcode_name(_rc2)));
         if (_rc2 != LuaError::OK) { // Error within a finalizer!
             // the finalizer generated an error, and left its own error message [and stack trace] on the stack
@@ -779,10 +777,13 @@ static void lane_main(Lane* lane_)
 // #################################### Lane implementation ########################################
 // #################################################################################################
 
-Lane::Lane(Universe* U_, lua_State* L_)
+Lane::Lane(Universe* U_, lua_State* L_, ErrorTraceLevel errorTraceLevel_)
 : U{ U_ }
 , L{ L_ }
+, errorTraceLevel{ errorTraceLevel_ }
 {
+    assert(errorTraceLevel == ErrorTraceLevel::Minimal || errorTraceLevel == ErrorTraceLevel::Basic || errorTraceLevel == ErrorTraceLevel::Extended);
+    kExtendedStackTraceRegKey.setValue(L_, [yes = errorTraceLevel == ErrorTraceLevel::Extended ? 1 : 0](lua_State* L_) { lua_pushboolean(L_, yes); });
 #if HAVE_LANE_TRACKING()
     U->tracker.tracking_add(this);
 #endif // HAVE_LANE_TRACKING()
@@ -822,6 +823,29 @@ void Lane::changeDebugName(int nameIdx_)
 
 // #################################################################################################
 
+//---
+// str= thread_status( lane )
+//
+// Returns: "pending"   not started yet
+//          -> "running"   started, doing its work..
+//             <-> "waiting"   blocked in a receive()
+//                -> "done"     finished, results are there
+//                   / "error"     finished at an error, error value is there
+//                   / "cancelled"   execution cancelled by M (state gone)
+//
+[[nodiscard]] char const* Lane::errorTraceLevelString() const
+{
+    char const* const _str{
+        (errorTraceLevel == ErrorTraceLevel::Minimal) ? "minimal" :
+        (errorTraceLevel == ErrorTraceLevel::Basic) ? "basic" :
+        (errorTraceLevel == ErrorTraceLevel::Extended) ? "extended" :
+        nullptr
+    };
+    return _str;
+}
+
+// #################################################################################################
+
 namespace global {
     static struct luaL_Reg const sLaneFunctions[] = {
         { "__gc", lane_gc },
@@ -840,23 +864,45 @@ void Lane::PushMetatable(lua_State* L_)
     if (luaL_newmetatable(L_, kLaneMetatableName)) {                                               // L_: mt
         luaG_registerlibfuncs(L_, global::sLaneFunctions);
         // cache error() and tostring()
-        lua_getglobal(L_, "error");                                                                // L_: mt error
-        LUA_ASSERT(L_, lua_isfunction(L_, -1));
-        lua_setfield(L_, -2, "cached_error");                                                      // L_: mt
-        lua_getglobal(L_, "tostring");                                                             // L_: mt tostring
-        LUA_ASSERT(L_, lua_isfunction(L_, -1));
-        lua_setfield(L_, -2, "cached_tostring");                                                   // L_: mt
+        kCachedError.pushKey(L_);                                                                  // L_: mt kCachedError
+        lua_getglobal(L_, "error");                                                                // L_: mt kCachedError error()
+        lua_rawset(L_, -3);                                                                        // L_: mt
+        kCachedTostring.pushKey(L_);                                                               // L_: mt kCachedTostring
+        lua_getglobal(L_, "tostring");                                                             // L_: mt kCachedTostring tostring()
+        lua_rawset(L_, -3);                                                                        // L_: mt
         // hide the actual metatable from getmetatable()
         lua_pushliteral(L_, kLaneMetatableName);                                                   // L_: mt "Lane"
         lua_setfield(L_, -2, "__metatable");                                                       // L_: mt
     }
     STACK_CHECK(L_, 1);
 }
+
+// #################################################################################################
+
+[[nodiscard]] int Lane::pushErrorHandler() const
+{
+    if (errorTraceLevel != ErrorTraceLevel::Minimal) {
+        lua_pushcfunction(L, lane_error);
+        return 1;
+    }
+    return 0;
+}
+
 // #################################################################################################
 
 void Lane::pushThreadStatus(lua_State* L_) const
 {
     char const* const _str{ threadStatusString() };
+    LUA_ASSERT(L_, _str);
+
+    lua_pushstring(L_, _str);
+}
+
+// #################################################################################################
+
+void Lane::pushErrorTraceLevel(lua_State* L_) const
+{
+    char const* const _str{ errorTraceLevelString() };
     LUA_ASSERT(L_, _str);
 
     lua_pushstring(L_, _str);
