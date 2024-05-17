@@ -73,10 +73,10 @@ template <typename... ARGS>
 
 #else // NDEBUG
 
-inline void LUA_ASSERT_IMPL(lua_State* L_, bool cond_, char const* file_, size_t const line_, char const* txt_)
+inline void LUA_ASSERT_IMPL(lua_State* L_, bool cond_, char const* file_, int const line_, char const* txt_)
 {
     if (!cond_) {
-        raise_luaL_error(L_, "LUA_ASSERT %s:%llu '%s'", file_, line_, txt_);
+        raise_luaL_error(L_, "LUA_ASSERT %s:%d '%s'", file_, line_, txt_);
     }
 }
 
