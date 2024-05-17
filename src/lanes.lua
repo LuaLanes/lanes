@@ -40,8 +40,7 @@ local core = require "lanes.core"
 -- Lua 5.2: module() is gone
 -- almost everything module() does is done by require() anyway
 -- -> simply create a table, populate it, return it, and be done
-local lanesMeta = {}
-local lanes = setmetatable({}, lanesMeta)
+local lanes = {}
 
 -- #################################################################################################
 
@@ -752,8 +751,15 @@ end -- genatomic
 -- ################################## lanes.configure() ############################################
 -- #################################################################################################
 
+-- start with a protected metatable
+local lanesMeta = { __metatable = "Lanes" }
+
 -- this function is available in the public interface until it is called, after which it disappears
-lanes.configure = function(settings_)
+local configure = function(settings_)
+    -- Configure called so remove metatable from lanes
+    lanesMeta.__metatable = nil -- unprotect the metatable
+    setmetatable(lanes, nil) -- remove it
+    lanes.configure = nil -- no need to call configure() ever again
 
     -- This check is for sublanes requiring Lanes
     --
@@ -762,8 +768,6 @@ lanes.configure = function(settings_)
     if not string then
         error("To use 'lanes', you will also need to have 'string' available.", 2)
     end
-    -- Configure called so remove metatable from lanes
-    setmetatable(lanes, nil)
 
     -- now we can configure Lanes core
     local settings = core.configure and core.configure(params_checker(settings_)) or core.settings
@@ -800,7 +804,6 @@ lanes.configure = function(settings_)
     lanes.set_thread_priority = core.set_thread_priority
     lanes.threads = core.threads or function() error "lane tracking is not available" end -- core.threads isn't registered if settings.track_lanes is false
 
-    lanes.configure = nil -- no need to call configure() ever again
     lanes.gen = gen
     lanes.genatomic = genatomic
     lanes.genlock = genlock
@@ -813,18 +816,20 @@ end -- lanes.configure
 
 -- #################################################################################################
 
-lanesMeta.__index = function(_, k_)
+lanesMeta.__index = function(lanes_, k_)
     -- This is called when some functionality is accessed without calling configure()
-    lanes.configure() -- initialize with default settings
+    configure() -- initialize with default settings
     -- Access the required key
-    return lanes[k_]
+    return lanes_[k_]
 end
+lanes.configure = configure
+setmetatable(lanes, lanesMeta)
 
 -- #################################################################################################
 
 -- no need to force calling configure() manually excepted the first time (other times will reuse the internally stored settings of the first call)
 if core.settings then
-    return lanes.configure()
+    return configure()
 else
     return lanes
 end

@@ -257,7 +257,7 @@ void InterCopyContext::copy_func() const
          * Lua5.2 and Lua5.3: one of the upvalues is _ENV, which we don't want to copy!
          * instead, the function shall have LUA_RIDX_GLOBALS taken in the destination state!
          */
-        int n{ 0 };
+        int _n{ 0 };
         {
             InterCopyContext _c{ U, L2, L1, L2_cache_i, {}, VT::NORMAL, mode, {} };
 #if LUA_VERSION_NUM >= 502
@@ -266,7 +266,7 @@ void InterCopyContext::copy_func() const
             // -> if we encounter an upvalue equal to the global table in the source, bind it to the destination's global table
             lua_pushglobaltable(L1);                                                               // L1: ... _G
 #endif // LUA_VERSION_NUM
-            for (n = 0; (_c.name = lua_getupvalue(L1, L1_i, 1 + n)) != nullptr; ++n) {             // L1: ... _G up[n]
+            for (_n = 0; (_c.name = lua_getupvalue(L1, L1_i, 1 + _n)) != nullptr; ++_n) {          // L1: ... _G up[n]
                 DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "UPNAME[%d]: %s -> " INDENT_END(U), n, _c.name));
 #if LUA_VERSION_NUM >= 502
                 if (lua_rawequal(L1, -1, -2)) { // is the upvalue equal to the global table?
@@ -292,13 +292,13 @@ void InterCopyContext::copy_func() const
         STACK_CHECK(L1, 0);
 
         // Set upvalues (originally set to 'nil' by 'lua_load')
-        for (int const _func_index{ lua_gettop(L2) - n }; n > 0; --n) {
-            char const* _rc{ lua_setupvalue(L2, _func_index, n) };                                 //                                                L2: ... {cache} ... function
+        for (int const _func_index{ lua_gettop(L2) - _n }; _n > 0; --_n) {
+            [[maybe_unused]] char const* _upname{ lua_setupvalue(L2, _func_index, _n) };           //                                                L2: ... {cache} ... function
             //
             // "assigns the value at the top of the stack to the upvalue and returns its name.
             // It also pops the value from the stack."
 
-            LUA_ASSERT(L1, _rc); // not having enough slots?
+            LUA_ASSERT(L1, _upname); // not having enough slots?
         }
         // once all upvalues have been set we are left
         // with the function at the top of the stack                                               //                                                L2: ... {cache} ... function

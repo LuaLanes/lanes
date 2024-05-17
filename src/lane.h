@@ -42,9 +42,7 @@ static constexpr RegistryUniqueKey kLanePointerRegKey{ 0x2D8CF03FE9F0A51Aull }; 
 #define kLanesLibName "lanes"
 #define kLanesCoreLibName kLanesLibName ".core"
 
-// NOTE: values to be changed by either thread, during execution, without
-//       locking, are marked "volatile"
-//
+// NOTE: values to be changed by either thread, during execution, without locking, are marked "volatile"
 class Lane
 {
     public:

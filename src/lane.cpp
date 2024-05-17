@@ -474,7 +474,7 @@ static constexpr RegistryUniqueKey kStackTraceRegKey{ 0x3F327747CACAA904ull };
 // ########################################## Finalizer ############################################
 // #################################################################################################
 
-static void push_stack_trace(lua_State* L_, Lane::ErrorTraceLevel errorTraceLevel_, LuaError rc_, int stk_base_)
+static void push_stack_trace(lua_State* L_, Lane::ErrorTraceLevel errorTraceLevel_, LuaError rc_, [[maybe_unused]] int stk_base_)
 {
     // Lua 5.1 error handler is limited to one return value; it stored the stack trace in the registry
     switch (rc_) {

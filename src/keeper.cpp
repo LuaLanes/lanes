@@ -61,7 +61,7 @@ class keeper_fifo
     [[nodiscard]] static void* operator new([[maybe_unused]] size_t size_, KeeperState L_) noexcept { return lua_newuserdatauv<keeper_fifo>(L_, 1); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
-    static void operator delete([[maybe_unused]] void* p_, KeeperState L_) { LUA_ASSERT(L_, !"should never be called"); }
+    static void operator delete([[maybe_unused]] void* p_, [[maybe_unused]] KeeperState L_) { LUA_ASSERT(L_, !"should never be called"); }
 
     [[nodiscard]] static keeper_fifo* getPtr(lua_State* L_, int idx_)
     {
