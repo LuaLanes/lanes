@@ -119,6 +119,7 @@ class Lane
     ~Lane();
 
     void changeDebugName(int nameIdx_);
+    void close() { lua_State* _L{ L }; L = nullptr; lua_close(_L); }
     void pushThreadStatus(lua_State* L_) const;
     void securizeDebugName(lua_State* L_);
     void startThread(int priority_);

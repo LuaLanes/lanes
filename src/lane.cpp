@@ -190,8 +190,7 @@ LUAG_FUNC(thread_join)
         LUA_ASSERT(L_, false);
         _ret = 0;
     }
-    lua_close(_L2);
-    _lane->L = nullptr;
+    _lane->close();
     STACK_CHECK(L_, _ret);
     return _ret;
 }
@@ -683,8 +682,7 @@ static void lane_main(Lane* lane_)
         lane_->waiting_on = nullptr;  // just in case
         if (selfdestruct_remove(lane_)) { // check and remove (under lock!)
             // We're a free-running thread and no-one's there to clean us up.
-            lua_close(lane_->L);
-            lane_->L = nullptr; // just in case
+            lane_->close();
             lane_->U->selfdestructMutex.lock();
             // done with lua_close(), terminal shutdown sequence may proceed
             lane_->U->selfdestructingCount.fetch_sub(1, std::memory_order_release);
@@ -752,9 +750,8 @@ static void lane_main(Lane* lane_)
         return 0;
     } else if (_lane->L) {
         // no longer accessing the Lua VM: we can close right now
-        lua_close(_lane->L);
-        _lane->L = nullptr;
-        // just in case, but s will be freed soon so...
+        _lane->close();
+        // just in case, but _lane will be freed soon so...
         _lane->debugName = "<gc>";
     }
 
