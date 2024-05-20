@@ -96,38 +96,37 @@ THE SOFTWARE.
         lua_pushvalue(L1, L1_i);                                                                   // L1: ... v ... {} v
         lua_rawget(L1, -2);                                                                        // L1: ... v ... {} "f.q.n"
     }
-    size_t _len{ 0 };
-    char const* _fqn{ lua_tolstring(L1, -1, &_len) };
+    std::string_view _fqn{ lua_tostringview(L1, -1) };
     DEBUGSPEW_CODE(Universe* const _U = universe_get(L1));
-    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "function [C] %s \n" INDENT_END(_U), _fqn));
+    DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "function [C] %s \n" INDENT_END(_U), _fqn.data()));
     // popping doesn't invalidate the pointer since this is an interned string gotten from the lookup database
     lua_pop(L1, (mode == LookupMode::FromKeeper) ? 1 : 2);                                         // L1: ... v ...
     STACK_CHECK(L1, 0);
-    if (nullptr == _fqn && !lua_istable(L1, L1_i)) { // raise an error if we try to send an unknown function (but not for tables)
-        _len = 0; // just in case
+    if (_fqn.empty() && !lua_istable(L1, L1_i)) { // raise an error if we try to send an unknown function (but not for tables)
+        _fqn = std::string_view{}; // just in case
         // try to discover the name of the function we want to send
         lua_getglobal(L1, "decoda_name");                                                          // L1: ... v ... decoda_name
-        char const* from{ lua_tostring(L1, -1) };
+        char const* _from{ lua_tostring(L1, -1) };
         lua_pushcfunction(L1, luaG_nameof);                                                        // L1: ... v ... decoda_name luaG_nameof
         lua_pushvalue(L1, L1_i);                                                                   // L1: ... v ... decoda_name luaG_nameof t
         lua_call(L1, 1, 2);                                                                        // L1: ... v ... decoda_name "type" "name"|nil
-        char const* typewhat{ (lua_type(L1, -2) == LUA_TSTRING) ? lua_tostring(L1, -2) : luaL_typename(L1, -2) };
+        char const* _typewhat{ (lua_type(L1, -2) == LUA_TSTRING) ? lua_tostring(L1, -2) : luaL_typename(L1, -2) };
         // second return value can be nil if the table was not found
         // probable reason: the function was removed from the source Lua state before Lanes was required.
-        char const *what, *gotchaA, *gotchaB;
+        char const *_what, *_gotchaA, *_gotchaB;
         if (lua_isnil(L1, -1)) {
-            gotchaA = " referenced by";
-            gotchaB = "\n(did you remove it from the source Lua state before requiring Lanes?)";
-            what = name;
+            _gotchaA = " referenced by";
+            _gotchaB = "\n(did you remove it from the source Lua state before requiring Lanes?)";
+            _what = name;
         } else {
-            gotchaA = "";
-            gotchaB = "";
-            what = (lua_type(L1, -1) == LUA_TSTRING) ? lua_tostring(L1, -1) : luaL_typename(L1, -1);
+            _gotchaA = "";
+            _gotchaB = "";
+            _what = (lua_type(L1, -1) == LUA_TSTRING) ? lua_tostring(L1, -1) : luaL_typename(L1, -1);
         }
-        raise_luaL_error(L1, "%s%s '%s' not found in %s origin transfer database.%s", typewhat, gotchaA, what, from ? from : "main", gotchaB);
+        raise_luaL_error(L1, "%s%s '%s' not found in %s origin transfer database.%s", _typewhat, _gotchaA, _what, _from ? _from : "main", _gotchaB);
     }
     STACK_CHECK(L1, 0);
-    return std::string_view{ _fqn, _len };
+    return _fqn;
 }
 
 // #################################################################################################
@@ -208,7 +207,7 @@ void InterCopyContext::copy_func() const
 
     // transfer the bytecode, then the upvalues, to create a similar closure
     {
-        char const* fname = nullptr;
+        char const* _fname{};
 #define LOG_FUNC_INFO 0
 #if LOG_FUNC_INFO
         // "To get information about a function you push it onto the
@@ -219,14 +218,13 @@ void InterCopyContext::copy_func() const
             lua_pushvalue(L1, L1_i);                                                               // L1: ... b f
             // fills 'fname' 'namewhat' and 'linedefined', pops function
             lua_getinfo(L1, ">nS", &_ar);                                                          // L1: ... b
-            fname = _ar.namewhat;
+            _fname = _ar.namewhat;
             DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "FNAME: %s @ %d" INDENT_END(U), _ar.short_src, _ar.linedefined)); // just gives nullptr
         }
 #endif // LOG_FUNC_INFO
         {
-            size_t _sz;
-            char const* _s{ lua_tolstring(L1, -1, &_sz) };                                         // L1: ... b
-            LUA_ASSERT(L1, _s && _sz);
+            std::string_view const _bytecode{ lua_tostringview(L1, -1) };                          // L1: ... b
+            LUA_ASSERT(L1, !_bytecode.empty());
             STACK_GROW(L2, 2);
             // Note: Line numbers seem to be taken precisely from the
             //       original function. 'fname' is not used since the chunk
@@ -234,12 +232,12 @@ void InterCopyContext::copy_func() const
             //
             // TBD: Can we get the function's original name through, as well?
             //
-            if (luaL_loadbuffer(L2, _s, _sz, fname) != 0) {                                        //                                                L2: ... {cache} ... p function
+            if (luaL_loadbuffer(L2, _bytecode.data(), _bytecode.size(), _fname) != 0) {            //                                                L2: ... {cache} ... p function
                 // chunk is precompiled so only LUA_ERRMEM can happen
                 // "Otherwise, it pushes an error message"
                 //
                 STACK_GROW(L1, 1);
-                raise_luaL_error(getErrL(), "%s: %s", fname, lua_tostring(L2, -1));
+                raise_luaL_error(getErrL(), "%s: %s", _fname, lua_tostring(L2, -1));
             }
             // remove the dumped string
             lua_pop(L1, 1); // ...
@@ -268,7 +266,7 @@ void InterCopyContext::copy_func() const
             lua_pushglobaltable(L1);                                                               // L1: ... _G
 #endif // LUA_VERSION_NUM
             for (_n = 0; (_c.name = lua_getupvalue(L1, L1_i, 1 + _n)) != nullptr; ++_n) {          // L1: ... _G up[n]
-                DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "UPNAME[%d]: %s -> " INDENT_END(U), n, _c.name));
+                DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "UPNAME[%d]: %s -> " INDENT_END(U), _n, _c.name));
 #if LUA_VERSION_NUM >= 502
                 if (lua_rawequal(L1, -1, -2)) { // is the upvalue equal to the global table?
                     DEBUGSPEW_CODE(fprintf(stderr, "pushing destination global scope\n"));
@@ -350,7 +348,7 @@ void InterCopyContext::lookup_native_func() const
                 "%s%s: function '%s' not found in %s destination transfer database.",
                 lua_isnil(L2, -1) ? "" : "INTERNAL ERROR IN ",
                 _from ? _from : "main",
-                _fqn,
+                _fqn.data(),
                 _to ? _to : "main");
             return;
         }
@@ -499,47 +497,45 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         // maybe offer this possibility as a global configuration option, or a linda setting, or as a parameter of the call causing the transfer?
     }
 
-    char* valPath{ nullptr };
+    char* _valPath{ nullptr };
     if (U->verboseErrors) {
         // for debug purposes, let's try to build a useful name
         if (lua_type(L1, _key_i) == LUA_TSTRING) {
-            char const* key{ lua_tostring(L1, _key_i) };
-            size_t const keyRawLen = lua_rawlen(L1, _key_i);
-            size_t const bufLen = strlen(name) + keyRawLen + 2;
-            valPath = (char*) alloca(bufLen);
-            sprintf(valPath, "%s.%*s", name, (int) keyRawLen, key);
-            key = nullptr;
+            std::string_view const _key{ lua_tostringview(L1, _key_i) };
+            size_t const _bufLen{ strlen(name) + _key.size() + 2 }; // +2 for separator dot and terminating 0
+            _valPath = static_cast<char*>(alloca(_bufLen));
+            sprintf(_valPath, "%s.%*s", name, static_cast<int>(_key.size()), _key.data());
         }
 #if defined LUA_LNUM || LUA_VERSION_NUM >= 503
         else if (lua_isinteger(L1, _key_i)) {
             lua_Integer const key{ lua_tointeger(L1, _key_i) };
-            valPath = (char*) alloca(strlen(name) + 32 + 3);
-            sprintf(valPath, "%s[" LUA_INTEGER_FMT "]", name, key);
+            _valPath = (char*) alloca(strlen(name) + 32 + 3); // +3 for [] and terminating 0
+            sprintf(_valPath, "%s[" LUA_INTEGER_FMT "]", name, key);
         }
 #endif // defined LUA_LNUM || LUA_VERSION_NUM >= 503
         else if (lua_type(L1, _key_i) == LUA_TNUMBER) {
             lua_Number const key{ lua_tonumber(L1, _key_i) };
-            valPath = (char*) alloca(strlen(name) + 32 + 3);
-            sprintf(valPath, "%s[" LUA_NUMBER_FMT "]", name, key);
+            _valPath = (char*) alloca(strlen(name) + 32 + 3); // +3 for [] and terminating 0
+            sprintf(_valPath, "%s[" LUA_NUMBER_FMT "]", name, key);
         } else if (lua_type(L1, _key_i) == LUA_TLIGHTUSERDATA) {
             void* const key{ lua_touserdata(L1, _key_i) };
-            valPath = (char*) alloca(strlen(name) + 16 + 5);
-            sprintf(valPath, "%s[U:%p]", name, key);
+            _valPath = (char*) alloca(strlen(name) + 16 + 5); // +5 for [U:] and terminating 0
+            sprintf(_valPath, "%s[U:%p]", name, key);
         } else if (lua_type(L1, _key_i) == LUA_TBOOLEAN) {
             int const key{ lua_toboolean(L1, _key_i) };
-            valPath = (char*) alloca(strlen(name) + 8);
-            sprintf(valPath, "%s[%s]", name, key ? "true" : "false");
+            _valPath = (char*) alloca(strlen(name) + 8); // +8 for [], 'false' and terminating 0
+            sprintf(_valPath, "%s[%s]", name, key ? "true" : "false");
         }
     }
     _c.L1_i = SourceIndex{ _val_i };
     // Contents of metatables are copied with cache checking. important to detect loops.
     _c.vt = VT::NORMAL;
-    _c.name = valPath ? valPath : name;
+    _c.name = _valPath ? _valPath : name;
     if (_c.inter_copy_one()) {
         LUA_ASSERT(L1, lua_istable(L2, -3));
         lua_rawset(L2, -3); // add to table (pops key & val)
     } else {
-        raise_luaL_error(getErrL(), "Unable to copy %s entry '%s' because of value is of type '%s'", (vt == VT::NORMAL) ? "table" : "metatable", valPath, luaL_typename(L1, _val_i));
+        raise_luaL_error(getErrL(), "Unable to copy %s entry '%s' because of value is of type '%s'", (vt == VT::NORMAL) ? "table" : "metatable", _valPath, luaL_typename(L1, _val_i));
     }
 }
 
@@ -931,10 +927,9 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 
 [[nodiscard]] bool InterCopyContext::inter_copy_string() const
 {
-    size_t _len{ 0 };
-    char const* const _s{ lua_tolstring(L1, L1_i, &_len) };
-    DEBUGSPEW_CODE(fprintf(stderr, "'%s'\n", _s));
-    lua_pushlstring(L2, _s, _len);
+    std::string_view const _s{ lua_tostringview(L1, L1_i) };
+    DEBUGSPEW_CODE(fprintf(stderr, "'%s'\n", _s.data()));
+    lua_pushlstring(L2, _s.data(), _s.size());
     return true;
 }
 

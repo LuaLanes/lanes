@@ -103,8 +103,7 @@ std::string_view LindaFactory::moduleName() const
 
 DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* L_) const
 {
-    size_t _name_len{ 0 };
-    char const* _linda_name{ nullptr };
+    std::string_view _linda_name{};
     LindaGroup _linda_group{ 0 };
     // should have a string and/or a number of the stack as parameters (name and group)
     switch (lua_gettop(L_)) {
@@ -113,14 +112,14 @@ DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* L_) const
 
     case 1: // 1 parameter, either a name or a group
         if (lua_type(L_, -1) == LUA_TSTRING) {
-            _linda_name = lua_tolstring(L_, -1, &_name_len);
+            _linda_name = lua_tostringview(L_, -1);
         } else {
             _linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L_, -1)) };
         }
         break;
 
     case 2: // 2 parameters, a name and group, in that order
-        _linda_name = lua_tolstring(L_, -2, &_name_len);
+        _linda_name = lua_tostringview(L_, -2);
         _linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L_, -1)) };
         break;
     }
@@ -128,6 +127,6 @@ DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* L_) const
     // The deep data is allocated separately of Lua stack; we might no longer be around when last reference to it is being released.
     // One can use any memory allocation scheme. Just don't use L's allocF because we don't know which state will get the honor of GCing the linda
     Universe* const _U{ universe_get(L_) };
-    Linda* const _linda{ new (_U) Linda{ _U, _linda_group, _linda_name, _name_len } };
+    Linda* const _linda{ new (_U) Linda{ _U, _linda_group, _linda_name.data(), _linda_name.size() } };
     return _linda;
 }

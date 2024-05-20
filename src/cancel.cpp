@@ -162,20 +162,20 @@ CancelResult thread_cancel(Lane* lane_, CancelOp op_, int hookCount_, std::chron
 // #################################################################################################
 // #################################################################################################
 
-CancelOp which_cancel_op(char const* opString_)
+CancelOp which_cancel_op(std::string_view const& opString_)
 {
     CancelOp _op{ CancelOp::Invalid };
-    if (strcmp(opString_, "hard") == 0) {
+    if (opString_ == "hard") {
         _op = CancelOp::Hard;
-    } else if (strcmp(opString_, "soft") == 0) {
+    } else if (opString_ == "soft") {
         _op = CancelOp::Soft;
-    } else if (strcmp(opString_, "call") == 0) {
+    } else if (opString_== "call") {
         _op = CancelOp::MaskCall;
-    } else if (strcmp(opString_, "ret") == 0) {
+    } else if (opString_ == "ret") {
         _op = CancelOp::MaskRet;
-    } else if (strcmp(opString_, "line") == 0) {
+    } else if (opString_ == "line") {
         _op = CancelOp::MaskLine;
-    } else if (strcmp(opString_, "count") == 0) {
+    } else if (opString_ == "count") {
         _op = CancelOp::MaskCount;
     }
     return _op;
@@ -186,7 +186,7 @@ CancelOp which_cancel_op(char const* opString_)
 [[nodiscard]] static CancelOp which_cancel_op(lua_State* L_, int idx_)
 {
     if (lua_type(L_, idx_) == LUA_TSTRING) {
-        char const* const _str{ lua_tostring(L_, idx_) };
+        std::string_view const _str{ lua_tostringview(L_, idx_) };
         CancelOp _op{ which_cancel_op(_str) };
         lua_remove(L_, idx_); // argument is processed, remove it
         if (_op == CancelOp::Invalid) {

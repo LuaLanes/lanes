@@ -25,6 +25,7 @@ extern "C"
 #endif // LUA_JITLIBNAME
 
 #include <cassert>
+#include <string_view>
 
 // code is now preferring Lua 5.4 API
 
@@ -249,3 +250,13 @@ inline constexpr LuaError ToLuaError(int rc_)
 // #################################################################################################
 
 LuaType luaG_getmodule(lua_State* L_, char const* name_);
+
+// #################################################################################################
+
+// a replacement of lua_tolstring
+inline std::string_view lua_tostringview(lua_State* L_, int idx_)
+{
+    size_t _len{ 0 };
+    char const* _str{ lua_tolstring(L_, idx_, &_len) };
+    return std::string_view{ _str, _len };
+}

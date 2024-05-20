@@ -90,26 +90,26 @@ static constexpr int kWriterReturnCode{ 666 };
 // #################################################################################################
 
 // inspired from tconcat() in ltablib.c
-[[nodiscard]] static char const* luaG_pushFQN(lua_State* L_, int t_, int last_, size_t* length_)
+[[nodiscard]] static std::string_view luaG_pushFQN(lua_State* L_, int t_, int last_)
 {
     luaL_Buffer _b;
     STACK_CHECK_START_REL(L_, 0);
     // Lua 5.4 pushes &b as light userdata on the stack. be aware of it...
     luaL_buffinit(L_, &_b);                                                                        // L_: ... {} ... &b?
-    int i = 1;
-    for (; i < last_; ++i) {
-        lua_rawgeti(L_, t_, i);
+    int _i{ 1 };
+    for (; _i < last_; ++_i) {
+        lua_rawgeti(L_, t_, _i);
         luaL_addvalue(&_b);
         luaL_addlstring(&_b, "/", 1);
     }
-    if (i == last_) { // add last value (if interval was not empty)
-        lua_rawgeti(L_, t_, i);
+    if (_i == last_) { // add last value (if interval was not empty)
+        lua_rawgeti(L_, t_, _i);
         luaL_addvalue(&_b);
     }
     // &b is popped at that point (-> replaced by the result)
     luaL_pushresult(&_b);                                                                          // L_: ... {} ... "<result>"
     STACK_CHECK(L_, 1);
-    return lua_tolstring(L_, -1, length_);
+    return lua_tostringview(L_, -1);
 }
 
 // #################################################################################################
@@ -129,7 +129,6 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L
     // slot 2 contains a table that, when concatenated, produces the fully qualified name of scanned elements in the table provided at slot _i
     int const _fqn{ ctxBase_ + 1 };
 
-    DEBUGSPEW_CODE(char const* _newName);
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "update_lookup_entry()\n" INDENT_END(U_)));
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U_ });
 
@@ -137,16 +136,14 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L
     // first, raise an error if the function is already known
     lua_pushvalue(L_, -1);                                                                         // L_: ... {bfc} k o o
     lua_rawget(L_, _dest);                                                                         // L_: ... {bfc} k o name?
-    size_t _prevNameLength;
-    char const* const _prevName{ lua_tolstring(L_, -1, &_prevNameLength) }; // nullptr if we got nil (first encounter of this object)
+    std::string_view const _prevName{ lua_tostringview(L_, -1) }; // nullptr if we got nil (first encounter of this object)
     // push name in fqn stack (note that concatenation will crash if name is a not string or a number)
     lua_pushvalue(L_, -3);                                                                         // L_: ... {bfc} k o name? k
     LUA_ASSERT(L_, lua_type(L_, -1) == LUA_TNUMBER || lua_type(L_, -1) == LUA_TSTRING);
     ++depth_;
     lua_rawseti(L_, _fqn, depth_);                                                                 // L_: ... {bfc} k o name?
     // generate name
-    size_t _newNameLength;
-    DEBUGSPEW_OR_NOT(_newName, std::ignore) = luaG_pushFQN(L_, _fqn, depth_, &_newNameLength);     // L_: ... {bfc} k o name? "f.q.n"
+    std::string_view const _newName{ luaG_pushFQN(L_, _fqn, depth_) };                             // L_: ... {bfc} k o name? "f.q.n"
     // Lua 5.2 introduced a hash randomizer seed which causes table iteration to yield a different key order
     // on different VMs even when the tables are populated the exact same way.
     // When Lua is built with compatibility options (such as LUA_COMPAT_ALL),
@@ -156,13 +153,13 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L
     // Also, nothing prevents any external module from exposing a given object under several names, so...
     // Therefore, when we encounter an object for which a name was previously registered, we need to select the names
     // based on some sorting order so that we end up with the same name in all databases whatever order the table walk yielded
-    if (_prevName != nullptr && (_prevNameLength < _newNameLength || lua_lessthan(L_, -2, -1))) {
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%s '%s' remained named '%s'\n" INDENT_END(U_), lua_typename(L_, lua_type(L_, -3)), _newName, _prevName));
+    if (!_prevName.empty() && (_prevName.size() < _newName.size() || lua_lessthan(L_, -2, -1))) {
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%s '%s' remained named '%s'\n" INDENT_END(U_), lua_typename(L_, lua_type(L_, -3)), _newName.data(), _prevName.data()));
         // the previous name is 'smaller' than the one we just generated: keep it!
         lua_pop(L_, 3);                                                                            // L_: ... {bfc} k
     } else {
         // the name we generated is either the first one, or a better fit for our purposes
-        if (_prevName) {
+        if (!_prevName.empty()) {
             // clear the previous name for the database to avoid clutter
             lua_insert(L_, -2);                                                                    // L_: ... {bfc} k o "f.q.n" prevName
             // t[prevName] = nil
@@ -171,7 +168,7 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L
         } else {
             lua_remove(L_, -2);                                                                    // L_: ... {bfc} k o "f.q.n"
         }
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%s '%s'\n" INDENT_END(U_), lua_typename(L_, lua_type(L_, -2)), _newName));
+        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "%s '%s'\n" INDENT_END(U_), lua_typename(L_, lua_type(L_, -2)), _newName.data()));
         // prepare the stack for database feed
         lua_pushvalue(L_, -1);                                                                     // L_: ... {bfc} k o "f.q.n" "f.q.n"
         lua_pushvalue(L_, -3);                                                                     // L_: ... {bfc} k o "f.q.n" "f.q.n" o
@@ -390,7 +387,7 @@ void populate_func_lookup_table(lua_State* L_, int i_, char const* name_)
             // update shortest name
             if (depth_ < shortest_) {
                 shortest_ = depth_;
-                std::ignore = luaG_pushFQN(L_, kFQN, depth_, nullptr);                             // L_: o "r" {c} {fqn} ... {?} k v "fqn"
+                std::ignore = luaG_pushFQN(L_, kFQN, depth_);                                      // L_: o "r" {c} {fqn} ... {?} k v "fqn"
                 lua_replace(L_, kResult);                                                          // L_: o "r" {c} {fqn} ... {?} k v
             }
             // no need to search further at this level

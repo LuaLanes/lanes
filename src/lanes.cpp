@@ -395,9 +395,8 @@ LUAG_FUNC(lane_new)
                 raise_luaL_error(L_, "required module list should be a list of strings");
             } else {
                 // require the module in the target state, and populate the lookup table there too
-                size_t _len{ 0 };
-                char const* _name{ lua_tolstring(L_, -1, &_len) };
-                DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: require '%s'\n" INDENT_END(_U), name));
+                std::string_view const _name{ lua_tostringview(L_, -1) };
+                DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: require '%s'\n" INDENT_END(_U), _name.data()));
 
                 // require the module in the target lane
                 lua_getglobal(_L2, "require");                                                     // L_: [fixed] args... n "modname"                L2: require()?
@@ -405,7 +404,7 @@ LUAG_FUNC(lane_new)
                     lua_pop(_L2, 1);                                                               // L_: [fixed] args... n "modname"                L2:
                     raise_luaL_error(L_, "cannot pre-require modules without loading 'package' library first");
                 } else {
-                    lua_pushlstring(_L2, _name, _len);                                             // L_: [fixed] args... n "modname"                L2: require() name
+                    lua_pushlstring(_L2, _name.data(), _name.size());                              // L_: [fixed] args... n "modname"                L2: require() name
                     LuaError const _rc{ lua_pcall(_L2, 1, 1, 0) };                                 // L_: [fixed] args... n "modname"                L2: ret/errcode
                     if (_rc != LuaError::OK) {
                         // propagate error to main state if any
@@ -415,7 +414,7 @@ LUAG_FUNC(lane_new)
                     }
                     // here the module was successfully required                                   // L_: [fixed] args... n "modname"                L2: ret
                     // after requiring the module, register the functions it exported in our name<->function database
-                    populate_func_lookup_table(_L2, -1, _name);
+                    populate_func_lookup_table(_L2, -1, _name.data());
                     lua_pop(_L2, 1);                                                               // L_: [fixed] args... n "modname"                L2:
                 }
             }

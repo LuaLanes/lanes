@@ -368,14 +368,14 @@ void Universe::terminateFreeRunningLanes(lua_State* L_, lua_Duration shutdownTim
 int universe_gc(lua_State* L_)
 {
     lua_Duration const _shutdown_timeout{ lua_tonumber(L_, lua_upvalueindex(1)) };
-    [[maybe_unused]] char const* const _op_string{ lua_tostring(L_, lua_upvalueindex(2)) };
+    std::string_view const _op_string{ lua_tostringview(L_, lua_upvalueindex(2)) };
     Universe* const _U{ lua_tofulluserdata<Universe>(L_, 1) };
     _U->terminateFreeRunningLanes(L_, _shutdown_timeout, which_cancel_op(_op_string));
 
     // no need to mutex-protect this as all threads in the universe are gone at that point
     if (_U->timerLinda != nullptr) { // test in case some early internal error prevented Lanes from creating the deep timer
-        [[maybe_unused]] int const prev_ref_count{ _U->timerLinda->refcount.fetch_sub(1, std::memory_order_relaxed) };
-        LUA_ASSERT(L_, prev_ref_count == 1); // this should be the last reference
+        [[maybe_unused]] int const _prev_ref_count{ _U->timerLinda->refcount.fetch_sub(1, std::memory_order_relaxed) };
+        LUA_ASSERT(L_, _prev_ref_count == 1); // this should be the last reference
         DeepFactory::DeleteDeepObject(L_, _U->timerLinda);
         _U->timerLinda = nullptr;
     }
