@@ -35,11 +35,11 @@ if not next(which_tests) or which_tests.genlock then
 	assert( atomic( 1) == lanes.cancel_error)
 
 	-- reset the linda so that the other tests work
-	linda:cancel( "none")
-	linda:limit( "lock", -1)
-	linda:set( "lock")
-	linda:limit( "atomic", -1)
-	linda:set( "atomic")
+	linda:cancel("none")
+	linda:limit("lock")
+	linda:set("lock")
+	linda:limit("atomic")
+	linda:set("atomic")
 
 	print "test OK"
 end

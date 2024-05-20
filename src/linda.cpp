@@ -354,21 +354,22 @@ LUAG_FUNC(linda_get)
 // #################################################################################################
 
 /*
- * [true] = linda_limit( linda_ud, key_num|str|bool|lightuserdata, int)
+ * [true] = linda_limit( linda_ud, key_num|str|bool|lightuserdata, [int])
  *
  * Set limit to 1 Linda keys.
  * Optionally wake threads waiting to write on the linda, in case the limit enables them to do so
- * Limit can be 0 to completely block everything
+ * Limit can be 0 to completely block everything, nil to reset
  */
 LUAG_FUNC(linda_limit)
 {
     auto _limit = [](lua_State* L_) {
         Linda* const _linda{ ToLinda<false>(L_, 1) };
         // make sure we got 3 arguments: the linda, a key and a limit
-        luaL_argcheck(L_, lua_gettop(L_) == 3, 2, "wrong number of arguments");
+        int const _nargs{ lua_gettop(L_) };
+        luaL_argcheck(L_, _nargs == 2 || _nargs == 3, 2, "wrong number of arguments");
         // make sure we got a numeric limit
-        lua_Number const _limit{ luaL_checknumber(L_, 3) };
-        if (_limit < 1) {
+        lua_Integer const _limit{ luaL_optinteger(L_, 3, 0) };
+        if (_limit < 0) {
             raise_luaL_argerror(L_, 3, "limit must be >= 0");
         }
         // make sure the key is of a valid type

@@ -359,14 +359,14 @@ int keepercall_receive_batched(lua_State* L_)
 
 // #################################################################################################
 
-// in: linda_ud key n
+// in: linda_ud key [n|nil]
 // out: true or nil
 int keepercall_limit(lua_State* L_)
 {
-    int const _limit{ static_cast<int>(lua_tointeger(L_, 3)) };
-    push_table(L_, 1);                                                                             // L_: ud key n fifos
-    lua_replace(L_, 1);                                                                            // L_: fifos key n
-    lua_pop(L_, 1);                                                                                // L_: fifos key
+    int const _limit{ static_cast<int>(luaL_optinteger(L_, 3, -1)) }; // -1 if we read nil because the argument is absent
+    push_table(L_, 1);                                                                             // L_: ud key n? fifos
+    lua_replace(L_, 1);                                                                            // L_: fifos key n?
+    lua_settop(L_, 2);                                                                             // L_: fifos key
     lua_pushvalue(L_, -1);                                                                         // L_: fifos key key
     lua_rawget(L_, -3);                                                                            // L_: fifos key fifo|nil
     keeper_fifo* _fifo{ keeper_fifo::getPtr(L_, -1) };
