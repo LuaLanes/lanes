@@ -165,7 +165,7 @@ int Linda::ProtectedCall(lua_State* L_, lua_CFunction f_)
     lua_pushcfunction(L_, f_);
     lua_insert(L_, 1);
     // do a protected call
-    int const _rc{ lua_pcall(L_, lua_gettop(L_) - 1, LUA_MULTRET, 0) };
+    LuaError const _rc{ lua_pcall(L_, lua_gettop(L_) - 1, LUA_MULTRET, 0) };
     // whatever happens, the keeper state stack must be empty when we are done
     lua_settop(_KL, 0);
 
@@ -173,7 +173,7 @@ int Linda::ProtectedCall(lua_State* L_, lua_CFunction f_)
     _linda->releaseKeeper(_K);
 
     // if there was an error, forward it
-    if (_rc != LUA_OK) {
+    if (_rc != LuaError::OK) {
         raise_lua_error(L_);
     }
     // return whatever the actual operation provided

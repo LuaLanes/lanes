@@ -256,11 +256,10 @@ char const* DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int 
                     lua_rawget(L_, -2);                                                            // L_: DPC proxy metatable require() "module" _R._LOADED module
                     int const alreadyloaded = lua_toboolean(L_, -1);
                     if (!alreadyloaded) { // not loaded
-                        int require_result;
                         lua_pop(L_, 2);                                                            // L_: DPC proxy metatable require() "module"
                         // require "modname"
-                        require_result = lua_pcall(L_, 1, 0, 0);                                   // L_: DPC proxy metatable error?
-                        if (require_result != LUA_OK) {
+                        LuaError const _require_result{ lua_pcall(L_, 1, 0, 0) };                  // L_: DPC proxy metatable error?
+                        if (_require_result != LuaError::OK) {
                             // failed, return the error message
                             lua_pushfstring(L_, "error while requiring '%s' identified by DeepFactory::moduleName: ", _modname.data());
                             lua_insert(L_, -2);                                                    // L_: DPC proxy metatable prefix error

@@ -67,12 +67,12 @@ THE SOFTWARE.
 
     _U->requireMutex.lock();
     // starting with Lua 5.4, require may return a second optional value, so we need LUA_MULTRET
-    int _rc{ lua_pcall(L_, _args, LUA_MULTRET, 0 /*errfunc*/) };                                   // L_: err|result(s)
+    LuaError const _rc{ lua_pcall(L_, _args, LUA_MULTRET, 0 /*errfunc*/) };                        // L_: err|result(s)
     _U->requireMutex.unlock();
 
     // the required module (or an error message) is left on the stack as returned value by original require function
 
-    if (_rc != LUA_OK) { // LUA_ERRRUN / LUA_ERRMEM ?
+    if (_rc != LuaError::OK) { // LUA_ERRRUN / LUA_ERRMEM ?
         raise_lua_error(L_);
     }
     // should be 1 for Lua <= 5.3, 1 or 2 starting with Lua 5.4

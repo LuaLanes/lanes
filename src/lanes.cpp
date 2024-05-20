@@ -406,7 +406,8 @@ LUAG_FUNC(lane_new)
                     raise_luaL_error(L_, "cannot pre-require modules without loading 'package' library first");
                 } else {
                     lua_pushlstring(_L2, _name, _len);                                             // L_: [fixed] args... n "modname"                L2: require() name
-                    if (lua_pcall(_L2, 1, 1, 0) != LUA_OK) {                                       // L_: [fixed] args... n "modname"                L2: ret/errcode
+                    LuaError const _rc{ lua_pcall(_L2, 1, 1, 0) };                                 // L_: [fixed] args... n "modname"                L2: ret/errcode
+                    if (_rc != LuaError::OK) {
                         // propagate error to main state if any
                         InterCopyContext _c{ _U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} };
                         std::ignore = _c.inter_move(1);                                            // L_: [fixed] args... n "modname" error          L2:
@@ -870,8 +871,8 @@ LANES_API int luaopen_lanes_core(lua_State* L_)
 
 [[nodiscard]] static int default_luaopen_lanes(lua_State* L_)
 {
-    int const _rc{ luaL_loadfile(L_, "lanes.lua") || lua_pcall(L_, 0, 1, 0) };
-    if (_rc != LUA_OK) {
+    LuaError const _rc{ luaL_loadfile(L_, "lanes.lua") || lua_pcall(L_, 0, 1, 0) };
+    if (_rc != LuaError::OK) {
         raise_luaL_error(L_, "failed to initialize embedded Lanes");
     }
     return 1;
