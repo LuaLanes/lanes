@@ -7,6 +7,7 @@
 
 #include <array>
 #include <condition_variable>
+#include <string_view>
 #include <variant>
 
 struct Keeper;
@@ -26,13 +27,8 @@ class Linda
     private:
     static constexpr size_t kEmbeddedNameLength = 24;
     using EmbeddedName = std::array<char, kEmbeddedNameLength>;
-    struct AllocatedName
-    {
-        size_t len{ 0 };
-        char* name{ nullptr };
-    };
     // depending on the name length, it is either embedded inside the Linda, or allocated separately
-    std::variant<AllocatedName, EmbeddedName> nameVariant;
+    std::variant<std::string_view, EmbeddedName> nameVariant;
 
     public:
     std::condition_variable readHappened;
@@ -51,7 +47,7 @@ class Linda
     static void operator delete(void* p_) { static_cast<Linda*>(p_)->U->internalAllocator.free(p_, sizeof(Linda)); }
 
     ~Linda();
-    Linda(Universe* U_, LindaGroup group_, char const* name_, size_t len_);
+    Linda(Universe* U_, LindaGroup group_, std::string_view const& name_);
     Linda() = delete;
     // non-copyable, non-movable
     Linda(Linda const&) = delete;
@@ -60,11 +56,11 @@ class Linda
     Linda& operator=(Linda const&&) = delete;
 
     private:
-    void setName(char const* name_, size_t len_);
+    void setName(std::string_view const& name_);
 
     public:
     [[nodiscard]] Keeper* acquireKeeper() const;
-    [[nodiscard]] char const* getName() const;
+    [[nodiscard]] std::string_view getName() const;
     void releaseKeeper(Keeper* keeper_) const;
     [[nodiscard]] static int ProtectedCall(lua_State* L_, lua_CFunction f_);
     [[nodiscard]] Keeper* whichKeeper() const { return U->keepers->nb_keepers ? &U->keepers->keeper_array[keeperIndex] : nullptr; }

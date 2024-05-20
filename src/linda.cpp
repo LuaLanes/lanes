@@ -79,10 +79,11 @@ template <bool OPT>
 {
     Linda* const _linda{ ToLinda<OPT>(L_, idx_) };
     if (_linda != nullptr) {
+        std::string_view const _lindaName{ _linda->getName() };
         char _text[128];
         int _len;
-        if (_linda->getName())
-            _len = sprintf(_text, "Linda: %.*s", (int) sizeof(_text) - 8, _linda->getName());
+        if (!_lindaName.empty())
+            _len = sprintf(_text, "Linda: %.*s", (int) sizeof(_text) - 8, _lindaName.data());
         else
             _len = sprintf(_text, "Linda: %p", _linda);
         lua_pushlstring(L_, _text, _len);
@@ -113,37 +114,37 @@ template <bool OPT>
 // have to cast to unsigned long to avoid compilation warnings about loss of data when converting pointer-to-integer
 static constexpr uintptr_t kPointerMagicShift{ 3 };
 
-Linda::Linda(Universe* U_, LindaGroup group_, char const* name_, size_t len_)
+Linda::Linda(Universe* U_, LindaGroup group_, std::string_view const& name_)
 : DeepPrelude{ LindaFactory::Instance }
 , U{ U_ }
 , keeperIndex{ (group_ ? group_ : static_cast<int>(std::bit_cast<uintptr_t>(this) >> kPointerMagicShift)) % U_->keepers->nb_keepers }
 {
-    setName(name_, len_);
+    setName(name_);
 }
 
 // #################################################################################################
 
 Linda::~Linda()
 {
-    if (std::holds_alternative<AllocatedName>(nameVariant)) {
-        AllocatedName& _name = std::get<AllocatedName>(nameVariant);
-        U->internalAllocator.free(_name.name, _name.len);
+    if (std::holds_alternative<std::string_view>(nameVariant)) {
+        std::string_view& _name = std::get<std::string_view>(nameVariant);
+        U->internalAllocator.free(const_cast<char*>(_name.data()), _name.size());
     }
 }
 
 // #################################################################################################
 
-char const* Linda::getName() const
+std::string_view Linda::getName() const
 {
-    if (std::holds_alternative<AllocatedName>(nameVariant)) {
-        AllocatedName const& _name = std::get<AllocatedName>(nameVariant);
-        return _name.name;
+    if (std::holds_alternative<std::string_view>(nameVariant)) {
+        std::string_view const& _name = std::get<std::string_view>(nameVariant);
+        return _name;
     }
     if (std::holds_alternative<EmbeddedName>(nameVariant)) {
         char const* const _name{ std::get<EmbeddedName>(nameVariant).data() };
-        return _name;
+        return std::string_view{ _name, strlen(_name) };
     }
-    return nullptr;
+    return std::string_view{};
 }
 
 // #################################################################################################
@@ -182,22 +183,28 @@ int Linda::ProtectedCall(lua_State* L_, lua_CFunction f_)
 
 // #################################################################################################
 
-void Linda::setName(char const* name_, size_t len_)
+void Linda::setName(std::string_view const& name_)
 {
     // keep default
-    if (!name_ || len_ == 0) {
+    if (name_.empty()) {
         return;
     }
-    ++len_; // don't forget terminating 0
-    if (len_ < kEmbeddedNameLength) {
-        nameVariant.emplace<EmbeddedName>();
-        char* const _name{ std::get<EmbeddedName>(nameVariant).data() };
-        memcpy(_name, name_, len_);
+    size_t const _lenWithTZ{ name_.size() + 1 }; // don't forget terminating 0
+    if (_lenWithTZ < kEmbeddedNameLength) {
+        // grab our internal buffer
+        EmbeddedName& _name = nameVariant.emplace<EmbeddedName>();
+        // copy the string in it
+        memcpy(_name.data(), name_.data(), name_.size());
+        // don't forget terminating 0
+        _name[_lenWithTZ] = 0;
     } else {
-        AllocatedName& _name = std::get<AllocatedName>(nameVariant);
-        _name.name = static_cast<char*>(U->internalAllocator.alloc(len_));
-        _name.len = len_;
-        memcpy(_name.name, name_, len_);
+        // allocate an external buffer
+        char* const _nameBuffer{ static_cast<char*>(U->internalAllocator.alloc(_lenWithTZ)) };
+        // copy the string in it
+        memcpy(_nameBuffer, name_.data(), name_.size());
+        // don't forget terminating 0
+        _nameBuffer[_lenWithTZ] = 0;
+        nameVariant.emplace<std::string_view>(_nameBuffer, name_.size());
     }
 }
 
