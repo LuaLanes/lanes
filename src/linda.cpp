@@ -486,7 +486,7 @@ LUAG_FUNC(linda_receive)
 /*
  * [true|lanes.cancel_error] = linda_set( linda_ud, key_num|str|bool|lightuserdata [, value [, ...]])
  *
- * Set one or more value to Linda.
+ * Set one or more value to Linda. Ignores limits.
  *
  * Existing slot value is replaced, and possible queued entries removed.
  */
@@ -594,6 +594,7 @@ LUAG_FUNC(linda_get)
  *
  * Set limit to 1 Linda keys.
  * Optionally wake threads waiting to write on the linda, in case the limit enables them to do so
+ * Limit can be 0 to completely block everything
  */
 LUAG_FUNC(linda_limit)
 {
@@ -604,7 +605,7 @@ LUAG_FUNC(linda_limit)
         // make sure we got a numeric limit
         lua_Number const _limit{ luaL_checknumber(L_, 3) };
         if (_limit < 1) {
-            raise_luaL_argerror(L_, 3, "limit must be >= 1");
+            raise_luaL_argerror(L_, 3, "limit must be >= 0");
         }
         // make sure the key is of a valid type
         check_key_types(L_, 2, 2);
