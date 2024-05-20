@@ -159,7 +159,7 @@ void DeepFactory::DeleteDeepObject(lua_State* L_, DeepPrelude* o_)
     bool const isLastRef{ _p->refcount.fetch_sub(1, std::memory_order_relaxed) == 1 };
 
     if (isLastRef) {
-        // retrieve wrapped __gc
+        // retrieve wrapped __gc, if any
         lua_pushvalue(L_, lua_upvalueindex(1));                                                    // L_: self __gc?
         if (!lua_isnil(L_, -1)) {
             lua_insert(L_, -2);                                                                    // L_: __gc self
@@ -171,26 +171,6 @@ void DeepFactory::DeleteDeepObject(lua_State* L_, DeepPrelude* o_)
         DeepFactory::DeleteDeepObject(L_, _p);
     }
     return 0;
-}
-
-// #################################################################################################
-
-// TODO: convert to UniqueKey::getSubTableMode
-static void push_registry_subtable_mode(lua_State* L_, RegistryUniqueKey key_, const char* mode_)
-{
-    STACK_GROW(L_, 4);
-    STACK_CHECK_START_REL(L_, 0);
-    if (!key_.getSubTable(L_, 0, 0)) {                                                             // L_: {}
-        // Set its metatable if requested
-        if (mode_) {
-            lua_createtable(L_, 0, 1);                                                             // L_: {} mt
-            lua_pushliteral(L_, "__mode");                                                         // L_: {} mt "__mode"
-            lua_pushstring(L_, mode_);                                                             // L_: {} mt "__mode" mode
-            lua_rawset(L_, -3);                                                                    // L_: {} mt
-            lua_setmetatable(L_, -2);                                                              // L_: {}
-        }
-    }
-    STACK_CHECK(L_, 1);
 }
 
 // #################################################################################################
@@ -207,7 +187,7 @@ static void push_registry_subtable_mode(lua_State* L_, RegistryUniqueKey key_, c
 char const* DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int nuv_, LookupMode mode_)
 {
     // Check if a proxy already exists
-    push_registry_subtable_mode(L_, kDeepProxyCacheRegKey, "v");                                   // L_: DPC
+    kDeepProxyCacheRegKey.getSubTableMode(L_, "v");                                                // L_: DPC
     lua_pushlightuserdata(L_, prelude_);                                                           // L_: DPC deep
     lua_rawget(L_, -2);                                                                            // L_: DPC proxy
     if (!lua_isnil(L_, -1)) {
@@ -256,7 +236,7 @@ char const* DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int 
             lua_pushcfunction(L_, deep_userdata_gc);                                               // L_: DPC proxy metatable deep_userdata_gc
         } else {
             // Add our own '__gc' method wrapping the original
-            lua_pushcclosure(L_, deep_userdata_gc, 1); // DPC proxy metatable deep_userdata_gc
+            lua_pushcclosure(L_, deep_userdata_gc, 1);                                             // L_: DPC proxy metatable deep_userdata_gc
         }
         lua_setfield(L_, -2, "__gc");                                                              // L_: DPC proxy metatable
 

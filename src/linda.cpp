@@ -487,7 +487,6 @@ LUAG_FUNC(linda_receive)
  * [true|lanes.cancel_error] = linda_set( linda_ud, key_num|str|bool|lightuserdata [, value [, ...]])
  *
  * Set one or more value to Linda.
- * TODO: what do we do if we set to non-nil and limit is 0?
  *
  * Existing slot value is replaced, and possible queued entries removed.
  */
@@ -603,7 +602,10 @@ LUAG_FUNC(linda_limit)
         // make sure we got 3 arguments: the linda, a key and a limit
         luaL_argcheck(L_, lua_gettop(L_) == 3, 2, "wrong number of arguments");
         // make sure we got a numeric limit
-        luaL_checknumber(L_, 3);
+        lua_Number const _limit{ luaL_checknumber(L_, 3) };
+        if (_limit < 1) {
+            raise_luaL_argerror(L_, 3, "limit must be >= 1");
+        }
         // make sure the key is of a valid type
         check_key_types(L_, 2, 2);
 

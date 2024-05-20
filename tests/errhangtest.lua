@@ -39,7 +39,10 @@ if true then
 	print(pcall(linda.send, linda, 'test', t_in))
 	local k,t_out = linda:receive('test') -- read the contents successfully sent
 	t_out.fun()
-	-- TODO: t_out should contain a single entry, as [fun] = fun should have been discarded because functions are not acceptable keys
+	-- t_out should contain a single entry, as [fun] = fun should have been discarded because functions are not acceptable keys
+	local count = 0
+	for k,v in pairs(t_out) do count = count + 1 end
+	assert(count == 1)
 	print "OK"
 end
 

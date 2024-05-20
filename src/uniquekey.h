@@ -107,6 +107,23 @@ class RegistryUniqueKey
         STACK_CHECK(L_, 1);
         return false;
     }
+    // ---------------------------------------------------------------------------------------------
+    void getSubTableMode(lua_State* L_, const char* mode_) const
+    {
+        STACK_CHECK_START_REL(L_, 0);
+        if (!getSubTable(L_, 0, 0)) {                                                              // L_: {}
+            // Set its metatable if requested
+            if (mode_) {
+                STACK_GROW(L_, 3);
+                lua_createtable(L_, 0, 1);                                                         // L_: {} mt
+                lua_pushliteral(L_, "__mode");                                                     // L_: {} mt "__mode"
+                lua_pushstring(L_, mode_);                                                         // L_: {} mt "__mode" mode
+                lua_rawset(L_, -3);                                                                // L_: {} mt
+                lua_setmetatable(L_, -2);                                                          // L_: {}
+            }
+        }
+        STACK_CHECK(L_, 1);
+    }
 };
 
 // #################################################################################################
