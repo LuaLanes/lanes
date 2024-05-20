@@ -395,8 +395,8 @@ LUAG_FUNC(lane_new)
                 raise_luaL_error(L_, "required module list should be a list of strings");
             } else {
                 // require the module in the target state, and populate the lookup table there too
-                size_t len;
-                char const* name = lua_tolstring(L_, -1, &len);
+                size_t _len{ 0 };
+                char const* _name{ lua_tolstring(L_, -1, &_len) };
                 DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "lane_new: require '%s'\n" INDENT_END(_U), name));
 
                 // require the module in the target lane
@@ -405,7 +405,7 @@ LUAG_FUNC(lane_new)
                     lua_pop(_L2, 1);                                                               // L_: [fixed] args... n "modname"                L2:
                     raise_luaL_error(L_, "cannot pre-require modules without loading 'package' library first");
                 } else {
-                    lua_pushlstring(_L2, name, len);                                               // L_: [fixed] args... n "modname"                L2: require() name
+                    lua_pushlstring(_L2, _name, _len);                                             // L_: [fixed] args... n "modname"                L2: require() name
                     if (lua_pcall(_L2, 1, 1, 0) != LUA_OK) {                                       // L_: [fixed] args... n "modname"                L2: ret/errcode
                         // propagate error to main state if any
                         InterCopyContext _c{ _U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} };
@@ -414,7 +414,7 @@ LUAG_FUNC(lane_new)
                     }
                     // here the module was successfully required                                   // L_: [fixed] args... n "modname"                L2: ret
                     // after requiring the module, register the functions it exported in our name<->function database
-                    populate_func_lookup_table(_L2, -1, name);
+                    populate_func_lookup_table(_L2, -1, _name);
                     lua_pop(_L2, 1);                                                               // L_: [fixed] args... n "modname"                L2:
                 }
             }

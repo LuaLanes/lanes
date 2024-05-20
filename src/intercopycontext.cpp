@@ -73,60 +73,61 @@ THE SOFTWARE.
 // #################################################################################################
 
 // retrieve the name of a function/table in the lookup database
-[[nodiscard]] static char const* find_lookup_name(lua_State* L_, int i_, LookupMode mode_, char const* upName_, size_t* len_)
+[[nodiscard]] std::string_view InterCopyContext::findLookupName() const
 {
-    LUA_ASSERT(L_, lua_isfunction(L_, i_) || lua_istable(L_, i_));                                 // L_: ... v ...
-    STACK_CHECK_START_REL(L_, 0);
-    STACK_GROW(L_, 3); // up to 3 slots are necessary on error
-    if (mode_ == LookupMode::FromKeeper) {
-        lua_CFunction const _f{ lua_tocfunction(L_, i_) }; // should *always* be one of the function sentinels
+    LUA_ASSERT(L1, lua_isfunction(L1, L1_i) || lua_istable(L1, L1_i));                             // L1: ... v ...
+    STACK_CHECK_START_REL(L1, 0);
+    STACK_GROW(L1, 3); // up to 3 slots are necessary on error
+    if (mode == LookupMode::FromKeeper) {
+        lua_CFunction const _f{ lua_tocfunction(L1, L1_i) }; // should *always* be one of the function sentinels
         if (_f == func_lookup_sentinel || _f == table_lookup_sentinel || _f == userdata_clone_sentinel) {
-            lua_getupvalue(L_, i_, 1);                                                             // L_: ... v ... "f.q.n"
+            lua_getupvalue(L1, L1_i, 1);                                                           // L1: ... v ... "f.q.n"
         } else {
             // if this is not a sentinel, this is some user-created table we wanted to lookup
-            LUA_ASSERT(L_, nullptr == _f && lua_istable(L_, i_));
+            LUA_ASSERT(L1, nullptr == _f && lua_istable(L1, L1_i));
             // push anything that will convert to nullptr string
-            lua_pushnil(L_);                                                                       // L_: ... v ... nil
+            lua_pushnil(L1);                                                                       // L1: ... v ... nil
         }
     } else {
         // fetch the name from the source state's lookup table
-        kLookupRegKey.pushValue(L_);                                                               // L_: ... v ... {}
-        STACK_CHECK(L_, 1);
-        LUA_ASSERT(L_, lua_istable(L_, -1));
-        lua_pushvalue(L_, i_);                                                                     // L_: ... v ... {} v
-        lua_rawget(L_, -2);                                                                        // L_: ... v ... {} "f.q.n"
+        kLookupRegKey.pushValue(L1);                                                               // L1: ... v ... {}
+        STACK_CHECK(L1, 1);
+        LUA_ASSERT(L1, lua_istable(L1, -1));
+        lua_pushvalue(L1, L1_i);                                                                   // L1: ... v ... {} v
+        lua_rawget(L1, -2);                                                                        // L1: ... v ... {} "f.q.n"
     }
-    char const* _fqn{ lua_tolstring(L_, -1, len_) };
-    DEBUGSPEW_CODE(Universe* const _U = universe_get(L_));
+    size_t _len{ 0 };
+    char const* _fqn{ lua_tolstring(L1, -1, &_len) };
+    DEBUGSPEW_CODE(Universe* const _U = universe_get(L1));
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "function [C] %s \n" INDENT_END(_U), _fqn));
     // popping doesn't invalidate the pointer since this is an interned string gotten from the lookup database
-    lua_pop(L_, (mode_ == LookupMode::FromKeeper) ? 1 : 2);                                        // L_: ... v ...
-    STACK_CHECK(L_, 0);
-    if (nullptr == _fqn && !lua_istable(L_, i_)) { // raise an error if we try to send an unknown function (but not for tables)
-        *len_ = 0; // just in case
+    lua_pop(L1, (mode == LookupMode::FromKeeper) ? 1 : 2);                                         // L1: ... v ...
+    STACK_CHECK(L1, 0);
+    if (nullptr == _fqn && !lua_istable(L1, L1_i)) { // raise an error if we try to send an unknown function (but not for tables)
+        _len = 0; // just in case
         // try to discover the name of the function we want to send
-        lua_getglobal(L_, "decoda_name");                                                          // L_: ... v ... decoda_name
-        char const* from{ lua_tostring(L_, -1) };
-        lua_pushcfunction(L_, luaG_nameof);                                                        // L_: ... v ... decoda_name luaG_nameof
-        lua_pushvalue(L_, i_);                                                                     // L_: ... v ... decoda_name luaG_nameof t
-        lua_call(L_, 1, 2);                                                                        // L_: ... v ... decoda_name "type" "name"|nil
-        char const* typewhat{ (lua_type(L_, -2) == LUA_TSTRING) ? lua_tostring(L_, -2) : luaL_typename(L_, -2) };
+        lua_getglobal(L1, "decoda_name");                                                          // L1: ... v ... decoda_name
+        char const* from{ lua_tostring(L1, -1) };
+        lua_pushcfunction(L1, luaG_nameof);                                                        // L1: ... v ... decoda_name luaG_nameof
+        lua_pushvalue(L1, L1_i);                                                                   // L1: ... v ... decoda_name luaG_nameof t
+        lua_call(L1, 1, 2);                                                                        // L1: ... v ... decoda_name "type" "name"|nil
+        char const* typewhat{ (lua_type(L1, -2) == LUA_TSTRING) ? lua_tostring(L1, -2) : luaL_typename(L1, -2) };
         // second return value can be nil if the table was not found
         // probable reason: the function was removed from the source Lua state before Lanes was required.
         char const *what, *gotchaA, *gotchaB;
-        if (lua_isnil(L_, -1)) {
+        if (lua_isnil(L1, -1)) {
             gotchaA = " referenced by";
             gotchaB = "\n(did you remove it from the source Lua state before requiring Lanes?)";
-            what = upName_;
+            what = name;
         } else {
             gotchaA = "";
             gotchaB = "";
-            what = (lua_type(L_, -1) == LUA_TSTRING) ? lua_tostring(L_, -1) : luaL_typename(L_, -1);
+            what = (lua_type(L1, -1) == LUA_TSTRING) ? lua_tostring(L1, -1) : luaL_typename(L1, -1);
         }
-        raise_luaL_error(L_, "%s%s '%s' not found in %s origin transfer database.%s", typewhat, gotchaA, what, from ? from : "main", gotchaB);
+        raise_luaL_error(L1, "%s%s '%s' not found in %s origin transfer database.%s", typewhat, gotchaA, what, from ? from : "main", gotchaB);
     }
-    STACK_CHECK(L_, 0);
-    return _fqn;
+    STACK_CHECK(L1, 0);
+    return std::string_view{ _fqn, _len };
 }
 
 // #################################################################################################
@@ -312,8 +313,7 @@ void InterCopyContext::copy_func() const
 void InterCopyContext::lookup_native_func() const
 {
     // get the name of the function we want to send
-    size_t _len;
-    char const* const _fqn{ find_lookup_name(L1, L1_i, mode, name, &_len) };
+    std::string_view const _fqn{ findLookupName() };
     // push the equivalent function in the destination's stack, retrieved from the lookup table
     STACK_CHECK_START_REL(L2, 0);
     STACK_GROW(L2, 3); // up to 3 slots are necessary on error
@@ -324,7 +324,7 @@ void InterCopyContext::lookup_native_func() const
 
     case LookupMode::ToKeeper:
         // push a sentinel closure that holds the lookup name as upvalue
-        lua_pushlstring(L2, _fqn, _len);                                                           // L1: ... f ...                                  L2: "f.q.n"
+        lua_pushlstring(L2, _fqn.data(), _fqn.size());                                             // L1: ... f ...                                  L2: "f.q.n"
         lua_pushcclosure(L2, func_lookup_sentinel, 1);                                             // L1: ... f ...                                  L2: f
         break;
 
@@ -333,7 +333,7 @@ void InterCopyContext::lookup_native_func() const
         kLookupRegKey.pushValue(L2);                                                               // L1: ... f ...                                  L2: {}
         STACK_CHECK(L2, 1);
         LUA_ASSERT(L1, lua_istable(L2, -1));
-        lua_pushlstring(L2, _fqn, _len);                                                           // L1: ... f ...                                  L2: {} "f.q.n"
+        lua_pushlstring(L2, _fqn.data(), _fqn.size());                                             // L1: ... f ...                                  L2: {} "f.q.n"
         lua_rawget(L2, -2);                                                                        // L1: ... f ...                                  L2: {} f
         // nil means we don't know how to transfer stuff: user should do something
         // anything other than function or table should not happen!
@@ -413,7 +413,7 @@ void InterCopyContext::copy_cached_func() const
             // pushes a copy of the func, stores a reference in the cache
             copy_func();                                                                           //                                                L2: ... {cache} ... function
         } else { // found function in the cache
-            lua_remove(L2, -2); // L2: ... {cache} ... function
+            lua_remove(L2, -2);                                                                    //                                                L2: ... {cache} ... function
         }
         STACK_CHECK(L2, 1);
         LUA_ASSERT(L1, lua_isfunction(L2, -1));
@@ -430,9 +430,8 @@ void InterCopyContext::copy_cached_func() const
 [[nodiscard]] bool InterCopyContext::lookup_table() const
 {
     // get the name of the table we want to send
-    size_t _len;
-    char const* const _fqn{ find_lookup_name(L1, L1_i, mode, name, &_len) };
-    if (nullptr == _fqn) { // name not found, it is some user-created table
+    std::string_view const _fqn{ findLookupName() };
+    if (_fqn.empty()) { // name not found, it is some user-created table
         return false;
     }
     // push the equivalent table in the destination's stack, retrieved from the lookup table
@@ -445,7 +444,7 @@ void InterCopyContext::copy_cached_func() const
 
     case LookupMode::ToKeeper:
         // push a sentinel closure that holds the lookup name as upvalue
-        lua_pushlstring(L2, _fqn, _len);                                                           // L1: ... t ...                                  L2: "f.q.n"
+        lua_pushlstring(L2, _fqn.data(), _fqn.size());                                             // L1: ... t ...                                  L2: "f.q.n"
         lua_pushcclosure(L2, table_lookup_sentinel, 1);                                            // L1: ... t ...                                  L2: f
         break;
 
@@ -454,12 +453,12 @@ void InterCopyContext::copy_cached_func() const
         kLookupRegKey.pushValue(L2);                                                               // L1: ... t ...                                  L2: {}
         STACK_CHECK(L2, 1);
         LUA_ASSERT(L1, lua_istable(L2, -1));
-        lua_pushlstring(L2, _fqn, _len);                                                           // L2: {} "f.q.n"
-        lua_rawget(L2, -2);                                                                        // L2: {} t
+        lua_pushlstring(L2, _fqn.data(), _fqn.size());                                             //                                                L2: {} "f.q.n"
+        lua_rawget(L2, -2);                                                                        //                                                L2: {} t
         // we accept destination lookup failures in the case of transfering the Lanes body function (this will result in the source table being cloned instead)
         // but not when we extract something out of a keeper, as there is nothing to clone!
         if (lua_isnil(L2, -1) && mode == LookupMode::LaneBody) {
-            lua_pop(L2, 2);                                                                        // L1: ... t ...                                   L2:
+            lua_pop(L2, 2);                                                                        // L1: ... t ...                                  L2:
             STACK_CHECK(L2, 0);
             return false;
         } else if (!lua_istable(L2, -1)) { // this can happen if someone decides to replace same already registered item (for a example a standard lib function) with a table
@@ -932,7 +931,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 
 [[nodiscard]] bool InterCopyContext::inter_copy_string() const
 {
-    size_t _len;
+    size_t _len{ 0 };
     char const* const _s{ lua_tolstring(L1, L1_i, &_len) };
     DEBUGSPEW_CODE(fprintf(stderr, "'%s'\n", _s));
     lua_pushlstring(L2, _s, _len);

@@ -1732,7 +1732,7 @@ class MyDeepFactory : public DeepFactory
 	DeepPrelude* newDeepObjectInternal(lua_State* L) const override;
 	void deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const override;
 	void createMetatable(lua_State* L) const override;
-	char const* moduleName() const override;
+	std::string_view moduleName() const override;
 };
 
 static MyDeepFactory g_MyDeepFactory;

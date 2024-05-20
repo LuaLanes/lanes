@@ -21,6 +21,6 @@ class LindaFactory
 
     void createMetatable(lua_State* L_) const override;
     void deleteDeepObjectInternal(lua_State* L_, DeepPrelude* o_) const override;
-    [[nodiscard]] char const* moduleName() const override;
+    [[nodiscard]] std::string_view moduleName() const override;
     [[nodiscard]] DeepPrelude* newDeepObjectInternal(lua_State* L_) const override;
 };

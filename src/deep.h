@@ -18,6 +18,7 @@ extern "C"
 #include "uniquekey.h"
 
 #include <atomic>
+#include <string_view>
 
 // forwards
 enum class LookupMode;
@@ -67,7 +68,7 @@ class DeepFactory
     [[nodiscard]] virtual DeepPrelude* newDeepObjectInternal(lua_State* L_) const = 0;
     virtual void deleteDeepObjectInternal(lua_State* L_, DeepPrelude* o_) const = 0;
     virtual void createMetatable(lua_State* L_) const = 0;
-    [[nodiscard]] virtual char const* moduleName() const = 0;
+    [[nodiscard]] virtual std::string_view moduleName() const = 0;
 
     public:
     // NVI: public interface

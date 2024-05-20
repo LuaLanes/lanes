@@ -2,6 +2,8 @@
 
 #include "tools.h"
 
+#include <string_view>
+
 // forwards
 class Universe;
 
@@ -41,6 +43,7 @@ class InterCopyContext
     // when mode == LookupMode::FromKeeper, L1 is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
     // whon mode != LookupMode::FromKeeper, L1 is not a keeper state, therefore L1 is the state where we want to raise the error
     lua_State* getErrL() const { return (mode == LookupMode::FromKeeper) ? L2 : L1; }
+    [[nodiscard]] std::string_view findLookupName() const;
 
     // for use in copy_cached_func
     void copy_func() const;

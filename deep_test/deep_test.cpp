@@ -19,7 +19,7 @@ class MyDeepFactory : public DeepFactory
     {
         luaL_getmetatable(L_, "deep");
     }
-    [[nodiscard]] char const* moduleName() const override { return "deep_test"; }
+    [[nodiscard]] std::string_view moduleName() const override { return std::string_view{ "deep_test" }; }
 };
 /*static*/ MyDeepFactory MyDeepFactory::Instance{};
 

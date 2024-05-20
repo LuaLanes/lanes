@@ -91,12 +91,12 @@ void LindaFactory::deleteDeepObjectInternal(lua_State* L_, DeepPrelude* o_) cons
 
 // #################################################################################################
 
-char const* LindaFactory::moduleName() const
+std::string_view LindaFactory::moduleName() const
 {
     // linda is a special case because we know lanes must be loaded from the main lua state
     // to be able to ever get here, so we know it will remain loaded as long a the main state is around
     // in other words, forever.
-    return nullptr;
+    return std::string_view{};
 }
 
 // #################################################################################################

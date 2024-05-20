@@ -44,24 +44,24 @@ static constexpr RegistryUniqueKey kLookupCacheRegKey{ 0x9BF75F84E54B691Bull };
 
 // #################################################################################################
 
+static constexpr int kWriterReturnCode{ 666 };
 [[nodiscard]] static int dummy_writer([[maybe_unused]] lua_State* L_, [[maybe_unused]] void const* p_, [[maybe_unused]] size_t sz_, [[maybe_unused]] void* ud_)
 {
-    return 666;
+    return kWriterReturnCode;
 }
 
 /*
  * differentiation between C, bytecode and JIT-fast functions
  *
- *
- *                   +----------+------------+----------+
- *                   | bytecode | C function | JIT-fast |
- * +-----------------+----------+------------+----------+
- * | lua_topointer   |          |            |          |
- * +-----------------+----------+------------+----------+
- * | lua_tocfunction |  nullptr |            |  nullptr |
- * +-----------------+----------+------------+----------+
- * | lua_dump        |  666     |  1         |  1       |
- * +-----------------+----------+------------+----------+
+ *                   +-------------------+------------+----------+
+ *                   |      bytecode     | C function | JIT-fast |
+ * +-----------------+-------------------+------------+----------+
+ * | lua_topointer   |                   |            |          |
+ * +-----------------+-------------------+------------+----------+
+ * | lua_tocfunction |      nullptr      |            |  nullptr |
+ * +-----------------+-------------------+------------+----------+
+ * | lua_dump        | kWriterReturnCode |  1         |  1       |
+ * +-----------------+-------------------+------------+----------+
  */
 
 [[nodiscard]] FuncSubType luaG_getfuncsubtype(lua_State* L_, int _i)
@@ -75,12 +75,12 @@ static constexpr RegistryUniqueKey kLookupCacheRegKey{ 0x9BF75F84E54B691Bull };
             lua_pushvalue(L_, _i);
             _mustpush = 1;
         }
-        // the provided writer fails with code 666
-        // therefore, anytime we get 666, this means that lua_dump() attempted a dump
+        // the provided writer fails with code kWriterReturnCode
+        // therefore, anytime we get kWriterReturnCode, this means that lua_dump() attempted a dump
         // all other cases mean this is either a C or LuaJIT-fast function
-        int const dumpres{ lua504_dump(L_, dummy_writer, nullptr, 0) };
+        int const _dumpres{ lua504_dump(L_, dummy_writer, nullptr, 0) };
         lua_pop(L_, _mustpush);
-        if (dumpres == 666) {
+        if (_dumpres == kWriterReturnCode) {
             return FuncSubType::Bytecode;
         }
     }
@@ -438,13 +438,13 @@ void populate_func_lookup_table(lua_State* L_, int i_, char const* name_)
                     lua_rawseti(L_, kFQN, depth_);                                                 // L_: o "r" {c} {fqn} ... {?} k U {mt}
                     --depth_;
                 }
-                lua_pop(L_, 1); // L_: o "r" {c} {fqn} ... {?} k U
+                lua_pop(L_, 1);                                                                    // L_: o "r" {c} {fqn} ... {?} k U
             }
             STACK_CHECK(L_, 2);
             // search in the object's uservalues
             {
-                int uvi = 1;
-                while (lua_getiuservalue(L_, -1, uvi) != LUA_TNONE) {                              // L_: o "r" {c} {fqn} ... {?} k U {u}
+                int _uvi{ 1 };
+                while (lua_getiuservalue(L_, -1, _uvi) != LUA_TNONE) {                             // L_: o "r" {c} {fqn} ... {?} k U {u}
                     if (lua_istable(L_, -1)) { // if it is a table, look inside
                         ++depth_;
                         lua_pushliteral(L_, "uservalue");                                          // L_: o "r" {c} {fqn} ... {?} k v {u} "uservalue"
@@ -455,7 +455,7 @@ void populate_func_lookup_table(lua_State* L_, int i_, char const* name_)
                         --depth_;
                     }
                     lua_pop(L_, 1);                                                                // L_: o "r" {c} {fqn} ... {?} k U
-                    ++uvi;
+                    ++_uvi;
                 }
                 // when lua_getiuservalue() returned LUA_TNONE, it pushed a nil. pop it now
                 lua_pop(L_, 1);                                                                    // L_: o "r" {c} {fqn} ... {?} k U
@@ -510,13 +510,13 @@ int luaG_nameof(lua_State* L_)
     lua_rawseti(L_, -2, 1);                                                                        // L_: o nil {c} {fqn}
     // this is where we start the search
     lua_pushglobaltable(L_);                                                                       // L_: o nil {c} {fqn} _G
-    std::ignore = DiscoverObjectNameRecur(L_, 6666, 1);
+    std::ignore = DiscoverObjectNameRecur(L_, std::numeric_limits<int>::max(), 1);
     if (lua_isnil(L_, 2)) { // try again with registry, just in case...
         lua_pop(L_, 1);                                                                            // L_: o nil {c} {fqn}
         lua_pushliteral(L_, "_R");                                                                 // L_: o nil {c} {fqn} "_R"
         lua_rawseti(L_, -2, 1);                                                                    // L_: o nil {c} {fqn}
         lua_pushvalue(L_, LUA_REGISTRYINDEX);                                                      // L_: o nil {c} {fqn} _R
-        std::ignore = DiscoverObjectNameRecur(L_, 6666, 1);
+        std::ignore = DiscoverObjectNameRecur(L_, std::numeric_limits<int>::max(), 1);
     }
     lua_pop(L_, 3);                                                                                // L_: o "result"
     STACK_CHECK(L_, 1);

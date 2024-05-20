@@ -244,12 +244,12 @@ char const* DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int 
         factory.storeDeepLookup(L_);
 
         // 2 - cause the target state to require the module that exported the factory
-        if (char const* const _modname{ factory.moduleName() }; _modname) { // we actually got a module name
+        if (std::string_view const _modname{ factory.moduleName() }; !_modname.empty()) { // we actually got a module name
             // L.registry._LOADED exists without having registered the 'package' library.
-            lua_getglobal(L_, "require"); // DPC proxy metatable require()
+            lua_getglobal(L_, "require");                                                          // L_: DPC proxy metatable require()
             // check that the module is already loaded (or being loaded, we are happy either way)
             if (lua_isfunction(L_, -1)) {
-                lua_pushstring(L_, _modname);                                                      // L_: DPC proxy metatable require() "module"
+                lua_pushlstring(L_, _modname.data(), _modname.size());                             // L_: DPC proxy metatable require() "module"
                 lua_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);                             // L_: DPC proxy metatable require() "module" _R._LOADED
                 if (lua_istable(L_, -1)) {
                     lua_pushvalue(L_, -2);                                                         // L_: DPC proxy metatable require() "module" _R._LOADED "module"
@@ -262,7 +262,7 @@ char const* DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int 
                         require_result = lua_pcall(L_, 1, 0, 0);                                   // L_: DPC proxy metatable error?
                         if (require_result != LUA_OK) {
                             // failed, return the error message
-                            lua_pushfstring(L_, "error while requiring '%s' identified by DeepFactory::moduleName: ", _modname);
+                            lua_pushfstring(L_, "error while requiring '%s' identified by DeepFactory::moduleName: ", _modname.data());
                             lua_insert(L_, -2);                                                    // L_: DPC proxy metatable prefix error
                             lua_concat(L_, 2);                                                     // L_: DPC proxy metatable error
                             return lua_tostring(L_, -1);
