@@ -751,9 +751,9 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     STACK_CHECK(L1, _nuv);
 
     DeepPrelude* const u{ *lua_tofulluserdata<DeepPrelude*>(L1, L1_i) };
-    char const* errmsg{ DeepFactory::PushDeepProxy(L2, u, _nuv, mode) };                           // L1: ... u [uv]*                               L2: u
-    if (errmsg != nullptr) {
-        raise_luaL_error(getErrL(), errmsg);
+    std::string_view const errmsg{ DeepFactory::PushDeepProxy(L2, u, _nuv, mode) };                // L1: ... u [uv]*                               L2: u
+    if (!errmsg.empty()) {
+        raise_luaL_error(getErrL(), errmsg.data());
     }
 
     // transfer all uservalues of the source in the destination
@@ -1142,7 +1142,7 @@ static char const* vt_names[] = {
 // transfers stuff from L1->_G["package"] to L2->_G["package"]
 // returns InterCopyResult::Success if everything is fine
 // returns InterCopyResult::Error if pushed an error message in L1
-// else raise an error in L1
+// else raise an error in whichever state is not a keeper
 [[nodiscard]] InterCopyResult InterCopyContext::inter_copy_package() const
 {
     DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "InterCopyContext::inter_copy_package()\n" INDENT_END(U)));

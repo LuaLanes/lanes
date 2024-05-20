@@ -81,7 +81,7 @@ class Lane
     // M: sub-thread OS thread
     // S: not used
 
-    char const* debugName{ "<unnamed>" };
+    std::string_view debugName{ "<unnamed>" };
 
     Universe* const U;
     lua_State* L;

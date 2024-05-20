@@ -357,7 +357,7 @@ void Universe::terminateFreeRunningLanes(lua_State* L_, lua_Duration shutdownTim
         Lane* _lane{ selfdestructFirst };
         if (_lane != SELFDESTRUCT_END) {
             // this causes a leak because we don't call U's destructor (which could be bad if the still running lanes are accessing it)
-            raise_luaL_error(L_, "Zombie thread %s refuses to die!", _lane->debugName);
+            raise_luaL_error(L_, "Zombie thread %s refuses to die!", _lane->debugName.data());
         }
     }
 }

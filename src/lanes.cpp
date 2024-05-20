@@ -317,16 +317,16 @@ LUAG_FUNC(lane_new)
             lua_State* _L2{ lane->L };
             STACK_CHECK_START_REL(_L2, 0);
             int const _name_idx{ lua_isnoneornil(L, kNameIdx) ? 0 : kNameIdx };
-            char const* const debugName{ (_name_idx > 0) ? lua_tostring(L, _name_idx) : nullptr };
-            if (debugName)
+            std::string_view const _debugName{ (_name_idx > 0) ? lua_tostringview(L, _name_idx) : std::string_view{} };
+            if (!_debugName.empty())
             {
-                if (strcmp(debugName, "auto") != 0) {
-                    lua_pushstring(_L2, debugName);                                                // L: ... lane                                    L2: "<name>"
+                if (_debugName != "auto") {
+                    std::ignore = lua_pushstringview(_L2, _debugName);                             // L: ... lane                                    L2: "<name>"
                 } else {
-                    lua_Debug ar;
+                    lua_Debug _ar;
                     lua_pushvalue(L, 1);                                                           // L: ... lane func
-                    lua_getinfo(L, ">S", &ar);                                                     // L: ... lane
-                    lua_pushfstring(_L2, "%s:%d", ar.short_src, ar.linedefined);                   // L: ... lane                                    L2: "<name>"
+                    lua_getinfo(L, ">S", &_ar);                                                    // L: ... lane
+                    lua_pushfstring(_L2, "%s:%d", _ar.short_src, _ar.linedefined);                 // L: ... lane                                    L2: "<name>"
                 }
                 lane->changeDebugName(-1);
                 lua_pop(_L2, 1);                                                                   // L: ... lane                                    L2:
@@ -701,11 +701,11 @@ LUAG_FUNC(configure)
     STACK_CHECK(L_, 2);
 
     {
-        char const* _errmsg{
+        std::string_view const _errmsg{
             DeepFactory::PushDeepProxy(DestState{ L_ }, _U->timerLinda, 0, LookupMode::LaneBody)
         };                                                                                         // L_: settings M timerLinda
-        if (_errmsg != nullptr) {
-            raise_luaL_error(L_, _errmsg);
+        if (!_errmsg.empty()) {
+            raise_luaL_error(L_, _errmsg.data());
         }
         lua_setfield(L_, -2, "timer_gateway");                                                     // L_: settings M
     }

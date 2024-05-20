@@ -254,9 +254,20 @@ LuaType luaG_getmodule(lua_State* L_, char const* name_);
 // #################################################################################################
 
 // a replacement of lua_tolstring
-inline std::string_view lua_tostringview(lua_State* L_, int idx_)
+[[nodiscard]] inline std::string_view lua_tostringview(lua_State* L_, int idx_)
 {
     size_t _len{ 0 };
     char const* _str{ lua_tolstring(L_, idx_, &_len) };
     return std::string_view{ _str, _len };
+}
+
+[[nodiscard]] inline std::string_view lua_pushstringview(lua_State* L_, std::string_view const& str_)
+{
+#if LUA_VERSION_NUM == 501
+    // lua_pushlstring doesn't return a value in Lua 5.1
+    lua_pushlstring(L_, str_.data(), str_.size());
+    return lua_tostringview(L_, -1);
+#else
+    return std::string_view{ lua_pushlstring(L_, str_.data(), str_.size()), str_.size() };
+#endif // LUA_VERSION_NUM > 501
 }

@@ -184,7 +184,7 @@ void DeepFactory::DeleteDeepObject(lua_State* L_, DeepPrelude* o_)
  * used in this Lua state (metatable, registring it). Otherwise, increments the
  * reference count.
  */
-char const* DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int nuv_, LookupMode mode_)
+std::string_view DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int nuv_, LookupMode mode_)
 {
     // Check if a proxy already exists
     kDeepProxyCacheRegKey.getSubTableMode(L_, "v");                                                // L_: DPC
@@ -192,7 +192,7 @@ char const* DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int 
     lua_rawget(L_, -2);                                                                            // L_: DPC proxy
     if (!lua_isnil(L_, -1)) {
         lua_remove(L_, -2);                                                                        // L_: proxy
-        return nullptr;
+        return std::string_view{};
     } else {
         lua_pop(L_, 1);                                                                            // L_: DPC
     }
@@ -264,18 +264,18 @@ char const* DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int 
                             lua_pushfstring(L_, "error while requiring '%s' identified by DeepFactory::moduleName: ", _modname.data());
                             lua_insert(L_, -2);                                                    // L_: DPC proxy metatable prefix error
                             lua_concat(L_, 2);                                                     // L_: DPC proxy metatable error
-                            return lua_tostring(L_, -1);
+                            return lua_tostringview(L_, -1);
                         }
                     } else { // already loaded, we are happy
                         lua_pop(L_, 4);                                                            // L_: DPC proxy metatable
                     }
                 } else { // no L.registry._LOADED; can this ever happen?
                     lua_pop(L_, 6);                                                                // L_:
-                    return "unexpected error while requiring a module identified by DeepFactory::moduleName";
+                    return std::string_view{ "unexpected error while requiring a module identified by DeepFactory::moduleName" };
                 }
             } else { // a module name, but no require() function :-(
                 lua_pop(L_, 4);                                                                    // L_:
-                return "lanes receiving deep userdata should register the 'package' library";
+                return std::string_view{ "lanes receiving deep userdata should register the 'package' library" };
             }
         }
     }
@@ -291,7 +291,7 @@ char const* DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int 
     lua_remove(L_, -2);                                                                            // L_: proxy
     LUA_ASSERT(L_, lua_type_as_enum(L_, -1) == LuaType::USERDATA);
     STACK_CHECK(L_, 0);
-    return nullptr;
+    return std::string_view{};
 }
 
 // #################################################################################################
@@ -336,9 +336,9 @@ int DeepFactory::pushDeepUserdata(DestState L_, int nuv_) const
         raise_luaL_error(L_, "Bad DeepFactory::newDeepObjectInternal overload: should not push anything on the stack");
     }
 
-    char const* const _err{ DeepFactory::PushDeepProxy(L_, _prelude, nuv_, LookupMode::LaneBody) }; // proxy
-    if (_err != nullptr) {
-        raise_luaL_error(L_, _err);
+    std::string_view const _err{ DeepFactory::PushDeepProxy(L_, _prelude, nuv_, LookupMode::LaneBody) }; // proxy
+    if (!_err.empty()) {
+        raise_luaL_error(L_, _err.data());
     }
     STACK_CHECK(L_, 1);
     return 1;

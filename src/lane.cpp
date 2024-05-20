@@ -46,7 +46,7 @@ static LUAG_FUNC(get_debug_threadname)
 {
     Lane* const _lane{ ToLane(L_, 1) };
     luaL_argcheck(L_, lua_gettop(L_) == 1, 2, "too many arguments");
-    lua_pushstring(L_, _lane->debugName);
+    std::ignore = lua_pushstringview(L_, _lane->debugName);
     return 1;
 }
 
@@ -278,7 +278,7 @@ static int thread_index_number(lua_State* L_)
             lua_replace(L_, -3);                                                                   // L_: lane n error() "error"
             lua_pushinteger(L_, 3);                                                                // L_: lane n error() "error" 3
             lua_call(L_, 2, 0); // error(tostring(errstring), 3) -> doesn't return                 // L_: lane n
-            raise_luaL_error(L_, "%s: should not get here!", _lane->debugName);
+            raise_luaL_error(L_, "%s: should not get here!", _lane->debugName.data());
         } else {
             lua_pop(L_, 1);                                                                        // L_: lane n {uv}
         }
@@ -345,7 +345,7 @@ static LUAG_FUNC(thread_index)
         lua_pushvalue(L_, kKey);                                                                   // L_: mt error "Unknown key: " k
         lua_concat(L_, 2);                                                                         // L_: mt error "Unknown key: <k>"
         lua_call(L_, 1, 0); // error( "Unknown key: " .. key) -> doesn't return                    // L_: mt
-        raise_luaL_error(L_, "%s[%s]: should not get here!", _lane->debugName, lua_typename(L_, lua_type(L_, kKey)));
+        raise_luaL_error(L_, "%s[%s]: should not get here!", _lane->debugName.data(), lua_typename(L_, lua_type(L_, kKey)));
     }
 }
 
@@ -739,7 +739,7 @@ static void lane_main(Lane* lane_)
     lua_rawget(L_, -2);                                                                            // L_: ud uservalue gc_cb|nil
     if (!lua_isnil(L_, -1)) {
         lua_remove(L_, -2);                                                                        // L_: ud gc_cb|nil
-        lua_pushstring(L_, _lane->debugName);                                                      // L_: ud gc_cb name
+        std::ignore = lua_pushstringview(L_, _lane->debugName);                                    // L_: ud gc_cb name
         _have_gc_cb = true;
     } else {
         lua_pop(L_, 2);                                                                            // L_: ud
@@ -759,7 +759,7 @@ static void lane_main(Lane* lane_)
         // no longer accessing the Lua VM: we can close right now
         _lane->close();
         // just in case, but _lane will be freed soon so...
-        _lane->debugName = "<gc>";
+        _lane->debugName = std::string_view{ "<gc>" };
     }
 
     // Clean up after a (finished) thread
@@ -812,12 +812,12 @@ void Lane::changeDebugName(int nameIdx_)
     // store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...
     kRegKey.setValue(L, [nameIdx = nameIdx_](lua_State* L_) { lua_pushvalue(L_, nameIdx); });      // L: ... "name" ...
     // keep a direct pointer on the string
-    debugName = lua_tostring(L, nameIdx_);
+    debugName = lua_tostringview(L, nameIdx_);
     // to see VM name in Decoda debugger Virtual Machine window
     lua_pushvalue(L, nameIdx_);                                                                    // L: ... "name" ... "name"
     lua_setglobal(L, "decoda_name");                                                               // L: ... "name" ...
     // and finally set the OS thread name
-    THREAD_SETNAME(debugName);
+    THREAD_SETNAME(debugName.data());
     STACK_CHECK(L, 0);
 }
 
@@ -920,9 +920,7 @@ void Lane::securizeDebugName(lua_State* L_)
     LUA_ASSERT(L_, lua_istable(L_, -1));
     // we don't care about the actual key, so long as it's unique and can't collide with anything.
     lua_newtable(L_);                                                                              // L_: lane ... {uv} {}
-    // Lua 5.1 can't do 'lane_->debugName = lua_pushstring(L_, lane_->debugName);'
-    lua_pushstring(L_, debugName);                                                                 // L_: lane ... {uv} {} name
-    debugName = lua_tostring(L_, -1);
+    debugName = lua_pushstringview(L_, debugName);                                                 // L_: lane ... {uv} {} name
     lua_rawset(L_, -3);                                                                            // L_: lane ... {uv}
     lua_pop(L_, 1);                                                                                // L_: lane
     STACK_CHECK(L_, 0);
