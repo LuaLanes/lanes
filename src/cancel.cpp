@@ -249,7 +249,7 @@ LUAG_FUNC(thread_cancel)
 
     case CancelResult::Cancelled:
         lua_pushboolean(L_, 1); // true
-        _lane->pushThreadStatus(L_); // true status
+        std::ignore = _lane->pushThreadStatus(L_); // true status
         break;
     }
     STACK_CHECK(L_, 2);

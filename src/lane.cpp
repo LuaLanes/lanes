@@ -216,7 +216,7 @@ static int thread_index_number(lua_State* L_)
             // this is an internal error, we probably never get here
             lua_settop(L_, 0);                                                                     // L_:
             lua_pushliteral(L_, "Unexpected status: ");                                            // L_: "Unexpected status: "
-            _lane->pushThreadStatus(L_);                                                           // L_: "Unexpected status: " "<status>"
+            std::ignore = _lane->pushThreadStatus(L_);                                             // L_: "Unexpected status: " "<status>"
             lua_concat(L_, 2);                                                                     // L_: "Unexpected status: <status>"
             raise_lua_error(L_);
 
@@ -300,14 +300,14 @@ static int thread_index_string(lua_State* L_)
     Lane* const _lane{ ToLane(L_, kSelf) };
     LUA_ASSERT(L_, lua_gettop(L_) == 2);                                                           // L_: lane "key"
 
-    char const* const _keystr{ lua_tostring(L_, kKey) };
+    std::string_view const _keystr{ lua_tostringview(L_, kKey) };
     lua_settop(L_, 2); // keep only our original arguments on the stack
-    if (strcmp(_keystr, "status") == 0) {
-        _lane->pushThreadStatus(L_);                                                               // L_: lane "key" "<status>"
+    if (_keystr == "status") {
+        std::ignore = _lane->pushThreadStatus(L_);                                                 // L_: lane "key" "<status>"
         return 1;
     }
-    if (strcmp(_keystr, "error_trace_level") == 0) {
-        _lane->pushErrorTraceLevel(L_);                                                            // L_: lane "key" "<level>"
+    if (_keystr == "error_trace_level") {
+        std::ignore = _lane->pushErrorTraceLevel(L_);                                              // L_: lane "key" "<level>"
         return 1;
     }
     // return self.metatable[key]
@@ -316,7 +316,7 @@ static int thread_index_string(lua_State* L_)
     lua_rawget(L_, -2);                                                                            // L_: mt value
     // only "cancel" and "join" are registered as functions, any other string will raise an error
     if (!lua_iscfunction(L_, -1)) {
-        raise_luaL_error(L_, "can't index a lane with '%s'", _keystr);
+        raise_luaL_error(L_, "can't index a lane with '%s'", _keystr.data());
     }
     return 1;
 }
@@ -833,9 +833,9 @@ void Lane::changeDebugName(int nameIdx_)
 //                   / "error"     finished at an error, error value is there
 //                   / "cancelled"   execution cancelled by M (state gone)
 //
-[[nodiscard]] char const* Lane::errorTraceLevelString() const
+[[nodiscard]] std::string_view Lane::errorTraceLevelString() const
 {
-    char const* const _str{
+    std::string_view const _str{
         (errorTraceLevel == ErrorTraceLevel::Minimal) ? "minimal" :
         (errorTraceLevel == ErrorTraceLevel::Basic) ? "basic" :
         (errorTraceLevel == ErrorTraceLevel::Extended) ? "extended" :
@@ -890,22 +890,22 @@ void Lane::PushMetatable(lua_State* L_)
 
 // #################################################################################################
 
-void Lane::pushThreadStatus(lua_State* L_) const
+[[nodiscard]] std::string_view Lane::pushThreadStatus(lua_State* L_) const
 {
-    char const* const _str{ threadStatusString() };
-    LUA_ASSERT(L_, _str);
+    std::string_view const _str{ threadStatusString() };
+    LUA_ASSERT(L_, !_str.empty());
 
-    lua_pushstring(L_, _str);
+    return lua_pushstringview(L_, _str);
 }
 
 // #################################################################################################
 
-void Lane::pushErrorTraceLevel(lua_State* L_) const
+[[nodiscard]] std::string_view Lane::pushErrorTraceLevel(lua_State* L_) const
 {
-    char const* const _str{ errorTraceLevelString() };
-    LUA_ASSERT(L_, _str);
+    std::string_view const _str{ errorTraceLevelString() };
+    LUA_ASSERT(L_, !_str.empty());
 
-    lua_pushstring(L_, _str);
+    return lua_pushstringview(L_, _str);
 }
 
 // #################################################################################################
@@ -948,9 +948,9 @@ void Lane::startThread(int priority_)
 //                   / "error"     finished at an error, error value is there
 //                   / "cancelled"   execution cancelled by M (state gone)
 //
-[[nodiscard]] char const* Lane::threadStatusString() const
+[[nodiscard]] std::string_view Lane::threadStatusString() const
 {
-    char const* const _str{
+    std::string_view const _str{
         (status == Lane::Pending) ? "pending" :
         (status == Lane::Running) ? "running" :    // like in 'co.status()'
         (status == Lane::Waiting) ? "waiting" :

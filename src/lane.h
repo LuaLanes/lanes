@@ -8,6 +8,7 @@
 #include <condition_variable>
 #include <latch>
 #include <stop_token>
+#include <string_view>
 #include <thread>
 
 // #################################################################################################
@@ -127,14 +128,14 @@ class Lane
 
     void changeDebugName(int nameIdx_);
     void close() { lua_State* _L{ L }; L = nullptr; lua_close(_L); }
-    [[nodiscard]] char const* errorTraceLevelString() const;
+    [[nodiscard]] std::string_view errorTraceLevelString() const;
     [[nodiscard]] int pushErrorHandler() const;
-    void pushErrorTraceLevel(lua_State* L_) const;
+    [[nodiscard]] std::string_view pushErrorTraceLevel(lua_State* L_) const;
     static void PushMetatable(lua_State* L_);
-    void pushThreadStatus(lua_State* L_) const;
+    [[nodiscard]] std::string_view pushThreadStatus(lua_State* L_) const;
     void securizeDebugName(lua_State* L_);
     void startThread(int priority_);
-    [[nodiscard]] char const* threadStatusString() const;
+    [[nodiscard]] std::string_view threadStatusString() const;
     [[nodiscard]] bool waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_);
 };
 
