@@ -165,7 +165,7 @@ static LUAG_FUNC(thread_join)
         break;
 
     default:
-        DEBUGSPEW_CODE(fprintf(stderr, "Status: %d\n", _lane->status));
+        DEBUGSPEW_CODE(DebugSpew(nullptr) << "Unknown Lane status: " << static_cast<int>(_lane->status) << std::endl);
         LUA_ASSERT(L_, false);
         _ret = 0;
     }
@@ -278,7 +278,7 @@ static int thread_index_number(lua_State* L_)
             lua_replace(L_, -3);                                                                   // L_: lane n error() "error"
             lua_pushinteger(L_, 3);                                                                // L_: lane n error() "error" 3
             lua_call(L_, 2, 0); // error(tostring(errstring), 3) -> doesn't return                 // L_: lane n
-            raise_luaL_error(L_, "%s: should not get here!", _lane->debugName.data());
+            raise_luaL_error(L_, STRINGVIEW_FMT ": should not get here!", _lane->debugName.size(), _lane->debugName.data());
         } else {
             lua_pop(L_, 1);                                                                        // L_: lane n {uv}
         }
@@ -316,7 +316,7 @@ static int thread_index_string(lua_State* L_)
     lua_rawget(L_, -2);                                                                            // L_: mt value
     // only "cancel" and "join" are registered as functions, any other string will raise an error
     if (!lua_iscfunction(L_, -1)) {
-        raise_luaL_error(L_, "can't index a lane with '%s'", _keystr.data());
+        raise_luaL_error(L_, "can't index a lane with '" STRINGVIEW_FMT "'", _keystr.size(), _keystr.data());
     }
     return 1;
 }
@@ -345,7 +345,7 @@ static LUAG_FUNC(thread_index)
         lua_pushvalue(L_, kKey);                                                                   // L_: mt error "Unknown key: " k
         lua_concat(L_, 2);                                                                         // L_: mt error "Unknown key: <k>"
         lua_call(L_, 1, 0); // error( "Unknown key: " .. key) -> doesn't return                    // L_: mt
-        raise_luaL_error(L_, "%s[%s]: should not get here!", _lane->debugName.data(), lua_typename(L_, lua_type(L_, kKey)));
+        raise_luaL_error(L_, STRINGVIEW_FMT "[%s]: should not get here!", _lane->debugName.size(), _lane->debugName.data(), lua_typename(L_, lua_type(L_, kKey)));
     }
 }
 
@@ -677,11 +677,11 @@ static void lane_main(Lane* lane_)
         // in case of error and if it exists, fetch stack trace from registry and push it
         push_stack_trace(_L, lane_->errorTraceLevel, _rc, 1);                                      // L: retvals|error [trace]
 
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p body: %s (%s)\n" INDENT_END(_U), _L, get_errcode_name(_rc), kCancelError.equals(_L, 1) ? "cancelled" : lua_typename(_L, lua_type(_L, 1))));
+        DEBUGSPEW_CODE(DebugSpew(_U) << "Lane " << _L << " body: " << get_errcode_name(_rc) << " (" << (kCancelError.equals(_L, 1) ? "cancelled" : lua_typename(_L, lua_type(_L, 1))) << ")" << std::endl);
         //  Call finalizers, if the script has set them up.
         //
         LuaError const _rc2{ run_finalizers(_L, lane_->errorTraceLevel, _rc) };
-        DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "Lane %p finalizer: %s\n" INDENT_END(_U), _L, get_errcode_name(_rc2)));
+        DEBUGSPEW_CODE(DebugSpew(_U) << "Lane " << _L << " finalizer: " << get_errcode_name(_rc2) << std::endl);
         if (_rc2 != LuaError::OK) { // Error within a finalizer!
             // the finalizer generated an error, and left its own error message [and stack trace] on the stack
             _rc = _rc2; // we're overruling the earlier script error or normal return
@@ -839,7 +839,7 @@ void Lane::changeDebugName(int nameIdx_)
         (errorTraceLevel == ErrorTraceLevel::Minimal) ? "minimal" :
         (errorTraceLevel == ErrorTraceLevel::Basic) ? "basic" :
         (errorTraceLevel == ErrorTraceLevel::Extended) ? "extended" :
-        nullptr
+        ""
     };
     return _str;
 }

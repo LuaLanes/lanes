@@ -77,7 +77,7 @@ LUAG_FUNC(cancel_test)
 
 [[nodiscard]] static void cancel_hook(lua_State* L_, [[maybe_unused]] lua_Debug* ar_)
 {
-    DEBUGSPEW_CODE(fprintf(stderr, "cancel_hook\n"));
+    DEBUGSPEW_CODE(DebugSpew(nullptr) << "cancel_hook" << std::endl);
     if (cancel_test(L_) != CancelRequest::None) {
         lua_sethook(L_, nullptr, 0, 0);
         raise_cancel_error(L_);

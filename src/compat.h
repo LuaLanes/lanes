@@ -247,11 +247,20 @@ LuaType luaG_getmodule(lua_State* L_, char const* name_);
 
 // #################################################################################################
 
+#define STRINGVIEW_FMT "%.*s"
+
 // a replacement of lua_tolstring
 [[nodiscard]] inline std::string_view lua_tostringview(lua_State* L_, int idx_)
 {
     size_t _len{ 0 };
     char const* _str{ lua_tolstring(L_, idx_, &_len) };
+    return std::string_view{ _str, _len };
+}
+
+[[nodiscard]] inline std::string_view luaL_checkstringview(lua_State* L_, int idx_)
+{
+    size_t _len{ 0 };
+    char const* _str{ luaL_checklstring(L_, idx_, &_len) };
     return std::string_view{ _str, _len };
 }
 

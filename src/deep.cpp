@@ -249,7 +249,7 @@ std::string_view DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_,
             lua_getglobal(L_, "require");                                                          // L_: DPC proxy metatable require()
             // check that the module is already loaded (or being loaded, we are happy either way)
             if (lua_isfunction(L_, -1)) {
-                lua_pushlstring(L_, _modname.data(), _modname.size());                             // L_: DPC proxy metatable require() "module"
+                std::ignore = lua_pushstringview(L_, _modname);                                    // L_: DPC proxy metatable require() "module"
                 if (luaG_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE) == LuaType::TABLE) {    // L_: DPC proxy metatable require() "module" _R._LOADED
                     lua_pushvalue(L_, -2);                                                         // L_: DPC proxy metatable require() "module" _R._LOADED "module"
                     lua_rawget(L_, -2);                                                            // L_: DPC proxy metatable require() "module" _R._LOADED module
@@ -260,7 +260,7 @@ std::string_view DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_,
                         LuaError const _require_result{ lua_pcall(L_, 1, 0, 0) };                  // L_: DPC proxy metatable error?
                         if (_require_result != LuaError::OK) {
                             // failed, return the error message
-                            lua_pushfstring(L_, "error while requiring '%s' identified by DeepFactory::moduleName: ", _modname.data());
+                            lua_pushfstring(L_, "error while requiring '" STRINGVIEW_FMT "' identified by DeepFactory::moduleName: ", _modname.size(), _modname.data());
                             lua_insert(L_, -2);                                                    // L_: DPC proxy metatable prefix error
                             lua_concat(L_, 2);                                                     // L_: DPC proxy metatable error
                             return lua_tostringview(L_, -1);

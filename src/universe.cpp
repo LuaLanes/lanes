@@ -322,20 +322,20 @@ void Universe::terminateFreeRunningLanes(lua_State* L_, lua_Duration shutdownTim
                 // give threads time to act on their cancel
                 std::this_thread::yield();
                 // count the number of cancelled thread that didn't have the time to act yet
-                int n{ 0 };
+                int _n{ 0 };
                 {
                     std::lock_guard<std::mutex> _guard{ selfdestructMutex };
                     Lane* _lane{ selfdestructFirst };
                     while (_lane != SELFDESTRUCT_END) {
                         if (_lane->cancelRequest != CancelRequest::None)
-                            ++n;
+                            ++_n;
                         _lane = _lane->selfdestruct_next;
                     }
                 }
                 // if timeout elapsed, or we know all threads have acted, stop waiting
                 std::chrono::time_point<std::chrono::steady_clock> _now = std::chrono::steady_clock::now();
-                if (n == 0 || (_now >= _until)) {
-                    DEBUGSPEW_CODE(fprintf(stderr, "%d uncancelled lane(s) remain after waiting %fs at process end.\n", n, shutdownTimeout_.count()));
+                if (_n == 0 || (_now >= _until)) {
+                    DEBUGSPEW_CODE(DebugSpew(this) << _n << " uncancelled lane(s) remain after waiting " << shutdownTimeout_.count() << "s at process end." << std::endl);
                     break;
                 }
             }
@@ -354,7 +354,7 @@ void Universe::terminateFreeRunningLanes(lua_State* L_, lua_Duration shutdownTim
         Lane* _lane{ selfdestructFirst };
         if (_lane != SELFDESTRUCT_END) {
             // this causes a leak because we don't call U's destructor (which could be bad if the still running lanes are accessing it)
-            raise_luaL_error(L_, "Zombie thread %s refuses to die!", _lane->debugName.data());
+            raise_luaL_error(L_, "Zombie thread " STRINGVIEW_FMT " refuses to die!", _lane->debugName.size(), _lane->debugName.data());
         }
     }
 }

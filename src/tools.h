@@ -24,7 +24,7 @@ enum class FuncSubType
 
 [[nodiscard]] int luaG_nameof(lua_State* L_);
 
-void populate_func_lookup_table(lua_State* L_, int i_, char const* name_);
+void populate_func_lookup_table(lua_State* const L_, int const i_, std::string_view const& name_);
 
 // #################################################################################################
 

@@ -3,6 +3,8 @@
 #include "lanesconf.h"
 #include "universe.h"
 
+#include <iostream>
+
 // #################################################################################################
 
 #if USE_DEBUG_SPEW()
@@ -10,7 +12,7 @@
 class DebugSpewIndentScope
 {
     private:
-    Universe* const U;
+    Universe* const U{};
 
     public:
     static char const* const debugspew_indent;
@@ -18,21 +20,28 @@ class DebugSpewIndentScope
     DebugSpewIndentScope(Universe* U_)
     : U{ U_ }
     {
-        if (U)
+        if (U) {
             U->debugspewIndentDepth.fetch_add(1, std::memory_order_relaxed);
+        }
     }
 
     ~DebugSpewIndentScope()
     {
-        if (U)
+        if (U) {
             U->debugspewIndentDepth.fetch_sub(1, std::memory_order_relaxed);
+        }
     }
 };
 
 // #################################################################################################
 
-#define INDENT_BEGIN "%.*s "
-#define INDENT_END(U_) , (U_ ? U_->debugspewIndentDepth.load(std::memory_order_relaxed) : 0), DebugSpewIndentScope::debugspew_indent
+inline auto& DebugSpew(Universe const* const U_)
+{
+    if (!U_) {
+        return std::cerr;
+    }
+    return std::cerr << std::string_view{ DebugSpewIndentScope::debugspew_indent, static_cast<size_t>(U_->debugspewIndentDepth.load(std::memory_order_relaxed)) } << " ";
+}
 #define DEBUGSPEW_CODE(_code) _code
 #define DEBUGSPEW_OR_NOT(a_, b_) a_
 #define DEBUGSPEW_PARAM_COMMA(param_) param_,
