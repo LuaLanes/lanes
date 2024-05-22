@@ -79,14 +79,14 @@ template <bool OPT>
 {
     Linda* const _linda{ ToLinda<OPT>(L_, idx_) };
     if (_linda != nullptr) {
+        std::ignore = lua_pushstringview(L_, "Linda: ");
         std::string_view const _lindaName{ _linda->getName() };
-        char _text[128];
-        int _len;
-        if (!_lindaName.empty())
-            _len = sprintf(_text, "Linda: %.*s", (int) sizeof(_text) - 8, _lindaName.data());
-        else
-            _len = sprintf(_text, "Linda: %p", _linda);
-        lua_pushlstring(L_, _text, _len);
+        if (!_lindaName.empty()) {
+            std::ignore = lua_pushstringview(L_, _lindaName);
+        } else {
+            lua_pushfstring(L_, "%p", _linda);
+        }
+        lua_concat(L_, 2);
         return 1;
     }
     return 0;
@@ -126,9 +126,17 @@ Linda::Linda(Universe* U_, LindaGroup group_, std::string_view const& name_)
 
 Linda::~Linda()
 {
+    freeAllocatedName();
+}
+
+// #################################################################################################
+
+void Linda::freeAllocatedName()
+{
     if (std::holds_alternative<std::string_view>(nameVariant)) {
         std::string_view& _name = std::get<std::string_view>(nameVariant);
         U->internalAllocator.free(const_cast<char*>(_name.data()), _name.size());
+        _name = {};
     }
 }
 
@@ -189,21 +197,19 @@ void Linda::setName(std::string_view const& name_)
     if (name_.empty()) {
         return;
     }
-    size_t const _lenWithTZ{ name_.size() + 1 }; // don't forget terminating 0
-    if (_lenWithTZ < kEmbeddedNameLength) {
+
+    // if we currently hold an allocated name, free it
+    freeAllocatedName();
+    if (name_.size() <= kEmbeddedNameLength) {
         // grab our internal buffer
         EmbeddedName& _name = nameVariant.emplace<EmbeddedName>();
         // copy the string in it
         memcpy(_name.data(), name_.data(), name_.size());
-        // don't forget terminating 0
-        _name[_lenWithTZ] = 0;
     } else {
         // allocate an external buffer
-        char* const _nameBuffer{ static_cast<char*>(U->internalAllocator.alloc(_lenWithTZ)) };
+        char* const _nameBuffer{ static_cast<char*>(U->internalAllocator.alloc(name_.size())) };
         // copy the string in it
         memcpy(_nameBuffer, name_.data(), name_.size());
-        // don't forget terminating 0
-        _nameBuffer[_lenWithTZ] = 0;
         nameVariant.emplace<std::string_view>(_nameBuffer, name_.size());
     }
 }

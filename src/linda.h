@@ -56,6 +56,7 @@ class Linda
     Linda& operator=(Linda const&&) = delete;
 
     private:
+    void freeAllocatedName();
     void setName(std::string_view const& name_);
 
     public:
