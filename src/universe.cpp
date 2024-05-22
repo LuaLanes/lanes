@@ -150,10 +150,9 @@ void Universe::closeKeepers()
 void Universe::initializeAllocatorFunction(lua_State* L_)
 {
     STACK_CHECK_START_REL(L_, 1);                                                                  // L_: settings
-    lua_getfield(L_, -1, "allocator");                                                             // L_: settings allocator|nil|"protected"
-    if (!lua_isnil(L_, -1)) {
+    if (luaG_getfield(L_, -1, "allocator") != LuaType::NIL) {                                      // L_: settings allocator|nil|"protected"
         // store C function pointer in an internal variable
-        provideAllocator = lua_tocfunction(L_, -1);                                            // L_: settings allocator
+        provideAllocator = lua_tocfunction(L_, -1);                                                // L_: settings allocator
         if (provideAllocator != nullptr) {
             // make sure the function doesn't have upvalues
             char const* upname = lua_getupvalue(L_, -1, 1);                                        // L_: settings allocator upval?
@@ -179,18 +178,16 @@ void Universe::initializeAllocatorFunction(lua_State* L_)
     lua_pop(L_, 1); // L_: settings
     STACK_CHECK(L_, 1);
 
-    lua_getfield(L_, -1, "internal_allocator");                                                    // L_: settings "libc"|"allocator"
-    {
-        char const* const _allocator{ lua_tostring(L_, -1) };
-        if (strcmp(_allocator, "libc") == 0) {
-            internalAllocator = AllocatorDefinition{ libc_lua_Alloc, nullptr };
-        } else if (provideAllocator == luaG_provide_protected_allocator) {
-            // user wants mutex protection on the state's allocator. Use protection for our own allocations too, just in case.
-            internalAllocator = protectedAllocator.makeDefinition();
-        } else {
-            // no protection required, just use whatever we have as-is.
-            internalAllocator = protectedAllocator;
-        }
+    std::ignore = luaG_getfield(L_, -1, "internal_allocator");                                     // L_: settings "libc"|"allocator"
+    std::string_view const _allocator{ lua_tostringview(L_, -1) };
+    if (_allocator == "libc") {
+        internalAllocator = AllocatorDefinition{ libc_lua_Alloc, nullptr };
+    } else if (provideAllocator == luaG_provide_protected_allocator) {
+        // user wants mutex protection on the state's allocator. Use protection for our own allocations too, just in case.
+        internalAllocator = protectedAllocator.makeDefinition();
+    } else {
+        // no protection required, just use whatever we have as-is.
+        internalAllocator = protectedAllocator;
     }
     lua_pop(L_, 1);                                                                                // L_: settings
     STACK_CHECK(L_, 1);
@@ -213,7 +210,7 @@ void Universe::initializeKeepers(lua_State* L_)
 {
     LUA_ASSERT(L_, lua_gettop(L_) == 1 && lua_istable(L_, 1));
     STACK_CHECK_START_REL(L_, 0);                                                                  // L_: settings
-    lua_getfield(L_, 1, "nb_keepers");                                                             // L_: settings nb_keepers
+    std::ignore = luaG_getfield(L_, 1, "nb_keepers");                                              // L_: settings nb_keepers
     int const _nb_keepers{ static_cast<int>(lua_tointeger(L_, -1)) };
     lua_pop(L_, 1);                                                                                // L_: settings
     if (_nb_keepers < 1) {
@@ -221,7 +218,7 @@ void Universe::initializeKeepers(lua_State* L_)
     }
     STACK_CHECK(L_, 0);
 
-    lua_getfield(L_, 1, "keepers_gc_threshold");                                                   // L_: settings keepers_gc_threshold
+    std::ignore = luaG_getfield(L_, 1, "keepers_gc_threshold");                                    // L_: settings keepers_gc_threshold
     int const keepers_gc_threshold{ static_cast<int>(lua_tointeger(L_, -1)) };
     lua_pop(L_, 1);                                                                                // L_: settings
     STACK_CHECK(L_, 0);

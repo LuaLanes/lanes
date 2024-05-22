@@ -651,8 +651,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     }
 
     // no __lanesclone? -> not clonable
-    lua_getfield(L1, -1, "__lanesclone");                                                          // L1: ... mt __lanesclone?
-    if (lua_isnil(L1, -1)) {
+    if (luaG_getfield(L1, -1, "__lanesclone") == LuaType::NIL) {                                   // L1: ... mt nil
         lua_pop(L1, 2);                                                                            // L1: ...
         STACK_CHECK(L1, 0);
         return false;
@@ -865,7 +864,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         // perform the custom cloning part
         lua_insert(L2, -2);                                                                        //                                                L2: ... u mt
         // __lanesclone should always exist because we wouldn't be restoring data from a userdata_clone_sentinel closure to begin with
-        lua_getfield(L2, -1, "__lanesclone");                                                      //                                                L2: ... u mt __lanesclone
+        std::ignore = luaG_getfield(L2, -1, "__lanesclone");                                       //                                                L2: ... u mt __lanesclone
         lua_remove(L2, -2);                                                                        //                                                L2: ... u __lanesclone
         lua_pushlightuserdata(L2, _clone);                                                         //                                                L2: ... u __lanesclone clone
         lua_pushlightuserdata(L2, _source);                                                        //                                                L2: ... u __lanesclone clone source
@@ -1083,8 +1082,8 @@ static char const* vt_names[] = {
     // Non-POD can be skipped if its metatable contains { __lanesignore = true }
     if (((1 << static_cast<int>(_val_type)) & kPODmask) == 0) {
         if (lua_getmetatable(L1, L1_i)) {                                                          // L1: ... mt
-            lua_getfield(L1, -1, "__lanesignore"); // L1: ... mt ignore?
-            if (lua_isboolean(L1, -1) && lua_toboolean(L1, -1)) {
+            LuaType const _type{ luaG_getfield(L1, -1, "__lanesignore") };                         // L1: ... mt ignore?
+            if (_type == LuaType::BOOLEAN && lua_toboolean(L1, -1)) {
                 DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "__lanesignore -> LUA_TNIL\n" INDENT_END(U)));
                 _val_type = LuaType::NIL;
             }
@@ -1195,8 +1194,7 @@ static char const* vt_names[] = {
             continue;
         }
         DEBUGSPEW_CODE(fprintf(stderr, INDENT_BEGIN "package.%s\n" INDENT_END(U), _entry));
-        lua_getfield(L1, L1_i, _entry);
-        if (lua_isnil(L1, -1)) {
+        if (luaG_getfield(L1, L1_i, _entry) == LuaType::NIL) {
             lua_pop(L1, 1);
         } else {
             {

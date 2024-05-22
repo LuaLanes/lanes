@@ -224,7 +224,7 @@ std::string_view DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_,
                 return "Bad DeepFactory::createMetatable overload: unexpected pushed value";
             }
             // if the metatable contains a __gc, we will call it from our own
-            lua_getfield(L_, -1, "__gc");                                                          // L_: DPC proxy metatable __gc
+            std::ignore = luaG_getfield(L_, -1, "__gc");                                           // L_: DPC proxy metatable __gc
         } else {
             // keepers need a minimal metatable that only contains our own __gc
             lua_createtable(L_, 0, 1);                                                             // L_: DPC proxy metatable
@@ -250,12 +250,11 @@ std::string_view DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_,
             // check that the module is already loaded (or being loaded, we are happy either way)
             if (lua_isfunction(L_, -1)) {
                 lua_pushlstring(L_, _modname.data(), _modname.size());                             // L_: DPC proxy metatable require() "module"
-                lua_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);                             // L_: DPC proxy metatable require() "module" _R._LOADED
-                if (lua_istable(L_, -1)) {
+                if (luaG_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE) == LuaType::TABLE) {    // L_: DPC proxy metatable require() "module" _R._LOADED
                     lua_pushvalue(L_, -2);                                                         // L_: DPC proxy metatable require() "module" _R._LOADED "module"
                     lua_rawget(L_, -2);                                                            // L_: DPC proxy metatable require() "module" _R._LOADED module
-                    int const alreadyloaded = lua_toboolean(L_, -1);
-                    if (!alreadyloaded) { // not loaded
+                    int const _alreadyloaded{ lua_toboolean(L_, -1) };
+                    if (!_alreadyloaded) { // not loaded
                         lua_pop(L_, 2);                                                            // L_: DPC proxy metatable require() "module"
                         // require "modname"
                         LuaError const _require_result{ lua_pcall(L_, 1, 0, 0) };                  // L_: DPC proxy metatable error?

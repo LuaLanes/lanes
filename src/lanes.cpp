@@ -553,7 +553,7 @@ LUAG_FUNC(wakeup_conv)
 
     STACK_CHECK_START_REL(L_, 0);
     auto _readInteger = [L = L_](char const* name_) {
-        lua_getfield(L, 1, name_);
+        std::ignore = luaG_getfield(L, 1, name_);
         lua_Integer const val{ lua_tointeger(L, -1) };
         lua_pop(L, 1);
         return static_cast<int>(val);
@@ -569,8 +569,7 @@ LUAG_FUNC(wakeup_conv)
     // If Lua table has '.isdst' we trust that. If it does not, we'll let
     // 'mktime' decide on whether the time is within DST or not (value -1).
     //
-    lua_getfield(L_, 1, "isdst");
-    int const _isdst{ lua_isboolean(L_, -1) ? lua_toboolean(L_, -1) : -1 };
+    int const _isdst{ (luaG_getfield(L_, 1, "isdst") == LuaType::BOOLEAN) ? lua_toboolean(L_, -1) : -1 };
     lua_pop(L_, 1);
     STACK_CHECK(L_, 0);
 
@@ -641,20 +640,20 @@ LUAG_FUNC(configure)
         _U = universe_create(L_);                                                                  // L_: settings universe
         DEBUGSPEW_CODE(DebugSpewIndentScope _scope2{ _U });
         lua_createtable(L_, 0, 1);                                                                 // L_: settings universe {mt}
-        lua_getfield(L_, 1, "shutdown_timeout");                                                   // L_: settings universe {mt} shutdown_timeout
-        lua_getfield(L_, 1, "shutdown_mode");                                                      // L_: settings universe {mt} shutdown_timeout shutdown_mode
+        std::ignore = luaG_getfield(L_, 1, "shutdown_timeout");                                    // L_: settings universe {mt} shutdown_timeout
+        std::ignore = luaG_getfield(L_, 1, "shutdown_mode");                                       // L_: settings universe {mt} shutdown_timeout shutdown_mode
         lua_pushcclosure(L_, universe_gc, 2);                                                      // L_: settings universe {mt} universe_gc
         lua_setfield(L_, -2, "__gc");                                                              // L_: settings universe {mt}
         lua_setmetatable(L_, -2);                                                                  // L_: settings universe
         lua_pop(L_, 1);                                                                            // L_: settings
-        lua_getfield(L_, 1, "verbose_errors");                                                     // L_: settings verbose_errors
+        std::ignore = luaG_getfield(L_, 1, "verbose_errors");                                      // L_: settings verbose_errors
         _U->verboseErrors = lua_toboolean(L_, -1) ? true : false;
         lua_pop(L_, 1);                                                                            // L_: settings
-        lua_getfield(L_, 1, "demote_full_userdata");                                               // L_: settings demote_full_userdata
+        std::ignore = luaG_getfield(L_, 1, "demote_full_userdata");                                // L_: settings demote_full_userdata
         _U->demoteFullUserdata = lua_toboolean(L_, -1) ? true : false;
         lua_pop(L_, 1);                                                                            // L_: settings
 #if HAVE_LANE_TRACKING()
-        lua_getfield(L_, 1, "track_lanes");                                                        // L_: settings track_lanes
+        std::ignore = luaG_getfield(L_, 1, "track_lanes");                                         // L_: settings track_lanes
         if (lua_toboolean(L_, -1)) {
             _U->tracker.activate();
         }

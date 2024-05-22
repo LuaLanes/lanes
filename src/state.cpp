@@ -218,8 +218,7 @@ static void copy_one_time_settings(Universe* U_, SourceState L1_, DestState L2_)
 void InitializeOnStateCreate(Universe* U_, lua_State* L_)
 {
     STACK_CHECK_START_REL(L_, 1);                                                                  // L_: settings
-    lua_getfield(L_, -1, "on_state_create");                                                       // L_: settings on_state_create|nil
-    if (!lua_isnil(L_, -1)) {
+    if (luaG_getfield(L_, -1, "on_state_create") != LuaType::NIL) {                                // L_: settings on_state_create|nil
         // store C function pointer in an internal variable
         U_->onStateCreateFunc = lua_tocfunction(L_, -1);                                           // L_: settings on_state_create
         if (U_->onStateCreateFunc != nullptr) {
@@ -289,7 +288,7 @@ void CallOnStateCreate(Universe* U_, lua_State* L_, lua_State* from_, LookupMode
             }
             kConfigRegKey.pushValue(L_);                                                           // L_: {}
             STACK_CHECK(L_, 1);
-            lua_getfield(L_, -1, "on_state_create");                                               // L_: {} on_state_create()
+            std::ignore = luaG_getfield(L_, -1, "on_state_create");                                // L_: {} on_state_create()
             lua_remove(L_, -2);                                                                    // L_: on_state_create()
         }
         STACK_CHECK(L_, 1);

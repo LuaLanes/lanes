@@ -155,7 +155,7 @@ assert(st == "cancelled")
 
 -- cancellation of lanes waiting on a linda
 local limited = lanes.linda("limited")
-assert.fails(function() limited:limit("key", 0) end)
+assert.fails(function() limited:limit("key", -1) end)
 assert.failsnot(function() limited:limit("key", 1) end)
 -- [[################################################
 limited:send("key", "hello") -- saturate linda

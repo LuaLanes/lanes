@@ -340,7 +340,7 @@ static LUAG_FUNC(thread_index)
 
     default: // unknown key
         lua_getmetatable(L_, kSelf);                                                               // L_: mt
-        lua_getfield(L_, -1, "cached_error");                                                      // L_: mt error
+        std::ignore = luaG_getfield(L_, -1, "cached_error");                                       // L_: mt error
         lua_pushliteral(L_, "Unknown key: ");                                                      // L_: mt error "Unknown key: "
         lua_pushvalue(L_, kKey);                                                                   // L_: mt error "Unknown key: " k
         lua_concat(L_, 2);                                                                         // L_: mt error "Unknown key: <k>"

@@ -31,6 +31,33 @@ extern "C"
 
 // #################################################################################################
 
+// a strong-typed wrapper over lua types to see them easier in a debugger
+enum class LuaType
+{
+    NONE = LUA_TNONE,
+    NIL = LUA_TNIL,
+    BOOLEAN = LUA_TBOOLEAN,
+    LIGHTUSERDATA = LUA_TLIGHTUSERDATA,
+    NUMBER = LUA_TNUMBER,
+    STRING = LUA_TSTRING,
+    TABLE = LUA_TTABLE,
+    FUNCTION = LUA_TFUNCTION,
+    USERDATA = LUA_TUSERDATA,
+    THREAD = LUA_TTHREAD,
+    CDATA = 10 // LuaJIT CDATA
+};
+
+inline LuaType lua_type_as_enum(lua_State* L_, int idx_)
+{
+    return static_cast<LuaType>(lua_type(L_, idx_));
+}
+inline char const* lua_typename(lua_State* L_, LuaType t_)
+{
+    return lua_typename(L_, static_cast<int>(t_));
+}
+
+// #################################################################################################
+
 // add some Lua 5.3-style API when building for Lua 5.1
 #if LUA_VERSION_NUM == 501
 
@@ -106,22 +133,16 @@ inline int lua504_dump(lua_State* L_, lua_Writer writer_, void* data_, [[maybe_u
 
 // #################################################################################################
 
-#if LUA_VERSION_NUM < 503
+[[nodiscard]] inline LuaType luaG_getfield(lua_State* L_, int idx_, char const* k_)
+{
 // starting with Lua 5.3, lua_getfield returns the type of the value it found
-inline int lua503_getfield(lua_State* L_, int idx_, char const* k_)
-{
+#if LUA_VERSION_NUM < 503
     lua_getfield(L_, idx_, k_);
-    return lua_type(L_, -1);
-}
-
+    return lua_type_as_enum(L_, -1);
 #else // LUA_VERSION_NUM >= 503
-
-inline int lua503_getfield(lua_State* L_, int idx_, char const* k_)
-{
-    return lua_getfield(L_, idx_, k_);
-}
-
+    return static_cast<LuaType>(lua_getfield(L_, idx_, k_));
 #endif // LUA_VERSION_NUM >= 503
+}
 
 // #################################################################################################
 
@@ -199,33 +220,6 @@ inline int luaL_optint(lua_State* L_, int n_, lua_Integer d_)
 #define LUA_ERRGCMM 666 // doesn't exist in Lua 5.4, we don't care about the actual value
 
 #endif // LUA_VERSION_NUM == 504
-
-// #################################################################################################
-
-// a strong-typed wrapper over lua types to see them easier in a debugger
-enum class LuaType
-{
-    NONE = LUA_TNONE,
-    NIL = LUA_TNIL,
-    BOOLEAN = LUA_TBOOLEAN,
-    LIGHTUSERDATA = LUA_TLIGHTUSERDATA,
-    NUMBER = LUA_TNUMBER,
-    STRING = LUA_TSTRING,
-    TABLE = LUA_TTABLE,
-    FUNCTION = LUA_TFUNCTION,
-    USERDATA = LUA_TUSERDATA,
-    THREAD = LUA_TTHREAD,
-    CDATA = 10 // LuaJIT CDATA
-};
-
-inline LuaType lua_type_as_enum(lua_State* L_, int idx_)
-{
-    return static_cast<LuaType>(lua_type(L_, idx_));
-}
-inline char const* lua_typename(lua_State* L_, LuaType t_)
-{
-    return lua_typename(L_, static_cast<int>(t_));
-}
 
 // #################################################################################################
 

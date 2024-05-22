@@ -14,12 +14,12 @@
 LuaType luaG_getmodule(lua_State* L_, char const* name_)
 {
     STACK_CHECK_START_REL(L_, 0);
-    LuaType _type{ static_cast<LuaType>(lua503_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE)) };// L_: _R._LOADED|nil
+    LuaType _type{ luaG_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE) };                        // L_: _R._LOADED|nil
     if (_type != LuaType::TABLE) {                                                                  // L_: _R._LOADED|nil
         STACK_CHECK(L_, 1);
         return _type;
     }
-    _type = static_cast<LuaType>(lua503_getfield(L_, -1, name_));                                   // L_: _R._LOADED {module}|nil
+    _type = luaG_getfield(L_, -1, name_);                                                           // L_: _R._LOADED {module}|nil
     lua_remove(L_, -2);                                                                             // L_: {module}|nil
     STACK_CHECK(L_, 1);
     return _type;
