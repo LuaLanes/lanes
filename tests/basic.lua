@@ -214,26 +214,27 @@ local chunk= function(linda)
     local function receive() return linda:receive("->") end
     local function send(...) linda:send("<-", ...) end
 
-    WR("Lane starts!\n")
+    WR("chunk ", "Lane starts!\n")
 
     local k,v
-    k,v=receive(); WR(v.." received\n"); assert(v==1)
-    k,v=receive(); WR(v.." received\n"); assert(v==2)
-    k,v=receive(); WR(v.." received\n"); assert(v==3)
-    k,v=receive(); WR(tostring(v).." received\n"); assert(v==nil)
+    k,v=receive(); WR("chunk ", v.." received (expecting 1)\n"); assert(v==1)
+    k,v=receive(); WR("chunk ", v.." received (expecting 2)\n"); assert(v==2)
+    k,v=receive(); WR("chunk ", v.." received  (expecting 3)\n"); assert(v==3)
+    k,v=receive(); WR("chunk ", tostring(v).." received  (expecting nil from __lanesignore)\n"); assert(v==nil) -- a table with __lanesignore was sent
+    k,v=receive(); WR("chunk ", tostring(v).." received (expecting nil)\n"); assert(v==nil)
 
-    send(1,2,3);              WR("1,2,3 sent\n")
-    send 'a';                 WR("'a' sent\n")
-    send(nil);                WR("nil sent\n")
-    send { 'a', 'b', 'c', d=10 }; WR("{'a','b','c',d=10} sent\n")
+    send(4,5,6);              WR("chunk ", "4,5,6 sent\n")
+    send 'aaa';               WR("chunk ", "'aaa' sent\n")
+    send(nil);                WR("chunk ", "nil sent\n")
+    send { 'a', 'b', 'c', d=10 }; WR("chunk ","{'a','b','c',d=10} sent\n")
 
-    k,v=receive(); WR(v.." received\n"); assert(v==4)
+    k,v=receive(); WR("chunk ", v.." received\n"); assert(v==4)
 
     local subT1 = { "subT1"}
     local subT2 = { "subT2"}
-    send { subT1, subT2, subT1, subT2}; WR("{ subT1, subT2, subT1, subT2} sent\n")
+    send { subT1, subT2, subT1, subT2}; WR("chunk ", "{ subT1, subT2, subT1, subT2} sent\n")
 
-    WR("Lane ends!\n")
+    WR("chunk ", "Lane ends!\n")
 end
 
 local linda = lanes_linda("communications")
@@ -248,15 +249,16 @@ local function RECEIVE() local k,v = linda:receive(1, "<-") return v end
 
 local comms_lane = lanes_gen("io", {gc_cb = gc_cb, name = "auto"}, chunk)(linda)     -- prepare & launch
 
-SEND(1);  WR("1 sent\n")
-SEND(2);  WR("2 sent\n")
-SEND(3);  WR("3 sent\n")
+SEND(1);  WR("main ", "1 sent\n")
+SEND(2);  WR("main ", "2 sent\n")
+SEND(3);  WR("main ", "3 sent\n")
+SEND(setmetatable({"should be ignored"},{__lanesignore=true})); WR("main ", "__lanesignore table sent\n")
 for i=1,100 do
     WR "."
     lanes.sleep(0.0001)
     assert(PEEK() == nil)    -- nothing coming in, yet
 end
-SEND(nil);  WR("\nnil sent\n")
+SEND(nil);  WR("\nmain ", "nil sent\n")
 
 local a,b,c = RECEIVE(), RECEIVE(), RECEIVE()
 
@@ -264,13 +266,13 @@ print("lane status: " .. comms_lane.status)
 if comms_lane.status == "error" then
     print(comms_lane:join())
 else
-    WR(a..", "..b..", "..c.." received\n")
+    WR("main ", tostring(a)..", "..tostring(b)..", "..tostring(c).." received\n")
 end
 
-assert(a==1 and b==2 and c==3)
+assert(a==4 and b==5 and c==6)
 
-local a = RECEIVE();   WR(a.." received\n")
-assert(a=='a')
+local aaa = RECEIVE(); WR("main ", aaa.." received\n")
+assert(aaa=='aaa')
 
 local null = RECEIVE();   WR(tostring(null).." received\n")
 assert(null==nil)

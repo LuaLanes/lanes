@@ -40,7 +40,6 @@ struct Keepers
 // xxh64 of string "kNilSentinel" generated at https://www.pelock.com/products/hash-calculator
 static constexpr UniqueKey kNilSentinel{ 0xC457D4EDDB05B5E4ull, "lanes.null" };
 
-void keeper_toggle_nil_sentinels(lua_State* L_, int start_, LookupMode const mode_);
 [[nodiscard]] int keeper_push_linda_storage(Linda& linda_, DestState L_);
 
 using keeper_api_t = lua_CFunction;

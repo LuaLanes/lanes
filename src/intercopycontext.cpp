@@ -28,6 +28,7 @@ THE SOFTWARE.
 
 #include "debugspew.h"
 #include "deep.h"
+#include "keeper.h"
 #include "universe.h"
 
 // #################################################################################################
@@ -887,7 +888,12 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 {
     void* const _p{ lua_touserdata(L1, L1_i) };
     DEBUGSPEW_CODE(fprintf(stderr, "%p\n", _p));
-    lua_pushlightuserdata(L2, _p);
+    // when copying a nil sentinel in a non-keeper, write a nil in the destination
+    if (mode != LookupMode::ToKeeper && kNilSentinel.equals(L1, L1_i)) {
+        lua_pushnil(L2);
+    } else {
+        lua_pushlightuserdata(L2, _p);
+    }
     return true;
 }
 
@@ -898,7 +904,12 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     if (vt == VT::KEY) {
         return false;
     }
-    lua_pushnil(L2);
+    // when copying a nil in a keeper, write a nil sentinel in the destination
+    if (mode == LookupMode::ToKeeper) {
+        kNilSentinel.pushKey(L2);
+    } else {
+        lua_pushnil(L2);
+    }
     return true;
 }
 

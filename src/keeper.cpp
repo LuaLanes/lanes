@@ -569,26 +569,6 @@ void Linda::releaseKeeper(Keeper* K_) const
 
 // #################################################################################################
 
-void keeper_toggle_nil_sentinels(lua_State* L_, int start_, LookupMode const mode_)
-{
-    int const _n{ lua_gettop(L_) };
-    for (int _i = start_; _i <= _n; ++_i) {
-        if (mode_ == LookupMode::ToKeeper) {
-            if (lua_isnil(L_, _i)) {
-                kNilSentinel.pushKey(L_);
-                lua_replace(L_, _i);
-            }
-        } else {
-            if (kNilSentinel.equals(L_, _i)) {
-                lua_pushnil(L_);
-                lua_replace(L_, _i);
-            }
-        }
-    }
-}
-
-// #################################################################################################
-
 /*
  * Call a function ('func_name') in the keeper state, and pass on the returned
  * values to 'L'.

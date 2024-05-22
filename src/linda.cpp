@@ -344,9 +344,6 @@ LUAG_FUNC(linda_get)
         if (_linda->cancelRequest == CancelRequest::None) {
             Keeper* const _K{ _linda->whichKeeper() };
             _pushed = keeper_call(_K->L, KEEPER_API(get), L_, _linda, 2);
-            if (_pushed.value_or(0) > 0) {
-                keeper_toggle_nil_sentinels(L_, lua_gettop(L_) - _pushed.value(), LookupMode::FromKeeper);
-            }
         } else { // linda is cancelled
             // do nothing and return lanes.cancel_error
             kCancelError.pushKey(L_);
@@ -492,10 +489,6 @@ LUAG_FUNC(linda_receive)
             }
             if (_pushed.value() > 0) {
                 LUA_ASSERT(L_, _pushed.value() >= _expected_pushed_min && _pushed.value() <= _expected_pushed_max);
-                // replace sentinels with real nils
-                keeper_toggle_nil_sentinels(L_, lua_gettop(L_) - _pushed.value(), LookupMode::FromKeeper);
-                // To be done from within the 'K' locking area
-                //
                 _linda->readHappened.notify_all();
                 break;
             }
@@ -589,8 +582,6 @@ LUAG_FUNC(linda_send)
             raise_luaL_error(L_, "no data to send");
         }
 
-        // convert nils to some special non-nil sentinel in sent values
-        keeper_toggle_nil_sentinels(L_, _key_i + 1, LookupMode::ToKeeper);
         bool _ret{ false };
         CancelRequest _cancel{ CancelRequest::None };
         KeeperCallResult _pushed;
@@ -701,10 +692,6 @@ LUAG_FUNC(linda_set)
         Keeper* const _K{ _linda->whichKeeper() };
         KeeperCallResult _pushed;
         if (_linda->cancelRequest == CancelRequest::None) {
-            if (_has_value) {
-                // convert nils to some special non-nil sentinel in sent values
-                keeper_toggle_nil_sentinels(L_, 3, LookupMode::ToKeeper);
-            }
             _pushed = keeper_call(_K->L, KEEPER_API(set), L_, _linda, 2);
             if (_pushed.has_value()) { // no error?
                 LUA_ASSERT(L_, _pushed.value() == 0 || _pushed.value() == 1);
