@@ -84,11 +84,11 @@ THE SOFTWARE.
 /*
  * Serialize calls to 'require', if it exists
  */
-void serialize_require(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_)
+void serialize_require(lua_State* L_)
 {
     STACK_GROW(L_, 1);
     STACK_CHECK_START_REL(L_, 0);
-    DEBUGSPEW_CODE(DebugSpew(U_) << "serializing require()" << std::endl);
+    DEBUGSPEW_CODE(DebugSpew(universe_get(L_)) << "serializing require()" << std::endl);
 
     // Check 'require' is there and not already wrapped; if not, do nothing
     //
@@ -155,7 +155,7 @@ namespace global
 
 // #################################################################################################
 
-static void open1lib(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_, std::string_view const& name_)
+static void open1lib(lua_State* L_, std::string_view const& name_)
 {
     for (luaL_Reg const& _entry : global::sLibs) {
         if (name_ == _entry.name) {
@@ -164,7 +164,7 @@ static void open1lib(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_, std::str
                 break;
             }
             std::string_view const _name{ _entry.name };
-            DEBUGSPEW_CODE(DebugSpew(U_) << "opening '" << _name << "' library" << std::endl);
+            DEBUGSPEW_CODE(DebugSpew(universe_get(L_)) << "opening '" << _name << "' library" << std::endl);
             STACK_CHECK_START_REL(L_, 0);
             // open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
             bool const isLanesCore{ _libfunc == require_lanes_core }; // don't want to create a global for "lanes.core"
@@ -352,12 +352,12 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
             DEBUGSPEW_CODE(DebugSpew(U_) << "opening ALL standard libraries" << std::endl);
             luaL_openlibs(_L);
             // don't forget lanes.core for regular lane states
-            open1lib(DEBUGSPEW_PARAM_COMMA(U_) _L, kLanesCoreLibName);
+            open1lib(_L, kLanesCoreLibName);
             libs_ = nullptr; // done with libs
         } else {
 #if LUAJIT_FLAVOR() != 0 // building against LuaJIT headers, always open jit
             DEBUGSPEW_CODE(DebugSpew(U_) << "opening 'jit' library" << std::endl);
-            open1lib(DEBUGSPEW_PARAM_COMMA(U_) _L, LUA_JITLIBNAME);
+            open1lib(_L, LUA_JITLIBNAME);
 #endif // LUAJIT_FLAVOR()
             DEBUGSPEW_CODE(DebugSpew(U_) << "opening 'base' library" << std::endl);
 #if LUA_VERSION_NUM >= 502
@@ -385,12 +385,12 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
             while (isalnum(_p[_len]) || _p[_len] == '.')
                 ++_len;
             // open library
-            open1lib(DEBUGSPEW_PARAM_COMMA(U_) _L, { _p, _len });
+            open1lib(_L, { _p, _len });
         }
     }
     lua_gc(_L, LUA_GCRESTART, 0);
 
-    serialize_require(DEBUGSPEW_PARAM_COMMA(U_) _L);
+    serialize_require(_L);
 
     // call this after the base libraries are loaded and GC is restarted
     // will raise an error in from_ in case of problem

@@ -122,15 +122,16 @@ static constexpr int kWriterReturnCode{ 666 };
  * if we already had an entry of type [o] = ..., replace the name if the new one is shorter
  * pops the processed object from the stack
  */
-static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_, int ctxBase_, int depth_)
+static void update_lookup_entry(lua_State* L_, int ctxBase_, int depth_)
 {
     // slot 1 in the stack contains the table that receives everything we found
     int const _dest{ ctxBase_ };
     // slot 2 contains a table that, when concatenated, produces the fully qualified name of scanned elements in the table provided at slot _i
     int const _fqn{ ctxBase_ + 1 };
 
-    DEBUGSPEW_CODE(DebugSpew(U_) << "update_lookup_entry()" << std::endl);
-    DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U_ });
+    DEBUGSPEW_CODE(Universe* const _U{ universe_get(L_) });
+    DEBUGSPEW_CODE(DebugSpew(_U) << "update_lookup_entry()" << std::endl);
+    DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
 
     STACK_CHECK_START_REL(L_, 0);
     // first, raise an error if the function is already known
@@ -154,7 +155,7 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L
     // Therefore, when we encounter an object for which a name was previously registered, we need to select the names
     // based on some sorting order so that we end up with the same name in all databases whatever order the table walk yielded
     if (!_prevName.empty() && (_prevName.size() < _newName.size() || lua_lessthan(L_, -2, -1))) {
-        DEBUGSPEW_CODE(DebugSpew(U_) << lua_typename(L_, lua_type(L_, -3)) << " '" << _newName << "' remains named '" << _prevName << "'" << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(_U) << lua_typename(L_, lua_type(L_, -3)) << " '" << _newName << "' remains named '" << _prevName << "'" << std::endl);
         // the previous name is 'smaller' than the one we just generated: keep it!
         lua_pop(L_, 3);                                                                            // L_: ... {bfc} k
     } else {
@@ -168,7 +169,7 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L
         } else {
             lua_remove(L_, -2);                                                                    // L_: ... {bfc} k o "f.q.n"
         }
-        DEBUGSPEW_CODE(DebugSpew(U_) << lua_typename(L_, lua_type(L_, -2)) << " '" << _newName << "'" << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(_U) << lua_typename(L_, lua_type(L_, -2)) << " '" << _newName << "'" << std::endl);
         // prepare the stack for database feed
         lua_pushvalue(L_, -1);                                                                     // L_: ... {bfc} k o "f.q.n" "f.q.n"
         lua_pushvalue(L_, -3);                                                                     // L_: ... {bfc} k o "f.q.n" "f.q.n" o
@@ -188,15 +189,16 @@ static void update_lookup_entry(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L
 
 // #################################################################################################
 
-static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_, int dbIdx_, int i_, int depth_)
+static void populate_func_lookup_table_recur(lua_State* L_, int dbIdx_, int i_, int depth_)
 {
     // slot dbIdx_ contains the lookup database table
     // slot dbIdx_ + 1 contains a table that, when concatenated, produces the fully qualified name of scanned elements in the table provided at slot i_
     int const _fqn{ dbIdx_ + 1 };
     // slot dbIdx_ + 2 contains a cache that stores all already visited tables to avoid infinite recursion loops
     int const _cache{ dbIdx_ + 2 };
-    DEBUGSPEW_CODE(DebugSpew(U_) << "populate_func_lookup_table_recur()" << std::endl);
-    DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U_ });
+    DEBUGSPEW_CODE(Universe* const _U{ universe_get(L_) });
+    DEBUGSPEW_CODE(DebugSpew(_U) << "populate_func_lookup_table_recur()" << std::endl);
+    DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
 
     STACK_GROW(L_, 6);
     // slot i_ contains a table where we search for functions (or a full userdata with a metatable)
@@ -215,7 +217,7 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U_)
     lua_pop(L_, 1);                                                                                // L_: ... {i_}
     STACK_CHECK(L_, 0);
     if (_visit_count > 0) {
-        DEBUGSPEW_CODE(DebugSpew(U_) << "already visited" << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(_U) << "already visited" << std::endl);
         return;
     }
 
@@ -248,11 +250,11 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U_)
             lua_pushvalue(L_, -2);                                                                 // L_: ... {i_} {bfc} k {} k {}
             lua_rawset(L_, breadthFirstCache);                                                     // L_: ... {i_} {bfc} k {}
             // generate a name, and if we already had one name, keep whichever is the shorter
-            update_lookup_entry(DEBUGSPEW_PARAM_COMMA(U_) L_, dbIdx_, depth_);                     // L_: ... {i_} {bfc} k
+            update_lookup_entry(L_, dbIdx_, depth_);                                               // L_: ... {i_} {bfc} k
         } else if (lua_isfunction(L_, -1) && (luaG_getfuncsubtype(L_, -1) != FuncSubType::Bytecode)) {
             // generate a name, and if we already had one name, keep whichever is the shorter
             // this pops the function from the stack
-            update_lookup_entry(DEBUGSPEW_PARAM_COMMA(U_) L_, dbIdx_, depth_);                     // L_: ... {i_} {bfc} k
+            update_lookup_entry(L_, dbIdx_, depth_);                                               // L_: ... {i_} {bfc} k
         } else {
             lua_pop(L_, 1); // L_: ... {i_} {bfc} k
         }
@@ -263,8 +265,8 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U_)
     lua_pushnil(L_);                                                                               // L_: ... {i_} {bfc} nil
     while (lua_next(L_, breadthFirstCache) != 0) {                                                 // L_: ... {i_} {bfc} k {}
         DEBUGSPEW_CODE(std::string_view const _key{ (lua_type(L_, -2) == LUA_TSTRING) ? lua_tostringview(L_, -2) : std::string_view{ "<not a string>" } });
-        DEBUGSPEW_CODE(DebugSpew(U_) << "table '"<< _key <<"'" << std::endl);
-        DEBUGSPEW_CODE(DebugSpewIndentScope _scope2{ U_ });
+        DEBUGSPEW_CODE(DebugSpew(_U) << "table '"<< _key <<"'" << std::endl);
+        DEBUGSPEW_CODE(DebugSpewIndentScope _scope2{ _U });
         // un-visit this table in case we do need to process it
         lua_pushvalue(L_, -1);                                                                     // L_: ... {i_} {bfc} k {} {}
         lua_rawget(L_, _cache);                                                                    // L_: ... {i_} {bfc} k {} n
@@ -281,7 +283,7 @@ static void populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(Universe* U_)
         // push table name in fqn stack (note that concatenation will crash if name is a not string!)
         lua_pushvalue(L_, -2);                                                                     // L_: ... {i_} {bfc} k {} k
         lua_rawseti(L_, _fqn, depth_);                                                             // L_: ... {i_} {bfc} k {}
-        populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(U_) L_, dbIdx_, lua_gettop(L_), depth_);
+        populate_func_lookup_table_recur(L_, dbIdx_, lua_gettop(L_), depth_);
         lua_pop(L_, 1);                                                                            // L_: ... {i_} {bfc} k
         STACK_CHECK(L_, 2);
     }
@@ -330,7 +332,7 @@ void populate_func_lookup_table(lua_State* const L_, int const i_, std::string_v
             std::ignore = lua_pushstringview(L_, _name);                                           // L_: {} {fqn} "name"
             // generate a name, and if we already had one name, keep whichever is the shorter
             lua_pushvalue(L_, _in_base);                                                           // L_: {} {fqn} "name" t
-            update_lookup_entry(DEBUGSPEW_PARAM_COMMA(_U) L_, _dbIdx, _startDepth);                // L_: {} {fqn} "name"
+            update_lookup_entry(L_, _dbIdx, _startDepth);                                          // L_: {} {fqn} "name"
             // don't forget to store the name at the bottom of the fqn stack
             lua_rawseti(L_, -2, ++_startDepth);                                                    // L_: {} {fqn}
             STACK_CHECK(L_, 2);
@@ -338,7 +340,7 @@ void populate_func_lookup_table(lua_State* const L_, int const i_, std::string_v
         // retrieve the cache, create it if we haven't done it yet
         std::ignore = kLookupCacheRegKey.getSubTable(L_, 0, 0);                                    // L_: {} {fqn} {cache}
         // process everything we find in that table, filling in lookup data for all functions and tables we see there
-        populate_func_lookup_table_recur(DEBUGSPEW_PARAM_COMMA(_U) L_, _dbIdx, _in_base, _startDepth);
+        populate_func_lookup_table_recur(L_, _dbIdx, _in_base, _startDepth);
         lua_pop(L_, 3);                                                                            // L_:
     } else {
         lua_pop(L_, 1);                                                                            // L_:

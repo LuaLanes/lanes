@@ -1165,10 +1165,10 @@ static char const* vt_names[] = {
         DEBUGSPEW_CODE(DebugSpewIndentScope scope);
 
         public:
-        OnExit(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L2_)
+        OnExit(lua_State* L2_)
         : L2{ L2_ }
         , top_L2{ lua_gettop(L2) }
-        DEBUGSPEW_COMMA_PARAM(scope{ U_ })
+        DEBUGSPEW_COMMA_PARAM(scope{ universe_get(L2_) })
         {
         }
 
@@ -1176,7 +1176,7 @@ static char const* vt_names[] = {
         {
             lua_settop(L2, top_L2);
         }
-    } onExit{ DEBUGSPEW_PARAM_COMMA(U) L2 };
+    } const _onExit{ L2 };
 
     STACK_CHECK_START_REL(L1, 0);
     if (lua_type_as_enum(L1, L1_i) != LuaType::TABLE) {

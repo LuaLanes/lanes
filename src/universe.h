@@ -197,9 +197,9 @@ void universe_store(lua_State* L_, Universe* U_);
 [[nodiscard]] inline Universe* universe_get(lua_State* L_)
 {
     STACK_CHECK_START_REL(L_, 0);
-    Universe* const universe{ kUniverseLightRegKey.readLightUserDataValue<Universe>(L_) };
+    Universe* const _universe{ kUniverseLightRegKey.readLightUserDataValue<Universe>(L_) };
     STACK_CHECK(L_, 0);
-    return universe;
+    return _universe;
 }
 
 // #################################################################################################

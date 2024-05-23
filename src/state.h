@@ -7,7 +7,7 @@
 enum class LookupMode;
 class Universe;
 
-void serialize_require(DEBUGSPEW_PARAM_COMMA(Universe* U_) lua_State* L_);
+void serialize_require(lua_State* L_);
 
 // #################################################################################################
 

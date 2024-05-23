@@ -342,7 +342,7 @@ LUAG_FUNC(lane_new)
             lane->ready.count_down();
             lane = nullptr;
         }
-    } onExit{ L_, _lane};
+    } _onExit{ L_, _lane};
     // launch the thread early, it will sync with a std::latch to parallelize OS thread warmup and L2 preparation
     DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: launching thread" << std::endl);
     // public Lanes API accepts a generic range -3/+3
@@ -497,7 +497,7 @@ LUAG_FUNC(lane_new)
 
     STACK_CHECK_RESET_REL(L_, 0);
     // all went well, the lane's thread can start working
-    onExit.success();                                                                              // L_: [fixed] lane                               L2: <living its own life>
+    _onExit.success();                                                                             // L_: [fixed] lane                               L2: <living its own life>
     // we should have the lane userdata on top of the stack
     STACK_CHECK(L_, 1);
     return 1;
@@ -681,7 +681,7 @@ LUAG_FUNC(configure)
     STACK_CHECK(L_, 1);
 
     // Serialize calls to 'require' from now on, also in the primary state
-    serialize_require(DEBUGSPEW_PARAM_COMMA(_U) L_);
+    serialize_require(L_);
 
     // Retrieve main module interface table
     lua_pushvalue(L_, lua_upvalueindex(2));                                                        // L_: settings M
