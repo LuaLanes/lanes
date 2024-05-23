@@ -344,7 +344,7 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
     // 'lua.c' stops GC during initialization so perhaps it is a good idea. :)
     lua_gc(_L, LUA_GCSTOP, 0);
 
-    // Anything causes 'base' to be taken in
+    // Anything causes 'base' and 'jit' to be taken in
     if (libs_ != nullptr) {
         // special "*" case (mainly to help with LuaJIT compatibility)
         // as we are called from luaopen_lanes_core() already, and that would deadlock
@@ -355,6 +355,10 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
             open1lib(DEBUGSPEW_PARAM_COMMA(U_) _L, kLanesCoreLibName);
             libs_ = nullptr; // done with libs
         } else {
+#if LUAJIT_FLAVOR() != 0 // building against LuaJIT headers, always open jit
+            DEBUGSPEW_CODE(DebugSpew(U_) << "opening 'jit' library" << std::endl);
+            open1lib(DEBUGSPEW_PARAM_COMMA(U_) _L, LUA_JITLIBNAME);
+#endif // LUAJIT_FLAVOR()
             DEBUGSPEW_CODE(DebugSpew(U_) << "opening 'base' library" << std::endl);
 #if LUA_VERSION_NUM >= 502
             // open base library the same way as in luaL_openlibs()

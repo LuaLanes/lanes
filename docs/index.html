@@ -500,14 +500,16 @@
 	<table style="width:100%">
 		<tr>
 			<td style="width:5%"></td>
-			<td>(nothing)</td>
+			<td>
+				<tt>nil</tt>
+			</td>
 			<td style="width:5%"></td>
 			<td>no standard libraries (default)</td>
 		</tr>
 		<tr>
 			<td />
 			<td>
-				<tt>"base"</tt> or <tt>""</tt>
+				<tt>"base"</tt>
 			</td>
 			<td />
 			<td>
@@ -658,6 +660,7 @@
 </p>
 
 <p>
+	Any non-<tt>nil</tt> value causes initialization of <tt>"base"</tt> and <tt>"jit"</tt> (the latter only for LuaJIT-based builds).<br/>
 	Initializing the standard libs takes a bit of time at each lane invocation. This is the main reason why "no libraries" is the default.
 </p>
 
