@@ -400,20 +400,16 @@
 				function/<tt>nil</tt>
 			</td>
 			<td>
-				If provided, will be called in every created Lua state right after initializing the base libraries.
-				<br />
-				Keeper states will call it as well, but only if it is a C function (keeper states are not able to execute any user Lua code).
-				<br />
+				If provided, will be called in every created Lua state right after initializing the base libraries, with a single string argument, either <tt>"lane"</tt> or <tt>"keeper"</tt>.<br/>
+				If it is a C function, a C closure will be reconstructed in the created state from the C pointer. Lanes will raise an error if the function has upvalues.<br/>
+				Keeper states will call it as well, but only if it is a C function (keeper states are not able to execute any user Lua code).<br/>
 				Typical usage is twofold:
 				<ul>
 					<li>Tweak <tt>package.loaders</tt></li>
 					<li>Load some additional C functions in the global space (of course only a C function will be able to do this).</li>
 				</ul>
-				That way, all changes in the state can be properly taken into account when building the function lookup database. Default is <tt>nil</tt>.
-				<br />
-				If <tt>on_state_create()</tt> is a Lua function, it will be transfered normally before the call.
-				<br />
-				If it is a C function, a C closure will be reconstructed in the created state from the C pointer. Lanes will raise an error if the function has upvalues.
+				That way, all changes in the state can be properly taken into account when building the function lookup database. Default is <tt>nil</tt>.<br/>
+				If <tt>on_state_create()</tt> is a Lua function, it will be transfered normally before the call.<br/>
 			</td>
 		</tr>
 

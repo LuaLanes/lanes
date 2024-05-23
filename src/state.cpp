@@ -207,22 +207,24 @@ static void copy_one_time_settings(Universe* U_, SourceState L1_, DestState L2_)
 
 // #################################################################################################
 
+static constexpr char const* kOnStateCreate{ "on_state_create" };
+
 void InitializeOnStateCreate(Universe* U_, lua_State* L_)
 {
     STACK_CHECK_START_REL(L_, 1);                                                                  // L_: settings
-    if (luaG_getfield(L_, -1, "on_state_create") != LuaType::NIL) {                                // L_: settings on_state_create|nil
+    if (luaG_getfield(L_, -1, kOnStateCreate) != LuaType::NIL) {                                   // L_: settings on_state_create|nil
         // store C function pointer in an internal variable
         U_->onStateCreateFunc = lua_tocfunction(L_, -1);                                           // L_: settings on_state_create
         if (U_->onStateCreateFunc != nullptr) {
             // make sure the function doesn't have upvalues
             char const* _upname{ lua_getupvalue(L_, -1, 1) };                                      // L_: settings on_state_create upval?
             if (_upname != nullptr) { // should be "" for C functions with upvalues if any
-                raise_luaL_error(L_, "on_state_create shouldn't have upvalues");
+                raise_luaL_error(L_, "%s shouldn't have upvalues", kOnStateCreate);
             }
             // remove this C function from the config table so that it doesn't cause problems
             // when we transfer the config table in newly created Lua states
             lua_pushnil(L_);                                                                       // L_: settings on_state_create nil
-            lua_setfield(L_, -3, "on_state_create");                                               // L_: settings on_state_create
+            lua_setfield(L_, -3, kOnStateCreate);                                                  // L_: settings on_state_create
         } else {
             // optim: store marker saying we have such a function in the config table
             U_->onStateCreateFunc = reinterpret_cast<lua_CFunction>(InitializeOnStateCreate);
@@ -265,31 +267,35 @@ lua_State* create_state([[maybe_unused]] Universe* U_, lua_State* from_)
 
 void CallOnStateCreate(Universe* U_, lua_State* L_, lua_State* from_, LookupMode mode_)
 {
-    if (U_->onStateCreateFunc != nullptr) {
-        STACK_CHECK_START_REL(L_, 0);
-        DEBUGSPEW_CODE(DebugSpew(U_) << "calling on_state_create()" << std::endl);
-        if (U_->onStateCreateFunc != reinterpret_cast<lua_CFunction>(InitializeOnStateCreate)) {
-            // C function: recreate a closure in the new state, bypassing the lookup scheme
-            lua_pushcfunction(L_, U_->onStateCreateFunc); // on_state_create()
-        } else { // Lua function located in the config table, copied when we opened "lanes.core"
-            if (mode_ != LookupMode::LaneBody) {
-                // if attempting to call in a keeper state, do nothing because the function doesn't exist there
-                // this doesn't count as an error though
-                STACK_CHECK(L_, 0);
-                return;
-            }
-            kConfigRegKey.pushValue(L_);                                                           // L_: {}
-            STACK_CHECK(L_, 1);
-            std::ignore = luaG_getfield(L_, -1, "on_state_create");                                // L_: {} on_state_create()
-            lua_remove(L_, -2);                                                                    // L_: on_state_create()
-        }
-        STACK_CHECK(L_, 1);
-        // capture error and raise it in caller state
-        if (lua_pcall(L_, 0, 0, 0) != LUA_OK) {
-            raise_luaL_error(from_, "on_state_create failed: \"%s\"", lua_isstring(L_, -1) ? lua_tostring(L_, -1) : lua_typename(L_, lua_type(L_, -1)));
-        }
-        STACK_CHECK(L_, 0);
+    if (U_->onStateCreateFunc == nullptr) {
+        return;
     }
+
+    STACK_CHECK_START_REL(L_, 0);
+    DEBUGSPEW_CODE(DebugSpew(U_) << "calling on_state_create()" << std::endl);
+    if (U_->onStateCreateFunc != reinterpret_cast<lua_CFunction>(InitializeOnStateCreate)) {
+        // C function: recreate a closure in the new state, bypassing the lookup scheme
+        lua_pushcfunction(L_, U_->onStateCreateFunc); // on_state_create()
+    } else { // Lua function located in the config table, copied when we opened "lanes.core"
+        if (mode_ != LookupMode::LaneBody) {
+            // if attempting to call in a keeper state, do nothing because the function doesn't exist there
+            // this doesn't count as an error though
+            STACK_CHECK(L_, 0);
+            return;
+        }
+        kConfigRegKey.pushValue(L_);                                                               // L_: {}
+        STACK_CHECK(L_, 1);
+        std::ignore = luaG_getfield(L_, -1, kOnStateCreate);                                       // L_: {} on_state_create()
+        lua_remove(L_, -2);                                                                        // L_: on_state_create()
+    }
+    STACK_CHECK(L_, 1);
+    // capture error and raise it in caller state
+    std::string_view const _stateType{ mode_ == LookupMode::LaneBody ? "lane" : "keeper" };
+    std::ignore = lua_pushstringview(L_, _stateType);                                              // L_: on_state_create() "<type>"
+    if (lua_pcall(L_, 1, 0, 0) != LUA_OK) {
+        raise_luaL_error(from_, "%s failed: \"%s\"", kOnStateCreate, lua_isstring(L_, -1) ? lua_tostring(L_, -1) : lua_typename(L_, lua_type(L_, -1)));
+    }
+    STACK_CHECK(L_, 0);
 }
 
 // #################################################################################################

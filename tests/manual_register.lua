@@ -1,7 +1,7 @@
 
 local register_func = true
 
-local RequireAModuleThatExportsGlobalFunctions = function()
+local RequireAModuleThatExportsGlobalFunctions = function(type_)
 	-- grab some module that exports C functions, this is good enough for our purpose
 	local lfs = require "lfs"
 	-- make one of these a global
@@ -11,14 +11,14 @@ local RequireAModuleThatExportsGlobalFunctions = function()
 	if register_func then
 		lanes.register( "GlobalFunc", GlobalFunc)
 	end
-	print("RequireAModuleThatExportsGlobalFunctions done:", lanes.nameof(GlobalFunc))
+	print(type_, "RequireAModuleThatExportsGlobalFunctions done:", lanes.nameof(GlobalFunc))
 end
 
 
 local lanes = require "lanes".configure{ with_timers = false, on_state_create = RequireAModuleThatExportsGlobalFunctions}
 
 -- load some module that adds C functions to the global space
-RequireAModuleThatExportsGlobalFunctions()
+RequireAModuleThatExportsGlobalFunctions("main")
 
 local GlobalFuncUpval = GlobalFunc
 
