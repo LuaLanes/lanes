@@ -505,17 +505,13 @@ LUAG_FUNC(lane_new)
 
 // ################################################################################################
 
-#if HAVE_LANE_TRACKING()
-//---
 // threads() -> {}|nil
-//
 // Return a list of all known lanes
 LUAG_FUNC(threads)
 {
     LaneTracker const& _tracker = universe_get(L_)->tracker;
     return _tracker.pushThreadsTable(L_);
 }
-#endif // HAVE_LANE_TRACKING()
 
 // #################################################################################################
 // ######################################## Timer support ##########################################
@@ -652,13 +648,14 @@ LUAG_FUNC(configure)
         std::ignore = luaG_getfield(L_, 1, "demote_full_userdata");                                // L_: settings demote_full_userdata
         _U->demoteFullUserdata = lua_toboolean(L_, -1) ? true : false;
         lua_pop(L_, 1);                                                                            // L_: settings
-#if HAVE_LANE_TRACKING()
+
+        // tracking
         std::ignore = luaG_getfield(L_, 1, "track_lanes");                                         // L_: settings track_lanes
         if (lua_toboolean(L_, -1)) {
             _U->tracker.activate();
         }
         lua_pop(L_, 1);                                                                            // L_: settings
-#endif // HAVE_LANE_TRACKING()
+
         // Linked chains handling
         _U->selfdestructFirst = SELFDESTRUCT_END;
         _U->initializeAllocatorFunction(L_);
@@ -690,13 +687,13 @@ LUAG_FUNC(configure)
     lua_setfield(L_, -2, "configure");                                                             // L_: settings M
     // add functions to the module's table
     luaG_registerlibfuncs(L_, global::sLanesFunctions);
-#if HAVE_LANE_TRACKING()
+
     // register core.threads() only if settings say it should be available
     if (_U->tracker.isActive()) {
         lua_pushcfunction(L_, LG_threads);                                                         // L_: settings M LG_threads()
         lua_setfield(L_, -2, "threads");                                                           // L_: settings M
     }
-#endif // HAVE_LANE_TRACKING()
+
     STACK_CHECK(L_, 2);
 
     {

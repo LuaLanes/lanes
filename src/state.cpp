@@ -238,24 +238,28 @@ void InitializeOnStateCreate(Universe* U_, lua_State* L_)
 
 lua_State* create_state([[maybe_unused]] Universe* U_, lua_State* from_)
 {
-    lua_State* _L;
-#if LUAJIT_FLAVOR() == 64
-    // for some reason, LuaJIT 64 bits does not support creating a state with lua_newstate...
-    _L = luaL_newstate();
-#else  // LUAJIT_FLAVOR() == 64
-    if (U_->provideAllocator != nullptr) { // we have a function we can call to obtain an allocator
-        lua_pushcclosure(from_, U_->provideAllocator, 0);
-        lua_call(from_, 0, 1);
-        {
-            AllocatorDefinition* const def{ lua_tofulluserdata<AllocatorDefinition>(from_, -1) };
-            _L = lua_newstate(def->allocF, def->allocUD);
-        }
-        lua_pop(from_, 1);
-    } else {
-        // reuse the allocator provided when the master state was created
-        _L = lua_newstate(U_->protectedAllocator.allocF, U_->protectedAllocator.allocUD);
-    }
-#endif // LUAJIT_FLAVOR() == 64
+    lua_State* const _L {
+        std::invoke(
+            [U = U_, from = from_]() {
+                if constexpr (LUAJIT_FLAVOR() == 64) {
+                    // for some reason, LuaJIT 64 bits does not support creating a state with lua_newstate...
+                    return luaL_newstate();
+                } else {
+                    if (U->provideAllocator != nullptr) { // we have a function we can call to obtain an allocator
+                        lua_pushcclosure(from, U->provideAllocator, 0);
+                        lua_call(from, 0, 1);
+                        AllocatorDefinition* const _def{ lua_tofulluserdata<AllocatorDefinition>(from, -1) };
+                        lua_State* const _L{ lua_newstate(_def->allocF, _def->allocUD) };
+                        lua_pop(from, 1);
+                        return _L;
+                    } else {
+                        // reuse the allocator provided when the master state was created
+                        return lua_newstate(U->protectedAllocator.allocF, U->protectedAllocator.allocUD);
+                    }
+                }
+            }
+        )
+    };
 
     if (_L == nullptr) {
         raise_luaL_error(from_, "luaG_newstate() failed while creating state; out of memory");
@@ -355,20 +359,20 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
             open1lib(_L, kLanesCoreLibName);
             libs_ = nullptr; // done with libs
         } else {
-#if LUAJIT_FLAVOR() != 0 // building against LuaJIT headers, always open jit
-            DEBUGSPEW_CODE(DebugSpew(U_) << "opening 'jit' library" << std::endl);
-            open1lib(_L, LUA_JITLIBNAME);
-#endif // LUAJIT_FLAVOR()
+            if constexpr (LUAJIT_FLAVOR() != 0) { // building against LuaJIT headers, always open jit
+                DEBUGSPEW_CODE(DebugSpew(U_) << "opening 'jit' library" << std::endl);
+                open1lib(_L, LUA_JITLIBNAME);
+            }
             DEBUGSPEW_CODE(DebugSpew(U_) << "opening 'base' library" << std::endl);
-#if LUA_VERSION_NUM >= 502
-            // open base library the same way as in luaL_openlibs()
-            luaL_requiref(_L, LUA_GNAME, luaopen_base, 1);
-            lua_pop(_L, 1);
-#else  // LUA_VERSION_NUM
-            lua_pushcfunction(_L, luaopen_base);
-            lua_pushstring(_L, "");
-            lua_call(_L, 1, 0);
-#endif // LUA_VERSION_NUM
+            if constexpr (LUA_VERSION_NUM >= 502) {
+                // open base library the same way as in luaL_openlibs()
+                luaL_requiref(_L, LUA_GNAME, luaopen_base, 1);
+                lua_pop(_L, 1);
+            } else {
+                lua_pushcfunction(_L, luaopen_base);
+                lua_pushstring(_L, "");
+                lua_call(_L, 1, 0);
+            }
         }
     }
     STACK_CHECK(_L, 0);
