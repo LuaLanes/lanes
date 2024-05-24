@@ -2,11 +2,6 @@
 
 #include <mutex>
 
-// Do we want to activate full lane tracking feature?
-#define HAVE_LANE_TRACKING() 1
-
-#if HAVE_LANE_TRACKING()
-
 class Lane;
 struct lua_State;
 
@@ -31,5 +26,3 @@ class LaneTracker
         return trackingFirst != nullptr;
     }
 };
-
-#endif // HAVE_LANE_TRACKING()

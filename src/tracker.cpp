@@ -28,8 +28,6 @@ THE SOFTWARE.
 
 // #################################################################################################
 
-#if HAVE_LANE_TRACKING()
-
 /*
  * Add the lane to tracking chain; the ones still running at the end of the
  * whole process will be cancelled.
@@ -104,5 +102,3 @@ void LaneTracker::tracking_add(Lane* lane_)
     }
     return lua_gettop(L_) - _top;                                                                  // L_: 0 or 1
 }
-
-#endif // HAVE_LANE_TRACKING()

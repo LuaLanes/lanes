@@ -142,7 +142,8 @@ if st=="done" then
 end
 assert(st=="running")
 
-lane9:cancel("count", 100) -- 0 timeout, 100 instructions count hook
+-- when running under luajit, the function is JIT-ed, and the instruction count isn't hit, so we need a different hook
+lane9:cancel(jit and "line" or "count", 100) -- 0 timeout, hook triggers cancelslation when reaching the specified count
 
 local t0= os.time()
 while os.time()-t0 < 5 do
@@ -151,7 +152,7 @@ while os.time()-t0 < 5 do
     if st~="running" then break end
 end
 PRINT(" "..st)
-assert(st == "cancelled")
+assert(st == "cancelled", "st is '" .. st .. "' instead of 'cancelled'")
 
 -- cancellation of lanes waiting on a linda
 local limited = lanes.linda("limited")

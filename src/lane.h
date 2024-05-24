@@ -110,10 +110,8 @@ class Lane
     //    is still running
     // S: cleans up after itself if non-nullptr at lane exit
 
-#if HAVE_LANE_TRACKING()
     // For tracking only
     Lane* volatile tracking_next{ nullptr };
-#endif // HAVE_LANE_TRACKING()
 
     ErrorTraceLevel const errorTraceLevel{ Basic };
 

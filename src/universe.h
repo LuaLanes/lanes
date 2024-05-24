@@ -150,9 +150,7 @@ class Universe
     // used for timers (each lane will get a proxy to this)
     DeepPrelude* timerLinda{ nullptr };
 
-#if HAVE_LANE_TRACKING()
     LaneTracker tracker;
-#endif // HAVE_LANE_TRACKING()
 
     // Protects modifying the selfdestruct chain
     std::mutex selfdestructMutex;

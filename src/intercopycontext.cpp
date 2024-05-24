@@ -209,19 +209,17 @@ void InterCopyContext::copy_func() const
     {
         char const* _fname{};
 #define LOG_FUNC_INFO 0
-#if LOG_FUNC_INFO
-        // "To get information about a function you push it onto the
-        // stack and start the what string with the character '>'."
-        //
+        if constexpr (LOG_FUNC_INFO)
         {
             lua_Debug _ar;
             lua_pushvalue(L1, L1_i);                                                               // L1: ... b f
+            // "To get information about a function you push it onto the stack and start the what string with the character '>'."
             // fills 'fname' 'namewhat' and 'linedefined', pops function
             lua_getinfo(L1, ">nS", &_ar);                                                          // L1: ... b
             _fname = _ar.namewhat;
             DEBUGSPEW_CODE(DebugSpew(U) << "FNAME: " << _ar.short_src << " @ " << _ar.linedefined << std::endl);
         }
-#endif // LOG_FUNC_INFO
+
         {
             std::string_view const _bytecode{ lua_tostringview(L1, -1) };                          // L1: ... b
             LUA_ASSERT(L1, !_bytecode.empty());
@@ -255,26 +253,20 @@ void InterCopyContext::copy_func() const
          * cache so we don't end up in eternal loop.
          * Lua5.2 and Lua5.3: one of the upvalues is _ENV, which we don't want to copy!
          * instead, the function shall have LUA_RIDX_GLOBALS taken in the destination state!
+         * TODO: this can probably be factorized as InterCopyContext::copyUpvalues(...)
          */
         int _n{ 0 };
         {
             InterCopyContext _c{ U, L2, L1, L2_cache_i, {}, VT::NORMAL, mode, {} };
-#if LUA_VERSION_NUM >= 502
-            // Starting with Lua 5.2, each Lua function gets its environment as one of its upvalues (named LUA_ENV, aka "_ENV" by default)
-            // Generally this is LUA_RIDX_GLOBALS, which we don't want to copy from the source to the destination state...
-            // -> if we encounter an upvalue equal to the global table in the source, bind it to the destination's global table
+            // if we encounter an upvalue equal to the global table in the source, bind it to the destination's global table
             lua_pushglobaltable(L1);                                                               // L1: ... _G
-#endif // LUA_VERSION_NUM
             for (_n = 0; (_c.name = lua_getupvalue(L1, L1_i, 1 + _n)) != nullptr; ++_n) {          // L1: ... _G up[n]
                 DEBUGSPEW_CODE(DebugSpew(U) << "UPNAME[" << _n << "]: " << _c.name << " -> ");
-#if LUA_VERSION_NUM >= 502
                 if (lua_rawequal(L1, -1, -2)) { // is the upvalue equal to the global table?
-                    DEBUGSPEW_CODE(DebugSpew(nullptr) << "pushing destination global scope" << std::endl);
+                    DEBUGSPEW_CODE(DebugSpew(U) << "pushing destination global scope" << std::endl);
                     lua_pushglobaltable(L2);                                                       //                                                L2: ... {cache} ... function <upvalues>
-                } else
-#endif // LUA_VERSION_NUM
-                {
-                    DEBUGSPEW_CODE(DebugSpew(nullptr) << "copying value" << std::endl);
+                } else {
+                    DEBUGSPEW_CODE(DebugSpew(U) << "copying value" << std::endl);
                     _c.L1_i = SourceIndex{ lua_gettop(L1) };
                     if (!_c.inter_copy_one()) {                                                    //                                                L2: ... {cache} ... function <upvalues>
                         raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
@@ -282,12 +274,8 @@ void InterCopyContext::copy_func() const
                 }
                 lua_pop(L1, 1);                                                                    // L1: ... _G
             }
-#if LUA_VERSION_NUM >= 502
             lua_pop(L1, 1);                                                                        // L1: ...
-#endif // LUA_VERSION_NUM
-        }
-                                                                                                   //                                                L2: ... {cache} ... function + 'n' upvalues (>=0)
-
+        }                                                                                          //                                                L2: ... {cache} ... function + 'n' upvalues (>=0)
         STACK_CHECK(L1, 0);
 
         // Set upvalues (originally set to 'nil' by 'lua_load')

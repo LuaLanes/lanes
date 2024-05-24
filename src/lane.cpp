@@ -254,7 +254,6 @@ static int thread_index_number(lua_State* L_)
         if (!lua_isnil(L_, -1)) { // an error was stored                                           // L_: lane n {uv} <error>
             lua_getmetatable(L_, 1);                                                               // L_: lane n {uv} <error> {mt}
             lua_replace(L_, -3);                                                                   // L_: lane n {mt} <error>
-#if LUA_VERSION_NUM == 501
             // Note: Lua 5.1 interpreter is not prepared to show
             //       non-string errors, so we use 'tostring()' here
             //       to get meaningful output.  --AKa 22-Jan-2009
@@ -266,13 +265,14 @@ static int thread_index_number(lua_State* L_)
             // Level 3 should show the line where 'h[x]' was read
             // but this only seems to work for string messages
             // (Lua 5.1.4). No idea, why.   --AKa 22-Jan-2009
-            if (!lua_isstring(L_, -1)) {
-                kCachedTostring.pushKey(L_);                                                       // L_: lane n {mt} <error> kCachedTostring
-                lua_rawget(L_, -3);                                                                // L_: lane n {mt} <error> tostring()
-                lua_insert(L_, -2);                                                                // L_: lane n {mt} tostring() <error>
-                lua_call(L_, 1, 1); // tostring(errstring)                                         // L_: lane n {mt} "error"
+            if constexpr (LUA_VERSION_NUM == 501) {
+                if (!lua_isstring(L_, -1)) {
+                    kCachedTostring.pushKey(L_);                                                   // L_: lane n {mt} <error> kCachedTostring
+                    lua_rawget(L_, -3);                                                            // L_: lane n {mt} <error> tostring()
+                    lua_insert(L_, -2);                                                            // L_: lane n {mt} tostring() <error>
+                    lua_call(L_, 1, 1); // tostring(errstring)                                     // L_: lane n {mt} "error"
+                }
             }
-#endif // LUA_VERSION_NUM == 501
             kCachedError.pushKey(L_);                                                              // L_: lane n {mt} "error" kCachedError
             lua_rawget(L_, -3);                                                                    // L_: lane n {mt} "error" error()
             lua_replace(L_, -3);                                                                   // L_: lane n error() "error"
@@ -784,20 +784,14 @@ Lane::Lane(Universe* U_, lua_State* L_, ErrorTraceLevel errorTraceLevel_)
 {
     assert(errorTraceLevel == ErrorTraceLevel::Minimal || errorTraceLevel == ErrorTraceLevel::Basic || errorTraceLevel == ErrorTraceLevel::Extended);
     kExtendedStackTraceRegKey.setValue(L_, [yes = errorTraceLevel == ErrorTraceLevel::Extended ? 1 : 0](lua_State* L_) { lua_pushboolean(L_, yes); });
-#if HAVE_LANE_TRACKING()
     U->tracker.tracking_add(this);
-#endif // HAVE_LANE_TRACKING()
 }
 
 // #################################################################################################
 
 Lane::~Lane()
 {
-    // Clean up after a (finished) thread
-    //
-#if HAVE_LANE_TRACKING()
     std::ignore = U->tracker.tracking_remove(this);
-#endif // HAVE_LANE_TRACKING()
 }
 
 // #################################################################################################
