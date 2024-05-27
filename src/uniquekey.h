@@ -62,9 +62,9 @@ class RegistryUniqueKey
     void setValue(lua_State* L_, OP operation_) const
     {
         // Note we can't check stack consistency because operation is not always a push (could be insert, replace, whatever)
-        pushKey(L_); // ... key
-        operation_(L_); // ... key value
-        lua_rawset(L_, LUA_REGISTRYINDEX); // ...
+        pushKey(L_);                                                                               // ... key
+        operation_(L_);                                                                            // ... key value
+        lua_rawset(L_, LUA_REGISTRYINDEX);                                                         // ...
     }
     // ---------------------------------------------------------------------------------------------
     template <typename T>

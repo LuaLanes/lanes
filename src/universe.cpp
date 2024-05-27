@@ -286,7 +286,11 @@ void Universe::initializeKeepers(lua_State* L_)
 
         // to see VM name in Decoda debugger
         lua_pushfstring(_K, "Keeper #%d", _i + 1);                                                 // L_: settings                                    K: "Keeper #n"
-        lua_setglobal(_K, "decoda_name");                                                          // L_: settings                                    K:
+        if constexpr (HAVE_DECODA_NAME()) {
+            lua_pushvalue(_K, -1);                                                                 //                                                 K: "Keeper #n" Keeper #n"
+            lua_setglobal(_K, "decoda_name");                                                      // L_: settings                                    K: "Keeper #n"
+        }
+        kLaneNameRegKey.setValue(_K, [](lua_State* L_) { lua_insert(L_, -2); });                   //                                                 K:
         // create the fifos table in the keeper state
         Keepers::CreateFifosTable(_K);
         STACK_CHECK(_K, 0);

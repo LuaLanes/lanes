@@ -13,6 +13,9 @@
 
 // #################################################################################################
 
+// xxh64 of string "kExtendedStackTraceRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kExtendedStackTraceRegKey{ 0x38147AD48FB426E2ull }; // used as registry key
+
 /*
  * registry[FINALIZER_REG_KEY] is either nil (no finalizers) or a table
  * of functions that Lanes will call after the executing 'pcall' has ended.
@@ -24,14 +27,14 @@
 // xxh64 of string "kFinalizerRegKey" generated at https://www.pelock.com/products/hash-calculator
 static constexpr RegistryUniqueKey kFinalizerRegKey{ 0xFE936BFAA718FEEAull };
 
-// xxh64 of string "kExtendedStackTraceRegKey" generated at https://www.pelock.com/products/hash-calculator
-static constexpr RegistryUniqueKey kExtendedStackTraceRegKey{ 0x38147AD48FB426E2ull }; // used as registry key
-
 // xxh64 of string "kLaneGC" generated at https://www.pelock.com/products/hash-calculator
 static constexpr UniqueKey kLaneGC{ 0x5D6122141727F960ull };
 
 // xxh64 of string "kLanePointerRegKey" generated at https://www.pelock.com/products/hash-calculator
 static constexpr RegistryUniqueKey kLanePointerRegKey{ 0x2D8CF03FE9F0A51Aull }; // used as registry key
+
+    // xxh64 of string "debugName" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kLaneNameRegKey{ 0xA194E2645C57F6DDull };
 
 // #################################################################################################
 
@@ -124,7 +127,7 @@ class Lane
     Lane(Universe* U_, lua_State* L_, ErrorTraceLevel errorTraceLevel_);
     ~Lane();
 
-    void changeDebugName(int nameIdx_);
+    void changeDebugName(int const nameIdx_);
     void close() { lua_State* _L{ L }; L = nullptr; lua_close(_L); }
     [[nodiscard]] std::string_view errorTraceLevelString() const;
     [[nodiscard]] int pushErrorHandler() const;

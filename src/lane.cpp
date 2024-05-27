@@ -802,20 +802,20 @@ Lane::~Lane()
 
 // #################################################################################################
 
-void Lane::changeDebugName(int nameIdx_)
+void Lane::changeDebugName(int const nameIdx_)
 {
-    // xxh64 of string "debugName" generated at https://www.pelock.com/products/hash-calculator
-    static constexpr RegistryUniqueKey kRegKey{ 0xA194E2645C57F6DDull };
-    nameIdx_ = lua_absindex(L, nameIdx_);
-    luaL_checktype(L, nameIdx_, LUA_TSTRING);                                                      // L: ... "name" ...
+    int const _nameIdx{ lua_absindex(L, nameIdx_) };
+    luaL_checktype(L, _nameIdx, LUA_TSTRING);                                                      // L: ... "name" ...
     STACK_CHECK_START_REL(L, 0);
     // store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...
-    kRegKey.setValue(L, [nameIdx = nameIdx_](lua_State* L_) { lua_pushvalue(L_, nameIdx); });      // L: ... "name" ...
+    kLaneNameRegKey.setValue(L, [idx = _nameIdx](lua_State* L_) { lua_pushvalue(L_, idx); });      // L: ... "name" ...
     // keep a direct pointer on the string
-    debugName = lua_tostringview(L, nameIdx_);
-    // to see VM name in Decoda debugger Virtual Machine window
-    lua_pushvalue(L, nameIdx_);                                                                    // L: ... "name" ... "name"
-    lua_setglobal(L, "decoda_name");                                                               // L: ... "name" ...
+    debugName = lua_tostringview(L, _nameIdx);
+    if constexpr (HAVE_DECODA_NAME()) {
+        // to see VM name in Decoda debugger Virtual Machine window
+        lua_pushvalue(L, _nameIdx);                                                                // L: ... "name" ... "name"
+        lua_setglobal(L, "decoda_name");                                                           // L: ... "name" ...
+    }
     // and finally set the OS thread name
     THREAD_SETNAME(debugName.data());
     STACK_CHECK(L, 0);

@@ -676,6 +676,9 @@ LUAG_FUNC(configure)
         // increment refcount so that this linda remains alive as long as the universe exists.
         _U->timerLinda->refcount.fetch_add(1, std::memory_order_relaxed);
         lua_pop(L_, 1);                                                                            // L_: settings
+        // store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...
+        kLaneNameRegKey.setValue(L_, [](lua_State* L_) { std::ignore = lua_pushstringview(L_, "main"); });
+
     }
     STACK_CHECK(L_, 1);
 

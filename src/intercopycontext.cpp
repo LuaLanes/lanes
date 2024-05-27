@@ -29,6 +29,7 @@ THE SOFTWARE.
 #include "debugspew.h"
 #include "deep.h"
 #include "keeper.h"
+#include "lane.h"
 #include "linda.h"
 #include "universe.h"
 
@@ -106,11 +107,11 @@ THE SOFTWARE.
     if (_fqn.empty() && !lua_istable(L1, L1_i)) { // raise an error if we try to send an unknown function (but not for tables)
         _fqn = std::string_view{}; // just in case
         // try to discover the name of the function we want to send
-        lua_getglobal(L1, "decoda_name");                                                          // L1: ... v ... decoda_name
+        kLaneNameRegKey.pushValue(L1);                                                             // L1: ... v ... lane_name
         char const* _from{ lua_tostring(L1, -1) };
-        lua_pushcfunction(L1, luaG_nameof);                                                        // L1: ... v ... decoda_name luaG_nameof
-        lua_pushvalue(L1, L1_i);                                                                   // L1: ... v ... decoda_name luaG_nameof t
-        lua_call(L1, 1, 2);                                                                        // L1: ... v ... decoda_name "type" "name"|nil
+        lua_pushcfunction(L1, luaG_nameof);                                                        // L1: ... v ... lane_name luaG_nameof
+        lua_pushvalue(L1, L1_i);                                                                   // L1: ... v ... lane_name luaG_nameof t
+        lua_call(L1, 1, 2);                                                                        // L1: ... v ... lane_name "type" "name"|nil
         char const* _typewhat{ (lua_type(L1, -2) == LUA_TSTRING) ? lua_tostring(L1, -2) : luaL_typename(L1, -2) };
         // second return value can be nil if the table was not found
         // probable reason: the function was removed from the source Lua state before Lanes was required.
@@ -325,10 +326,10 @@ void InterCopyContext::lookup_native_func() const
         // nil means we don't know how to transfer stuff: user should do something
         // anything other than function or table should not happen!
         if (!lua_isfunction(L2, -1) && !lua_istable(L2, -1)) {
-            lua_getglobal(L1, "decoda_name"); // L1: ... f ... decoda_name
+            kLaneNameRegKey.pushValue(L1);                                                         // L1: ... f ... lane_name
             char const* const _from{ lua_tostring(L1, -1) };
             lua_pop(L1, 1);                                                                        // L1: ... f ...
-            lua_getglobal(L2, "decoda_name");                                                      // L1: ... f ...                                  L2: {} f decoda_name
+            kLaneNameRegKey.pushValue(L2);                                                         // L1: ... f ...                                  L2: {} f lane_name
             char const* const _to{ lua_tostring(L2, -1) };
             lua_pop(L2, 1);                                                                        //                                                L2: {} f
             // when mode_ == LookupMode::FromKeeper, L is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
@@ -449,10 +450,10 @@ void InterCopyContext::copy_cached_func() const
             STACK_CHECK(L2, 0);
             return false;
         } else if (!lua_istable(L2, -1)) { // this can happen if someone decides to replace same already registered item (for a example a standard lib function) with a table
-            lua_getglobal(L1, "decoda_name"); // L1: ... t ... decoda_name
+            kLaneNameRegKey.pushValue(L1);                                                         // L1: ... t ... lane_name
             char const* _from{ lua_tostring(L1, -1) };
             lua_pop(L1, 1);                                                                        // L1: ... t ...
-            lua_getglobal(L2, "decoda_name");                                                      // L1: ... t ...                                  L2: {} t decoda_name
+            kLaneNameRegKey.pushValue(L2);                                                         // L1: ... t ...                                  L2: {} t lane_name
             char const* _to{ lua_tostring(L2, -1) };
             lua_pop(L2, 1);                                                                        // L1: ... t ...                                  L2: {} t
             raise_luaL_error(

@@ -42,3 +42,4 @@
 #endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 
 #define USE_DEBUG_SPEW() 0
+#define HAVE_DECODA_NAME() 0
