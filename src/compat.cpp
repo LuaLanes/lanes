@@ -11,7 +11,7 @@
 // #################################################################################################
 
 // a small helper to obtain a module's table from the registry instead of relying on the presence of _G["<name>"]
-LuaType luaG_getmodule(lua_State* L_, char const* name_)
+LuaType luaG_getmodule(lua_State* L_, std::string_view const& name_)
 {
     STACK_CHECK_START_REL(L_, 0);
     LuaType _type{ luaG_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE) };                        // L_: _R._LOADED|nil
@@ -46,7 +46,6 @@ int luaL_getsubtable(lua_State* L_, int idx_, const char* fname_)
         return 0; /* false, because did not find table there */
     }
 }
-
 // #################################################################################################
 
 void luaL_requiref(lua_State* L_, const char* modname_, lua_CFunction openf_, int glb_)

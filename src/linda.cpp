@@ -52,9 +52,9 @@ static void check_key_types(lua_State* L_, int start_, int end_)
 
         case LuaType::LIGHTUSERDATA:
             static constexpr std::array<std::reference_wrapper<UniqueKey const>, 3> kKeysToCheck{ kLindaBatched, kCancelError, kNilSentinel };
-            for (UniqueKey const& key : kKeysToCheck) {
-                if (key.equals(L_, _i)) {
-                    raise_luaL_error(L_, "argument #%d: can't use %s as a key", _i, key.debugName);
+            for (UniqueKey const& _key : kKeysToCheck) {
+                if (_key.equals(L_, _i)) {
+                    raise_luaL_error(L_, "argument #%d: can't use " STRINGVIEW_FMT " as a key", _i, _key.debugName.size(), _key.debugName.data());
                     break;
                 }
             }

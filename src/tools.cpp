@@ -37,7 +37,7 @@ THE SOFTWARE.
 #include "debugspew.h"
 #include "universe.h"
 
-DEBUGSPEW_CODE(char const* const DebugSpewIndentScope::debugspew_indent = "----+----!----+----!----+----!----+----!----+----!----+----!----+----!----+");
+DEBUGSPEW_CODE(std::string_view const DebugSpewIndentScope::debugspew_indent{ "----+----!----+----!----+----!----+----!----+----!----+----!----+----!----+" });
 
 // xxh64 of string "kLookupCacheRegKey" generated at https://www.pelock.com/products/hash-calculator
 static constexpr RegistryUniqueKey kLookupCacheRegKey{ 0x9BF75F84E54B691Bull };
@@ -302,7 +302,7 @@ static void populate_func_lookup_table_recur(lua_State* L_, int dbIdx_, int i_, 
 // create a "fully.qualified.name" <-> function equivalence database
 void populate_func_lookup_table(lua_State* const L_, int const i_, std::string_view const& name_)
 {
-    int const _in_base = lua_absindex(L_, i_);
+    int const _in_base{ lua_absindex(L_, i_) };
     DEBUGSPEW_CODE(Universe* _U = universe_get(L_));
     std::string_view _name{ name_.empty() ? std::string_view{} : name_ };
     DEBUGSPEW_CODE(DebugSpew(_U) << L_ << ": populate_func_lookup_table('" << _name << "')" << std::endl);

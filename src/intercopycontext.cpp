@@ -29,6 +29,7 @@ THE SOFTWARE.
 #include "debugspew.h"
 #include "deep.h"
 #include "keeper.h"
+#include "linda.h"
 #include "universe.h"
 
 // #################################################################################################
@@ -263,10 +264,10 @@ void InterCopyContext::copy_func() const
             for (_n = 0; (_c.name = lua_getupvalue(L1, L1_i, 1 + _n)) != nullptr; ++_n) {          // L1: ... _G up[n]
                 DEBUGSPEW_CODE(DebugSpew(U) << "UPNAME[" << _n << "]: " << _c.name << " -> ");
                 if (lua_rawequal(L1, -1, -2)) { // is the upvalue equal to the global table?
-                    DEBUGSPEW_CODE(DebugSpew(U) << "pushing destination global scope" << std::endl);
+                    DEBUGSPEW_CODE(DebugSpew(nullptr) << "pushing destination global scope" << std::endl);
                     lua_pushglobaltable(L2);                                                       //                                                L2: ... {cache} ... function <upvalues>
                 } else {
-                    DEBUGSPEW_CODE(DebugSpew(U) << "copying value" << std::endl);
+                    DEBUGSPEW_CODE(DebugSpew(nullptr) << "copying value" << std::endl);
                     _c.L1_i = SourceIndex{ lua_gettop(L1) };
                     if (!_c.inter_copy_one()) {                                                    //                                                L2: ... {cache} ... function <upvalues>
                         raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
@@ -874,13 +875,28 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 [[nodiscard]] bool InterCopyContext::inter_copy_lightuserdata() const
 {
     void* const _p{ lua_touserdata(L1, L1_i) };
-    // TODO: recognize and print known UniqueKey names here
-    DEBUGSPEW_CODE(DebugSpew(nullptr) << _p << std::endl);
+    // recognize and print known UniqueKey names here
+    if constexpr (USE_DEBUG_SPEW()) {
+        bool _found{ false };
+        static constexpr std::array<std::reference_wrapper<UniqueKey const>, 3> kKeysToCheck{ kLindaBatched, kCancelError, kNilSentinel };
+        for (UniqueKey const& _key : kKeysToCheck) {
+            if (_key.equals(L1, L1_i)) {
+                DEBUGSPEW_CODE(DebugSpew(nullptr) << _key.debugName);
+                _found = true;
+                break;
+            }
+        }
+        if (!_found) {
+            DEBUGSPEW_CODE(DebugSpew(nullptr) << _p);
+        }
+    }
     // when copying a nil sentinel in a non-keeper, write a nil in the destination
     if (mode != LookupMode::ToKeeper && kNilSentinel.equals(L1, L1_i)) {
+        DEBUGSPEW_CODE(DebugSpew(nullptr) << " as nil" << std::endl);
         lua_pushnil(L2);
     } else {
         lua_pushlightuserdata(L2, _p);
+        DEBUGSPEW_CODE(DebugSpew(nullptr) << std::endl);
     }
     return true;
 }

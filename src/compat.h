@@ -133,14 +133,14 @@ inline int lua504_dump(lua_State* L_, lua_Writer writer_, void* data_, [[maybe_u
 
 // #################################################################################################
 
-[[nodiscard]] inline LuaType luaG_getfield(lua_State* L_, int idx_, char const* k_)
+[[nodiscard]] inline LuaType luaG_getfield(lua_State* L_, int idx_, std::string_view const& k_)
 {
 // starting with Lua 5.3, lua_getfield returns the type of the value it found
 #if LUA_VERSION_NUM < 503
-    lua_getfield(L_, idx_, k_);
+    lua_getfield(L_, idx_, k_.data());
     return lua_type_as_enum(L_, -1);
 #else // LUA_VERSION_NUM >= 503
-    return static_cast<LuaType>(lua_getfield(L_, idx_, k_));
+    return static_cast<LuaType>(lua_getfield(L_, idx_, k_.data()));
 #endif // LUA_VERSION_NUM >= 503
 }
 
@@ -243,7 +243,7 @@ inline constexpr LuaError ToLuaError(int rc_)
 
 // #################################################################################################
 
-LuaType luaG_getmodule(lua_State* L_, char const* name_);
+LuaType luaG_getmodule(lua_State* L_, std::string_view const& name_);
 
 // #################################################################################################
 

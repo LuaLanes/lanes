@@ -13,10 +13,10 @@ class UniqueKey
     uintptr_t const storage{ 0 };
 
     public:
-    char const* debugName{ nullptr };
+    std::string_view debugName{};
 
     // ---------------------------------------------------------------------------------------------
-    constexpr explicit UniqueKey(uint64_t val_, char const* debugName_ = nullptr)
+    constexpr explicit UniqueKey(uint64_t val_, std::string_view const& debugName_ = {})
 #if LUAJIT_FLAVOR() == 64 // building against LuaJIT headers for 64 bits, light userdata is restricted to 47 significant bits, because LuaJIT uses the other bits for internal optimizations
     : storage{ static_cast<uintptr_t>(val_ & 0x7FFFFFFFFFFFull) }
 #else // LUAJIT_FLAVOR()

@@ -39,6 +39,8 @@ THE SOFTWARE.
 #include "tools.h"
 #include "universe.h"
 
+#include <source_location>
+
 // #################################################################################################
 
 /*---=== Serialize require ===---
@@ -402,27 +404,36 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
 
     STACK_CHECK(_L, 0);
     // after all this, register everything we find in our name<->function database
-    lua_pushglobaltable(_L); // Lua 5.2 no longer has LUA_GLOBALSINDEX: we must push globals table on the stack
-    STACK_CHECK(_L, 1);
+    lua_pushglobaltable(_L);                                                                       // L: _G
     populate_func_lookup_table(_L, -1, {});
+    lua_pop(_L, 1);                                                                                // L:
+    STACK_CHECK(_L, 0);
 
-#if 1 && USE_DEBUG_SPEW()
-    // dump the lookup database contents
-    kLookupRegKey.pushValue(_L);                                                                   // L: {}
-    lua_pushnil(_L);                                                                               // L: {} nil
-    while (lua_next(_L, -2)) {                                                                     // L: {} k v
-        lua_getglobal(_L, "print");                                                                // L: {} k v print
-        int const indent{ U_->debugspewIndentDepth.load(std::memory_order_relaxed) };
-        lua_pushlstring(_L, DebugSpewIndentScope::debugspew_indent, indent);                       // L: {} k v print " "
-        lua_pushvalue(_L, -4);                                                                     // L: {} k v print " " k
-        lua_pushvalue(_L, -4);                                                                     // L: {} k v print " " k v
-        lua_call(_L, 3, 0);                                                                        // L: {} k v
-        lua_pop(_L, 1);                                                                            // L: {} k
+    if constexpr (USE_DEBUG_SPEW()) {
+        DEBUGSPEW_CODE(DebugSpew(U_) << std::source_location::current().function_name() << " LOOKUP DB CONTENTS" << std::endl);
+        DEBUGSPEW_CODE(DebugSpewIndentScope _scope2{ U_ });
+        // dump the lookup database contents
+        kLookupRegKey.pushValue(_L);                                                               // L: {}
+        lua_pushnil(_L);                                                                           // L: {} nil
+        while (lua_next(_L, -2)) {                                                                 // L: {} k v
+            std::ignore = lua_pushstringview(_L, "[");                                             // L: {} k v "["
+
+            lua_getglobal(_L, "tostring");                                                         // L: {} k v "[" tostring
+            lua_pushvalue(_L, -4);                                                                 // L: {} k v "[" tostring k
+            lua_call(_L, 1, 1);                                                                    // L: {} k v "[" 'k'
+
+            std::ignore = lua_pushstringview(_L, "] = ");                                          // L: {} k v "[" 'k' "] = "
+
+            lua_getglobal(_L, "tostring");                                                         // L: {} k v "[" 'k' "] = " tostring
+            lua_pushvalue(_L, -5);                                                                 // L: {} k v "[" 'k' "] = " tostring v
+            lua_call(_L, 1, 1);                                                                    // L: {} k v "[" 'k' "] = " 'v'
+            lua_concat(_L, 4);                                                                     // L: {} k v "[k] = v"
+            DEBUGSPEW_CODE(DebugSpew(U_) << lua_tostringview(_L, -1) << std::endl);
+            lua_pop(_L, 2);                                                                        // L: {} k
+        } // lua_next()                                                                            // L: {}
+        lua_pop(_L, 1);                                                                            // L:
     }
-    lua_pop(_L, 1);                                                                                // L: {}
-#endif // USE_DEBUG_SPEW()
 
-    lua_pop(_L, 1);
     STACK_CHECK(_L, 0);
     return _L;
 }

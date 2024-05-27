@@ -15,7 +15,7 @@ class DebugSpewIndentScope
     Universe* const U{};
 
     public:
-    static char const* const debugspew_indent;
+    static std::string_view const debugspew_indent;
 
     DebugSpewIndentScope(Universe* U_)
     : U{ U_ }
@@ -35,12 +35,17 @@ class DebugSpewIndentScope
 
 // #################################################################################################
 
+inline std::string_view DebugSpewIndent(Universe const* const U_)
+{
+    return DebugSpewIndentScope::debugspew_indent.substr(0, static_cast<size_t>(U_->debugspewIndentDepth.load(std::memory_order_relaxed)));
+}
+
 inline auto& DebugSpew(Universe const* const U_)
 {
     if (!U_) {
         return std::cerr;
     }
-    return std::cerr << std::string_view{ DebugSpewIndentScope::debugspew_indent, static_cast<size_t>(U_->debugspewIndentDepth.load(std::memory_order_relaxed)) } << " ";
+    return std::cerr << DebugSpewIndent(U_) << " ";
 }
 #define DEBUGSPEW_CODE(_code) _code
 #define DEBUGSPEW_OR_NOT(a_, b_) a_
