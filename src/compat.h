@@ -264,6 +264,16 @@ LuaType luaG_getmodule(lua_State* L_, std::string_view const& name_);
     return std::string_view{ _str, _len };
 }
 
+[[nodiscard]] inline std::string_view luaL_optstringview(lua_State* L_, int idx_, std::string_view const& default_)
+{
+    if (lua_isnoneornil(L_, idx_)) {
+        return default_;
+    }
+    size_t _len{ 0 };
+    char const* _str{ luaL_optlstring(L_, idx_, default_.data(), &_len) };
+    return std::string_view{ _str, _len };
+}
+
 [[nodiscard]] inline std::string_view lua_pushstringview(lua_State* L_, std::string_view const& str_)
 {
 #if LUA_VERSION_NUM == 501

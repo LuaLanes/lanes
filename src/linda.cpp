@@ -226,19 +226,19 @@ void Linda::setName(std::string_view const& name_)
 LUAG_FUNC(linda_cancel)
 {
     Linda* const _linda{ ToLinda<false>(L_, 1) };
-    char const* _who{ luaL_optstring(L_, 2, "both") };
-    // make sure we got 3 arguments: the linda, a key and a limit
+    std::string_view const _who{ luaL_optstringview(L_, 2, "both") };
+    // make sure we got 2 arguments: the linda and the cancellation mode
     luaL_argcheck(L_, lua_gettop(L_) <= 2, 2, "wrong number of arguments");
 
     _linda->cancelRequest = CancelRequest::Soft;
-    if (strcmp(_who, "both") == 0) { // tell everyone writers to wake up
+    if (_who == "both") { // tell everyone writers to wake up
         _linda->writeHappened.notify_all();
         _linda->readHappened.notify_all();
-    } else if (strcmp(_who, "none") == 0) { // reset flag
+    } else if (_who == "none") { // reset flag
         _linda->cancelRequest = CancelRequest::None;
-    } else if (strcmp(_who, "read") == 0) { // tell blocked readers to wake up
+    } else if (_who == "read") { // tell blocked readers to wake up
         _linda->writeHappened.notify_all();
-    } else if (strcmp(_who, "write") == 0) { // tell blocked writers to wake up
+    } else if (_who == "write") { // tell blocked writers to wake up
         _linda->readHappened.notify_all();
     } else {
         raise_luaL_error(L_, "unknown wake hint '%s'", _who);

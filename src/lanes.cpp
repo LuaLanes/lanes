@@ -238,7 +238,7 @@ LUAG_FUNC(lane_new)
     Universe* const _U{ universe_get(L_) };
     DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: setup" << std::endl);
 
-    char const* const _libs_str{ lua_tostring(L_, kLibsIdx) };
+    std::optional<std::string_view> _libs_str{ lua_isnil(L_, kLibsIdx) ? std::nullopt : std::make_optional(lua_tostringview(L_, kLibsIdx)) };
     lua_State* const _L2{ luaG_newstate(_U, SourceState{ L_ }, _libs_str) };                       // L_: [fixed] ...                                L2:
     STACK_CHECK_START_REL(_L2, 0);
 

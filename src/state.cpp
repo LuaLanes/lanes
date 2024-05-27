@@ -319,7 +319,7 @@ void CallOnStateCreate(Universe* U_, lua_State* L_, lua_State* from_, LookupMode
  * *NOT* called for keeper states!
  *
  */
-lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
+lua_State* luaG_newstate(Universe* U_, SourceState from_, std::optional<std::string_view> const& libs_)
 {
     DestState const _L{ create_state(U_, from_) };
 
@@ -336,7 +336,7 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
     STACK_CHECK(_L, 0);
 
     // neither libs (not even 'base') nor special init func: we are done
-    if (libs_ == nullptr && U_->onStateCreateFunc == nullptr) {
+    if (!libs_.has_value() && U_->onStateCreateFunc == nullptr) {
         DEBUGSPEW_CODE(DebugSpew(U_) << "luaG_newstate(nullptr)" << std::endl);
         return _L;
     }
@@ -351,15 +351,16 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
     lua_gc(_L, LUA_GCSTOP, 0);
 
     // Anything causes 'base' and 'jit' to be taken in
-    if (libs_ != nullptr) {
+    std::string_view _libs{ libs_.value() };
+    if (libs_.has_value()) {
         // special "*" case (mainly to help with LuaJIT compatibility)
         // as we are called from luaopen_lanes_core() already, and that would deadlock
-        if (libs_[0] == '*' && libs_[1] == 0) {
+        if (_libs == "*") {
             DEBUGSPEW_CODE(DebugSpew(U_) << "opening ALL standard libraries" << std::endl);
             luaL_openlibs(_L);
             // don't forget lanes.core for regular lane states
             open1lib(_L, kLanesCoreLibName);
-            libs_ = nullptr; // done with libs
+            _libs = ""; // done with libs
         } else {
             if constexpr (LUAJIT_FLAVOR() != 0) { // building against LuaJIT headers, always open jit
                 DEBUGSPEW_CODE(DebugSpew(U_) << "opening 'jit' library" << std::endl);
@@ -380,9 +381,9 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, char const* libs_)
     STACK_CHECK(_L, 0);
 
     // scan all libraries, open them one by one
-    if (libs_) {
+    if (!_libs.empty()) {
         unsigned int _len{ 0 };
-        for (char const* _p{ libs_ }; *_p; _p += _len) {
+        for (char const* _p{ _libs.data() }; *_p; _p += _len) {
             // skip delimiters ('.' can be part of name for "lanes.core")
             while (*_p && !isalnum(*_p) && *_p != '.')
                 ++_p;

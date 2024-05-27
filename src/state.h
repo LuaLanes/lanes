@@ -12,7 +12,7 @@ void serialize_require(lua_State* L_);
 // #################################################################################################
 
 [[nodiscard]] lua_State* create_state(Universe* U_, lua_State* from_);
-[[nodiscard]] lua_State* luaG_newstate(Universe* U_, SourceState _from, char const* libs);
+[[nodiscard]] lua_State* luaG_newstate(Universe* U_, SourceState from_, std::optional<std::string_view> const& libs_);
 
 // #################################################################################################
 

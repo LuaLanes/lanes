@@ -90,6 +90,7 @@ test:
 	$(MAKE) keeper
 	$(MAKE) linda_perf
 	$(MAKE) manual_register
+	$(MAKE) nameof
 	$(MAKE) objects
 	$(MAKE) package
 	$(MAKE) pingpong
@@ -159,6 +160,9 @@ linda_perf: tests/linda_perf.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 manual_register: tests/manual_register.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
+nameof: tests/nameof.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
 objects: tests/objects.lua $(_TARGET_SO)
