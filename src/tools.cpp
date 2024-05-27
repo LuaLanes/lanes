@@ -234,7 +234,7 @@ static void populate_func_lookup_table_recur(lua_State* L_, int dbIdx_, int i_, 
     lua_pushnil(L_);                                                                               // L_: ... {i_} {bfc} nil
     while (lua_next(L_, i_) != 0) {                                                                // L_: ... {i_} {bfc} k v
         // just for debug, not actually needed
-        // char const* key = (lua_type(L, -2) == LUA_TSTRING) ? lua_tostring(L, -2) : "not a string";
+        // std::string_view const _key{ (lua_type(L_, -2) == LUA_TSTRING) ? lua_tostringview(L_, -2) : "not a string" };
         // subtable: process it recursively
         if (lua_istable(L_, -1)) {                                                                 // L_: ... {i_} {bfc} k {}
             // increment visit count to make sure we will actually scan it at this recursive level
@@ -380,7 +380,7 @@ void populate_func_lookup_table(lua_State* const L_, int const i_, std::string_v
     // scan table contents
     lua_pushnil(L_);                                                                               // L_: o "r" {c} {fqn} ... {?} nil
     while (lua_next(L_, -2)) {                                                                     // L_: o "r" {c} {fqn} ... {?} k v
-        // char const *const strKey = (lua_type(L_, -2) == LUA_TSTRING) ? lua_tostring(L_, -2) : nullptr; // only for debugging
+        // std::string_view const _strKey{ (lua_type(L_, -2) == LUA_TSTRING) ? lua_tostringview(L_, -2) : "" }; // only for debugging
         // lua_Number const numKey = (lua_type(L_, -2) == LUA_TNUMBER) ? lua_tonumber(L_, -2) : -6666; // only for debugging
         STACK_CHECK(L_, 2);
         // append key name to fqn stack

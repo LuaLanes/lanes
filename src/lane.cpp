@@ -354,32 +354,38 @@ static LUAG_FUNC(thread_index)
 // #################################################################################################
 
 #if USE_DEBUG_SPEW()
-// can't use direct LUA_x errcode indexing because the sequence is not the same between Lua 5.1 and 5.2 :-(
-// LUA_ERRERR doesn't have the same value
-struct errcode_name
-{
-    LuaError code;
-    char const* name;
-};
+namespace {
+    // can't use direct LUA_x errcode indexing because the sequence is not the same between Lua 5.1 and 5.2 :-(
+    // LUA_ERRERR doesn't have the same value
+    struct errcode_name
+    {
+        LuaError code;
+        std::string_view const name;
+    };
 
-static struct errcode_name s_errcodes[] = {
-    { LuaError::OK, "LUA_OK" },
-    { LuaError::YIELD, "LUA_YIELD" },
-    { LuaError::ERRRUN, "LUA_ERRRUN" },
-    { LuaError::ERRSYNTAX, "LUA_ERRSYNTAX" },
-    { LuaError::ERRMEM, "LUA_ERRMEM" },
-    { LuaError::ERRGCMM, "LUA_ERRGCMM" },
-    { LuaError::ERRERR, "LUA_ERRERR" },
-};
-static char const* get_errcode_name(LuaError _code)
-{
-    for (errcode_name const& _entry : s_errcodes) {
-        if (_entry.code == _code) {
-            return _entry.name;
+    namespace local {
+
+        static struct errcode_name sErrCodes[] = {
+            { LuaError::OK, "LUA_OK" },
+            { LuaError::YIELD, "LUA_YIELD" },
+            { LuaError::ERRRUN, "LUA_ERRRUN" },
+            { LuaError::ERRSYNTAX, "LUA_ERRSYNTAX" },
+            { LuaError::ERRMEM, "LUA_ERRMEM" },
+            { LuaError::ERRGCMM, "LUA_ERRGCMM" },
+            { LuaError::ERRERR, "LUA_ERRERR" },
+        };
+    } // namespace local
+
+    static std::string_view GetErrcodeName(LuaError _code) noexcept
+    {
+        for (errcode_name const& _entry : local::sErrCodes) {
+            if (_entry.code == _code) {
+                return _entry.name;
+            }
         }
+        return "<nullptr>";
     }
-    return "<nullptr>";
-}
+} // namespace
 #endif // USE_DEBUG_SPEW()
 
 // #################################################################################################
@@ -545,7 +551,7 @@ static void push_stack_trace(lua_State* L_, Lane::ErrorTraceLevel errorTraceLeve
         LUA_ASSERT(L_, lua_isfunction(L_, -1));
         if (lua_rc_ != LuaError::OK) { // we have an error message and an optional stack trace at the bottom of the stack
             LUA_ASSERT(L_, _finalizers_index == 2 || _finalizers_index == 3);
-            // char const* err_msg = lua_tostring(L_, 1);
+            //std::string_view const _err_msg{ lua_tostringview(L_, 1) };
             lua_pushvalue(L_, 1);                                                                  // L_: ... finalizers lane_error finalizer err_msg
             // note we don't always have a stack trace for example when kCancelError, or when we got an error that doesn't call our handler, such as LUA_ERRMEM
             if (_finalizers_index == 3) {
@@ -677,11 +683,11 @@ static void lane_main(Lane* lane_)
         // in case of error and if it exists, fetch stack trace from registry and push it
         push_stack_trace(_L, lane_->errorTraceLevel, _rc, 1);                                      // L: retvals|error [trace]
 
-        DEBUGSPEW_CODE(DebugSpew(_U) << "Lane " << _L << " body: " << get_errcode_name(_rc) << " (" << (kCancelError.equals(_L, 1) ? "cancelled" : lua_typename(_L, lua_type(_L, 1))) << ")" << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(_U) << "Lane " << _L << " body: " << GetErrcodeName(_rc) << " (" << (kCancelError.equals(_L, 1) ? "cancelled" : lua_typename(_L, lua_type(_L, 1))) << ")" << std::endl);
         //  Call finalizers, if the script has set them up.
         //
         LuaError const _rc2{ run_finalizers(_L, lane_->errorTraceLevel, _rc) };
-        DEBUGSPEW_CODE(DebugSpew(_U) << "Lane " << _L << " finalizer: " << get_errcode_name(_rc2) << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(_U) << "Lane " << _L << " finalizer: " << GetErrcodeName(_rc2) << std::endl);
         if (_rc2 != LuaError::OK) { // Error within a finalizer!
             // the finalizer generated an error, and left its own error message [and stack trace] on the stack
             _rc = _rc2; // we're overruling the earlier script error or normal return
@@ -840,23 +846,25 @@ void Lane::changeDebugName(int nameIdx_)
 
 // #################################################################################################
 
-namespace global {
-    static struct luaL_Reg const sLaneFunctions[] = {
-        { "__gc", lane_gc },
-        { "__index", LG_thread_index },
-        { "cancel", LG_thread_cancel },
-        { "get_debug_threadname", LG_get_debug_threadname },
-        { "join", LG_thread_join },
-        { nullptr, nullptr }
-    };
-} // namespace global
+namespace {
+    namespace local {
+        static struct luaL_Reg const sLaneFunctions[] = {
+            { "__gc", lane_gc },
+            { "__index", LG_thread_index },
+            { "cancel", LG_thread_cancel },
+            { "get_debug_threadname", LG_get_debug_threadname },
+            { "join", LG_thread_join },
+            { nullptr, nullptr }
+        };
+    } // namespace local
+} // namespace
 
   // contains keys: { __gc, __index, cached_error, cached_tostring, cancel, join, get_debug_threadname }
 void Lane::PushMetatable(lua_State* L_)
 {
     STACK_CHECK_START_REL(L_, 0);
     if (luaL_newmetatable(L_, kLaneMetatableName)) {                                               // L_: mt
-        luaG_registerlibfuncs(L_, global::sLaneFunctions);
+        luaG_registerlibfuncs(L_, local::sLaneFunctions);
         // cache error() and tostring()
         kCachedError.pushKey(L_);                                                                  // L_: mt kCachedError
         lua_getglobal(L_, "error");                                                                // L_: mt kCachedError error()

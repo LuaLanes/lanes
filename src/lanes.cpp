@@ -588,19 +588,21 @@ LUAG_FUNC(wakeup_conv)
 
 extern LUAG_FUNC(linda);
 
-namespace global {
-    static struct luaL_Reg const sLanesFunctions[] = {
-        { "linda", LG_linda },
-        { "now_secs", LG_now_secs },
-        { "wakeup_conv", LG_wakeup_conv },
-        { "set_thread_priority", LG_set_thread_priority },
-        { "set_thread_affinity", LG_set_thread_affinity },
-        { "nameof", luaG_nameof },
-        { "register", LG_register },
-        { "set_singlethreaded", LG_set_singlethreaded },
-        { nullptr, nullptr }
-    };
-} // namespace global
+namespace {
+    namespace local {
+        static struct luaL_Reg const sLanesFunctions[] = {
+            { "linda", LG_linda },
+            { "now_secs", LG_now_secs },
+            { "wakeup_conv", LG_wakeup_conv },
+            { "set_thread_priority", LG_set_thread_priority },
+            { "set_thread_affinity", LG_set_thread_affinity },
+            { "nameof", luaG_nameof },
+            { "register", LG_register },
+            { "set_singlethreaded", LG_set_singlethreaded },
+            { nullptr, nullptr }
+        };
+    } // namespace local
+} // namespace
 
 // #################################################################################################
 
@@ -686,7 +688,7 @@ LUAG_FUNC(configure)
     lua_pushnil(L_);                                                                               // L_: settings M nil
     lua_setfield(L_, -2, "configure");                                                             // L_: settings M
     // add functions to the module's table
-    luaG_registerlibfuncs(L_, global::sLanesFunctions);
+    luaG_registerlibfuncs(L_, local::sLanesFunctions);
 
     // register core.threads() only if settings say it should be available
     if (_U->tracker.isActive()) {

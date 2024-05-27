@@ -16,7 +16,8 @@
 // style is camel case. scope of variable is optionally specified with a single lowercase letter.
 // constants: prefix k, followed by an uppercase letter
 // program-level global variable: in 'global' namespace, prefix g, followed by an uppercase letter
-// file-level static variable: in 'global' namespace, prefix s, followed by an uppercase letter
+// file-level types: in anonymous namespace
+// file-level static variable: in anonymous::'local' namespace, prefix s, followed by an uppercase letter
 // file-level function (static or not): no prefix, start with an uppercase letter
 // class/struct/enum type: no prefix, start with an uppercase letter
 // static class member/method: no prefix, start with an uppercase letter

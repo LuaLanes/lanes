@@ -155,8 +155,8 @@ void Universe::initializeAllocatorFunction(lua_State* L_)
         provideAllocator = lua_tocfunction(L_, -1);                                                // L_: settings allocator
         if (provideAllocator != nullptr) {
             // make sure the function doesn't have upvalues
-            char const* upname = lua_getupvalue(L_, -1, 1);                                        // L_: settings allocator upval?
-            if (upname != nullptr) {   // should be "" for C functions with upvalues if any
+            char const* _upname = lua_getupvalue(L_, -1, 1);                                       // L_: settings allocator upval?
+            if (_upname != nullptr) {   // should be "" for C functions with upvalues if any
                 raise_luaL_error(L_, "config.allocator() shouldn't have upvalues");
             }
             // remove this C function from the config table so that it doesn't cause problems

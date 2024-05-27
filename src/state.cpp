@@ -119,47 +119,47 @@ void serialize_require(lua_State* L_)
 }
 
 // #################################################################################################
-
-namespace global
-{
-    static luaL_Reg const sLibs[] = {
-        { "base", nullptr }, // ignore "base" (already acquired it)
+namespace {
+    namespace local {
+        static luaL_Reg const sLibs[] = {
+            { "base", nullptr }, // ignore "base" (already acquired it)
 #if LUA_VERSION_NUM >= 502
 #ifdef luaopen_bit32
-        { LUA_BITLIBNAME, luaopen_bit32 },
+            { LUA_BITLIBNAME, luaopen_bit32 },
 #endif
-        { LUA_COLIBNAME, luaopen_coroutine }, // Lua 5.2: coroutine is no longer a part of base!
+            { LUA_COLIBNAME, luaopen_coroutine }, // Lua 5.2: coroutine is no longer a part of base!
 #else // LUA_VERSION_NUM
-        { LUA_COLIBNAME, nullptr }, // Lua 5.1: part of base package
+            { LUA_COLIBNAME, nullptr }, // Lua 5.1: part of base package
 #endif // LUA_VERSION_NUM
-        { LUA_DBLIBNAME, luaopen_debug },
+            { LUA_DBLIBNAME, luaopen_debug },
 #ifndef PLATFORM_XBOX // no os/io libs on xbox
-        { LUA_IOLIBNAME, luaopen_io },
-        { LUA_OSLIBNAME, luaopen_os },
+            { LUA_IOLIBNAME, luaopen_io },
+            { LUA_OSLIBNAME, luaopen_os },
 #endif // PLATFORM_XBOX
-        { LUA_LOADLIBNAME, luaopen_package },
-        { LUA_MATHLIBNAME, luaopen_math },
-        { LUA_STRLIBNAME, luaopen_string },
-        { LUA_TABLIBNAME, luaopen_table },
+            { LUA_LOADLIBNAME, luaopen_package },
+            { LUA_MATHLIBNAME, luaopen_math },
+            { LUA_STRLIBNAME, luaopen_string },
+            { LUA_TABLIBNAME, luaopen_table },
 #if LUA_VERSION_NUM >= 503
-        { LUA_UTF8LIBNAME, luaopen_utf8 },
+            { LUA_UTF8LIBNAME, luaopen_utf8 },
 #endif
 #if LUAJIT_FLAVOR() != 0 // building against LuaJIT headers, add some LuaJIT-specific libs
-        { LUA_BITLIBNAME, luaopen_bit },
-        { LUA_FFILIBNAME, luaopen_ffi },
-        { LUA_JITLIBNAME, luaopen_jit },
+            { LUA_BITLIBNAME, luaopen_bit },
+            { LUA_FFILIBNAME, luaopen_ffi },
+            { LUA_JITLIBNAME, luaopen_jit },
 #endif // LUAJIT_FLAVOR()
 
-        { kLanesCoreLibName, require_lanes_core } // So that we can open it like any base library (possible since we have access to the init function)
-    };
+            { kLanesCoreLibName, require_lanes_core } // So that we can open it like any base library (possible since we have access to the init function)
+        };
 
-} // namespace global
+    } // namespace local
+} // namespace
 
 // #################################################################################################
 
 static void open1lib(lua_State* L_, std::string_view const& name_)
 {
-    for (luaL_Reg const& _entry : global::sLibs) {
+    for (luaL_Reg const& _entry : local::sLibs) {
         if (name_ == _entry.name) {
             lua_CFunction const _libfunc{ _entry.func };
             if (!_libfunc) {

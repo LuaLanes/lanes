@@ -750,26 +750,28 @@ LUAG_FUNC(linda_towatch)
 
 // #################################################################################################
 
-namespace global {
-    static luaL_Reg const sLindaMT[] = {
-        { "__concat", LG_linda_concat },
-        { "__tostring", LG_linda_tostring },
-        { "__towatch", LG_linda_towatch }, // Decoda __towatch support
-        { "cancel", LG_linda_cancel },
-        { "count", LG_linda_count },
-        { "deep", LG_linda_deep },
-        { "dump", LG_linda_dump },
-        { "get", LG_linda_get },
-        { "limit", LG_linda_limit },
-        { "receive", LG_linda_receive },
-        { "send", LG_linda_send },
-        { "set", LG_linda_set },
-        { nullptr, nullptr }
-    };
-} // namespace global
+namespace {
+    namespace local {
+        static luaL_Reg const sLindaMT[] = {
+            { "__concat", LG_linda_concat },
+            { "__tostring", LG_linda_tostring },
+            { "__towatch", LG_linda_towatch }, // Decoda __towatch support
+            { "cancel", LG_linda_cancel },
+            { "count", LG_linda_count },
+            { "deep", LG_linda_deep },
+            { "dump", LG_linda_dump },
+            { "get", LG_linda_get },
+            { "limit", LG_linda_limit },
+            { "receive", LG_linda_receive },
+            { "send", LG_linda_send },
+            { "set", LG_linda_set },
+            { nullptr, nullptr }
+        };
+    } // namespace local
+} // namespace
 // it's somewhat awkward to instanciate the LindaFactory here instead of lindafactory.cpp,
 // but that's necessary to provide s_LindaMT without exposing it outside linda.cpp.
-/*static*/ LindaFactory LindaFactory::Instance{ global::sLindaMT };
+/*static*/ LindaFactory LindaFactory::Instance{ local::sLindaMT };
 
 // #################################################################################################
 // #################################################################################################
