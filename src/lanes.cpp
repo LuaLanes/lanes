@@ -548,7 +548,7 @@ LUAG_FUNC(wakeup_conv)
     // .isdst (daylight saving on/off)
 
     STACK_CHECK_START_REL(L_, 0);
-    auto _readInteger = [L = L_](char const* name_) {
+    auto _readInteger = [L = L_](std::string_view const& name_) {
         std::ignore = luaG_getfield(L, 1, name_);
         lua_Integer const val{ lua_tointeger(L, -1) };
         lua_pop(L, 1);

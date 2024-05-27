@@ -68,8 +68,8 @@ static constexpr int kThreadPrioMax{ +3 };
 // #################################################################################################
 // #################################################################################################
 
-void THREAD_SETNAME(char const* _name);
+void THREAD_SETNAME(std::string_view const& name_);
 void THREAD_SET_PRIORITY(int prio_, bool sudo_);
-void THREAD_SET_AFFINITY(unsigned int aff);
+void THREAD_SET_AFFINITY(unsigned int aff_);
 
 void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_, bool sudo_);

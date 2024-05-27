@@ -139,9 +139,9 @@ void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_, [[maybe_unused]] boo
 
 // #################################################################################################
 
-void THREAD_SET_AFFINITY(unsigned int aff)
+void THREAD_SET_AFFINITY(unsigned int aff_)
 {
-    if (!SetThreadAffinityMask(GetCurrentThread(), aff)) {
+    if (!SetThreadAffinityMask(GetCurrentThread(), aff_)) {
         FAIL("THREAD_SET_AFFINITY", GetLastError());
     }
 }
@@ -162,12 +162,12 @@ typedef struct tagTHREADNAME_INFO
 #pragma pack(pop)
 #endif // !__GNUC__
 
-void THREAD_SETNAME(char const* _name)
+void THREAD_SETNAME(std::string_view const& name_)
 {
 #if !defined __GNUC__
     THREADNAME_INFO info;
     info.dwType = 0x1000;
-    info.szName = _name;
+    info.szName = name_.data();
     info.dwThreadID = GetCurrentThreadId();
     info.dwFlags = 0;
 
@@ -385,7 +385,7 @@ void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_, [[maybe_unused]] boo
 
 // #################################################################################################
 
-void THREAD_SET_AFFINITY(unsigned int aff)
+void THREAD_SET_AFFINITY(unsigned int aff_)
 {
     int bit = 0;
 #ifdef __NetBSD__
@@ -397,12 +397,12 @@ void THREAD_SET_AFFINITY(unsigned int aff)
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
 #endif
-    while (aff != 0) {
-        if (aff & 1) {
+    while (aff_ != 0) {
+        if (aff_ & 1) {
             CPU_SET(bit, &cpuset);
         }
         ++bit;
-        aff >>= 1;
+        aff_ >>= 1;
     }
 #ifdef __ANDROID__
     PT_CALL(sched_setaffinity(pthread_self(), sizeof(cpu_set_t), &cpuset));
@@ -416,24 +416,24 @@ void THREAD_SET_AFFINITY(unsigned int aff)
 
 // #################################################################################################
 
-void THREAD_SETNAME(char const* _name)
+void THREAD_SETNAME(std::string_view const& name_)
 {
     // exact API to set the thread name is platform-dependant
     // if you need to fix the build, or if you know how to fill a hole, tell me (bnt.germain@gmail.com) so that I can submit the fix in github.
 #if defined PLATFORM_BSD && !defined __NetBSD__
-    pthread_set_name_np(pthread_self(), _name);
+    pthread_set_name_np(pthread_self(), name_.data());
 #elif defined PLATFORM_BSD && defined __NetBSD__
-    pthread_setname_np(pthread_self(), "%s", (void*) _name);
+    pthread_setname_np(pthread_self(), "%s", (void*) name_.data());
 #elif defined PLATFORM_LINUX
 #if LINUX_USE_PTHREAD_SETNAME_NP
-    pthread_setname_np(pthread_self(), _name);
+    pthread_setname_np(pthread_self(), name_.data());
 #else  // LINUX_USE_PTHREAD_SETNAME_NP
-    prctl(PR_SET_NAME, _name, 0, 0, 0);
+    prctl(PR_SET_NAME, name_.data(), 0, 0, 0);
 #endif // LINUX_USE_PTHREAD_SETNAME_NP
 #elif defined PLATFORM_QNX || defined PLATFORM_CYGWIN
-    pthread_setname_np(pthread_self(), _name);
+    pthread_setname_np(pthread_self(), name_.data());
 #elif defined PLATFORM_OSX
-    pthread_setname_np(_name);
+    pthread_setname_np(name_.data());
 #else
     fprintf(stderr, "THREAD_SETNAME: unsupported platform\n");
     abort();

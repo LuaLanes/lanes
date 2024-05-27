@@ -450,18 +450,18 @@ void InterCopyContext::copy_cached_func() const
             return false;
         } else if (!lua_istable(L2, -1)) { // this can happen if someone decides to replace same already registered item (for a example a standard lib function) with a table
             lua_getglobal(L1, "decoda_name"); // L1: ... t ... decoda_name
-            char const* from{ lua_tostring(L1, -1) };
+            char const* _from{ lua_tostring(L1, -1) };
             lua_pop(L1, 1);                                                                        // L1: ... t ...
             lua_getglobal(L2, "decoda_name");                                                      // L1: ... t ...                                  L2: {} t decoda_name
-            char const* to{ lua_tostring(L2, -1) };
+            char const* _to{ lua_tostring(L2, -1) };
             lua_pop(L2, 1);                                                                        // L1: ... t ...                                  L2: {} t
             raise_luaL_error(
                 getErrL(),
                 "%s: source table '%s' found as %s in %s destination transfer database.",
-                from ? from : "main",
+                _from ? _from : "main",
                 _fqn,
                 lua_typename(L2, lua_type_as_enum(L2, -1)),
-                to ? to : "main");
+                _to ? _to : "main");
         }
         lua_remove(L2, -2);                                                                        // L1: ... t ...                                  L2: t
         break;
@@ -1051,24 +1051,28 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 // #################################################################################################
 
 #if USE_DEBUG_SPEW()
-static char const* lua_type_names[] = {
-      "LUA_TNIL"
-    , "LUA_TBOOLEAN"
-    , "LUA_TLIGHTUSERDATA"
-    , "LUA_TNUMBER"
-    , "LUA_TSTRING"
-    , "LUA_TTABLE"
-    , "LUA_TFUNCTION"
-    , "LUA_TUSERDATA"
-    , "LUA_TTHREAD"
-    , "<LUA_NUMTAGS>" // not really a type
-    , "LUA_TJITCDATA" // LuaJIT specific
-};
-static char const* vt_names[] = {
-      "VT::NORMAL"
-    , "VT::KEY"
-    , "VT::METATABLE"
-};
+namespace {
+    namespace local {
+        static std::string_view const sLuaTypeNames[] = {
+              "LUA_TNIL"
+            , "LUA_TBOOLEAN"
+            , "LUA_TLIGHTUSERDATA"
+            , "LUA_TNUMBER"
+            , "LUA_TSTRING"
+            , "LUA_TTABLE"
+            , "LUA_TFUNCTION"
+            , "LUA_TUSERDATA"
+            , "LUA_TTHREAD"
+            , "<LUA_NUMTAGS>" // not really a type
+            , "LUA_TJITCDATA" // LuaJIT specific
+        };
+        static std::string_view const sValueTypeNames[] = {
+              "VT::NORMAL"
+            , "VT::KEY"
+            , "VT::METATABLE"
+        };
+    }
+}
 #endif // USE_DEBUG_SPEW()
 
 /*
@@ -1092,7 +1096,7 @@ static char const* vt_names[] = {
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
 
     LuaType _val_type{ lua_type_as_enum(L1, L1_i) };
-    DEBUGSPEW_CODE(DebugSpew(U) << lua_type_names[static_cast<int>(_val_type)] << " " << vt_names[static_cast<int>(vt)] << ": ");
+    DEBUGSPEW_CODE(DebugSpew(U) << local::sLuaTypeNames[static_cast<int>(_val_type)] << " " << local::sValueTypeNames[static_cast<int>(vt)] << ": ");
 
     // Non-POD can be skipped if its metatable contains { __lanesignore = true }
     if (((1 << static_cast<int>(_val_type)) & kPODmask) == 0) {
@@ -1203,9 +1207,9 @@ static char const* vt_names[] = {
     // but don't copy it anyway, as the function names change depending on the slot index!
     // users should provide an on_state_create function to setup custom loaders instead
     // don't copy package.preload in keeper states (they don't know how to translate functions)
-    char const* _entries[] = { "path", "cpath", (mode == LookupMode::LaneBody) ? "preload" : nullptr /*, (LUA_VERSION_NUM == 501) ? "loaders" : "searchers"*/, nullptr };
-    for (char const* const _entry : _entries) {
-        if (!_entry) {
+    std::string_view const _entries[] = { "path", "cpath", (mode == LookupMode::LaneBody) ? "preload" : "" /*, (LUA_VERSION_NUM == 501) ? "loaders" : "searchers"*/, "" };
+    for (std::string_view const& _entry : _entries) {
+        if (_entry.empty()) {
             continue;
         }
         DEBUGSPEW_CODE(DebugSpew(U) << "package." << _entry << std::endl);
@@ -1218,7 +1222,7 @@ static char const* vt_names[] = {
                 STACK_CHECK(L1, 0);
             }
             if (_result == InterCopyResult::Success) {
-                lua_setfield(L2, -2, _entry); // set package[entry]
+                lua_setfield(L2, -2, _entry.data()); // set package[entry]
             } else {
                 lua_pushfstring(L1, "failed to copy package entry %s", _entry);
                 // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
