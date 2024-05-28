@@ -45,6 +45,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <ranges>
 
 // #################################################################################################
 // Keeper implementation
@@ -112,7 +113,7 @@ static void fifo_push(lua_State* L_, keeper_fifo* fifo_, int count_)
     int const _idx{ lua_gettop(L_) - count_ };
     int const _start{ fifo_->first + fifo_->count - 1 };
     // pop all additional arguments, storing them in the fifo
-    for (int _i = count_; _i >= 1; --_i) {
+    for (int const _i : std::ranges::reverse_view{ std::ranges::iota_view{ 1, count_ + 1 } }) {
         // store in the fifo the value at the top of the stack at the specified index, popping it from the stack
         lua_rawseti(L_, _idx, _start + _i);
     }
@@ -126,10 +127,10 @@ static void fifo_push(lua_State* L_, keeper_fifo* fifo_, int count_)
 // expects exactly 1 value on the stack!
 // currently only called with a count of 1, but this may change in the future
 // function assumes that there is enough data in the fifo to satisfy the request
-static void fifo_peek(lua_State* L_, keeper_fifo* fifo_, int count_)
+static void fifo_peek(lua_State* const L_, keeper_fifo const* const fifo_, int const count_)
 {
     STACK_GROW(L_, count_);
-    for (int _i = 0; _i < count_; ++_i) {
+    for (int const _i : std::ranges::iota_view{ 0, count_ }) {
         lua_rawgeti(L_, 1, (fifo_->first + _i));
     }
 }
@@ -145,20 +146,20 @@ static void fifo_pop(lua_State* L_, keeper_fifo* fifo_, int count_)
     // each iteration pushes a value on the stack!
     STACK_GROW(L_, count_ + 2);
     // skip first item, we will push it last
-    for (int i = 1; i < count_; ++i) {
-        int const at{ fifo_->first + i };
+    for (int const _i : std::ranges::iota_view{ 1, count_ }) {
+        int const _at{ fifo_->first + _i };
         // push item on the stack
-        lua_rawgeti(L_, _fifo_idx, at);                                                            // L_: ... fifotbl val
+        lua_rawgeti(L_, _fifo_idx, _at);                                                           // L_: ... fifotbl val
         // remove item from the fifo
         lua_pushnil(L_);                                                                           // L_: ... fifotbl val nil
-        lua_rawseti(L_, _fifo_idx, at);                                                            // L_: ... fifotbl val
+        lua_rawseti(L_, _fifo_idx, _at);                                                           // L_: ... fifotbl val
     }
     // now process first item
     {
-        int const at{ fifo_->first };
-        lua_rawgeti(L_, _fifo_idx, at);                                                            // L_: ... fifotbl vals val
+        int const _at{ fifo_->first };
+        lua_rawgeti(L_, _fifo_idx, _at);                                                           // L_: ... fifotbl vals val
         lua_pushnil(L_);                                                                           // L_: ... fifotbl vals val nil
-        lua_rawseti(L_, _fifo_idx, at);                                                            // L_: ... fifotbl vals val
+        lua_rawseti(L_, _fifo_idx, _at);                                                           // L_: ... fifotbl vals val
         lua_replace(L_, _fifo_idx);                                                                // L_: ... vals
     }
 

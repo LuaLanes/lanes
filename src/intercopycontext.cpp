@@ -1273,11 +1273,11 @@ namespace {
     InterCopyContext _c{ U, L2, L1, CacheIndex{ _top_L2 + 1 }, {}, VT::NORMAL, mode, _pBuf };
     bool _copyok{ true };
     STACK_CHECK_START_REL(L1, 0);
-    for (int i{ _top_L1 - n_ + 1 }, j{ 1 }; i <= _top_L1; ++i, ++j) {
+    for (int _i{ _top_L1 - n_ + 1 }, _j{ 1 }; _i <= _top_L1; ++_i, ++_j) {
         if (U->verboseErrors) {
-            sprintf(_tmpBuf, "arg_%d", j);
+            sprintf(_tmpBuf, "arg_%d", _j);
         }
-        _c.L1_i = SourceIndex{ i };
+        _c.L1_i = SourceIndex{ _i };
         _copyok = _c.inter_copy_one();                                                             //                                                L2: ... cache {}n
         if (!_copyok) {
             break;

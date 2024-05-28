@@ -36,6 +36,8 @@ THE SOFTWARE.
 #include "lane.h"
 #include "state.h"
 
+#include <ranges>
+
 // #################################################################################################
 
 Universe::Universe()
@@ -124,7 +126,7 @@ void Universe::closeKeepers()
         // in that case, the linda operation should do nothing. which means that these operations must check for keeper acquisition success
         // which is early-outed with a keepers->nbKeepers null-check
         keepers->nb_keepers = 0;
-        for (int _i = 0; _i < _nbKeepers; ++_i) {
+        for (int const _i : std::ranges::iota_view{ 0, _nbKeepers }) {
             lua_State* const _K{ keepers->keeper_array[_i].L };
             keepers->keeper_array[_i].L = KeeperState{ nullptr };
             if (_K != nullptr) {
@@ -134,7 +136,7 @@ void Universe::closeKeepers()
                 _nbKeepers = _i;
             }
         }
-        for (int _i = 0; _i < _nbKeepers; ++_i) {
+        for (int const _i : std::ranges::iota_view{ 0, _nbKeepers }) {
             keepers->keeper_array[_i].~Keeper();
         }
         // free the keeper bookkeeping structure
@@ -225,8 +227,8 @@ void Universe::initializeKeepers(lua_State* L_)
 
     // Keepers contains an array of 1 Keeper, adjust for the actual number of keeper states
     {
-        size_t const bytes = sizeof(Keepers) + (_nb_keepers - 1) * sizeof(Keeper);
-        keepers = static_cast<Keepers*>(internalAllocator.alloc(bytes));
+        size_t const _bytes{ sizeof(Keepers) + (_nb_keepers - 1) * sizeof(Keeper) };
+        keepers = static_cast<Keepers*>(internalAllocator.alloc(_bytes));
         if (keepers == nullptr) {
             raise_luaL_error(L_, "out of memory while creating keepers");
         }
@@ -234,11 +236,12 @@ void Universe::initializeKeepers(lua_State* L_)
         keepers->gc_threshold = keepers_gc_threshold;
         keepers->nb_keepers = _nb_keepers;
 
-        for (int _i = 0; _i < _nb_keepers; ++_i) {
+        for (int const _i : std::ranges::iota_view{ 0, _nb_keepers }) {
             keepers->keeper_array[_i].Keeper::Keeper();
         }
     }
-    for (int _i = 0; _i < _nb_keepers; ++_i) {
+
+    for (int const _i : std::ranges::iota_view{ 0, _nb_keepers }) {
         // note that we will leak K if we raise an error later
         KeeperState const _K{ create_state(this, L_) };                                            // L_: settings                                    K:
         if (_K == nullptr) {
