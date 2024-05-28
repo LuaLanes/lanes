@@ -364,7 +364,6 @@ namespace {
     };
 
     namespace local {
-
         static struct errcode_name sErrCodes[] = {
             { LuaError::OK, "LUA_OK" },
             { LuaError::YIELD, "LUA_YIELD" },
@@ -373,6 +372,7 @@ namespace {
             { LuaError::ERRMEM, "LUA_ERRMEM" },
             { LuaError::ERRGCMM, "LUA_ERRGCMM" },
             { LuaError::ERRERR, "LUA_ERRERR" },
+            { LuaError::ERRFILE, "LUA_ERRFILE" },
         };
     } // namespace local
 

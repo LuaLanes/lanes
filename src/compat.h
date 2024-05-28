@@ -232,7 +232,8 @@ enum class LuaError
     ERRSYNTAX = LUA_ERRSYNTAX,
     ERRMEM = LUA_ERRMEM,
     ERRGCMM = LUA_ERRGCMM, // pre-5.4
-    ERRERR = LUA_ERRERR
+    ERRERR = LUA_ERRERR,
+    ERRFILE = LUA_ERRFILE
 };
 
 inline constexpr LuaError ToLuaError(int rc_)
