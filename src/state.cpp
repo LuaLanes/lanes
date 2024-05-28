@@ -209,7 +209,7 @@ static void copy_one_time_settings(Universe* U_, SourceState L1_, DestState L2_)
 
 // #################################################################################################
 
-static constexpr char const* kOnStateCreate{ "on_state_create" };
+static constexpr char const* kOnStateCreate{ "on_state_create" }; // update lanes.lua if the name changes!
 
 void InitializeOnStateCreate(Universe* U_, lua_State* L_)
 {

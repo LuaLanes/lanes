@@ -336,8 +336,8 @@
 				<tt>nil</tt>/<tt>"protected"</tt>/function
 			</td>
 			<td>
-				If <tt>nil</tt>, Lua states are created with <tt>lua_newstate()</tt> and reuse the allocator from the master state.<br />
-				If <tt>"protected"</tt>, The default allocator obtained from <tt>lua_getallocf()</tt> in the master state is wrapped inside a critical section and used in all newly created states.<br />
+				If <tt>nil</tt>, Lua states are created with <tt>lua_newstate()</tt> and reuse the allocator from the master state.<br/>
+				If <tt>"protected"</tt>, The default allocator obtained from <tt>lua_getallocf()</tt> in the master state is wrapped inside a critical section and used in all newly created states.<br/>
 				If a <tt>function</tt>, this function is called prior to creating the state. It should return a full userdata containing the following structure:
 				<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 					<tr>
@@ -360,8 +360,8 @@
 			</td>
 			<td>
 				Controls which allocator is used for Lanes internal allocations (for keeper, linda and lane management).
-				If <tt>"libc"</tt>, Lanes uses <tt>realloc</tt> and <tt>free</tt>.<br />
-				If <tt>"allocator"</tt>, Lanes uses whatever was obtained from the <tt>"allocator"</tt> setting.<br />
+				If <tt>"libc"</tt>, Lanes uses <tt>realloc</tt> and <tt>free</tt>.<br/>
+				If <tt>"allocator"</tt>, Lanes uses whatever was obtained from the <tt>"allocator"</tt> setting.<br/>
 				This option is mostly useful for embedders that want control all memory allocations, but have issues when Lanes tries to use the Lua State allocator for internal purposes (especially with LuaJIT).
 			</td>
 		</tr>
@@ -454,6 +454,27 @@
 		</td>
 	</tr>
 </table>
+
+<p>
+	It is also possible to install a function that will be called when Lanes is shutdown (that is, when the first state that required Lanes is closed).
+</p>
+
+<p>
+	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
+		<tr>
+			<td>
+				<pre>	lanes.finally(&lt;some function&gt;|nil)</pre>
+			</td>
+		</tr>
+	</table>
+</p>
+
+<p>
+	An error will be raised if you attempt to do this from inside a lane, or on bad arguments (non-function, or too many arguments).<br/>
+	Only the last registered finalizer is kept. It can be cleared by passing <tt>nil</tt> or nothing.<br/>
+	The installed function is called after all free-running lanes are terminated, but before lindas become unusable.<br/>
+	If an error occurs inside this finalizer, it is silently swallowed, since it happens only during state shutdown, and you can't do anything about it.
+</p>
 
 <hr/>
 <h2 id="creation">Creation</h2>
@@ -682,8 +703,7 @@
 			</td>
 			<td>table</td>
 			<td>
-				Sets the globals table for the launched threads. This can be used for giving them constants. The key/value pairs of <tt>table</tt> are transfered in the lane globals after the libraries have been loaded and the modules required.
-				<br />
+				Sets the globals table for the launched threads. This can be used for giving them constants. The key/value pairs of <tt>table</tt> are transfered in the lane globals after the libraries have been loaded and the modules required.<br/>
 				The global values of different lanes are in no manner connected; modifying one will only affect the particular lane.
 			</td>
 		</tr>
@@ -696,8 +716,7 @@
 				Lists modules that have to be required in order to be able to transfer functions they exposed. Starting with Lanes 3.0-beta, non-Lua functions are no longer copied by recreating a C closure from a C pointer, but are <a href="#function_notes">searched in lookup tables</a>.
 				These tables are built from the modules listed here. <tt>required</tt> must be a list of strings, each one being the name of a module to be required. Each module is required with <tt>require()</tt> before the lanes function is invoked.
 				So, from the required module's point of view, requiring it manually from inside the lane body or having it required this way doesn't change anything. From the lane body's point of view, the only difference is that a module not creating a global won't be accessible.
-				Therefore, a lane body will also have to require a module manually, but this won't do anything more (see Lua's <tt>require</tt> documentation).
-				<br />
+				Therefore, a lane body will also have to require a module manually, but this won't do anything more (see Lua's <tt>require</tt> documentation).	<br/>
 				ATTEMPTING TO TRANSFER A FUNCTION REGISTERED BY A MODULE NOT LISTED HERE WILL RAISE AN ERROR.
 			</td>
 		</tr>
@@ -707,8 +726,8 @@
 			</td>
 			<td>string</td>
 			<td>
-				Sets the error reporting mode. One of <tt>"minimal"</tt> (the default), <tt>"basic"</tt>, <tt>"extended"</tt>.<br />
-				<tt>"minimal"</tt> yields only the location of the error.<br />
+				Sets the error reporting mode. One of <tt>"minimal"</tt> (the default), <tt>"basic"</tt>, <tt>"extended"</tt>.<br/>
+				<tt>"minimal"</tt> yields only the location of the error.<br/>
 				The other 2 yield a full stack trace, with different amounts of data extracted from the debug infos. See <a href="#results">Results</a>.
 			</td>
 		</tr>
@@ -737,10 +756,8 @@
 			<td>integer</td>
 			<td>
 				The priority of lanes generated in the range -3..+3 (default is 0).
-				These values are a mapping over the actual priority range of the underlying implementation.
-				<br />
-				Implementation and dependability of priorities varies by platform. Especially Linux kernel 2.6 is not supporting priorities in user mode.
-				<br />
+				These values are a mapping over the actual priority range of the underlying implementation.<br/>
+				Implementation and dependability of priorities varies by platform. Especially Linux kernel 2.6 is not supporting priorities in user mode.<br/>
 				A lane can also change its own thread priority dynamically with <a href="#priority"><tt>lanes.set_thread_priority()</tt></a>.
 			</td>
 		</tr>
@@ -750,8 +767,7 @@
 			</td>
 			<td> table</td>
 			<td>
-				Specifying it when <code>libs_str</code> doesn't cause the <code>package</code> library to be loaded will generate an error.
-				<br />
+				Specifying it when <code>libs_str</code> doesn't cause the <code>package</code> library to be loaded will generate an error.<br/>
 				If not specified, the created lane will receive the current values of <tt>package</tt>. Only <tt>path</tt>, <tt>cpath</tt>, <tt>preload</tt> and <tt>loaders</tt> (Lua 5.1)/<tt>searchers</tt> (Lua 5.2) are transfered.
 			</td>
 		</tr>
@@ -1754,12 +1770,9 @@ static MyDeepFactory g_MyDeepFactory;
 </p>
 
 <p>
-	Deep userdata in transit inside keeper states (sent in a linda but not yet consumed) don't call <tt>deleteDeepObjectInternal</tt> and aren't considered by reference counting. The rationale is the following:
-	<br />
-	If some non-keeper state holds a deep userdata for some deep object, then even if the keeper collects its own deep userdata, it shouldn't be cleaned up since the refcount is not 0.
-	<br />
-	OTOH, if a keeper state holds the last deep userdata for some deep object, then no lane can do actual work with it. Deep userdata's <tt>factory()</tt> interface is never accessed from a keeper state.
-	<br />
+	Deep userdata in transit inside keeper states (sent in a linda but not yet consumed) don't call <tt>deleteDeepObjectInternal</tt> and aren't considered by reference counting. The rationale is the following:<br/>
+	If some non-keeper state holds a deep userdata for some deep object, then even if the keeper collects its own deep userdata, it shouldn't be cleaned up since the refcount is not 0.<br/>
+	OTOH, if a keeper state holds the last deep userdata for some deep object, then no lane can do actual work with it. Deep userdata's <tt>factory()</tt> interface is never accessed from a keeper state.<br/>
 	Therefore, Lanes can just call <tt>deleteDeepObjectInternal</tt> when the last non-keeper-held deep userdata is collected, as long as it doesn't do the same in a keeper state after that, since any remaining deep userdata in keeper states now hold stale pointers.
 </p>
 

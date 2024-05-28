@@ -598,6 +598,7 @@ namespace {
             { "set_thread_affinity", LG_set_thread_affinity },
             { "nameof", luaG_nameof },
             { "register", LG_register },
+            { Universe::kFinally, Universe::InitializeFinalizer },
             { "set_singlethreaded", LG_set_singlethreaded },
             { nullptr, nullptr }
         };

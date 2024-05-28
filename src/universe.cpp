@@ -197,6 +197,28 @@ void Universe::initializeAllocatorFunction(lua_State* L_)
 
 // #################################################################################################
 
+// should be called ONLY from the state that created the universe
+int Universe::InitializeFinalizer(lua_State* L_)
+{
+    luaL_argcheck(L_, lua_gettop(L_) <= 1, 1, "too many arguments");                               // L_: f?
+    lua_settop(L_, 1);                                                                             // L_: f|nil
+    luaL_argcheck(L_, lua_isnoneornil(L_, 1) || lua_isfunction(L_, 1), 1, "finalizer should be a function");
+
+    // make sure we are only called from the Master Lua State!
+    kUniverseFullRegKey.pushValue(L_);                                                             // L_: f U
+    if (lua_type_as_enum(L_, -1) != LuaType::USERDATA) {
+        raise_luaL_error(L_, "lanes.%s called from inside a lane", kFinally);
+    }
+    lua_pop(L_, 1);                                                                                // L_: f
+    STACK_GROW(L_, 3);
+    // _R[kFinalizerRegKey] = f
+    kFinalizerRegKey.setValue(L_, [](lua_State* L_) { lua_insert(L_, -2); });                      // L_:
+    // no need to adjust the stack, Lua does this for us
+    return 0;
+}
+
+// #################################################################################################
+
 /*
  * Initialize keeper states
  *
@@ -373,8 +395,21 @@ int universe_gc(lua_State* L_)
 {
     lua_Duration const _shutdown_timeout{ lua_tonumber(L_, lua_upvalueindex(1)) };
     std::string_view const _op_string{ lua_tostringview(L_, lua_upvalueindex(2)) };
-    Universe* const _U{ lua_tofulluserdata<Universe>(L_, 1) };
+    STACK_CHECK_START_ABS(L_, 1);
+    Universe* const _U{ lua_tofulluserdata<Universe>(L_, 1) };                                     // L_: U
     _U->terminateFreeRunningLanes(L_, _shutdown_timeout, which_cancel_op(_op_string));
+
+    // invoke the function installed by lanes.finally()
+    kFinalizerRegKey.pushValue(L_);                                                                // L_: U finalizer|nil
+    if (!lua_isnil(L_, -1)) {
+        lua_pcall(L_, 0, 0, 0);                                                                    // L_: U
+        // discard any error that might have occured
+        lua_settop(L_, 1);
+    } else {
+        lua_pop(L_, 1);                                                                            // L_: U
+    }
+    // in case of error, the message is pushed on the stack
+    STACK_CHECK(L_, 1);
 
     // no need to mutex-protect this as all threads in the universe are gone at that point
     if (_U->timerLinda != nullptr) { // test in case some early internal error prevented Lanes from creating the deep timer
@@ -389,6 +424,9 @@ int universe_gc(lua_State* L_)
     // remove the protected allocator, if any
     _U->protectedAllocator.removeFrom(L_);
 
+    // no longer found in the registry
+    kUniverseFullRegKey.setValue(L_, [](lua_State* L_) { lua_pushnil(L_); });
+    kUniverseLightRegKey.setValue(L_, [](lua_State* L_) { lua_pushnil(L_); });
     _U->Universe::~Universe();
 
     return 0;

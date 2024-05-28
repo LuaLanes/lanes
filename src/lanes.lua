@@ -799,6 +799,7 @@ local configure = function(settings_)
     lanes.null = core.null
     lanes.require = core.require
     lanes.register = core.register
+    lanes.finally = core.finally
     lanes.set_singlethreaded = core.set_singlethreaded
     lanes.set_thread_affinity = core.set_thread_affinity
     lanes.set_thread_priority = core.set_thread_priority

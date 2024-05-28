@@ -485,6 +485,6 @@ end
 
 local nameof_type, nameof_name = lanes.nameof(print)
 PRINT("name of " .. nameof_type .. " print = '" .. nameof_name .. "'")
-
---
-io.stderr:write "Done! :)\n"
+-- install a finalizer that gets called upon Lanes's internal Universe is GCed.
+-- that way, we print our message after anything that can be output by lanes that are still running at that point
+lanes.finally(function() io.stderr:write "\n=======================================\nTEST OK\n" end)

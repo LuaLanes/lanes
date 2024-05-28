@@ -120,6 +120,8 @@ static constexpr RegistryUniqueKey kUniverseLightRegKey{ 0x48BBE9CEAB0BA04Full }
 class Universe
 {
     public:
+    static constexpr char const* kFinally{ "finally" }; // update lanes.lua if the name changes!
+
 #ifdef PLATFORM_LINUX
     // Linux needs to check, whether it's been run as root
     bool const sudo{ geteuid() == 0 };
@@ -180,6 +182,7 @@ class Universe
 
     void closeKeepers();
     void initializeAllocatorFunction(lua_State* L_);
+    static int InitializeFinalizer(lua_State* L_);
     void initializeKeepers(lua_State* L_);
     void terminateFreeRunningLanes(lua_State* L_, lua_Duration shutdownTimeout_, CancelOp op_);
 };
