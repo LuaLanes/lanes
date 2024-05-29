@@ -958,7 +958,7 @@
 	</table>
 
 <p>
-	Only available if lane tracking feature is compiled (see <tt>HAVE_LANE_TRACKING</tt> in <tt>lanes.cpp</tt>) and <a href="#track_lanes"><tt>track_lanes</tt></a> is set.
+	Only available if lane tracking is enabled by setting <a href="#track_lanes"><tt>track_lanes</tt></a>.
 	<br/>
 	Returns an array table where each entry is a table containing a lane's name and status. Returns <tt>nil</tt> if no lane is running.
 </p>
@@ -1743,9 +1743,9 @@ class MyDeepFactory : public DeepFactory
 {
 	private:
 
-	DeepPrelude* newDeepObjectInternal(lua_State* L) const override;
-	void deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const override;
-	void createMetatable(lua_State* L) const override;
+	void createMetatable(lua_State* const L_) const override;
+	void deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* o_) const override;
+	DeepPrelude* newDeepObjectInternal(lua_State* const L_) const override;
 	std::string_view moduleName() const override;
 };
 
@@ -1757,7 +1757,7 @@ static MyDeepFactory g_MyDeepFactory;
 			<li><tt>createMetatable</tt>: should build a metatable for the object. Don't cache the metatable yourself, Lanes takes care of it (<tt>createMetatable</tt> should only be invoked once per state). Just push the metatable on the stack.</li>
 			<li><tt>moduleName</tt>: requests the name of the module that exports the factory, to be returned. It is necessary so that Lanes can require it in any lane state that receives a userdata. This is to prevent crashes in situations where the module could be unloaded while the factory pointer is still held.</li>
 		</ul>
-		Take a look at <tt>LindaFactory</tt> in <tt>linda.cpp</tt> or <tt>MyDeepFactory</tt> in <tt>deep_test.cpp</tt>.
+		Take a look at <tt>LindaFactory</tt> in <tt>lindafactory.cpp</tt> or <tt>MyDeepFactory</tt> in <tt>deep_test.cpp</tt>.
 	</li>
 	<li>Include <tt>"deep.h"</tt> and either link against Lanes or statically compile <tt>compat.cpp deep.cpp</tt> into your module if you want to avoid a runtime dependency for users that will use your module without Lanes.
 	<li>Instanciate your userdata using <tt>yourFactoryObject.pushDeepUserdata()</tt>, instead of the regular <tt>lua_newuserdata()</tt>. Given a <tt>factory</tt>, it sets up the support structures and returns a state-specific proxy userdata for accessing your data. This proxy can also be copied over to other lanes.</li>

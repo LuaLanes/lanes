@@ -13,12 +13,12 @@ class MyDeepFactory : public DeepFactory
 
     private:
 
-    [[nodiscard]] DeepPrelude* newDeepObjectInternal(lua_State* L) const override;
-    void deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const override;
-    void createMetatable(lua_State* L_) const override
+    void createMetatable(lua_State* const L_) const override
     {
         luaL_getmetatable(L_, "deep");
     }
+    void deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* o_) const override;
+    [[nodiscard]] DeepPrelude* newDeepObjectInternal(lua_State* const L_) const override;
     [[nodiscard]] std::string_view moduleName() const override { return std::string_view{ "deep_test" }; }
 };
 /*static*/ MyDeepFactory MyDeepFactory::Instance{};
@@ -33,27 +33,27 @@ struct MyDeepUserdata : public DeepPrelude // Deep userdata MUST start with a De
 
 // #################################################################################################
 
-DeepPrelude* MyDeepFactory::newDeepObjectInternal(lua_State* L) const
+DeepPrelude* MyDeepFactory::newDeepObjectInternal(lua_State* const L_) const
 {
-    MyDeepUserdata* deep_test = new MyDeepUserdata{ MyDeepFactory::Instance };
-    return deep_test;
+    MyDeepUserdata* const _deep_test{ new MyDeepUserdata{ MyDeepFactory::Instance } };
+    return _deep_test;
 }
 
 // #################################################################################################
 
-void MyDeepFactory::deleteDeepObjectInternal(lua_State* L, DeepPrelude* o_) const
+void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* const o_) const
 {
-    MyDeepUserdata* deep_test = static_cast<MyDeepUserdata*>(o_);
-    delete deep_test;
+    MyDeepUserdata* const _deep_test{ static_cast<MyDeepUserdata*>(o_) };
+    delete _deep_test;
 }
 
 // #################################################################################################
 
-[[nodiscard]] static int deep_set(lua_State* L)
+[[nodiscard]] static int deep_set(lua_State* const L_)
 {
-    MyDeepUserdata* const self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, 1)) };
-    lua_Integer i = lua_tointeger( L, 2);
-    self->val = i;
+    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L_, 1)) };
+    lua_Integer i = lua_tointeger(L_, 2);
+    _self->val = i;
     return 0;
 }
 

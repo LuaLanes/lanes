@@ -60,51 +60,80 @@ static constexpr RegistryUniqueKey kDeepLookupRegKey{ 0xC6788345703C6059ull };
 static constexpr RegistryUniqueKey kDeepProxyCacheRegKey{ 0xEBCD49AE1A3DD35Eull };
 
 // #################################################################################################
+// #################################################################################################
+namespace {
+    // #############################################################################################
+    // #############################################################################################
 
-/*
- * Sets up [-1]<->[-2] two-way lookups, and ensures the lookup table exists.
- * Pops the both values off the stack.
- */
-void DeepFactory::storeDeepLookup(lua_State* L_) const
+    /*
+     * void= mt.__gc( proxy_ud )
+     *
+     * End of life for a proxy object; reduce the deep reference count and clean it up if reaches 0.
+     *
+     */
+    [[nodiscard]] static int DeepGC(lua_State* const L_)
+    {
+        DeepPrelude* const* const _proxy{ lua_tofulluserdata<DeepPrelude*>(L_, 1) };
+        DeepPrelude* const _p{ *_proxy };
+
+        // can work without a universe if creating a deep userdata from some external C module when Lanes isn't loaded
+        // in that case, we are not multithreaded and locking isn't necessary anyway
+        bool const isLastRef{ _p->refcount.fetch_sub(1, std::memory_order_relaxed) == 1 };
+
+        if (isLastRef) {
+            // retrieve wrapped __gc, if any
+            lua_pushvalue(L_, lua_upvalueindex(1));                                                // L_: self __gc?
+            if (!lua_isnil(L_, -1)) {
+                lua_insert(L_, -2);                                                                // L_: __gc self
+                lua_call(L_, 1, 0);                                                                // L_:
+            } else {
+                // need an empty stack in case we are GC_ing from a Keeper, so that empty stack checks aren't triggered
+                lua_pop(L_, 2);                                                                    // L_:
+            }
+            DeepFactory::DeleteDeepObject(L_, _p);
+        }
+        return 0;
+    }
+
+    // #############################################################################################
+
+    // Pops the key (metatable or factory) off the stack, and replaces with the deep lookup value (factory/metatable/nil).
+    static void LookupDeep(lua_State* const L_)
+    {
+        STACK_GROW(L_, 1);
+        STACK_CHECK_START_REL(L_, 1);                                                              // L_: a
+        kDeepLookupRegKey.pushValue(L_);                                                           // L_: a {}
+        if (!lua_isnil(L_, -1)) {
+            lua_insert(L_, -2);                                                                    // L_: {} a
+            lua_rawget(L_, -2);                                                                    // L_: {} b
+        }
+        lua_remove(L_, -2);                                                                        // L_: a|b
+        STACK_CHECK(L_, 1);
+    }
+
+    // #############################################################################################
+    // #############################################################################################
+} // namespace
+// #################################################################################################
+// #################################################################################################
+
+// #################################################################################################
+// #################################################################################################
+// ####################################### DeepFactory #############################################
+// #################################################################################################
+// #################################################################################################
+
+void DeepFactory::DeleteDeepObject(lua_State* const L_, DeepPrelude* const o_)
 {
-    // the deep metatable is at the top of the stack                                               // L_: mt
-    STACK_GROW(L_, 3);
-    STACK_CHECK_START_REL(L_, 0);                                                                  // L_: mt
-    std::ignore = kDeepLookupRegKey.getSubTable(L_, 0, 0);                                         // L_: mt {}
-    lua_pushvalue(L_, -2);                                                                         // L_: mt {} mt
-    lua_pushlightuserdata(L_, std::bit_cast<void*>(this));                                         // L_: mt {} mt factory
-    lua_rawset(L_, -3);                                                                            // L_: mt {}
-    STACK_CHECK(L_, 1);
-
-    lua_pushlightuserdata(L_, std::bit_cast<void*>(this));                                         // L_: mt {} factory
-    lua_pushvalue(L_, -3);                                                                         // L_: mt {} factory mt
-    lua_rawset(L_, -3);                                                                            // L_: mt {}
-    STACK_CHECK(L_, 1);
-
-    lua_pop(L_, 1);                                                                                // L_: mt
+    STACK_CHECK_START_REL(L_, 0);
+    o_->factory.deleteDeepObjectInternal(L_, o_);
     STACK_CHECK(L_, 0);
 }
 
 // #################################################################################################
 
-// Pops the key (metatable or factory) off the stack, and replaces with the deep lookup value (factory/metatable/nil).
-static void LookupDeep(lua_State* L_)
-{
-    STACK_GROW(L_, 1);
-    STACK_CHECK_START_REL(L_, 1);                                                                  // L_: a
-    kDeepLookupRegKey.pushValue(L_);                                                               // L_: a {}
-    if (!lua_isnil(L_, -1)) {
-        lua_insert(L_, -2);                                                                        // L_: {} a
-        lua_rawget(L_, -2);                                                                        // L_: {} b
-    }
-    lua_remove(L_, -2);                                                                            // L_: a|b
-    STACK_CHECK(L_, 1);
-}
-
-// #################################################################################################
-
 // Return the registered factory for 'index' (deep userdata proxy),  or nullptr if 'index' is not a deep userdata proxy.
-[[nodiscard]] DeepFactory* LookupFactory(lua_State* L_, int index_, LookupMode mode_)
+[[nodiscard]] DeepFactory* DeepFactory::LookupFactory(lua_State* const L_, int const index_, LookupMode const mode_)
 {
     // when looking inside a keeper, we are 100% sure the object is a deep userdata
     if (mode_ == LookupMode::FromKeeper) {
@@ -134,47 +163,6 @@ static void LookupDeep(lua_State* L_)
 
 // #################################################################################################
 
-void DeepFactory::DeleteDeepObject(lua_State* L_, DeepPrelude* o_)
-{
-    STACK_CHECK_START_REL(L_, 0);
-    o_->factory.deleteDeepObjectInternal(L_, o_);
-    STACK_CHECK(L_, 0);
-}
-
-// #################################################################################################
-
-/*
- * void= mt.__gc( proxy_ud )
- *
- * End of life for a proxy object; reduce the deep reference count and clean it up if reaches 0.
- *
- */
-[[nodiscard]] static int deep_userdata_gc(lua_State* L_)
-{
-    DeepPrelude* const* const _proxy{ lua_tofulluserdata<DeepPrelude*>(L_, 1) };
-    DeepPrelude* const _p{ *_proxy };
-
-    // can work without a universe if creating a deep userdata from some external C module when Lanes isn't loaded
-    // in that case, we are not multithreaded and locking isn't necessary anyway
-    bool const isLastRef{ _p->refcount.fetch_sub(1, std::memory_order_relaxed) == 1 };
-
-    if (isLastRef) {
-        // retrieve wrapped __gc, if any
-        lua_pushvalue(L_, lua_upvalueindex(1));                                                    // L_: self __gc?
-        if (!lua_isnil(L_, -1)) {
-            lua_insert(L_, -2);                                                                    // L_: __gc self
-            lua_call(L_, 1, 0);                                                                    // L_:
-        } else {
-            // need an empty stack in case we are GC_ing from a Keeper, so that empty stack checks aren't triggered
-            lua_pop(L_, 2);                                                                        // L_:
-        }
-        DeepFactory::DeleteDeepObject(L_, _p);
-    }
-    return 0;
-}
-
-// #################################################################################################
-
 /*
  * Push a proxy userdata on the stack.
  * raises an error in case of problem (error cannot happen with mode_ == LookupMode::ToKeeper)
@@ -182,7 +170,7 @@ void DeepFactory::DeleteDeepObject(lua_State* L_, DeepPrelude* o_)
  * Initializes necessary structures if it's the first time 'factory' is being used in
  * this Lua state (metatable, registring it). Otherwise, increments the reference count.
  */
-void DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int nuv_, LookupMode mode_, lua_State* errL_)
+void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_, int const nuv_, LookupMode const mode_, lua_State* const errL_)
 {
     STACK_CHECK_START_REL(L_, 0);
     kDeepProxyCacheRegKey.getSubTableMode(L_, "v");                                                // L_: DPC
@@ -208,8 +196,8 @@ void DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int nuv_, L
     prelude_->refcount.fetch_add(1, std::memory_order_relaxed); // one more proxy pointing to this deep data
 
     // Get/create metatable for 'factory' (in this state)
-    DeepFactory& factory = prelude_->factory;
-    lua_pushlightuserdata(L_, std::bit_cast<void*>(&factory));                                     // L_: DPC proxy factory
+    DeepFactory& _factory = prelude_->factory;
+    lua_pushlightuserdata(L_, std::bit_cast<void*>(&_factory));                                    // L_: DPC proxy _factory
     LookupDeep(L_);                                                                                // L_: DPC proxy metatable|nil
 
     if (lua_isnil(L_, -1)) { // No metatable yet.
@@ -217,7 +205,7 @@ void DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int nuv_, L
         int const _oldtop{ lua_gettop(L_) };
         // 1 - make one and register it
         if (mode_ != LookupMode::ToKeeper) {
-            factory.createMetatable(L_);                                                           // L_: DPC proxy metatable
+            _factory.createMetatable(L_);                                                          // L_: DPC proxy metatable
             if (lua_gettop(L_) - _oldtop != 1 || !lua_istable(L_, -1)) {
                 // factory didn't push exactly 1 value, or the value it pushed is not a table: ERROR!
                 raise_luaL_error(errL_, "Bad DeepFactory::createMetatable overload: unexpected pushed value");
@@ -232,18 +220,18 @@ void DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int nuv_, L
         if (lua_isnil(L_, -1)) {
             // Add our own '__gc' method
             lua_pop(L_, 1);                                                                        // L_: DPC proxy metatable
-            lua_pushcfunction(L_, deep_userdata_gc);                                               // L_: DPC proxy metatable deep_userdata_gc
+            lua_pushcfunction(L_, DeepGC);                                                         // L_: DPC proxy metatable DeepGC
         } else {
             // Add our own '__gc' method wrapping the original
-            lua_pushcclosure(L_, deep_userdata_gc, 1);                                             // L_: DPC proxy metatable deep_userdata_gc
+            lua_pushcclosure(L_, DeepGC, 1);                                                       // L_: DPC proxy metatable DeepGC
         }
         lua_setfield(L_, -2, "__gc");                                                              // L_: DPC proxy metatable
 
         // Memorize for later rounds
-        factory.storeDeepLookup(L_);
+        _factory.storeDeepLookup(L_);
 
         // 2 - cause the target state to require the module that exported the factory
-        if (std::string_view const _modname{ factory.moduleName() }; !_modname.empty()) { // we actually got a module name
+        if (std::string_view const _modname{ _factory.moduleName() }; !_modname.empty()) { // we actually got a module name
             // L.registry._LOADED exists without having registered the 'package' library.
             lua_getglobal(L_, "require");                                                          // L_: DPC proxy metatable require()
             // check that the module is already loaded (or being loaded, we are happy either way)
@@ -310,7 +298,7 @@ void DeepFactory::PushDeepProxy(DestState L_, DeepPrelude* prelude_, int nuv_, L
  *
  * Returns: 'proxy' userdata for accessing the deep data via 'DeepFactory::toDeep()'
  */
-int DeepFactory::pushDeepUserdata(DestState L_, int nuv_) const
+int DeepFactory::pushDeepUserdata(DestState const L_, int const nuv_) const
 {
     STACK_GROW(L_, 1);
     STACK_CHECK_START_REL(L_, 0);
@@ -343,12 +331,38 @@ int DeepFactory::pushDeepUserdata(DestState L_, int nuv_) const
 // #################################################################################################
 
 /*
+ * Sets up [-1]<->[-2] two-way lookups, and ensures the lookup table exists.
+ * Pops the both values off the stack.
+ */
+void DeepFactory::storeDeepLookup(lua_State* const L_) const
+{
+    // the deep metatable is at the top of the stack                                               // L_: mt
+    STACK_GROW(L_, 3);
+    STACK_CHECK_START_REL(L_, 0);                                                                  // L_: mt
+    std::ignore = kDeepLookupRegKey.getSubTable(L_, 0, 0);                                         // L_: mt {}
+    lua_pushvalue(L_, -2);                                                                         // L_: mt {} mt
+    lua_pushlightuserdata(L_, std::bit_cast<void*>(this));                                         // L_: mt {} mt factory
+    lua_rawset(L_, -3);                                                                            // L_: mt {}
+    STACK_CHECK(L_, 1);
+
+    lua_pushlightuserdata(L_, std::bit_cast<void*>(this));                                         // L_: mt {} factory
+    lua_pushvalue(L_, -3);                                                                         // L_: mt {} factory mt
+    lua_rawset(L_, -3);                                                                            // L_: mt {}
+    STACK_CHECK(L_, 1);
+
+    lua_pop(L_, 1);                                                                                // L_: mt
+    STACK_CHECK(L_, 0);
+}
+
+// #################################################################################################
+
+/*
  * Access deep userdata through a proxy.
  *
  * Reference count is not changed, and access to the deep userdata is not
  * serialized. It is the module's responsibility to prevent conflicting usage.
  */
-DeepPrelude* DeepFactory::toDeep(lua_State* L_, int index_) const
+DeepPrelude* DeepFactory::toDeep(lua_State* const L_, int const index_) const
 {
     STACK_CHECK_START_REL(L_, 0);
     // ensure it is actually a deep userdata we created

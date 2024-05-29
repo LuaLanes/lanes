@@ -723,7 +723,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 // Returns false if not a deep userdata, else true (unless an error occured)
 [[nodiscard]] bool InterCopyContext::tryCopyDeep() const
 {
-    DeepFactory* const _factory{ LookupFactory(L1, L1_i, mode) };
+    DeepFactory* const _factory{ DeepFactory::LookupFactory(L1, L1_i, mode) };
     if (_factory == nullptr) {
         return false; // not a deep userdata
     }
