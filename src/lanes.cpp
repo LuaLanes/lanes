@@ -85,6 +85,7 @@ THE SOFTWARE.
 #include "intercopycontext.h"
 #include "keeper.h"
 #include "lane.h"
+#include "nameof.h"
 #include "state.h"
 #include "threading.h"
 #include "tools.h"
@@ -175,7 +176,7 @@ LUAG_FUNC(require)
     lua_pushvalue(L_, lua_upvalueindex(1));                                                        // L_: "name" ... require
     lua_insert(L_, 1);                                                                             // L_: require "name" ...
     lua_call(L_, _nargs, 1);                                                                       // L_: module
-    populate_func_lookup_table(L_, -1, _name);
+    tools::PopulateFuncLookupTable(L_, -1, _name);
     DEBUGSPEW_CODE(DebugSpew(_U) << "lanes.require '" << _name << "' END" << std::endl);
     STACK_CHECK(L_, 0);
     return 1;
@@ -197,7 +198,7 @@ LUAG_FUNC(register)
     STACK_CHECK_START_REL(L_, 0); // "name" mod_table
     DEBUGSPEW_CODE(DebugSpew(_U) << "lanes.register '" << _name << "' BEGIN" << std::endl);
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
-    populate_func_lookup_table(L_, -1, _name);
+    tools::PopulateFuncLookupTable(L_, -1, _name);
     DEBUGSPEW_CODE(DebugSpew(_U) << "lanes.register '" << _name << "' END" << std::endl);
     STACK_CHECK(L_, 0);
     return 0;
@@ -414,7 +415,7 @@ LUAG_FUNC(lane_new)
                     }
                     // here the module was successfully required                                   // L_: [fixed] args... n "modname"                L2: ret
                     // after requiring the module, register the functions it exported in our name<->function database
-                    populate_func_lookup_table(_L2, -1, _name);
+                    tools::PopulateFuncLookupTable(_L2, -1, _name);
                     lua_pop(_L2, 1);                                                               // L_: [fixed] args... n "modname"                L2:
                 }
             }
@@ -596,7 +597,7 @@ namespace {
             { "wakeup_conv", LG_wakeup_conv },
             { "set_thread_priority", LG_set_thread_priority },
             { "set_thread_affinity", LG_set_thread_affinity },
-            { "nameof", luaG_nameof },
+            { "nameof", LG_nameof },
             { "register", LG_register },
             { Universe::kFinally, Universe::InitializeFinalizer },
             { "set_singlethreaded", LG_set_singlethreaded },
@@ -742,7 +743,7 @@ LUAG_FUNC(configure)
     // register all native functions found in that module in the transferable functions database
     // we process it before _G because we don't want to find the module when scanning _G (this would generate longer names)
     // for example in package.loaded["lanes.core"].*
-    populate_func_lookup_table(L_, -1, _name);
+    tools::PopulateFuncLookupTable(L_, -1, _name);
     STACK_CHECK(L_, 2);
 
     // record all existing C/JIT-fast functions
@@ -752,7 +753,7 @@ LUAG_FUNC(configure)
         // because we will do it after on_state_create() is called,
         // and we don't want to skip _G because of caching in case globals are created then
         lua_pushglobaltable(L_);                                                                   // L_: settings M _G
-        populate_func_lookup_table(L_, -1, {});
+        tools::PopulateFuncLookupTable(L_, -1, {});
         lua_pop(L_, 1);                                                                            // L_: settings M
     }
     lua_pop(L_, 1);                                                                                // L_: settings

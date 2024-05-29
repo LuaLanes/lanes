@@ -69,6 +69,7 @@ build = {
 				"src/lanes.cpp",
 				"src/linda.cpp",
 				"src/lindafactory.cpp",
+				"src/nameof.cpp",
 				"src/tools.cpp",
 				"src/state.cpp",
 				"src/threading.cpp",

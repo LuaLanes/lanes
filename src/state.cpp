@@ -107,7 +107,7 @@ static void open1lib(lua_State* L_, std::string_view const& name_)
             luaL_requiref(L_, _name.data(), _libfunc, !isLanesCore);                               // L_: {lib}
             // lanes.core doesn't declare a global, so scan it here and now
             if (isLanesCore) {
-                populate_func_lookup_table(L_, -1, _name);
+                tools::PopulateFuncLookupTable(L_, -1, _name);
             }
             lua_pop(L_, 1);                                                                        // L_:
             STACK_CHECK(L_, 0);
@@ -340,7 +340,7 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, std::optional<std::str
     STACK_CHECK(_L, 0);
     // after all this, register everything we find in our name<->function database
     lua_pushglobaltable(_L);                                                                       // L: _G
-    populate_func_lookup_table(_L, -1, {});
+    tools::PopulateFuncLookupTable(_L, -1, {});
     lua_pop(_L, 1);                                                                                // L:
     STACK_CHECK(_L, 0);
 

@@ -642,7 +642,7 @@ static void PrepareLaneHelpers(Lane* lane_)
     lua_State* const _L{ lane_->L };
     // Tie "set_finalizer()" to the state
     lua_pushcfunction(_L, LG_set_finalizer);
-    populate_func_lookup_table(_L, -1, "set_finalizer");
+    tools::PopulateFuncLookupTable(_L, -1, "set_finalizer");
     lua_setglobal(_L, "set_finalizer");
 
     // Tie "set_debug_threadname()" to the state
@@ -653,7 +653,7 @@ static void PrepareLaneHelpers(Lane* lane_)
 
     // Tie "cancel_test()" to the state
     lua_pushcfunction(_L, LG_cancel_test);
-    populate_func_lookup_table(_L, -1, "cancel_test");
+    tools::PopulateFuncLookupTable(_L, -1, "cancel_test");
     lua_setglobal(_L, "cancel_test");
 }
 

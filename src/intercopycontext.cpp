@@ -31,6 +31,7 @@ THE SOFTWARE.
 #include "keeper.h"
 #include "lane.h"
 #include "linda.h"
+#include "nameof.h"
 #include "universe.h"
 
 // #################################################################################################
@@ -109,8 +110,8 @@ THE SOFTWARE.
         // try to discover the name of the function we want to send
         kLaneNameRegKey.pushValue(L1);                                                             // L1: ... v ... lane_name
         char const* _from{ lua_tostring(L1, -1) };
-        lua_pushcfunction(L1, luaG_nameof);                                                        // L1: ... v ... lane_name luaG_nameof
-        lua_pushvalue(L1, L1_i);                                                                   // L1: ... v ... lane_name luaG_nameof t
+        lua_pushcfunction(L1, LG_nameof);                                                          // L1: ... v ... lane_name LG_nameof
+        lua_pushvalue(L1, L1_i);                                                                   // L1: ... v ... lane_name LG_nameof t
         lua_call(L1, 1, 2);                                                                        // L1: ... v ... lane_name "type" "name"|nil
         char const* _typewhat{ (lua_type(L1, -2) == LUA_TSTRING) ? lua_tostring(L1, -2) : luaL_typename(L1, -2) };
         // second return value can be nil if the table was not found
