@@ -51,16 +51,38 @@ local lanes = {}
 --
 local assert = assert(assert)
 local error = assert(error)
-local io = assert(io)
 local pairs = assert(pairs)
+local string = assert(string, "'string' library not available")
 local string_gmatch = assert(string.gmatch)
 local string_format = assert(string.format)
 local select = assert(select)
 local setmetatable = assert(setmetatable)
+local table = assert(table, "'table' library not available")
 local table_insert = assert(table.insert)
 local tonumber = assert(tonumber)
 local tostring = assert(tostring)
 local type = assert(type)
+
+-- #################################################################################################
+
+-- for error reporting when debugging stuff
+--[[
+local io = assert(io, "'io' library not available")
+local function WR(str)
+    io.stderr:write(str.."\n" )
+end
+
+-- #################################################################################################
+
+local function DUMP(tbl)
+    if not tbl then return end
+    local str=""
+    for k,v in pairs(tbl) do
+        str= str..k.."="..tostring(v).."\n"
+    end
+    WR(str)
+end
+]]
 
 -- #################################################################################################
 
@@ -159,23 +181,6 @@ local params_checker = function(settings_)
         settings[key] = param
     end
     return settings
-end
-
--- #################################################################################################
-
-local function WR(str)
-    io.stderr:write(str.."\n" )
-end
-
--- #################################################################################################
-
-local function DUMP(tbl)
-    if not tbl then return end
-    local str=""
-    for k,v in pairs(tbl) do
-        str= str..k.."="..tostring(v).."\n"
-    end
-    WR(str)
 end
 
 -- #################################################################################################
@@ -550,7 +555,7 @@ local configure_timers = function()
             local timer_gateway_batched = timer_gateway.batched
             set_finalizer(function(err, stk)
                 if err and type(err) ~= "userdata" then
-                    WR("LanesTimer error: "..tostring(err))
+                    error("LanesTimer error: "..tostring(err))
                 --elseif type(err) == "userdata" then
                 --	WR("LanesTimer after cancel" )
                 --else
@@ -585,7 +590,7 @@ local configure_timers = function()
                 end
             end
         end -- timer_body()
-        timer_lane = gen("*", { package= {}, priority = core.max_prio, name = "LanesTimer"}, timer_body)() -- "*" instead of "io,package" for LuaJIT compatibility...
+        timer_lane = gen("lanes.core,table", { name = "LanesTimer", package = {}, priority = core.max_prio }, timer_body)()
     end -- first_time
 
     -----
@@ -760,14 +765,6 @@ local configure = function(settings_)
     lanesMeta.__metatable = nil -- unprotect the metatable
     setmetatable(lanes, nil) -- remove it
     lanes.configure = nil -- no need to call configure() ever again
-
-    -- This check is for sublanes requiring Lanes
-    --
-    -- TBD: We could also have the C level expose 'string.gmatch' for us. But this is simpler.
-    --
-    if not string then
-        error("To use 'lanes', you will also need to have 'string' available.", 2)
-    end
 
     -- now we can configure Lanes core
     local settings = core.configure and core.configure(params_checker(settings_)) or core.settings

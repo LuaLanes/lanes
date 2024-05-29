@@ -246,12 +246,11 @@
 </table>
 
 <p>
-	Requiring the module follows Lua 5.2+ rules: the module is not available under the global name "lanes", but has to be accessed through <tt>require</tt>'s return value.
+	Requiring the module follows Lua 5.2+ rules: the module is not available under the global name "lanes", but has to be accessed through <tt>require</tt>'s return value.<br/>
+	Lanes needs <tt>"base"</tt>, <tt>"string"</tt> and <tt>"table"</tt> to be initialized beforehand (plus <tt>"jit"</tt> for LuaJIT).
 </p>
 <p>
-	After lanes is required, it is necessary to call <tt>lanes.configure()</tt>, which is the only function exposed by the module at this point. Calling <tt>lanes.configure()</tt> will perform one-time initializations and make the rest of the API available.
-</p>
-<p>
+	After lanes is required, it is necessary to call <tt>lanes.configure()</tt>, which is the only function exposed by the module at this point. Calling <tt>lanes.configure()</tt> will perform one-time initializations and make the rest of the API available.<br/>
 	At the same time, <tt>lanes.configure()</tt> itself will be replaced by another function that raises an error if called again with differing arguments, if any.
 </p>
 <p>

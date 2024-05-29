@@ -95,6 +95,7 @@ test:
 	$(MAKE) package
 	$(MAKE) pingpong
 	$(MAKE) recursive
+	$(MAKE) require
 	$(MAKE) rupval
 	$(MAKE) timer
 	$(MAKE) track_lanes
@@ -189,6 +190,9 @@ pingpong: tests/pingpong.lua $(_TARGET_SO)
 recursive: tests/recursive.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
+require: tests/require.lua $(_TARGET_SO)
+	$(_PREFIX) $(LUA) $<
+
 rupval: tests/rupval.lua $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $<
 
@@ -208,15 +212,6 @@ repetitive: $(_TARGET_SO)
 
 repetitive1: $(_TARGET_SO)
 	$(_PREFIX) $(LUA) $(REP_ARGS)
-
-#require: tests/require.lua $(_TARGET_SO)
-#	$(_PREFIX) $(LUA) $<
-
-rupval: tests/rupval.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
-
-timer: tests/timer.lua $(_TARGET_SO)
-	$(_PREFIX) $(LUA) $<
 
 #---
 #---

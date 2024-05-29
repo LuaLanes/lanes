@@ -25,8 +25,10 @@ local function a_lane()
     return v==42
 end
 
+-- string and table for Lanes itself, package to be able to require in the lane, math for the actual work
 local gen= lanes.gen( "math,package,string,table", {package={}},a_lane )
 
 local h= gen()
 local ret= h[1]
 assert( ret==true )
+print "TEST OK"
