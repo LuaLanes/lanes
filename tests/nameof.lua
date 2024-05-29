@@ -1,4 +1,4 @@
-local lanes = require "lanes".configure()
+local lanes = require "lanes".configure{on_state_create = function() end}
 
 print("Name of table: ", lanes.nameof({}))
 print("Name of string.sub: ", lanes.nameof(string.sub))

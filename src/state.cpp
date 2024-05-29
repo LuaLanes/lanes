@@ -91,7 +91,7 @@ namespace {
 
 // #################################################################################################
 
-static void open1lib(lua_State* L_, std::string_view const& name_)
+static void Open1Lib(lua_State* L_, std::string_view const& name_)
 {
     for (luaL_Reg const& _entry : local::sLibs) {
         if (name_ == _entry.name) {
@@ -285,20 +285,21 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, std::optional<std::str
     lua_gc(_L, LUA_GCSTOP, 0);
 
     // Anything causes 'base' and 'jit' to be taken in
-    std::string_view _libs{ libs_.value() };
+    std::string_view _libs{};
     if (libs_.has_value()) {
+        _libs = libs_.value();
         // special "*" case (mainly to help with LuaJIT compatibility)
         // as we are called from luaopen_lanes_core() already, and that would deadlock
         if (_libs == "*") {
             DEBUGSPEW_CODE(DebugSpew(U_) << "opening ALL standard libraries" << std::endl);
             luaL_openlibs(_L);
             // don't forget lanes.core for regular lane states
-            open1lib(_L, kLanesCoreLibName);
+            Open1Lib(_L, kLanesCoreLibName);
             _libs = ""; // done with libs
         } else {
             if constexpr (LUAJIT_FLAVOR() != 0) { // building against LuaJIT headers, always open jit
                 DEBUGSPEW_CODE(DebugSpew(U_) << "opening 'jit' library" << std::endl);
-                open1lib(_L, LUA_JITLIBNAME);
+                Open1Lib(_L, LUA_JITLIBNAME);
             }
             DEBUGSPEW_CODE(DebugSpew(U_) << "opening 'base' library" << std::endl);
             if constexpr (LUA_VERSION_NUM >= 502) {
@@ -319,14 +320,16 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, std::optional<std::str
         unsigned int _len{ 0 };
         for (char const* _p{ _libs.data() }; *_p; _p += _len) {
             // skip delimiters ('.' can be part of name for "lanes.core")
-            while (*_p && !isalnum(*_p) && *_p != '.')
+            while (*_p && !std::isalnum(*_p) && *_p != '.') {
                 ++_p;
+            }
             // skip name
             _len = 0;
-            while (isalnum(_p[_len]) || _p[_len] == '.')
+            while (std::isalnum(_p[_len]) || _p[_len] == '.') {
                 ++_len;
+            }
             // open library
-            open1lib(_L, { _p, _len });
+            Open1Lib(_L, { _p, _len });
         }
     }
     lua_gc(_L, LUA_GCRESTART, 0);
