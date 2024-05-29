@@ -7,12 +7,11 @@
 enum class LookupMode;
 class Universe;
 
-// #################################################################################################
+namespace state {
 
-[[nodiscard]] lua_State* create_state(Universe* U_, lua_State* from_);
-[[nodiscard]] lua_State* luaG_newstate(Universe* U_, SourceState from_, std::optional<std::string_view> const& libs_);
+    void CallOnStateCreate(Universe* U_, lua_State* L_, lua_State* from_, LookupMode mode_);
+    [[nodiscard]] lua_State* CreateState(Universe* U_, lua_State* from_);
+    void InitializeOnStateCreate(Universe* U_, lua_State* L_);
+    [[nodiscard]] lua_State* NewLaneState(Universe* U_, SourceState from_, std::optional<std::string_view> const& libs_);
 
-// #################################################################################################
-
-void InitializeOnStateCreate(Universe* U_, lua_State* L_);
-void CallOnStateCreate(Universe* U_, lua_State* L_, lua_State* from_, LookupMode mode_);
+} // namespace state

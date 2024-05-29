@@ -240,7 +240,7 @@ LUAG_FUNC(lane_new)
     DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: setup" << std::endl);
 
     std::optional<std::string_view> _libs_str{ lua_isnil(L_, kLibsIdx) ? std::nullopt : std::make_optional(lua_tostringview(L_, kLibsIdx)) };
-    lua_State* const _L2{ luaG_newstate(_U, SourceState{ L_ }, _libs_str) };                       // L_: [fixed] ...                                L2:
+    lua_State* const _L2{ state::NewLaneState(_U, SourceState{ L_ }, _libs_str) };                 // L_: [fixed] ...                                L2:
     STACK_CHECK_START_REL(_L2, 0);
 
     // 'lane' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
@@ -663,7 +663,7 @@ LUAG_FUNC(configure)
         // Linked chains handling
         _U->selfdestructFirst = SELFDESTRUCT_END;
         _U->initializeAllocatorFunction(L_);
-        InitializeOnStateCreate(_U, L_);
+        state::InitializeOnStateCreate(_U, L_);
         _U->initializeKeepers(L_);
         STACK_CHECK(L_, 1);
 

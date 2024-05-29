@@ -265,7 +265,7 @@ void Universe::initializeKeepers(lua_State* L_)
 
     for (int const _i : std::ranges::iota_view{ 0, _nb_keepers }) {
         // note that we will leak K if we raise an error later
-        KeeperState const _K{ create_state(this, L_) };                                            // L_: settings                                    K:
+        KeeperState const _K{ state::CreateState(this, L_) };                                      // L_: settings                                    K:
         if (_K == nullptr) {
             raise_luaL_error(L_, "out of memory while creating keeper states");
         }
@@ -307,7 +307,7 @@ void Universe::initializeKeepers(lua_State* L_)
         // attempt to call on_state_create(), if we have one and it is a C function
         // (only support a C function because we can't transfer executable Lua code in keepers)
         // will raise an error in L_ in case of problem
-        CallOnStateCreate(this, _K, L_, LookupMode::ToKeeper);
+        state::CallOnStateCreate(this, _K, L_, LookupMode::ToKeeper);
 
         // to see VM name in Decoda debugger
         lua_pushfstring(_K, "Keeper #%d", _i + 1);                                                 // L_: settings                                    K: "Keeper #n"
