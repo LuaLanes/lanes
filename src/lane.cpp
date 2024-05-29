@@ -278,7 +278,7 @@ static int thread_index_number(lua_State* L_)
             lua_replace(L_, -3);                                                                   // L_: lane n error() "error"
             lua_pushinteger(L_, 3);                                                                // L_: lane n error() "error" 3
             lua_call(L_, 2, 0); // error(tostring(errstring), 3) -> doesn't return                 // L_: lane n
-            raise_luaL_error(L_, STRINGVIEW_FMT ": should not get here!", _lane->debugName.size(), _lane->debugName.data());
+            raise_luaL_error(L_, "%s: should not get here!", _lane->debugName.data());
         } else {
             lua_pop(L_, 1);                                                                        // L_: lane n {uv}
         }
@@ -316,7 +316,7 @@ static int thread_index_string(lua_State* L_)
     lua_rawget(L_, -2);                                                                            // L_: mt value
     // only "cancel" and "join" are registered as functions, any other string will raise an error
     if (!lua_iscfunction(L_, -1)) {
-        raise_luaL_error(L_, "can't index a lane with '" STRINGVIEW_FMT "'", _keystr.size(), _keystr.data());
+        raise_luaL_error(L_, "can't index a lane with '%s'", _keystr.data());
     }
     return 1;
 }
@@ -345,7 +345,7 @@ static LUAG_FUNC(thread_index)
         lua_pushvalue(L_, kKey);                                                                   // L_: mt error "Unknown key: " k
         lua_concat(L_, 2);                                                                         // L_: mt error "Unknown key: <k>"
         lua_call(L_, 1, 0); // error( "Unknown key: " .. key) -> doesn't return                    // L_: mt
-        raise_luaL_error(L_, STRINGVIEW_FMT "[%s]: should not get here!", _lane->debugName.size(), _lane->debugName.data(), lua_typename(L_, lua_type(L_, kKey)));
+        raise_luaL_error(L_, "%s[%s]: should not get here!", _lane->debugName.data(), lua_typename(L_, lua_type(L_, kKey)));
     }
 }
 

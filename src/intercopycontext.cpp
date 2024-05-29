@@ -335,10 +335,10 @@ void InterCopyContext::lookup_native_func() const
             // when mode_ == LookupMode::FromKeeper, L is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
             raise_luaL_error(
                 getErrL(),
-                "%s%s: function '" STRINGVIEW_FMT "' not found in %s destination transfer database.",
+                "%s%s: function '%s' not found in %s destination transfer database.",
                 lua_isnil(L2, -1) ? "" : "INTERNAL ERROR IN ",
                 _from ? _from : "main",
-                _fqn.size(), _fqn.data(),
+                _fqn.data(),
                 _to ? _to : "main");
             return;
         }
