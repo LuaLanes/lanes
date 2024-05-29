@@ -959,7 +959,7 @@ void Lane::startThread(int priority_)
         (status == Lane::Done) ? "done" :
         (status == Lane::Error) ? "error" :
         (status == Lane::Cancelled) ? "cancelled" :
-        nullptr
+        ""
     };
     return _str;
 }
