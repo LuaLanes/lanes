@@ -701,16 +701,8 @@ LUAG_FUNC(configure)
     }
 
     STACK_CHECK(L_, 2);
-
-    {
-        std::string_view const _errmsg{
-            DeepFactory::PushDeepProxy(DestState{ L_ }, _U->timerLinda, 0, LookupMode::LaneBody)
-        };                                                                                         // L_: settings M timerLinda
-        if (!_errmsg.empty()) {
-            raise_luaL_error(L_, _errmsg.data());
-        }
-        lua_setfield(L_, -2, "timer_gateway");                                                     // L_: settings M
-    }
+    DeepFactory::PushDeepProxy(DestState{ L_ }, _U->timerLinda, 0, LookupMode::LaneBody, L_);      // L_: settings M timerLinda
+    lua_setfield(L_, -2, "timer_gateway");                                                         // L_: settings M
     STACK_CHECK(L_, 2);
 
     // prepare the metatable for threads

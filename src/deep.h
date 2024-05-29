@@ -75,7 +75,7 @@ class DeepFactory
     [[nodiscard]] int pushDeepUserdata(DestState L_, int nuv_) const;
     [[nodiscard]] DeepPrelude* toDeep(lua_State* L_, int index_) const;
     static void DeleteDeepObject(lua_State* L_, DeepPrelude* o_);
-    [[nodiscard]] static std::string_view PushDeepProxy(DestState L_, DeepPrelude* o_, int nuv_, LookupMode mode_);
+    static void PushDeepProxy(DestState L_, DeepPrelude* o_, int nuv_, LookupMode mode_, lua_State* errL_);
 };
 
 // #################################################################################################

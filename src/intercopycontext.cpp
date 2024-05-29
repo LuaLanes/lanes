@@ -731,7 +731,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     STACK_CHECK_START_REL(L2, 0);
 
     // extract all uservalues of the source. unfortunately, the only way to know their count is to iterate until we fail
-    int _nuv = 0;
+    int _nuv{ 0 };
     while (lua_getiuservalue(L1, L1_i, _nuv + 1) != LUA_TNONE) {                                   // L1: ... u [uv]* nil
         ++_nuv;
     }
@@ -739,11 +739,8 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     lua_pop(L1, 1);                                                                                // L1: ... u [uv]*
     STACK_CHECK(L1, _nuv);
 
-    DeepPrelude* const u{ *lua_tofulluserdata<DeepPrelude*>(L1, L1_i) };
-    std::string_view const errmsg{ DeepFactory::PushDeepProxy(L2, u, _nuv, mode) };                // L1: ... u [uv]*                               L2: u
-    if (!errmsg.empty()) {
-        raise_luaL_error(getErrL(), errmsg.data());
-    }
+    DeepPrelude* const _u{ *lua_tofulluserdata<DeepPrelude*>(L1, L1_i) };
+    DeepFactory::PushDeepProxy(L2, _u, _nuv, mode, getErrL());                                     // L1: ... u [uv]*                               L2: u
 
     // transfer all uservalues of the source in the destination
     {
