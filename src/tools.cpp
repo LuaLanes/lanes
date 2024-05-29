@@ -526,3 +526,60 @@ int luaG_nameof(lua_State* L_)
     lua_replace(L_, -3);                                                                           // L_: "type" "result"
     return 2;
 }
+
+// #################################################################################################
+
+namespace tools {
+
+    // Serialize calls to 'require', if it exists
+    void SerializeRequire(lua_State* L_)
+    {
+        static constexpr lua_CFunction _lockedRequire{
+            +[](lua_State* L_)
+            {
+                int const _args{ lua_gettop(L_) };                                                 // L_: args...
+                //[[maybe_unused]] std::string_view const _modname{ luaL_checkstringview(L_, 1) };
+
+                STACK_GROW(L_, 1);
+
+                lua_pushvalue(L_, lua_upvalueindex(1));                                            // L_: args... require
+                lua_insert(L_, 1);                                                                 // L_: require args...
+
+                // Using 'lua_pcall()' to catch errors; otherwise a failing 'require' would
+                // leave us locked, blocking any future 'require' calls from other lanes.
+                LuaError const _rc{ std::invoke(
+                    [L = L_, args = _args]()
+                    {
+                        std::lock_guard _guard{ universe_get(L)->requireMutex };
+                        // starting with Lua 5.4, require may return a second optional value, so we need LUA_MULTRET
+                        return lua_pcall(L, args, LUA_MULTRET, 0 /*errfunc*/);                     // L_: err|result(s)
+                    })
+                };
+
+                // the required module (or an error message) is left on the stack as returned value by original require function
+
+                if (_rc != LuaError::OK) { // LUA_ERRRUN / LUA_ERRMEM ?
+                    raise_lua_error(L_);
+                }
+                // should be 1 for Lua <= 5.3, 1 or 2 starting with Lua 5.4
+                return lua_gettop(L_);                                                             // L_: result(s)
+            }
+        };
+
+        STACK_GROW(L_, 1);
+        STACK_CHECK_START_REL(L_, 0);
+        DEBUGSPEW_CODE(DebugSpew(universe_get(L_)) << "serializing require()" << std::endl);
+
+        // Check 'require' is there and not already wrapped; if not, do nothing
+        lua_getglobal(L_, "require");                                                              // L_: _G.require()|nil
+        if (lua_isfunction(L_, -1) && lua_tocfunction(L_, -1) != _lockedRequire) {
+            lua_pushcclosure(L_, _lockedRequire, 1 /*upvalues*/);                                  // L_: _lockedRequire()
+            lua_setglobal(L_, "require");                                                          // L_:
+        } else {
+            lua_pop(L_, 1);                                                                        // L_:
+        }
+
+        STACK_CHECK(L_, 0);
+    }
+} // namespace tools
+

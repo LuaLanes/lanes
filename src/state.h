@@ -7,8 +7,6 @@
 enum class LookupMode;
 class Universe;
 
-void serialize_require(lua_State* L_);
-
 // #################################################################################################
 
 [[nodiscard]] lua_State* create_state(Universe* U_, lua_State* from_);

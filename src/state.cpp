@@ -43,72 +43,6 @@ THE SOFTWARE.
 
 // #################################################################################################
 
-/*---=== Serialize require ===---
- */
-
-//---
-// [val,...]= new_require( ... )
-//
-// Call 'old_require' but only one lane at a time.
-//
-// Upvalues: [1]: original 'require' function
-//
-[[nodiscard]] static int luaG_new_require(lua_State* L_)
-{
-    int const _args{ lua_gettop(L_) };                                                             // L_: args
-    Universe* const _U{ universe_get(L_) };
-    //[[maybe_unused]] std::string_view const _modname{ luaL_checkstringview(L_, 1) };
-
-    STACK_GROW(L_, 1);
-
-    lua_pushvalue(L_, lua_upvalueindex(1));                                                        // L_: args require
-    lua_insert(L_, 1);                                                                             // L_: require args
-
-    // Using 'lua_pcall()' to catch errors; otherwise a failing 'require' would
-    // leave us locked, blocking any future 'require' calls from other lanes.
-
-    _U->requireMutex.lock();
-    // starting with Lua 5.4, require may return a second optional value, so we need LUA_MULTRET
-    LuaError const _rc{ lua_pcall(L_, _args, LUA_MULTRET, 0 /*errfunc*/) };                        // L_: err|result(s)
-    _U->requireMutex.unlock();
-
-    // the required module (or an error message) is left on the stack as returned value by original require function
-
-    if (_rc != LuaError::OK) { // LUA_ERRRUN / LUA_ERRMEM ?
-        raise_lua_error(L_);
-    }
-    // should be 1 for Lua <= 5.3, 1 or 2 starting with Lua 5.4
-    return lua_gettop(L_);                                                                         // L_: result(s)
-}
-
-// #################################################################################################
-
-/*
- * Serialize calls to 'require', if it exists
- */
-void serialize_require(lua_State* L_)
-{
-    STACK_GROW(L_, 1);
-    STACK_CHECK_START_REL(L_, 0);
-    DEBUGSPEW_CODE(DebugSpew(universe_get(L_)) << "serializing require()" << std::endl);
-
-    // Check 'require' is there and not already wrapped; if not, do nothing
-    //
-    lua_getglobal(L_, "require");
-    if (lua_isfunction(L_, -1) && lua_tocfunction(L_, -1) != luaG_new_require) {
-        // [-1]: original 'require' function
-        lua_pushcclosure(L_, luaG_new_require, 1 /*upvalues*/);
-        lua_setglobal(L_, "require");
-    } else {
-        // [-1]: nil
-        lua_pop(L_, 1);
-    }
-
-    STACK_CHECK(L_, 0);
-}
-
-// #################################################################################################
-
 /*---=== luaG_newstate ===---*/
 
 [[nodiscard]] static int require_lanes_core(lua_State* L_)
@@ -397,7 +331,7 @@ lua_State* luaG_newstate(Universe* U_, SourceState from_, std::optional<std::str
     }
     lua_gc(_L, LUA_GCRESTART, 0);
 
-    serialize_require(_L);
+    tools::SerializeRequire(_L);
 
     // call this after the base libraries are loaded and GC is restarted
     // will raise an error in from_ in case of problem

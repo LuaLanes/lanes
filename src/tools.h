@@ -26,6 +26,10 @@ enum class FuncSubType
 
 void populate_func_lookup_table(lua_State* const L_, int const i_, std::string_view const& name_);
 
+namespace tools {
+    void SerializeRequire(lua_State* L_);
+} // namespace tools
+
 // #################################################################################################
 
 // xxh64 of string "kConfigRegKey" generated at https://www.pelock.com/products/hash-calculator

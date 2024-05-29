@@ -287,7 +287,7 @@ void Universe::initializeKeepers(lua_State* L_)
         luaL_requiref(_K, LUA_LOADLIBNAME, luaopen_package, 1);                                    // L_: settings                                    K: package
         lua_pop(_K, 1);                                                                            // L_: settings                                    K:
         STACK_CHECK(_K, 0);
-        serialize_require(_K);
+        tools::SerializeRequire(_K);
         STACK_CHECK(_K, 0);
 
         // copy package.path and package.cpath from the source state
