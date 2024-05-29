@@ -101,7 +101,7 @@ THE SOFTWARE.
         lua_rawget(L1, -2);                                                                        // L1: ... v ... {} "f.q.n"
     }
     std::string_view _fqn{ lua_tostringview(L1, -1) };
-    DEBUGSPEW_CODE(DebugSpew(universe_get(L1)) << "function [C] " << _fqn << std::endl);
+    DEBUGSPEW_CODE(DebugSpew(Universe::Get(L1)) << "function [C] " << _fqn << std::endl);
     // popping doesn't invalidate the pointer since this is an interned string gotten from the lookup database
     lua_pop(L1, (mode == LookupMode::FromKeeper) ? 1 : 2);                                         // L1: ... v ...
     STACK_CHECK(L1, 0);
@@ -1142,6 +1142,7 @@ namespace {
         break;
 
     // The following types cannot be copied
+    case LuaType::NONE:
     case LuaType::CDATA:
         [[fallthrough]];
     case LuaType::THREAD:
@@ -1175,7 +1176,7 @@ namespace {
         OnExit(lua_State* L2_)
         : L2{ L2_ }
         , top_L2{ lua_gettop(L2) }
-        DEBUGSPEW_COMMA_PARAM(scope{ universe_get(L2_) })
+        DEBUGSPEW_COMMA_PARAM(scope{ Universe::Get(L2_) })
         {
         }
 

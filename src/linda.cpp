@@ -100,7 +100,7 @@ template <bool OPT>
     Linda* const _linda{ static_cast<Linda*>(LindaFactory::Instance.toDeep(L_, idx_)) };
     if constexpr (!OPT) {
         luaL_argcheck(L_, _linda != nullptr, idx_, "expecting a linda object"); // doesn't return if linda is nullptr
-        LUA_ASSERT(L_, _linda->U == universe_get(L_));
+        LUA_ASSERT(L_, _linda->U == Universe::Get(L_));
     }
     return _linda;
 }

@@ -40,6 +40,11 @@ THE SOFTWARE.
 
 // #################################################################################################
 
+// xxh64 of string "kUniverseFullRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kUniverseFullRegKey{ 0x1C2D76870DD9DD9Full };
+
+// #################################################################################################
+
 Universe::Universe()
 {
     //---
@@ -69,12 +74,12 @@ Universe::Universe()
 // #################################################################################################
 
 // only called from the master state
-[[nodiscard]] Universe* universe_create(lua_State* L_)
+[[nodiscard]] Universe* Universe::Create(lua_State* const L_)
 {
-    LUA_ASSERT(L_, universe_get(L_) == nullptr);
-    Universe* const _U{ lua_newuserdatauv<Universe>(L_, 0) }; // universe
-    _U->Universe::Universe();
-    STACK_CHECK_START_REL(L_, 1);
+    LUA_ASSERT(L_, Universe::Get(L_) == nullptr);
+    STACK_CHECK_START_REL(L_, 0);
+    Universe* const _U{ new (L_) Universe{} };                                                     // L_: universe
+    STACK_CHECK(L_, 1);
     kUniverseFullRegKey.setValue(L_, [](lua_State* L_) { lua_pushvalue(L_, -2); });
     kUniverseLightRegKey.setValue(L_, [U = _U](lua_State* L_) { lua_pushlightuserdata(L_, U); });
     STACK_CHECK(L_, 1);
@@ -86,7 +91,7 @@ Universe::Universe()
 // #################################################################################################
 
 // same as PUC-Lua l_alloc
-extern "C" [[nodiscard]] static void* libc_lua_Alloc([[maybe_unused]] void* ud_, [[maybe_unused]] void* ptr_, [[maybe_unused]] size_t osize_, size_t nsize_)
+[[nodiscard]] static void* libc_lua_Alloc([[maybe_unused]] void* ud_, [[maybe_unused]] void* ptr_, [[maybe_unused]] size_t osize_, size_t nsize_)
 {
     if (nsize_ == 0) {
         free(ptr_);
@@ -98,11 +103,11 @@ extern "C" [[nodiscard]] static void* libc_lua_Alloc([[maybe_unused]] void* ud_,
 
 // #################################################################################################
 
-[[nodiscard]] static int luaG_provide_protected_allocator(lua_State* L_)
+[[nodiscard]] static int luaG_provide_protected_allocator(lua_State* const L_)
 {
-    Universe* const _U{ universe_get(L_) };
+    Universe* const _U{ Universe::Get(L_) };
     // push a new full userdata on the stack, giving access to the universe's protected allocator
-    [[maybe_unused]] AllocatorDefinition* const def{ new (L_) AllocatorDefinition{ _U->protectedAllocator.makeDefinition() } };
+    [[maybe_unused]] AllocatorDefinition* const _def{ new (L_) AllocatorDefinition{ _U->protectedAllocator.makeDefinition() } };
     return 1;
 }
 
@@ -149,7 +154,7 @@ void Universe::closeKeepers()
 
 // called once at the creation of the universe (therefore L_ is the master Lua state everything originates from)
 // Do I need to disable this when compiling for LuaJIT to prevent issues?
-void Universe::initializeAllocatorFunction(lua_State* L_)
+void Universe::initializeAllocatorFunction(lua_State* const L_)
 {
     STACK_CHECK_START_REL(L_, 1);                                                                  // L_: settings
     if (luaG_getfield(L_, -1, "allocator") != LuaType::NIL) {                                      // L_: settings allocator|nil|"protected"
@@ -198,7 +203,7 @@ void Universe::initializeAllocatorFunction(lua_State* L_)
 // #################################################################################################
 
 // should be called ONLY from the state that created the universe
-int Universe::InitializeFinalizer(lua_State* L_)
+int Universe::InitializeFinalizer(lua_State* const L_)
 {
     luaL_argcheck(L_, lua_gettop(L_) <= 1, 1, "too many arguments");                               // L_: f?
     lua_settop(L_, 1);                                                                             // L_: f|nil
@@ -230,7 +235,7 @@ int Universe::InitializeFinalizer(lua_State* L_)
  *       function never fails.
  * settings table is expected at position 1 on the stack
  */
-void Universe::initializeKeepers(lua_State* L_)
+void Universe::initializeKeepers(lua_State* const L_)
 {
     LUA_ASSERT(L_, lua_gettop(L_) == 1 && lua_istable(L_, 1));
     STACK_CHECK_START_REL(L_, 0);                                                                  // L_: settings
@@ -258,8 +263,9 @@ void Universe::initializeKeepers(lua_State* L_)
         keepers->gc_threshold = keepers_gc_threshold;
         keepers->nb_keepers = _nb_keepers;
 
-        for (int const _i : std::ranges::iota_view{ 0, _nb_keepers }) {
-            keepers->keeper_array[_i].Keeper::Keeper();
+        // we have to manually call the Keeper constructor on the additional array slots
+        for (int const _i : std::ranges::iota_view{ 1, _nb_keepers }) {
+            new (&keepers->keeper_array[_i]) Keeper{}; // placement new
         }
     }
 
@@ -279,7 +285,7 @@ void Universe::initializeKeepers(lua_State* L_)
         STACK_CHECK_START_ABS(_K, 0);
 
         // copy the universe pointer in the keeper itself
-        universe_store(_K, this);
+        Universe::Store(_K, this);
         STACK_CHECK(_K, 0);
 
         // make sure 'package' is initialized in keeper states, so that we have require()
@@ -325,7 +331,7 @@ void Universe::initializeKeepers(lua_State* L_)
 
 // #################################################################################################
 
-void Universe::terminateFreeRunningLanes(lua_State* L_, lua_Duration shutdownTimeout_, CancelOp op_)
+void Universe::terminateFreeRunningLanes(lua_State* const L_, lua_Duration const shutdownTimeout_, CancelOp const op_)
 {
     if (selfdestructFirst != SELFDESTRUCT_END) {
         // Signal _all_ still running threads to exit (including the timer thread)
@@ -391,7 +397,7 @@ void Universe::terminateFreeRunningLanes(lua_State* L_, lua_Duration shutdownTim
 // #################################################################################################
 
 // process end: cancel any still free-running threads
-int universe_gc(lua_State* L_)
+LUAG_FUNC(universe_gc)
 {
     lua_Duration const _shutdown_timeout{ lua_tonumber(L_, lua_upvalueindex(1)) };
     std::string_view const _op_string{ lua_tostringview(L_, lua_upvalueindex(2)) };

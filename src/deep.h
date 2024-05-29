@@ -64,21 +64,21 @@ class DeepFactory
 
     private:
     // NVI: private overrides
-    virtual void createMetatable(lua_State* const L_) const = 0;
-    virtual void deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* const o_) const = 0;
-    [[nodiscard]] virtual DeepPrelude* newDeepObjectInternal(lua_State* const L_) const = 0;
+    virtual void createMetatable(lua_State* L_) const = 0;
+    virtual void deleteDeepObjectInternal(lua_State* L_, DeepPrelude* o_) const = 0;
+    [[nodiscard]] virtual DeepPrelude* newDeepObjectInternal(lua_State* L_) const = 0;
     [[nodiscard]] virtual std::string_view moduleName() const = 0;
 
     private:
-    void storeDeepLookup(lua_State* const L_) const;
+    void storeDeepLookup(lua_State* L_) const;
 
     public:
     // NVI: public interface
-    static void DeleteDeepObject(lua_State* const L_, DeepPrelude* const o_);
-    [[nodiscard]] static DeepFactory* LookupFactory(lua_State* const L_, int const index_, LookupMode const mode_);
-    static void PushDeepProxy(DestState const L_, DeepPrelude* const o_, int const nuv_, LookupMode const mode_, lua_State* const errL_);
-    [[nodiscard]] int pushDeepUserdata(DestState const L_, int const nuv_) const;
-    [[nodiscard]] DeepPrelude* toDeep(lua_State* const L_, int const index_) const;
+    static void DeleteDeepObject(lua_State* L_, DeepPrelude* o_);
+    [[nodiscard]] static DeepFactory* LookupFactory(lua_State* L_, int index_, LookupMode mode_);
+    static void PushDeepProxy(DestState L_, DeepPrelude* o_, int nuv_, LookupMode mode_, lua_State* errL_);
+    [[nodiscard]] int pushDeepUserdata(DestState L_, int nuv_) const;
+    [[nodiscard]] DeepPrelude* toDeep(lua_State* L_, int index_) const;
 };
 
 // #################################################################################################

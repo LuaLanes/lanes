@@ -105,7 +105,7 @@ namespace {
                     break;
                 }
                 std::string_view const _name{ _entry.name };
-                DEBUGSPEW_CODE(DebugSpew(universe_get(L_)) << "opening '" << _name << "' library" << std::endl);
+                DEBUGSPEW_CODE(DebugSpew(Universe::Get(L_)) << "opening '" << _name << "' library" << std::endl);
                 STACK_CHECK_START_REL(L_, 0);
                 // open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
                 bool const isLanesCore{ _libfunc == require_lanes_core }; // don't want to create a global for "lanes.core"
@@ -273,7 +273,7 @@ namespace state {
 
         // copy the universe as a light userdata (only the master state holds the full userdata)
         // that way, if Lanes is required in this new state, we'll know we are part of this universe
-        universe_store(_L, U_);
+        Universe::Store(_L, U_);
         STACK_CHECK(_L, 0);
 
         // we'll need this every time we transfer some C function from/to this state

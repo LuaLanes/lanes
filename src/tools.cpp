@@ -133,7 +133,7 @@ static void update_lookup_entry(lua_State* L_, int ctxBase_, int depth_)
     // slot 2 contains a table that, when concatenated, produces the fully qualified name of scanned elements in the table provided at slot _i
     int const _fqn{ ctxBase_ + 1 };
 
-    DEBUGSPEW_CODE(Universe* const _U{ universe_get(L_) });
+    DEBUGSPEW_CODE(Universe* const _U{ Universe::Get(L_) });
     DEBUGSPEW_CODE(DebugSpew(_U) << "update_lookup_entry()" << std::endl);
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
 
@@ -200,7 +200,7 @@ static void populate_func_lookup_table_recur(lua_State* L_, int dbIdx_, int i_, 
     int const _fqn{ dbIdx_ + 1 };
     // slot dbIdx_ + 2 contains a cache that stores all already visited tables to avoid infinite recursion loops
     int const _cache{ dbIdx_ + 2 };
-    DEBUGSPEW_CODE(Universe* const _U{ universe_get(L_) });
+    DEBUGSPEW_CODE(Universe* const _U{ Universe::Get(L_) });
     DEBUGSPEW_CODE(DebugSpew(_U) << "populate_func_lookup_table_recur()" << std::endl);
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
 
@@ -309,7 +309,7 @@ namespace tools {
     void PopulateFuncLookupTable(lua_State* const L_, int const i_, std::string_view const& name_)
     {
         int const _in_base{ lua_absindex(L_, i_) };
-        DEBUGSPEW_CODE(Universe* _U = universe_get(L_));
+        DEBUGSPEW_CODE(Universe* _U = Universe::Get(L_));
         std::string_view _name{ name_.empty() ? std::string_view{} : name_ };
         DEBUGSPEW_CODE(DebugSpew(_U) << L_ << ": PopulateFuncLookupTable('" << _name << "')" << std::endl);
         DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
@@ -380,7 +380,7 @@ namespace tools {
                 LuaError const _rc{ std::invoke(
                     [L = L_, args = _args]()
                     {
-                        std::lock_guard _guard{ universe_get(L)->requireMutex };
+                        std::lock_guard _guard{ Universe::Get(L)->requireMutex };
                         // starting with Lua 5.4, require may return a second optional value, so we need LUA_MULTRET
                         return lua_pcall(L, args, LUA_MULTRET, 0 /*errfunc*/);                     // L_: err|result(s)
                     })
@@ -398,7 +398,7 @@ namespace tools {
 
         STACK_GROW(L_, 1);
         STACK_CHECK_START_REL(L_, 0);
-        DEBUGSPEW_CODE(DebugSpew(universe_get(L_)) << "serializing require()" << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(Universe::Get(L_)) << "serializing require()" << std::endl);
 
         // Check 'require' is there and not already wrapped; if not, do nothing
         lua_getglobal(L_, "require");                                                              // L_: _G.require()|nil

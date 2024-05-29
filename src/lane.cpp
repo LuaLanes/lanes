@@ -669,7 +669,7 @@ static void lane_main(Lane* lane_)
         // At this point, the lane function and arguments are on the stack, possibly preceded by the error handler
         int const _errorHandlerCount{ lane_->errorTraceLevel == Lane::Minimal ? 0 : 1};
         int const _nargs{ lua_gettop(_L) - 1 - _errorHandlerCount };
-        DEBUGSPEW_CODE(Universe* _U = universe_get(_L));
+        DEBUGSPEW_CODE(Universe* _U = Universe::Get(_L));
         lane_->status = Lane::Running; // Pending -> Running
 
         PrepareLaneHelpers(lane_);

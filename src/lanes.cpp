@@ -143,7 +143,7 @@ LUAG_FUNC(set_thread_priority)
     if (_prio < kThreadPrioMin || _prio > kThreadPrioMax) {
         raise_luaL_error(L_, "priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, _prio);
     }
-    THREAD_SET_PRIORITY(static_cast<int>(_prio), universe_get(L_)->sudo);
+    THREAD_SET_PRIORITY(static_cast<int>(_prio), Universe::Get(L_)->sudo);
     return 0;
 }
 
@@ -169,7 +169,7 @@ LUAG_FUNC(require)
 {
     std::string_view const _name{ lua_tostringview(L_, 1) };                                       // L_: "name" ...
     int const _nargs{ lua_gettop(L_) };
-    DEBUGSPEW_CODE(Universe * _U{ universe_get(L_) });
+    DEBUGSPEW_CODE(Universe * _U{ Universe::Get(L_) });
     STACK_CHECK_START_REL(L_, 0);
     DEBUGSPEW_CODE(DebugSpew(_U) << "lanes.require '" << _name << "' BEGIN" << std::endl);
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
@@ -194,7 +194,7 @@ LUAG_FUNC(register)
     // ignore extra parameters, just in case
     lua_settop(L_, 2);
     luaL_argcheck(L_, (_mod_type == LuaType::TABLE) || (_mod_type == LuaType::FUNCTION), 2, "unexpected module type");
-    DEBUGSPEW_CODE(Universe* _U = universe_get(L_));
+    DEBUGSPEW_CODE(Universe* _U = Universe::Get(L_));
     STACK_CHECK_START_REL(L_, 0); // "name" mod_table
     DEBUGSPEW_CODE(DebugSpew(_U) << "lanes.register '" << _name << "' BEGIN" << std::endl);
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
@@ -236,7 +236,7 @@ LUAG_FUNC(lane_new)
     int const _nargs{ lua_gettop(L_) - kFixedArgsIdx };
     LUA_ASSERT(L_, _nargs >= 0);
 
-    Universe* const _U{ universe_get(L_) };
+    Universe* const _U{ Universe::Get(L_) };
     DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: setup" << std::endl);
 
     std::optional<std::string_view> _libs_str{ lua_isnil(L_, kLibsIdx) ? std::nullopt : std::make_optional(lua_tostringview(L_, kLibsIdx)) };
@@ -510,7 +510,7 @@ LUAG_FUNC(lane_new)
 // Return a list of all known lanes
 LUAG_FUNC(threads)
 {
-    LaneTracker const& _tracker = universe_get(L_)->tracker;
+    LaneTracker const& _tracker = Universe::Get(L_)->tracker;
     return _tracker.pushThreadsTable(L_);
 }
 
@@ -616,7 +616,7 @@ LUAG_FUNC(configure)
     // start with one-time initializations.
     {
         // C++ guarantees that the static variable initialization is threadsafe.
-        static auto _ = std::invoke(
+        [[maybe_unused]] static auto _ = std::invoke(
             []() {
 #if (defined PLATFORM_OSX) && (defined _UTILBINDTHREADTOCPU)
                 chudInitialize();
@@ -625,7 +625,7 @@ LUAG_FUNC(configure)
             });
     }
 
-    Universe* _U{ universe_get(L_) };
+    Universe* _U{ Universe::Get(L_) };
     bool const _from_master_state{ _U == nullptr };
     std::string_view const _name{ luaL_checkstringview(L_, lua_upvalueindex(1)) };
     LUA_ASSERT(L_, lua_type(L_, 1) == LUA_TTABLE);
@@ -637,12 +637,12 @@ LUAG_FUNC(configure)
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
 
     if (_U == nullptr) {
-        _U = universe_create(L_);                                                                  // L_: settings universe
+        _U = Universe::Create(L_);                                                                 // L_: settings universe
         DEBUGSPEW_CODE(DebugSpewIndentScope _scope2{ _U });
         lua_createtable(L_, 0, 1);                                                                 // L_: settings universe {mt}
         std::ignore = luaG_getfield(L_, 1, "shutdown_timeout");                                    // L_: settings universe {mt} shutdown_timeout
         std::ignore = luaG_getfield(L_, 1, "shutdown_mode");                                       // L_: settings universe {mt} shutdown_timeout shutdown_mode
-        lua_pushcclosure(L_, universe_gc, 2);                                                      // L_: settings universe {mt} universe_gc
+        lua_pushcclosure(L_, LG_universe_gc, 2);                                                   // L_: settings universe {mt} LG_universe_gc
         lua_setfield(L_, -2, "__gc");                                                              // L_: settings universe {mt}
         lua_setmetatable(L_, -2);                                                                  // L_: settings universe
         lua_pop(L_, 1);                                                                            // L_: settings

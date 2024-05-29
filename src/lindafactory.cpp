@@ -126,7 +126,7 @@ DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* L_) const
 
     // The deep data is allocated separately of Lua stack; we might no longer be around when last reference to it is being released.
     // One can use any memory allocation scheme. Just don't use L's allocF because we don't know which state will get the honor of GCing the linda
-    Universe* const _U{ universe_get(L_) };
+    Universe* const _U{ Universe::Get(L_) };
     Linda* const _linda{ new (_U) Linda{ _U, _linda_group, _linda_name } };
     return _linda;
 }

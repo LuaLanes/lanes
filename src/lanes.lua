@@ -115,8 +115,8 @@ end
 local param_checkers =
 {
     nb_keepers = function(val_)
-        -- nb_keepers should be a number > 0
-        return type(val_) == "number" and val_ > 0
+        -- nb_keepers should be a number in [1,100] (so that nobody tries to run OOM by specifying a huge amount)
+        return type(val_) == "number" and val_ > 0 and val_ <= 100
     end,
     keepers_gc_threshold = function(val_)
         -- keepers_gc_threshold should be a number

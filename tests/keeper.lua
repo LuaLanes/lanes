@@ -3,7 +3,7 @@
 --
 -- Test program for Lua Lanes
 --
-
+-- TODO: there is a random crash when nb_keepers > 1. Will have to investigate
 local lanes = require "lanes".configure{ with_timers = false, nb_keepers = 1, keepers_gc_threshold = 500}
 
 do
