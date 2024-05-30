@@ -280,12 +280,14 @@
 			<th style="width:70%">definition</th>
 		</tr>
 		<tr valign=top>
-			<td id="nb_keepers">
-				<code>.nb_keepers</code>
+			<td id="nb_user_keepers">
+				<code>.nb_user_keepers</code>
 			</td>
-			<td>integer >= 1</td>
+			<td>integer in [0,100]</td>
 			<td>
-				Controls the number of keeper states used internally by lindas to transfer data between lanes. (see <a href="#lindas">below</a>). Default is <tt>1</tt>.
+				Controls the number of "user" keeper states used internally by lindas to transfer data between lanes. (see <a href="#lindas">below</a>). Default is <tt>0</tt>.<br/>
+				Lanes always creates at least one keeper state for the internal timer linda. If <tt>nb_user_keepers</tt> is <tt>0</tt>, the other lindas you create will share this keeper by necessity.<br/>
+				If there is more than one keeper (in total), linda creation must specify the group it belongs to.
 			</td>
 		</tr>
 
@@ -712,8 +714,8 @@
 			</td>
 			<td>table</td>
 			<td>
-				Lists modules that have to be required in order to be able to transfer functions they exposed. Starting with Lanes 3.0-beta, non-Lua functions are no longer copied by recreating a C closure from a C pointer, but are <a href="#function_notes">searched in lookup tables</a>.
-				These tables are built from the modules listed here. <tt>required</tt> must be a list of strings, each one being the name of a module to be required. Each module is required with <tt>require()</tt> before the lanes function is invoked.
+				Lists modules that have to be required in order to be able to transfer functions they exposed. Non-Lua functions are <a href="#function_notes">searched in lookup tables</a>.
+				These tables are built from the modules listed here. <tt>required</tt> must be an array of strings, each one being the name of a module to be required. Each module is required with <tt>require()</tt> before the lanes function is invoked.
 				So, from the required module's point of view, requiring it manually from inside the lane body or having it required this way doesn't change anything. From the lane body's point of view, the only difference is that a module not creating a global won't be accessible.
 				Therefore, a lane body will also have to require a module manually, but this won't do anything more (see Lua's <tt>require</tt> documentation).	<br/>
 				ATTEMPTING TO TRANSFER A FUNCTION REGISTERED BY A MODULE NOT LISTED HERE WILL RAISE AN ERROR.
@@ -773,10 +775,10 @@
 	</table>
 
 <p>
-	Each lane gets a global function <tt>set_debug_threadname()</tt> that it can use anytime to do as the name says. Supported debuggers are Microsoft Visual Studio (for the C side) and <a href="https://github.com/unknownworlds/decoda">Decoda</a> (for the Lua side).<br/>
-	Decoda support is limited to setting a special global variable <tt>decoda_name</tt>. This is disabled by default. Change <tt>HAVE_DECODA_NAME()</tt> in <tt>lanesconf.h</tt> if necessary.<br/>
+	Each lane gets a global function <tt>set_debug_threadname()</tt> that it can use anytime to do as the name says. Supported debuggers are Microsoft Visual Studio (for the C side) and <a href="https://github.com/unknownworlds/decoda">Decoda</a> (for the Lua side).<br />
+	Change <tt>HAVE_DECODA_SUPPORT()</tt> in <tt>lanesconf.h</tt> to enable the Decoda support, that sets a special global variable <tt>decoda_name</tt> in the lane's state.<br/>
 	The name is stored inside the Lua state registry so that it is available for error reporting. Changing <tt>decoda_name</tt> doesn't affect this hidden name or the OS thread name reported by MSVC.<br/>
-	When Lanes is initialized by the first <a href="#initialization"><tt>lanes.configure()</tt></a> call, <tt>"main"</tt> is stored in the registry in the same fashion (but <tt>decoda_name</tt> and the OS thread name are left unchanged).<br/>
+	When Lanes is initialized by the first <a href="#initialization"><tt>lanes.configure()</tt></a> call, <tt>"main"</tt> is stored in the registry in the same fashion (but <tt>decoda_name</tt> and the OS thread name are left unchanged).<br />
 	The lane also has a method <tt>lane:get_debug_threadname()</tt> that gives access to that name from the caller side (returns <tt>"&lt;unnamed&gt;"</tt> if unset, <tt>"&lt;closed&gt;"</tt> if the internal Lua state is closed).
 </p>
 
@@ -1186,7 +1188,8 @@
 		<li><tt>receive</tt> has a batched mode to consume more than one value from a single key, as in <tt>linda:receive(1.0, linda.batched, "key", 3, 6).</tt></li>
 		<li>individual keys' queue length can be limited, balancing speed differences in a producer/consumer scenario (making <tt>:send</tt> wait).</li>
 		<li><tt>tostring(linda)</tt> returns a string of the form <tt>"Linda: &lt;opt_name&gt;"</tt></li>
-		<li>several lindas may share the same keeper state. State assignation can be controlled with the linda's group (an integer). All lindas belonging to the same group will share the same keeper state. One keeper state may be shared by several groups.</li>
+		<li>Several lindas may share the same keeper state. In case there is more than one user keeper state, assignation must be controlled with the linda's group (an integer in <tt>[0,nb_user_keepers]</tt>).
+		Lanes has an internal linda used for timers and <tt>lanes.wait</tt>; this linda uses group 0.</li>
 	</ul>
 </p>
 
@@ -1299,7 +1302,8 @@
 </pre></td></tr></table>
 
 <p>
-	Returns a table describing the full contents of a linda, or <tt>nil</tt> if the linda wasn't used yet.
+	Returns a table describing the full contents of a linda, or <tt>nil</tt> if the linda wasn't used yet.<br/>
+	If Decoda support is enabled with <tt>HAVE_DECODA_SUPPORT()</tt>, linda metatable contain a <tt>__towatch</tt> special function that generates a similar table used for debug display.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
@@ -1359,8 +1363,7 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 </p>
 
 <p>
-<font size="-1">Actually, you can. Make separate lanes to wait each, and then multiplex those
-events to a common Linda, but... :).</font>
+<font size="-1">Actually, you can. Make separate lanes to wait each, and then multiplex those events to a common Linda, but... :).</font>
 </p>
 
 

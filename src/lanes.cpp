@@ -637,50 +637,11 @@ LUAG_FUNC(configure)
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
 
     if (_U == nullptr) {
-        _U = Universe::Create(L_);                                                                 // L_: settings universe
-        DEBUGSPEW_CODE(DebugSpewIndentScope _scope2{ _U });
-        lua_createtable(L_, 0, 1);                                                                 // L_: settings universe {mt}
-        std::ignore = luaG_getfield(L_, 1, "shutdown_timeout");                                    // L_: settings universe {mt} shutdown_timeout
-        std::ignore = luaG_getfield(L_, 1, "shutdown_mode");                                       // L_: settings universe {mt} shutdown_timeout shutdown_mode
-        lua_pushcclosure(L_, LG_universe_gc, 2);                                                   // L_: settings universe {mt} LG_universe_gc
-        lua_setfield(L_, -2, "__gc");                                                              // L_: settings universe {mt}
-        lua_setmetatable(L_, -2);                                                                  // L_: settings universe
-        lua_pop(L_, 1);                                                                            // L_: settings
-        std::ignore = luaG_getfield(L_, 1, "verbose_errors");                                      // L_: settings verbose_errors
-        _U->verboseErrors = lua_toboolean(L_, -1) ? true : false;
-        lua_pop(L_, 1);                                                                            // L_: settings
-        std::ignore = luaG_getfield(L_, 1, "demote_full_userdata");                                // L_: settings demote_full_userdata
-        _U->demoteFullUserdata = lua_toboolean(L_, -1) ? true : false;
-        lua_pop(L_, 1);                                                                            // L_: settings
-
-        // tracking
-        std::ignore = luaG_getfield(L_, 1, "track_lanes");                                         // L_: settings track_lanes
-        if (lua_toboolean(L_, -1)) {
-            _U->tracker.activate();
-        }
-        lua_pop(L_, 1);                                                                            // L_: settings
-
-        // Linked chains handling
-        _U->selfdestructFirst = SELFDESTRUCT_END;
-        _U->initializeAllocatorFunction(L_);
-        state::InitializeOnStateCreate(_U, L_);
-        _U->initializeKeepers(L_);
-        STACK_CHECK(L_, 1);
-
-        // Initialize 'timerLinda'; a common Linda object shared by all states
-        lua_pushcfunction(L_, LG_linda);                                                           // L_: settings lanes.linda
-        lua_pushliteral(L_, "lanes-timer");                                                        // L_: settings lanes.linda "lanes-timer"
-        lua_call(L_, 1, 1);                                                                        // L_: settings linda
-        STACK_CHECK(L_, 2);
-
-        // Proxy userdata contents is only a 'DeepPrelude*' pointer
-        _U->timerLinda = *lua_tofulluserdata<DeepPrelude*>(L_, -1);
-        // increment refcount so that this linda remains alive as long as the universe exists.
-        _U->timerLinda->refcount.fetch_add(1, std::memory_order_relaxed);
-        lua_pop(L_, 1);                                                                            // L_: settings
         // store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...
         kLaneNameRegKey.setValue(L_, [](lua_State* L_) { std::ignore = lua_pushstringview(L_, "main"); });
 
+        // create the universe
+        _U = Universe::Create(L_);                                                                 // L_: settings universe
     }
     STACK_CHECK(L_, 1);
 

@@ -40,6 +40,7 @@
 #include "keeper.h"
 
 #include "intercopycontext.h"
+#include "lane.h"
 #include "linda.h"
 #include "state.h"
 
@@ -548,22 +549,20 @@ int keepercall_count(lua_State* L_)
 
 Keeper* Linda::acquireKeeper() const
 {
-    int const _nbKeepers{ U->keepers->nb_keepers };
-    // can be 0 if this happens during main state shutdown (lanes is being GC'ed -> no keepers)
-    if (_nbKeepers) {
-        Keeper* const _K{ &U->keepers->keeper_array[keeperIndex] };
+    // can be nullptr if this happens during main state shutdown (lanes is being GC'ed -> no keepers)
+    Keeper* const _K{ whichKeeper() };
+    if (_K) {
         _K->mutex.lock();
-        return _K;
     }
-    return nullptr;
+    return _K;
 }
 
 // #################################################################################################
 
-void Linda::releaseKeeper(Keeper* K_) const
+void Linda::releaseKeeper(Keeper* const K_) const
 {
     if (K_) { // can be nullptr if we tried to acquire during shutdown
-        assert(K_ == &U->keepers->keeper_array[keeperIndex]);
+        assert(K_ == whichKeeper());
         K_->mutex.unlock();
     }
 }
@@ -595,16 +594,16 @@ KeeperCallResult keeper_call(KeeperState K_, keeper_api_t func_, lua_State* L_, 
         (InterCopyContext{ linda_->U, DestState{ K_ }, SourceState{ L_ }, {}, {}, {}, LookupMode::ToKeeper, {} }.inter_copy(_args) == InterCopyResult::Success)
     ) {                                                                                            // L: ... args...                                  K_: func_ linda args...
         lua_call(K_, 1 + _args, LUA_MULTRET);                                                      // L: ... args...                                  K_: result...
-        int const retvals{ lua_gettop(K_) - _top_K };
+        int const _retvals{ lua_gettop(K_) - _top_K };
         // note that this can raise a lua error while the keeper state (and its mutex) is acquired
         // this may interrupt a lane, causing the destruction of the underlying OS thread
         // after this, another lane making use of this keeper can get an error code from the mutex-locking function
         // when attempting to grab the mutex again (WINVER <= 0x400 does this, but locks just fine, I don't know about pthread)
         if (
-            (retvals == 0) ||
-            (InterCopyContext{ linda_->U, DestState{ L_ }, SourceState{ K_ }, {}, {}, {}, LookupMode::FromKeeper, {} }.inter_move(retvals) == InterCopyResult::Success)
+            (_retvals == 0) ||
+            (InterCopyContext{ linda_->U, DestState{ L_ }, SourceState{ K_ }, {}, {}, {}, LookupMode::FromKeeper, {} }.inter_move(_retvals) == InterCopyResult::Success)
         ) {                                                                                        // L: ... args... result...                        K_: result...
-            _result.emplace(retvals);
+            _result.emplace(_retvals);
         }
     }
     // whatever happens, restore the stack to where it was at the origin
@@ -613,7 +612,7 @@ KeeperCallResult keeper_call(KeeperState K_, keeper_api_t func_, lua_State* L_, 
     // don't do this for this particular function, as it is only called during Linda destruction, and we don't want to raise an error, ever
     if (func_ != KEEPER_API(clear)) [[unlikely]] {
         // since keeper state GC is stopped, let's run a step once in a while if required
-        int const _gc_threshold{ linda_->U->keepers->gc_threshold };
+        int const _gc_threshold{ linda_->U->keepers.gc_threshold };
         if (_gc_threshold == 0) [[unlikely]] {
             lua_gc(K_, LUA_GCSTEP, 0);
         } else if (_gc_threshold > 0) [[likely]] {
@@ -632,8 +631,215 @@ KeeperCallResult keeper_call(KeeperState K_, keeper_api_t func_, lua_State* L_, 
 }
 
 // #################################################################################################
+// #################################################################################################
+// Keeper
+// #################################################################################################
+// #################################################################################################
 
-void Keepers::CreateFifosTable(lua_State* L_)
+void* Keeper::operator new[](size_t size_, Universe* U_) noexcept
 {
-    kFifosRegKey.setValue(L_, [](lua_State* L_) { lua_newtable(L_); });
+    // size_ is the memory for the element count followed by the elements themselves
+    return U_->internalAllocator.alloc(size_);
+}
+
+// #################################################################################################
+
+// can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
+void Keeper::operator delete[](void* p_, Universe* U_)
+{
+    U_->internalAllocator.free(p_, *static_cast<size_t*>(p_) * sizeof(Keeper) + sizeof(size_t));
+}
+
+// #################################################################################################
+// #################################################################################################
+// Keepers
+// #################################################################################################
+// #################################################################################################
+
+void Keepers::DeleteKV::operator()(Keeper* k_) const
+{
+    for (Keeper& _k : std::views::counted(k_, count)) {
+        _k.~Keeper();
+    }
+    // operator[] returns the result of the allocation shifted by a size_t (the hidden element count)
+    U->internalAllocator.free(reinterpret_cast<size_t*>(k_) - 1, count * sizeof(Keeper));
+}
+
+// #################################################################################################
+/*
+ * Initialize keeper states
+ *
+ * If there is a problem, returns nullptr and pushes the error message on the stack
+ * else returns the keepers bookkeeping structure.
+ *
+ * Note: Any problems would be design flaws; the created Lua state is left
+ *       unclosed, because it does not really matter. In production code, this
+ *       function never fails.
+ * settings table is expected at position 1 on the stack
+ */
+
+void Keepers::initialize(Universe& U_, lua_State* L_, int const nbKeepers_, int const gc_threshold_)
+{
+    gc_threshold = gc_threshold_;
+
+    auto _initOneKeeper = [U = &U_, L = L_, gc_threshold = gc_threshold](Keeper& keeper_, int const i_) {
+        STACK_CHECK_START_REL(L, 0);
+        // note that we will leak K if we raise an error later
+        KeeperState const _K{ state::CreateState(U, L) };                                          // L: settings                                    K:
+        if (_K == nullptr) {
+            raise_luaL_error(L, "out of memory while creating keeper states");
+        }
+
+        keeper_.L = _K;
+
+        // Give a name to the state
+        lua_pushfstring(_K, "Keeper #%d", i_ + 1);                                                 // L: settings                                    K: "Keeper #n"
+        if constexpr (HAVE_DECODA_SUPPORT()) {
+            lua_pushvalue(_K, -1);                                                                 //                                                K: "Keeper #n" Keeper #n"
+            lua_setglobal(_K, "decoda_name");                                                      // L: settings                                    K: "Keeper #n"
+        }
+        kLaneNameRegKey.setValue(_K, [](lua_State* L_) { lua_insert(L_, -2); });                   //                                                K:
+
+        STACK_CHECK_START_ABS(_K, 0);
+
+        // copy the universe pointer in the keeper itself
+        Universe::Store(_K, U);
+        STACK_CHECK(_K, 0);
+
+        // make sure 'package' is initialized in keeper states, so that we have require()
+        // this because this is needed when transferring deep userdata object
+        luaL_requiref(_K, LUA_LOADLIBNAME, luaopen_package, 1);                                    // L: settings                                    K: package
+        lua_pop(_K, 1);                                                                            // L: settings                                    K:
+        STACK_CHECK(_K, 0);
+        tools::SerializeRequire(_K);
+        STACK_CHECK(_K, 0);
+
+        // copy package.path and package.cpath from the source state
+        if (luaG_getmodule(L, LUA_LOADLIBNAME) != LuaType::NIL) {                                  // L: settings package                            K:
+            // when copying with mode LookupMode::ToKeeper, error message is pushed at the top of the stack, not raised immediately
+            InterCopyContext _c{ U, DestState{ _K }, SourceState{ L }, {}, SourceIndex{ lua_absindex(L, -1) }, {}, LookupMode::ToKeeper, {} };
+            if (_c.inter_copy_package() != InterCopyResult::Success) {                             // L: settings ... error_msg                      K:
+                // if something went wrong, the error message is at the top of the stack
+                lua_remove(L, -2);                                                                 // L: settings error_msg
+                raise_lua_error(L);
+            }
+        }
+        lua_pop(L, 1);                                                                             // L: settings                                    K:
+        STACK_CHECK(L, 0);
+        STACK_CHECK(_K, 0);
+
+        // attempt to call on_state_create(), if we have one and it is a C function
+        // (only support a C function because we can't transfer executable Lua code in keepers)
+        // will raise an error in L_ in case of problem
+        state::CallOnStateCreate(U, _K, L, LookupMode::ToKeeper);
+
+        // create the fifos table in the keeper state
+        kFifosRegKey.setValue(_K, [](lua_State* L_) { lua_newtable(L_); });
+        STACK_CHECK(_K, 0);
+
+        // configure GC last
+        if (gc_threshold >= 0) {
+            lua_gc(_K, LUA_GCSTOP, 0);
+        }
+    };
+
+    switch (nbKeepers_) {
+    case 0:
+        break;
+
+    case 1:
+        keeper_array.emplace<Keeper>();
+        _initOneKeeper(std::get<Keeper>(keeper_array), 0);
+        break;
+
+    default:
+        KV& _kv = keeper_array.emplace<KV>(
+            std::unique_ptr<Keeper[], DeleteKV>{ new(&U_) Keeper[nbKeepers_], DeleteKV{ &U_, nbKeepers_ } },
+            nbKeepers_
+        );
+        for (int const _i : std::ranges::iota_view{ 0, nbKeepers_ }) {
+            _initOneKeeper(_kv.keepers[_i], _i);
+        }
+    }
+}
+
+// #################################################################################################
+
+void Keepers::close()
+{
+    if (isClosing.test_and_set(std::memory_order_release)) {
+        assert(false); // should never close more than once in practice
+        return;
+    }
+
+    if (std::holds_alternative<std::monostate>(keeper_array)) {
+        return;
+    }
+
+    auto _closeOneKeeper = [](Keeper& keeper_)
+    {
+        lua_State* const _K{ std::exchange(keeper_.L, KeeperState{ nullptr }) };
+        if (_K) {
+            lua_close(_K);
+        }
+        return _K ? true : false;
+    };
+
+    if (std::holds_alternative<Keeper>(keeper_array)) {
+        _closeOneKeeper(std::get<Keeper>(keeper_array));
+    } else {
+        KV& _kv = std::get<KV>(keeper_array);
+
+        // NOTE: imagine some keeper state N+1 currently holds a linda that uses another keeper N, and a _gc that will make use of it
+        // when keeper N+1 is closed, object is GCed, linda operation is called, which attempts to acquire keeper N, whose Lua state no longer exists
+        // in that case, the linda operation should do nothing. which means that these operations must check for keeper acquisition success
+        // which is early-outed with a keepers->nbKeepers null-check
+        size_t const _nbKeepers{ std::exchange(_kv.nbKeepers, 0) };
+        for (size_t const _i : std::ranges::iota_view{ size_t{ 0 }, _nbKeepers }) {
+            if (!_closeOneKeeper(_kv.keepers[_i])) {
+                // detected partial init: destroy only the mutexes that got initialized properly
+                break;
+            }
+        }
+    }
+
+    keeper_array.emplace<std::monostate>();
+}
+
+// #################################################################################################
+
+[[nodiscard]] Keeper* Keepers::getKeeper(int idx_)
+{
+    if (isClosing.test(std::memory_order_acquire)) {
+        return nullptr;
+    }
+
+    if (std::holds_alternative<std::monostate>(keeper_array)) {
+        return nullptr;
+    }
+
+    if (std::holds_alternative<Keeper>(keeper_array)) {
+        return &std::get<Keeper>(keeper_array);
+    }
+
+    return &std::get<KV>(keeper_array).keepers.get()[idx_];
+}
+
+// #################################################################################################
+
+[[nodiscard]] int Keepers::getNbKeepers() const
+{
+    if (isClosing.test(std::memory_order_acquire)) {
+        return 0;
+    }
+
+    if (std::holds_alternative<std::monostate>(keeper_array)) {
+        return 0;
+    }
+
+    if (std::holds_alternative<Keeper>(keeper_array)) {
+        return 1;
+    }
+
+    return static_cast<int>(std::get<KV>(keeper_array).nbKeepers);
 }

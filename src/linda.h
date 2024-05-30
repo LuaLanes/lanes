@@ -38,7 +38,6 @@ class Linda
     CancelRequest cancelRequest{ CancelRequest::None };
 
     public:
-    // a fifo full userdata has one uservalue, the table that holds the actual fifo contents
     [[nodiscard]] static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internalAllocator.alloc(size_); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
@@ -64,5 +63,5 @@ class Linda
     [[nodiscard]] std::string_view getName() const;
     void releaseKeeper(Keeper* keeper_) const;
     [[nodiscard]] static int ProtectedCall(lua_State* L_, lua_CFunction f_);
-    [[nodiscard]] Keeper* whichKeeper() const { return U->keepers->nb_keepers ? &U->keepers->keeper_array[keeperIndex] : nullptr; }
+    [[nodiscard]] Keeper* whichKeeper() const { return U->keepers.getKeeper(keeperIndex); }
 };

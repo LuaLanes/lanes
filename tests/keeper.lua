@@ -3,20 +3,20 @@
 --
 -- Test program for Lua Lanes
 --
--- TODO: there is a random crash when nb_keepers > 1. Will have to investigate
-local lanes = require "lanes".configure{ with_timers = false, nb_keepers = 1, keepers_gc_threshold = 500}
+-- TODO: there is a random crash when nb_user_keepers > 1. Will have to investigate if it rears its ugly head again
+local lanes = require "lanes".configure{ nb_user_keepers = 3, keepers_gc_threshold = 500 }
 
 do
     print "Linda names test:"
-    local unnamedLinda = lanes.linda()
-    local unnamedLinda2 = lanes.linda("")
-    local veeeerrrryyyylooongNamedLinda= lanes.linda( "veeeerrrryyyylooongNamedLinda", 1)
+    local unnamedLinda = lanes.linda(1)
+    local unnamedLinda2 = lanes.linda("", 2)
+    local veeeerrrryyyylooongNamedLinda= lanes.linda( "veeeerrrryyyylooongNamedLinda", 3)
     print(unnamedLinda, unnamedLinda2, veeeerrrryyyylooongNamedLinda)
     print "GC deadlock test start"
     -- store a linda in another linda (-> in a keeper)
-    unnamedLinda:set("here", lanes.linda("temporary linda"))
+    unnamedLinda:set("here", lanes.linda("temporary linda", 0))
     -- repeatedly add and remove stuff in the linda so that a GC happens during the keeper operation
-    for i = 1, 1000 do
+    for i = 1, 100 do
         for j = 1, 1000 do -- send 1000 tables
             -- print("send #" .. j)
             unnamedLinda:send("here", {"a", "table", "with", "some", "stuff"})

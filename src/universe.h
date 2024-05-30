@@ -9,10 +9,12 @@ extern "C"
 }
 #endif // __cplusplus
 
+#include "keeper.h"
 #include "lanesconf.h"
 #include "tracker.h"
 #include "uniquekey.h"
 
+#include <atomic>
 #include <mutex>
 
 // #################################################################################################
@@ -20,7 +22,6 @@ extern "C"
 // forwards
 enum class CancelOp;
 struct DeepPrelude;
-struct Keepers;
 class Lane;
 
 // #################################################################################################
@@ -144,7 +145,7 @@ class Universe
 
     AllocatorDefinition internalAllocator;
 
-    Keepers* keepers{ nullptr };
+    Keepers keepers;
 
     // Initialized by 'init_once_LOCKED()': the deep userdata Linda object
     // used for timers (each lane will get a proxy to this)
@@ -183,12 +184,10 @@ class Universe
     Universe& operator=(Universe const&) = delete;
     Universe& operator=(Universe&&) = delete;
 
-    void closeKeepers();
     [[nodiscard]] static Universe* Create(lua_State* L_);
     [[nodiscard]] static inline Universe* Get(lua_State* L_);
     void initializeAllocatorFunction(lua_State* L_);
     static int InitializeFinalizer(lua_State* L_);
-    void initializeKeepers(lua_State* L_);
     static inline void Store(lua_State* L_, Universe* U_);
     void terminateFreeRunningLanes(lua_State* L_, lua_Duration shutdownTimeout_, CancelOp op_);
 };

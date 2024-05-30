@@ -90,7 +90,7 @@ local isLuaJIT = (package and package.loaded.jit and jit.version) and true or fa
 
 local default_params =
 {
-    nb_keepers = 1,
+    nb_user_keepers = 0,
     keepers_gc_threshold = -1,
     on_state_create = nil,
     shutdown_timeout = 0.25,
@@ -114,9 +114,9 @@ end
 
 local param_checkers =
 {
-    nb_keepers = function(val_)
-        -- nb_keepers should be a number in [1,100] (so that nobody tries to run OOM by specifying a huge amount)
-        return type(val_) == "number" and val_ > 0 and val_ <= 100
+    nb_user_keepers = function(val_)
+        -- nb_user_keepers should be a number in [0,100] (so that nobody tries to run OOM by specifying a huge amount)
+        return type(val_) == "number" and val_ >= 0 and val_ <= 100
     end,
     keepers_gc_threshold = function(val_)
         -- keepers_gc_threshold should be a number
@@ -176,7 +176,7 @@ local params_checker = function(settings_)
             param = default_params[key]
         end
         if not checker(param) then
-            error("Bad " .. key .. ": " .. tostring(param), 2)
+            error("Bad parameter " .. key .. ": " .. tostring(param), 2)
         end
         settings[key] = param
     end

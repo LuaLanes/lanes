@@ -1,4 +1,4 @@
-local lanes = require "lanes".configure{with_timers = false, nb_keepers = 1}
+local lanes = require "lanes".configure()
 print( os.date())
 local linda = lanes.linda()
 local l1 = lanes.gen("os,base", function() print "start sleeping" linda:receive(10, "null") print("finished_sleeping " .. os.date()) end)()

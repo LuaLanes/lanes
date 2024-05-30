@@ -811,7 +811,7 @@ void Lane::changeDebugName(int const nameIdx_)
     kLaneNameRegKey.setValue(L, [idx = _nameIdx](lua_State* L_) { lua_pushvalue(L_, idx); });      // L: ... "name" ...
     // keep a direct pointer on the string
     debugName = lua_tostringview(L, _nameIdx);
-    if constexpr (HAVE_DECODA_NAME()) {
+    if constexpr (HAVE_DECODA_SUPPORT()) {
         // to see VM name in Decoda debugger Virtual Machine window
         lua_pushvalue(L, _nameIdx);                                                                // L: ... "name" ... "name"
         lua_setglobal(L, "decoda_name");                                                           // L: ... "name" ...

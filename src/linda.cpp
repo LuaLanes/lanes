@@ -109,15 +109,10 @@ template <bool OPT>
 // #################################### Linda implementation #######################################
 // #################################################################################################
 
-// Any hashing will do that maps pointers to [0..Universe::nb_keepers[ consistently.
-// Pointers are often aligned by 8 or so - ignore the low order bits
-// have to cast to unsigned long to avoid compilation warnings about loss of data when converting pointer-to-integer
-static constexpr uintptr_t kPointerMagicShift{ 3 };
-
 Linda::Linda(Universe* U_, LindaGroup group_, std::string_view const& name_)
 : DeepPrelude{ LindaFactory::Instance }
 , U{ U_ }
-, keeperIndex{ (group_ ? group_ : static_cast<int>(std::bit_cast<uintptr_t>(this) >> kPointerMagicShift)) % U_->keepers->nb_keepers }
+, keeperIndex{ group_ % U_->keepers.getNbKeepers() }
 {
     setName(name_);
 }
@@ -733,6 +728,7 @@ LUAG_FUNC(linda_tostring)
 
 // #################################################################################################
 
+#if HAVE_DECODA_SUPPORT()
 /*
  * table/string = linda:__towatch()
  * return a table listing all pending data inside the linda, or the stringified linda if empty
@@ -748,6 +744,8 @@ LUAG_FUNC(linda_towatch)
     return _pushed;
 }
 
+#endif // HAVE_DECODA_SUPPORT()
+
 // #################################################################################################
 
 namespace {
@@ -755,7 +753,9 @@ namespace {
         static luaL_Reg const sLindaMT[] = {
             { "__concat", LG_linda_concat },
             { "__tostring", LG_linda_tostring },
+#if HAVE_DECODA_SUPPORT()
             { "__towatch", LG_linda_towatch }, // Decoda __towatch support
+#endif // HAVE_DECODA_SUPPORT()
             { "cancel", LG_linda_cancel },
             { "count", LG_linda_count },
             { "deep", LG_linda_deep },
@@ -784,13 +784,24 @@ namespace {
 LUAG_FUNC(linda)
 {
     int const _top{ lua_gettop(L_) };
+    int _groupIdx{};
     luaL_argcheck(L_, _top <= 2, _top, "too many arguments");
     if (_top == 1) {
         LuaType const _t{ lua_type_as_enum(L_, 1) };
-        luaL_argcheck(L_, _t == LuaType::STRING || _t == LuaType::NUMBER, 1, "wrong parameter (should be a string or a number)");
+        int const _nameIdx{ (_t == LuaType::STRING) ? 1 : 0 };
+        _groupIdx = (_t == LuaType::NUMBER) ? 1 : 0;
+        luaL_argcheck(L_, _nameIdx || _groupIdx, 1, "wrong parameter (should be a string or a number)");
     } else if (_top == 2) {
         luaL_checktype(L_, 1, LUA_TSTRING);
         luaL_checktype(L_, 2, LUA_TNUMBER);
+        _groupIdx = 2;
+    }
+    int const _nbKeepers{ Universe::Get(L_)->keepers.getNbKeepers() };
+    if (!_groupIdx) {
+        luaL_argcheck(L_, _nbKeepers < 2, 0, "there are multiple keepers, you must specify a group");
+    } else {
+        int const _group{ static_cast<int>(lua_tointeger(L_, _groupIdx)) };
+        luaL_argcheck(L_, _group >= 0 && _group < _nbKeepers, _groupIdx, "group out of range");
     }
     return LindaFactory::Instance.pushDeepUserdata(DestState{ L_ }, 0);
 }

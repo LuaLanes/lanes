@@ -1,4 +1,4 @@
-local lanes = require "lanes".configure{ nb_keepers = 1, with_timers = false}
+local lanes = require "lanes".configure()
 --
 -- Bugs filed by irayo Jul-2008
 --
