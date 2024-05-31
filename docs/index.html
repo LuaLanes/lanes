@@ -1198,9 +1198,9 @@
 
 	[true|lanes.cancel_error] = h:send([timeout_secs,] key, ...)
 
-	[key, val]|[lanes.cancel_error] = h:receive([timeout_secs,] key [, ...])
+	key, val = h:receive([timeout_secs,] key [, key...])
 
-	[key, val [, ...]]|[lanes.cancel_error] = h:receive(timeout, h.batched, key, n_uint_min[, n_uint_max])
+	key, val [, val...] = h:receive(timeout, h.batched, key, n_uint_min[, n_uint_max])
 
 	[true|lanes.cancel_error] = h:limit(key, n_uint)
 </pre></td></tr></table>
@@ -1235,9 +1235,9 @@
 </p>
 
 <p>
-	Equally, <tt>receive()</tt> returns a key and the value extracted from it, or nothing for timeout. Note that <tt>nil</tt>s can be sent and received; the <tt>key</tt> value will tell it apart from a timeout.
-	<br/>
-	<tt>receive()</tt> returns <tt>lanes.cancel_error</tt> if interrupted by a soft cancel request.
+	Equally, <tt>receive()</tt> returns a key and the value extracted from it. Note that <tt>nil</tt>s can be sent and received; the <tt>key</tt> value will tell it apart from a timeout.<br/>
+	<tt>receive()</tt> returns <tt>nil, lanes.cancel_error</tt> if interrupted by a hard cancel request.<br/>
+	<tt>receive()</tt> returns <tt>nil, "timeout"</tt> if nothing was available.
 </p>
 
 <p>
@@ -1439,16 +1439,18 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 </pre></td></tr></table>
 
 <p>
-	The full list of active timers can be obtained. Obviously, this is a snapshot, and non-repeating timers might no longer exist by the time the results are inspected.
+	The full list of active timers can be obtained. Obviously, this is a snapshot, and non-repeating timers might no longer exist by the time the results are inspected.<br />
+	Can return <tt>nil, "timeout"</tt> or <tt>nil, lanes.cancel_error</tt> in case of interruption.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	void = lanes.sleep(['indefinitely'|seconds|nil])
+	nil, "timeout" = lanes.sleep(['indefinitely'|seconds|nil])
 </pre></td></tr></table>
 
 <p>
 	A very simple way of sleeping when nothing else is available. Is implemented by attempting to read some data in an unused channel of the internal linda used for timers (this linda exists even when timers aren't enabled).
-	Default duration is 0, which should only cause a thread context switch.
+	Default duration is 0, which should only cause a thread context switch.<br />
+	Return values should always be <tt>nil, "timeout"</tt> (or <tt>nil, lanes.cancel_error</tt> in case of interruption).
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>

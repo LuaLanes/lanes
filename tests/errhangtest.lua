@@ -24,8 +24,10 @@ if true then
 	print "\n#### set 3 -> receive batched"
 	local fun = function() print "function test ok" end
 	print(pcall(linda.set, linda, 'test', true, nil, fun))
-	local k,b,n,f = linda:receive(linda.batched, 'test', 3) -- read back the contents
+	-- read back the contents
+	local k,b,n,f = linda:receive(linda.batched, 'test', 3)
 	assert(linda:get("test") == nil)
+	-- check they are ok
 	print(k, b, n)
 	f()
 	print "OK"

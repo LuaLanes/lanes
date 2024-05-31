@@ -1,5 +1,9 @@
 local lanes = require "lanes" .configure{ with_timers = false, track_lanes = true}
-local wait = lanes.sleep
+
+local SLEEP = function(...)
+    local k, v = lanes.sleep(...)
+    assert(k == nil and v == "timeout")
+end
 
 print "hello"
 
@@ -43,7 +47,7 @@ g( "forever", 'indefinitely')
 g( "two_seconds", 2)
  
 -- give a bit of time to reach the linda waiting call
-wait( 0.1)
+SLEEP(0.1)
 
 -- list the known lanes (should be living lanes)
 local threads = track( "============= START", 2)
@@ -51,7 +55,7 @@ local threads = track( "============= START", 2)
 assert(threads[1].status == 'waiting' and threads[2].status == 'waiting')
 
 -- wait until "two_seconds has completed"
-wait(2.1)
+SLEEP(2.1)
 
 local threads = track( "============= two_seconds dead", 2)
 --     two_seconds                        forever
@@ -61,7 +65,7 @@ assert(threads[1].status == 'done' and threads[2].status == 'waiting')
 g( "two_seconds", 2)
  
 -- give a bit of time to reach the linda waiting call
-wait( 0.1)
+SLEEP( 0.1)
 
 -- list the known lanes
 -- unless garbage collector cleaned it, we should have 3 lanes

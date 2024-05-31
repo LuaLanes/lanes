@@ -4,6 +4,11 @@
 local lanes = require('lanes').configure{with_timers=false}
 local linda = lanes.linda "deadlock_linda"
 
+local SLEEP = function(...)
+    local k, v = lanes.sleep(...)
+    assert(k == nil and v == "timeout")
+end
+
 print "let's begin"
 
 local do_extra_stuff = true
@@ -35,5 +40,5 @@ end
 -- With the bug not fixed, the linda keeper's mutex is still acquired,
 -- and the program hangs when the internal linda used for timers attempts to acquire the same keeper (there is only one by default)
 print('waiting a bit')
-lanes.sleep(2)
+SLEEP(2)
 print('we should reach here')

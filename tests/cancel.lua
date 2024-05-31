@@ -9,6 +9,11 @@ end
 
 local lanes = require "lanes" .configure{ with_timers = false}
 
+local SLEEP = function(...)
+	local k, v = lanes.sleep(...)
+	assert(k == nil and v == "timeout")
+end
+
 local linda = lanes.linda()
 -- a numeric value to read
 linda:set( "val", 33.0)
@@ -51,7 +56,7 @@ local waitCancellation = function( h, expected_status)
 	if expected_status ~= "running" then
 		repeat
 			-- print( "lane status:", h.status)
-			l:receive( 0.1, "yeah") -- wait a bit
+			SLEEP(0.1) -- wait a bit
 		until h.status ~= "running"
 	end
 	print( "lane status:", h.status)
@@ -80,8 +85,8 @@ local laneBody = function( mode_, payload_)
 			-- linda mode
 			io.stdout:write( "			lane calling receive() ... ")
 			local key, val = linda:receive( payload_, "boob")
-			print( lanes.cancel_error == key and "cancel_error" or tostring( key), tostring( val))
-			if key == lanes.cancel_error then
+			print(tostring(key), val == lanes.cancel_error and "cancel_error" or tostring(val))
+			if val == lanes.cancel_error then
 				break -- gracefully abort loop
 			end
 		elseif mode_ == "get" then
@@ -138,9 +143,9 @@ if not next(which_tests) or which_tests.linda then
 	h = lanes.gen( "*", laneBody)( "receive", nil) -- start an infinite wait on the linda
 
 	print "wait 1s"
-	linda:receive( 1, "yeah")
+	SLEEP(1)
 
-	-- linda cancel: linda:receive() returns cancel_error immediately
+	-- linda cancel: linda:receive() returns nil,cancel_error immediately
 	print "cancelling"
 	linda:cancel( "both")
 
@@ -159,7 +164,7 @@ if not next(which_tests) or which_tests.soft then
 	h = lanes.gen( "*", protectedBody)( "receive") -- start an infinite wait on the linda
 
 	print "wait 1s"
-	linda:receive( 1, "yeah")
+	SLEEP(1)
 
 	-- soft cancel, no awakening of waiting linda operations, should timeout
 	local a, b = h:cancel( "soft", 1, false)
@@ -182,7 +187,7 @@ if not next(which_tests) or which_tests.hook then
 	print "\n\n####################################################################\nbegin hook cancel test\n"
 	h = lanes.gen( "*", protectedBody)( "get", 300000)
 	print "wait 2s"
-	linda:receive( 2, "yeah")
+	SLEEP(2)
 
 	-- count hook cancel after some instruction instructions
 	print "cancelling"
@@ -201,7 +206,7 @@ if not next(which_tests) or which_tests.hard then
 
 	-- wait 2s before cancelling the lane
 	print "wait 2s"
-	linda:receive( 2, "yeah")
+	SLEEP(2)
 
 	-- hard cancel: the lane will be interrupted from inside its current linda:receive() and won't return from it
 	print "cancelling"
@@ -220,7 +225,7 @@ if not next(which_tests) or which_tests.hard_unprotected then
 
 	-- wait 2s before cancelling the lane
 	print "wait 2s"
-	linda:receive( 2, "yeah")
+	SLEEP(2)
 
 	-- hard cancel: the lane will be interrupted from inside its current linda:receive() and won't return from it
 	print "cancelling"

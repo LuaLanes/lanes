@@ -573,20 +573,22 @@ local configure_timers = function()
                     secs =  next_wakeup - now_secs()
                     if secs < 0 then secs = 0 end
                 end
-                local key, what = timerLinda:receive(secs, TGW_KEY, TGW_QUERY)
+                -- poll both TGW_KEY and TGW_QUERY at the same time
+                local _timerKey, _what = timerLinda:receive(secs, TGW_KEY, TGW_QUERY)
 
-                if key == TGW_KEY then
-                    assert(getmetatable(what) == "Linda") -- 'what' should be a linda on which the client sets a timer
+                if _timerKey == TGW_KEY then
+                    assert(getmetatable(_what) == "Linda") -- '_what' should be a linda on which the client sets a timer
                     local _, key, wakeup_at, period = timerLinda:receive(0, timer_gateway_batched, TGW_KEY, 3)
                     assert(key)
-                    set_timer(what, key, wakeup_at, period and period > 0 and period or nil)
-                elseif key == TGW_QUERY then
-                    if what == "get_timers" then
+                    set_timer(_what, key, wakeup_at, period and period > 0 and period or nil)
+                elseif _timerKey == TGW_QUERY then
+                    if _what == "get_timers" then
                         timerLinda:send(TGW_REPLY, get_timers())
                     else
-                        timerLinda:send(TGW_REPLY, "unknown query " .. what)
+                        timerLinda:send(TGW_REPLY, "unknown query " .. _what)
                     end
-                --elseif secs == nil then -- got no value while block-waiting?
+                else -- got no value while block-waiting
+                    assert(_what == cancel_error or _what == "timeout")
                 --	WR("timer lane: no linda, aborted?")
                 end
             end
@@ -630,8 +632,14 @@ local configure_timers = function()
     -- PUBLIC LANES API
     timers = function()
         timerLinda:send(TGW_QUERY, "get_timers")
-        local _, r = timerLinda:receive(TGW_REPLY)
-        return r
+        -- can be nil, <something> in case of cancellation or timeout
+        local _k, _t = timerLinda:receive(TGW_REPLY)
+        -- success: return the table
+        if _k then
+            return _t
+        end
+        -- error: return everything we got
+        return _k, _t
     end -- timers()
 end -- configure_timers()
 
@@ -639,7 +647,7 @@ end -- configure_timers()
 -- ###################################### lanes.sleep() ############################################
 -- #################################################################################################
 
--- <void> = sleep([seconds_])
+-- nil, "timeout" = sleep([seconds_])
 --
 -- PUBLIC LANES API
 local sleep = function(seconds_)
@@ -699,9 +707,9 @@ local genlock = function(linda_, key_, N)
             -- 'nil' timeout allows 'key_' to be numeric
             return linda_:send(timeout, key_, true)    -- suspends until been able to push them
         else
-            local k = linda_:receive(nil, key_)
+            local _k, _v = linda_:receive(nil, key_)
             -- propagate cancel_error if we got it, else return true or false
-            return k and ((k ~= cancel_error) and true or k) or false
+            return (_v == cancel_error and _v) or (_k and true or false)
         end
     end
     or
@@ -711,9 +719,9 @@ local genlock = function(linda_, key_, N)
             -- 'nil' timeout allows 'key_' to be numeric
             return linda_:send(timeout, key_, trues(M_))    -- suspends until been able to push them
         else
-            local k = linda_:receive(nil, linda_.batched, key_, -M_)
+            local _k, _v = linda_:receive(nil, linda_.batched, key_, -M_)
             -- propagate cancel_error if we got it, else return true or false
-            return k and ((k ~= cancel_error) and true or k) or false
+            return (_v == cancel_error and _v) or (_k and true or false)
         end
     end
 end -- genlock

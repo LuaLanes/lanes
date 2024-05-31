@@ -29,6 +29,11 @@ local function PRINT(...)
     end
 end
 
+local SLEEP = function(...)
+    local k, v = lanes.sleep(...)
+    assert(k == nil and v == "timeout")
+end
+
 local gc_cb = function(name_, status_)
     PRINT("				---> lane '" .. name_ .. "' collected with status '" .. status_ .. "'")
 end
@@ -256,7 +261,7 @@ SEND(3);  WR("main ", "3 sent\n")
 SEND(setmetatable({"should be ignored"},{__lanesignore=true})); WR("main ", "__lanesignore table sent\n")
 for i=1,100 do
     WR "."
-    lanes.sleep(0.0001)
+    SLEEP(0.0001)
     assert(PEEK() == nil)    -- nothing coming in, yet
 end
 SEND(nil);  WR("\nmain ", "nil sent\n")
@@ -293,7 +298,7 @@ comms_lane = nil
 collectgarbage()
 -- wait
 WR("waiting 1s")
-lanes.sleep(1)
+SLEEP(1)
 
 -- ##################################################################################################
 -- ##################################################################################################
@@ -470,7 +475,7 @@ end)
 
 h= S { 12, 13, 14 }     -- execution starts, h[1..3] will get the return values
 -- wait a bit so that the lane has a chance to set its debug name
-lanes.sleep(0.5)
+SLEEP(0.5)
 print("joining with '" .. h:get_debug_threadname() .. "'")
 local a,b,c,d= h:join()
 if h.status == "error" then
