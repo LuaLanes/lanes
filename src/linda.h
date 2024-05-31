@@ -2,7 +2,6 @@
 
 #include "cancel.h"
 #include "deep.h"
-#include "keeper.h"
 #include "universe.h"
 
 #include <array>
