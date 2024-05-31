@@ -78,9 +78,9 @@ namespace {
 
         // can work without a universe if creating a deep userdata from some external C module when Lanes isn't loaded
         // in that case, we are not multithreaded and locking isn't necessary anyway
-        bool const isLastRef{ _p->refcount.fetch_sub(1, std::memory_order_relaxed) == 1 };
+        bool const _isLastRef{ _p->refcount.fetch_sub(1, std::memory_order_relaxed) == 1 };
 
-        if (isLastRef) {
+        if (_isLastRef) {
             // retrieve wrapped __gc, if any
             lua_pushvalue(L_, lua_upvalueindex(1));                                                // L_: self __gc?
             if (!lua_isnil(L_, -1)) {
@@ -123,6 +123,7 @@ namespace {
 // #################################################################################################
 // #################################################################################################
 
+// NEVER call deleteDeepObjectInternal by itself, ALWAYS go through DeleteDeepObject()
 void DeepFactory::DeleteDeepObject(lua_State* const L_, DeepPrelude* const o_)
 {
     STACK_CHECK_START_REL(L_, 0);
@@ -310,7 +311,7 @@ int DeepFactory::pushDeepUserdata(DestState const L_, int const nuv_) const
 
     if (_prelude->magic != kDeepVersion) {
         // just in case, don't leak the newly allocated deep userdata object
-        deleteDeepObjectInternal(L_, _prelude);
+        DeleteDeepObject(L_, _prelude);
         raise_luaL_error(L_, "Bad Deep Factory: kDeepVersion is incorrect, rebuild your implementation with the latest deep implementation");
     }
 
@@ -319,7 +320,7 @@ int DeepFactory::pushDeepUserdata(DestState const L_, int const nuv_) const
 
     if (lua_gettop(L_) - _oldtop != 0) {
         // just in case, don't leak the newly allocated deep userdata object
-        deleteDeepObjectInternal(L_, _prelude);
+        DeleteDeepObject(L_, _prelude);
         raise_luaL_error(L_, "Bad DeepFactory::newDeepObjectInternal overload: should not push anything on the stack");
     }
 

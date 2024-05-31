@@ -376,8 +376,9 @@ local timer = function() error "timers are not active" end
 local timers = timer
 local timer_lane = nil
 
--- timer_gateway should always exist, even when the settings disable the timers
-local timer_gateway
+-- timerLinda should always exist, even when the settings disable the timers
+-- is upvalue of timer stuff and lanes.sleep()
+local timerLinda
 
 local TGW_KEY = "(timer control)"    -- the key does not matter, a 'weird' key may help debugging
 local TGW_QUERY, TGW_REPLY = "(timer query)", "(timer reply)"
@@ -387,7 +388,7 @@ local TGW_QUERY, TGW_REPLY = "(timer query)", "(timer reply)"
 local configure_timers = function()
     -- On first 'require "lanes"', a timer lane is spawned that will maintain
     -- timer tables and sleep in between the timer events. All interaction with
-    -- the timer lane happens via a 'timer_gateway' Linda, which is common to
+    -- the timer lane happens via a 'timerLinda' Linda, which is common to
     -- all that 'require "lanes"'.
     --
     -- Linda protocol to timer lane:
@@ -399,8 +400,8 @@ local configure_timers = function()
 
     -- Timer lane; initialize only on the first 'require "lanes"' instance (which naturally has 'table' always declared)
     local first_time_key = "first time"
-    local first_time = timer_gateway:get(first_time_key) == nil
-    timer_gateway:set(first_time_key, true)
+    local first_time = timerLinda:get(first_time_key) == nil
+    timerLinda:set(first_time_key, true)
     if first_time then
 
         assert(type(now_secs) == "function")
@@ -552,7 +553,7 @@ local configure_timers = function()
                 return next_wakeup  -- may be 'nil'
             end -- check_timers()
 
-            local timer_gateway_batched = timer_gateway.batched
+            local timer_gateway_batched = timerLinda.batched
             set_finalizer(function(err, stk)
                 if err and type(err) ~= "userdata" then
                     error("LanesTimer error: "..tostring(err))
@@ -572,18 +573,18 @@ local configure_timers = function()
                     secs =  next_wakeup - now_secs()
                     if secs < 0 then secs = 0 end
                 end
-                local key, what = timer_gateway:receive(secs, TGW_KEY, TGW_QUERY)
+                local key, what = timerLinda:receive(secs, TGW_KEY, TGW_QUERY)
 
                 if key == TGW_KEY then
                     assert(getmetatable(what) == "Linda") -- 'what' should be a linda on which the client sets a timer
-                    local _, key, wakeup_at, period = timer_gateway:receive(0, timer_gateway_batched, TGW_KEY, 3)
+                    local _, key, wakeup_at, period = timerLinda:receive(0, timer_gateway_batched, TGW_KEY, 3)
                     assert(key)
                     set_timer(what, key, wakeup_at, period and period > 0 and period or nil)
                 elseif key == TGW_QUERY then
                     if what == "get_timers" then
-                        timer_gateway:send(TGW_REPLY, get_timers())
+                        timerLinda:send(TGW_REPLY, get_timers())
                     else
-                        timer_gateway:send(TGW_REPLY, "unknown query " .. what)
+                        timerLinda:send(TGW_REPLY, "unknown query " .. what)
                     end
                 --elseif secs == nil then -- got no value while block-waiting?
                 --	WR("timer lane: no linda, aborted?")
@@ -610,7 +611,7 @@ local configure_timers = function()
             linda_:set(key_, now_secs())
 
             if not period_ or period_ == 0.0 then
-                timer_gateway:send(TGW_KEY, linda_, key_, nil, nil )   -- clear the timer
+                timerLinda:send(TGW_KEY, linda_, key_, nil, nil )   -- clear the timer
                 return  -- nothing more to do
             end
             when_ = period_
@@ -620,7 +621,7 @@ local configure_timers = function()
                                             or (when_ and now_secs()+when_ or nil)
         -- queue to timer
         --
-        timer_gateway:send(TGW_KEY, linda_, key_, wakeup_at, period_)
+        timerLinda:send(TGW_KEY, linda_, key_, wakeup_at, period_)
     end -- timer()
 
     -----
@@ -628,11 +629,11 @@ local configure_timers = function()
     --
     -- PUBLIC LANES API
     timers = function()
-        timer_gateway:send(TGW_QUERY, "get_timers")
-        local _, r = timer_gateway:receive(TGW_REPLY)
+        timerLinda:send(TGW_QUERY, "get_timers")
+        local _, r = timerLinda:receive(TGW_REPLY)
         return r
     end -- timers()
-end
+end -- configure_timers()
 
 -- #################################################################################################
 -- ###################################### lanes.sleep() ############################################
@@ -651,8 +652,8 @@ local sleep = function(seconds_)
         error("invalid duration " .. string_format("%q", tostring(seconds_)))
     end
     -- receive data on a channel no-one ever sends anything, thus blocking for the specified duration
-    return timer_gateway:receive(seconds_, "ac100de1-a696-4619-b2f0-a26de9d58ab8")
-end -- sleep
+    return timerLinda:receive(seconds_, "ac100de1-a696-4619-b2f0-a26de9d58ab8")
+end -- sleep()
 
 -- #################################################################################################
 -- ##################################### lanes.genlock() ###########################################
@@ -782,7 +783,7 @@ local configure = function(settings_)
     -- avoid pulling the whole core module as upvalue when cancel_error is enough
     -- these are locals declared above, that we need to set prior to calling configure_timers()
     cancel_error = assert(core.cancel_error)
-    timer_gateway = assert(core.timer_gateway)
+    timerLinda = assert(core.timerLinda)
 
     if settings.with_timers then
         configure_timers(settings)
