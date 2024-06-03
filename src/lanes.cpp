@@ -161,6 +161,33 @@ LUAG_FUNC(set_thread_affinity)
 
 // #################################################################################################
 
+LUAG_FUNC(sleep)
+{
+    extern LUAG_FUNC(linda_receive);
+
+    Universe* const _U{ Universe::Get(L_) };
+    lua_settop(L_, 1);
+    lua_pushcfunction(L_, LG_linda_receive);                                                       // L_: duration|nil receive()
+    STACK_CHECK_START_REL(L_, 0); // we pushed the function we intend to call, now prepare the arguments
+    _U->timerLinda->push(L_);                                                                      // L_: duration|nil receive() timerLinda
+    if (lua_tostringview(L_, 1) == "indefinitely") {
+        lua_pushnil(L_);                                                                           // L_: duration? receive() timerLinda nil
+    } else if (lua_isnoneornil(L_, 1)) {
+        lua_pushnumber(L_, 0);                                                                     // L_: duration? receive() timerLinda 0
+    } else if (!lua_isnumber(L_, 1)) {
+        raise_luaL_argerror(L_, 1, "invalid duration");
+    }
+    else {
+        lua_pushnumber(L_, lua_tonumber(L_, 1));                                                   // L_: duration? receive() timerLinda duration
+    }
+    std::ignore = lua_pushstringview(L_, "ac100de1-a696-4619-b2f0-a26de9d58ab8");                  // L_: duration? receive() timerLinda duration key
+    STACK_CHECK(L_, 3); // 3 arguments ready
+    lua_call(L_, 3, LUA_MULTRET); // timerLinda:receive(duration,key)                              // L_: duration? result...
+    return lua_gettop(L_) - 1;
+}
+
+// #################################################################################################
+
 // --- If a client wants to transfer stuff of a given module from the current state to another Lane, the module must be required
 // with lanes.require, that will call the regular 'require', then populate the lookup database in the source lane
 // module = lanes.require( "modname")
@@ -592,15 +619,16 @@ extern LUAG_FUNC(linda);
 namespace {
     namespace local {
         static struct luaL_Reg const sLanesFunctions[] = {
+            { Universe::kFinally, Universe::InitializeFinalizer },
             { "linda", LG_linda },
+            { "nameof", LG_nameof },
             { "now_secs", LG_now_secs },
-            { "wakeup_conv", LG_wakeup_conv },
+            { "register", LG_register },
+            { "set_singlethreaded", LG_set_singlethreaded },
             { "set_thread_priority", LG_set_thread_priority },
             { "set_thread_affinity", LG_set_thread_affinity },
-            { "nameof", LG_nameof },
-            { "register", LG_register },
-            { Universe::kFinally, Universe::InitializeFinalizer },
-            { "set_singlethreaded", LG_set_singlethreaded },
+            { "sleep", LG_sleep },
+            { "wakeup_conv", LG_wakeup_conv },
             { nullptr, nullptr }
         };
     } // namespace local

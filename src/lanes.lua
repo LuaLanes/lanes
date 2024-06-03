@@ -644,26 +644,6 @@ local configure_timers = function()
 end -- configure_timers()
 
 -- #################################################################################################
--- ###################################### lanes.sleep() ############################################
--- #################################################################################################
-
--- nil, "timeout" = sleep([seconds_])
---
--- PUBLIC LANES API
-local sleep = function(seconds_)
-    local type = type(seconds_)
-    if type == "string" then
-        seconds_ = (seconds_ ~= 'indefinitely') and tonumber(seconds_) or nil
-    elseif type == "nil" then
-        seconds_ = 0
-    elseif type ~= "number" then
-        error("invalid duration " .. string_format("%q", tostring(seconds_)))
-    end
-    -- receive data on a channel no-one ever sends anything, thus blocking for the specified duration
-    return timerLinda:receive(seconds_, "ac100de1-a696-4619-b2f0-a26de9d58ab8")
-end -- sleep()
-
--- #################################################################################################
 -- ##################################### lanes.genlock() ###########################################
 -- #################################################################################################
     -- These functions are just surface sugar, but make solutions easier to read.
@@ -799,22 +779,22 @@ local configure = function(settings_)
 
     -- activate full interface
     lanes.cancel_error = core.cancel_error
+    lanes.finally = core.finally
     lanes.linda = core.linda
     lanes.nameof = core.nameof
     lanes.now_secs = core.now_secs
     lanes.null = core.null
-    lanes.require = core.require
     lanes.register = core.register
-    lanes.finally = core.finally
+    lanes.require = core.require
     lanes.set_singlethreaded = core.set_singlethreaded
     lanes.set_thread_affinity = core.set_thread_affinity
     lanes.set_thread_priority = core.set_thread_priority
+    lanes.sleep = core.sleep
     lanes.threads = core.threads or function() error "lane tracking is not available" end -- core.threads isn't registered if settings.track_lanes is false
 
     lanes.gen = gen
     lanes.genatomic = genatomic
     lanes.genlock = genlock
-    lanes.sleep = sleep
     lanes.timer = timer
     lanes.timer_lane = timer_lane
     lanes.timers = timers

@@ -59,7 +59,7 @@ class RegistryUniqueKey
     }
     // ---------------------------------------------------------------------------------------------
     template <typename OP>
-    void setValue(lua_State* L_, OP operation_) const
+    void setValue(lua_State* const L_, OP operation_) const
     {
         // Note we can't check stack consistency because operation is not always a push (could be insert, replace, whatever)
         pushKey(L_);                                                                               // ... key
@@ -91,7 +91,7 @@ class RegistryUniqueKey
     }
     // ---------------------------------------------------------------------------------------------
     // equivalent to luaL_getsubtable
-    [[nodiscard]] bool getSubTable(lua_State* const L_, int narr_, int nrec_) const
+    [[nodiscard]] bool getSubTable(lua_State* const L_, int const narr_, int const nrec_) const
     {
         STACK_CHECK_START_REL(L_, 0);
         pushValue(L_);                                                                             // L_: {}|nil
@@ -108,7 +108,7 @@ class RegistryUniqueKey
         return false;
     }
     // ---------------------------------------------------------------------------------------------
-    void getSubTableMode(lua_State* L_, const char* mode_) const
+    void getSubTableMode(lua_State* const L_, char const* const mode_) const
     {
         STACK_CHECK_START_REL(L_, 0);
         if (!getSubTable(L_, 0, 0)) {                                                              // L_: {}

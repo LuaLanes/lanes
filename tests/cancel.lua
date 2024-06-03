@@ -10,8 +10,15 @@ end
 local lanes = require "lanes" .configure{ with_timers = false}
 
 local SLEEP = function(...)
-	local k, v = lanes.sleep(...)
-	assert(k == nil and v == "timeout")
+	-- just for fun: start a lane that will do the sleeping for us
+	local sleeperBody = function(...)
+		local lanes = require "lanes"
+		local k, v = lanes.sleep(...)
+		assert(k == nil and v == "timeout")
+	end
+	local sleeper = lanes.gen("*", sleeperBody)(...)
+	-- then wait for the lane to terminate
+	sleeper:join()
 end
 
 local linda = lanes.linda()

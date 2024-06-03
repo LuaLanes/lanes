@@ -191,7 +191,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
     STACK_GROW(L_, 7);
 
     // a new full userdata, fitted with the specified number of uservalue slots (always 1 for Lua < 5.4)
-    DeepPrelude** const _proxy{ lua_newuserdatauv<DeepPrelude*>(L_, nuv_) };                        // L_: DPC proxy
+    DeepPrelude** const _proxy{ lua_newuserdatauv<DeepPrelude*>(L_, nuv_) };                       // L_: DPC proxy
     LUA_ASSERT(L_, _proxy);
     *_proxy = prelude_;
     prelude_->refcount.fetch_add(1, std::memory_order_relaxed); // one more proxy pointing to this deep data
@@ -268,10 +268,10 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
             }
         }
     }
-    STACK_CHECK(L_, 3);                                                                            // DPC proxy metatable
+    STACK_CHECK(L_, 3);                                                                            // L_: DPC proxy metatable
     LUA_ASSERT(L_, lua_type_as_enum(L_, -2) == LuaType::USERDATA);
     LUA_ASSERT(L_, lua_istable(L_, -1));
-    lua_setmetatable(L_, -2);                                                                      // DPC proxy
+    lua_setmetatable(L_, -2);                                                                      // L_: DPC proxy
 
     // If we're here, we obviously had to create a new proxy, so cache it.
     lua_pushlightuserdata(L_, prelude_);                                                           // L_: DPC proxy deep
@@ -374,4 +374,16 @@ DeepPrelude* DeepFactory::toDeep(lua_State* const L_, int const index_) const
 
     DeepPrelude** const _proxy{ lua_tofulluserdata<DeepPrelude*>(L_, index_) };
     return *_proxy;
+}
+
+// #################################################################################################
+
+void DeepPrelude::push(lua_State* L_) const
+{
+    STACK_CHECK_START_REL(L_, 0);
+    kDeepProxyCacheRegKey.getSubTableMode(L_, "v");                                                // L_: DPC
+    lua_pushlightuserdata(L_, const_cast<DeepPrelude*>(this));                                     // L_: DPC this
+    lua_rawget(L_, -2);                                                                            // L_: DPC deep
+    lua_remove(L_, -2);                                                                            // L_: deep
+    STACK_CHECK(L_, 1);
 }

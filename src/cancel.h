@@ -26,6 +26,7 @@ class Lane; // forward
 enum class CancelRequest
 {
     None, // no pending cancel request
+    // TODO: add a Wake mode: user wants to wake the waiting lindas (in effect resulting in a timeout before the initial operation duration)
     Soft, // user wants the lane to cancel itself manually on cancel_test()
     Hard // user wants the lane to be interrupted (meaning code won't return from those functions) from inside linda:send/receive calls
 };
