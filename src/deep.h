@@ -22,6 +22,7 @@ extern "C"
 
 // forwards
 enum class LookupMode;
+class DeepFactory;
 class Universe;
 
 // #################################################################################################
@@ -35,7 +36,7 @@ struct DeepPrelude
 {
     UniqueKey const magic{ kDeepVersion };
     // when stored in a keeper state, the full userdata doesn't have a metatable, so we need direct access to the factory
-    class DeepFactory& factory;
+    DeepFactory& factory;
     // data is destroyed when refcount is 0
     std::atomic<int> refcount{ 0 };
 

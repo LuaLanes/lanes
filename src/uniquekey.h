@@ -9,10 +9,8 @@
 
 class UniqueKey
 {
-    protected:
-    uintptr_t const storage{ 0 };
-
     public:
+    uintptr_t const storage{ 0 };
     std::string_view debugName{};
 
     // ---------------------------------------------------------------------------------------------
@@ -27,10 +25,11 @@ class UniqueKey
     }
     // ---------------------------------------------------------------------------------------------
     constexpr UniqueKey(UniqueKey const& rhs_) = default;
+    // debugName is irrelevant in comparisons
+    inline constexpr std::weak_ordering operator<=>(UniqueKey const& rhs_) const { return storage <=> rhs_.storage; }
+    inline constexpr auto operator==(UniqueKey const& rhs_) const { return storage == rhs_.storage; }
     // ---------------------------------------------------------------------------------------------
-    constexpr std::strong_ordering operator<=>(UniqueKey const& rhs_) const = default;
-    // ---------------------------------------------------------------------------------------------
-    bool equals(lua_State* const L_, int i_) const
+    bool equals(lua_State* const L_, int const i_) const
     {
         return lua_touserdata(L_, i_) == std::bit_cast<void*>(storage);
     }
