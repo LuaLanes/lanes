@@ -90,19 +90,20 @@ local isLuaJIT = (package and package.loaded.jit and jit.version) and true or fa
 
 local default_params =
 {
-    nb_user_keepers = 0,
-    keepers_gc_threshold = -1,
-    on_state_create = nil,
-    shutdown_timeout = 0.25,
-    shutdown_mode = "hard",
-    with_timers = false,
-    track_lanes = false,
-    demote_full_userdata = nil,
-    verbose_errors = false,
     -- LuaJIT provides a thread-unsafe allocator by default, so we need to protect it when used in parallel lanes
     allocator = isLuaJIT and "protected" or nil,
+    demote_full_userdata = nil,
     -- it looks also like LuaJIT allocator may not appreciate direct use of its allocator for other purposes than the VM operation
-    internal_allocator = isLuaJIT and "libc" or "allocator"
+    internal_allocator = isLuaJIT and "libc" or "allocator",
+    keepers_gc_threshold = -1,
+    nb_user_keepers = 0,
+    on_state_create = nil,
+    shutdown_mode = "hard",
+    shutdown_timeout = 0.25,
+    strip_functions = true,
+    track_lanes = false,
+    verbose_errors = false,
+    with_timers = false,
 }
 
 -- #################################################################################################
@@ -114,39 +115,40 @@ end
 
 local param_checkers =
 {
-    nb_user_keepers = function(val_)
-        -- nb_user_keepers should be a number in [0,100] (so that nobody tries to run OOM by specifying a huge amount)
-        return type(val_) == "number" and val_ >= 0 and val_ <= 100
+    allocator = function(val_)
+        -- can be nil, "protected", or a function
+        return val_ and (type(val_) == "function" or val_ == "protected") or true
+    end,
+    demote_full_userdata = boolean_param_checker,
+    internal_allocator = function(val_)
+        -- can be "libc" or "allocator"
+        return val_ == "libc" or val_ == "allocator"
     end,
     keepers_gc_threshold = function(val_)
         -- keepers_gc_threshold should be a number
         return type(val_) == "number"
     end,
-    with_timers = boolean_param_checker,
-    allocator = function(val_)
-        -- can be nil, "protected", or a function
-        return val_ and (type(val_) == "function" or val_ == "protected") or true
-    end,
-    internal_allocator = function(val_)
-        -- can be "libc" or "allocator"
-        return val_ == "libc" or val_ == "allocator"
+    nb_user_keepers = function(val_)
+        -- nb_user_keepers should be a number in [0,100] (so that nobody tries to run OOM by specifying a huge amount)
+        return type(val_) == "number" and val_ >= 0 and val_ <= 100
     end,
     on_state_create = function(val_)
         -- on_state_create may be nil or a function
         return val_ and type(val_) == "function" or true
-    end,
-    shutdown_timeout = function(val_)
-        -- shutdown_timeout should be a number >= 0
-        return type(val_) == "number" and val_ >= 0
     end,
     shutdown_mode = function(val_)
         local valid_hooks = { soft = true, hard = true, call = true, ret = true, line = true, count = true }
         -- shutdown_mode should be a known hook mask
         return valid_hooks[val_]
     end,
+    shutdown_timeout = function(val_)
+        -- shutdown_timeout should be a number >= 0
+        return type(val_) == "number" and val_ >= 0
+    end,
+    strip_functions = boolean_param_checker,
     track_lanes = boolean_param_checker,
-    demote_full_userdata = boolean_param_checker,
-    verbose_errors = boolean_param_checker
+    verbose_errors = boolean_param_checker,
+    with_timers = boolean_param_checker,
 }
 
 -- #################################################################################################

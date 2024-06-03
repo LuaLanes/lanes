@@ -133,6 +133,8 @@ class Universe
 
     bool demoteFullUserdata{ false };
 
+    bool stripFunctions{ true };
+
     // before a state is created, this function will be called to obtain the allocator
     lua_CFunction provideAllocator{ nullptr };
 

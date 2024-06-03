@@ -196,7 +196,7 @@ void InterCopyContext::copy_func() const
     // not sure this could ever fail but for memory shortage reasons
     // last parameter is Lua 5.4-specific (no stripping)
     luaL_Buffer B{};
-    if (lua504_dump(L1, buf_writer, &B, 0) != 0) {
+    if (lua504_dump(L1, buf_writer, &B, U->stripFunctions) != 0) {
         raise_luaL_error(getErrL(), "internal error: function dump failed.");
     }
 

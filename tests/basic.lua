@@ -6,8 +6,8 @@
 -- To do:
 --      - ...
 --
-
-local require_lanes_result_1, require_lanes_result_2 = require "lanes".configure{ with_timers = false, internal_allocator = "libc"}
+local config = { with_timers = false, strip_functions = false, internal_allocator = "libc"}
+local require_lanes_result_1, require_lanes_result_2 = require "lanes".configure(config)
 print("require_lanes_result:", require_lanes_result_1, require_lanes_result_2)
 local lanes = require_lanes_result_1
 
@@ -403,26 +403,28 @@ local function chunk2(linda)
     --
     local info= debug.getinfo(1)    -- 1 = us
     --
+    PRINT "debug.getinfo->"
     for k,v in pairs(info) do PRINT(k,v) end
 
-    assert(info.nups == (_VERSION == "Lua 5.1" and 2 or 3))    -- one upvalue + PRINT + _ENV (Lua 5.2 only)
-    assert(info.what == "Lua")
+    -- some assertions are adjusted depending on config.strip_functions, because it changes what we get out of debug.getinfo
+    assert(info.nups == (_VERSION == "Lua 5.1" and 3 or 4), "bad nups")    -- upvalue + config + PRINT + _ENV (Lua > 5.2 only)
+    assert(info.what == "Lua", "bad what")
     --assert(info.name == "chunk2")   -- name does not seem to come through
-    assert(string.match(info.source, "^@.*basic.lua$"))
-    assert(string.match(info.short_src, "^.*basic.lua$"))
+    assert(config.strip_functions and info.source=="=?" or string.match(info.source, "^@.*basic.lua$"), "bad info.source")
+    assert(config.strip_functions and info.short_src=="?" or string.match(info.short_src, "^.*basic.lua$"), "bad info.short_src")
     -- These vary so let's not be picky (they're there..)
     --
-    assert(info.linedefined > 200)   -- start of 'chunk2'
-    assert(info.currentline > info.linedefined)   -- line of 'debug.getinfo'
-    assert(info.lastlinedefined > info.currentline)   -- end of 'chunk2'
+    assert(info.linedefined == 400, "bad linedefined")   -- start of 'chunk2'
+    assert(config.strip_functions and info.currentline==-1 or info.currentline > info.linedefined, "bad currentline")   -- line of 'debug.getinfo'
+    assert(info.lastlinedefined > info.currentline, "bad lastlinedefined")   -- end of 'chunk2'
     local k,func= linda:receive("down")
-    assert(type(func)=="function")
+    assert(type(func)=="function", "not a function")
     assert(k=="down")
 
     func(linda)
 
     local k,str= linda:receive("down")
-    assert(str=="ok")
+    assert(str=="ok", "bad receive result")
 
     linda:send("up", function() return ":)" end, "ok2")
 end
