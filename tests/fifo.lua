@@ -11,6 +11,9 @@ local atomic_inc= lanes.genatomic( atomic_linda, "FIFO_n")
 
 local fifo_linda = lanes.linda( "fifo")
 
+-- Lua 5.1 support
+local table_unpack = table.unpack or unpack
+
 assert( atomic_inc()==1)
 assert( atomic_inc()==2)
 
@@ -40,15 +43,18 @@ print "Sending to B.."
 B:send( 'a','b','c')
 
 print "Dumping linda stats.. [1]" -- count everything
-for key,count in pairs(fifo_linda:count()) do
+local stats = fifo_linda:count()
+for key,count in pairs(stats) do
     print("channel " .. key .. " contains " .. count .. " entries.")
     -- print(i, key_count[1], key_count[2])
 end
+
 print "Dumping linda stats.. [2]" -- query count for known channels one at a time
 print("channel " .. A.channel .. " contains " .. fifo_linda:count(A.channel) .. " entries.")
 print("channel " .. B.channel .. " contains " .. fifo_linda:count(B.channel) .. " entries.")
-print "Dumping linda stats.. [3]" -- query counts for a predefined list of keys
-for key,count in pairs(fifo_linda:count(A.channel, B.channel)) do
+
+print "Dumping linda stats.. [3]" -- query counts for a predefined list of keys, tossing unknown keys in the mix for good measure
+for key,count in pairs(fifo_linda:count("unknown key", A.channel, "unknown key", B.channel, "unknown key", "unknown key")) do
     print("channel " .. key .. " contains " .. count .. " entries.")
     -- print(i, key_count[1], key_count[2])
 end
