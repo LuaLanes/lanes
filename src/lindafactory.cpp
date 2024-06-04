@@ -79,7 +79,7 @@ void LindaFactory::deleteDeepObjectInternal(lua_State* L_, DeepPrelude* o_) cons
         // Clean associated structures in the keeper state.
         Keeper* const _K{ _need_acquire_release ? _linda->acquireKeeper() : _myK };
         // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
-        [[maybe_unused]] KeeperCallResult const result{ keeper_call(_K->L, KEEPER_API(clear), L_, _linda, 0) };
+        [[maybe_unused]] KeeperCallResult const result{ keeper_call(_K->L, KEEPER_API(destruct), L_, _linda, 0) };
         LUA_ASSERT(L_, result.has_value() && result.value() == 0);
         if (_need_acquire_release) {
             _linda->releaseKeeper(_K);

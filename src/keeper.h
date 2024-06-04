@@ -87,16 +87,16 @@ static constexpr UniqueKey kNilSentinel{ 0xC457D4EDDB05B5E4ull, "lanes.null" };
 
 using keeper_api_t = lua_CFunction;
 #define KEEPER_API(_op) keepercall_##_op
-#define PUSH_KEEPER_FUNC lua_pushcfunction
+
 // lua_Cfunctions to run inside a keeper state
-[[nodiscard]] int keepercall_clear(lua_State* L_);
-[[nodiscard]] int keepercall_send(lua_State* L_);
+[[nodiscard]] int keepercall_count(lua_State* L_);
+[[nodiscard]] int keepercall_destruct(lua_State* L_);
+[[nodiscard]] int keepercall_get(lua_State* L_);
+[[nodiscard]] int keepercall_limit(lua_State* L_);
 [[nodiscard]] int keepercall_receive(lua_State* L_);
 [[nodiscard]] int keepercall_receive_batched(lua_State* L_);
-[[nodiscard]] int keepercall_limit(lua_State* L_);
-[[nodiscard]] int keepercall_get(lua_State* L_);
+[[nodiscard]] int keepercall_send(lua_State* L_);
 [[nodiscard]] int keepercall_set(lua_State* L_);
-[[nodiscard]] int keepercall_count(lua_State* L_);
 
 using KeeperCallResult = Unique<std::optional<int>>;
 [[nodiscard]] KeeperCallResult keeper_call(KeeperState K_, keeper_api_t func_, lua_State* L_, Linda* linda_, int starting_index_);

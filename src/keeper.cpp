@@ -306,8 +306,72 @@ int keeper_push_linda_storage(Linda& linda_, DestState L_)
 // #################################################################################################
 // #################################################################################################
 
+// in: linda [, key [, ...]]
+int keepercall_count(lua_State* const L_)
+{
+    KeeperState const _K{ L_ };
+    switch (lua_gettop(_K)) {
+    // no key is specified: return a table giving the count of all known keys
+    case 1:                                                                                        // _K: linda
+        PushKeysDB(_K, 1);                                                                         // _K: linda KeysDB
+        lua_newtable(_K);                                                                          // _K: linda KeysDB out
+        lua_replace(_K, 1);                                                                        // _K: out KeysDB
+        lua_pushnil(_K);                                                                           // _K: out KeysDB nil
+        while (lua_next(_K, 2)) {                                                                  // _K: out KeysDB key KeyUD
+            KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
+            lua_pop(_K, 1);                                                                        // _K: out KeysDB key
+            lua_pushvalue(_K, -1);                                                                 // _K: out KeysDB key key
+            lua_pushinteger(_K, _key->count);                                                      // _K: out KeysDB key key count
+            lua_rawset(_K, -5);                                                                    // _K: out KeysDB key
+        }
+        lua_pop(_K, 1);                                                                            // _K: out
+        break;
+
+    // 1 key is specified: return its count
+    case 2:                                                                                        // _K: linda key
+        PushKeysDB(_K, 1);                                                                         // _K: linda key KeysDB
+        lua_replace(_K, 1);                                                                        // _K: KeysDB key
+        lua_rawget(_K, -2);                                                                        // _K: KeysDB KeyUD|nil
+        if (lua_isnil(_K, -1)) { // the key is unknown                                             // _K: KeysDB nil
+            lua_remove(_K, -2);                                                                    // _K: nil
+        } else { // the key is known                                                               // _K: KeysDB KeyUD
+            KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
+            lua_pushinteger(_K, _key->count);                                                      // _K: KeysDB KeyUD count
+            lua_replace(_K, -3);                                                                   // _K: count KeyUD
+            lua_pop(_K, 1);                                                                        // _K: count
+        }
+        break;
+
+    // a variable number of keys is specified: return a table of their counts
+    default:                                                                                       // _K: linda keys... key#1
+        lua_pushvalue(_K, 2); // duplicate the first key of the list                               // _K: linda keys... key#1
+        PushKeysDB(_K, 1);                                                                         // _K: linda keys... key#1 KeysDB
+        lua_newtable(_K);                                                                          // _K: linda keys... key#1 KeysDB out
+        lua_replace(_K, 1);                                                                        // _K: out keys... key#1 KeysDB
+        lua_replace(_K, 2); // the list of keys is the same, but for key#1 moved at the end        // _K: out KeysDB keys...
+        while (lua_gettop(_K) > 2) {
+            lua_pushvalue(_K, -1);                                                                 // _K: out KeysDB keys... key
+            lua_rawget(_K, 2);                                                                     // _K: out KeysDB keys... KeyUD|nil
+            KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
+            lua_pop(_K, 1);                                                                        // _K: out KeysDB keys...
+            if (_key != nullptr) { // the key is known
+                lua_pushinteger(_K, _key->count);                                                  // _K: out KeysDB keys... count
+                lua_rawset(_K, 1);                                                                 // _K: out KeysDB keys...
+            } else { // the key is unknown
+                lua_pop(_K, 1);                                                                    // _K: out KeysDB keys...
+            }
+        } // all keys are exhausted                                                                // _K: out KeysDB
+        lua_pop(_K, 1);                                                                            // _K: out
+    }
+    LUA_ASSERT(_K, lua_gettop(_K) == 1);
+    return 1;
+}
+
+// #################################################################################################
+
 // in: linda
-int keepercall_clear(lua_State* const L_)
+// not part of the linda public API, only used for cleanup at linda GC
+int keepercall_destruct(lua_State* const L_)
 {
     STACK_GROW(L_, 3);
     STACK_CHECK_START_REL(L_, 0);
@@ -323,41 +387,64 @@ int keepercall_clear(lua_State* const L_)
 
 // #################################################################################################
 
-// in: linda_ud, key, ...
-// out: true|false
-int keepercall_send(lua_State* const L_)
+// in: linda_ud key [count]
+// out: at most <count> values
+int keepercall_get(lua_State* const L_)
 {
     KeeperState const _K{ L_ };
-    int const _n{ lua_gettop(_K) - 2 };
-    STACK_CHECK_START_REL(_K, 0);
-    PushKeysDB(_K, 1);                                                                             // _K: linda key args... KeysDB
-    // get the fifo associated to this key in this linda, create it if it doesn't exist
-    lua_pushvalue(_K, 2);                                                                          // _K: linda key args... KeysDB key
-    lua_rawget(_K, -2);                                                                            // _K: linda key args... KeysDB KeyUD|nil
-    if (lua_isnil(_K, -1)) {
-        lua_pop(_K, 1);                                                                            // _K: linda key args... KeysDB
-        std::ignore = KeyUD::Create(KeeperState{ _K });                                            // _K: linda key args... KeysDB KeyUD
-        // KeysDB[key] = KeyUD
-        lua_pushvalue(_K, 2);                                                                      // _K: linda key args... KeysDB KeyUD key
-        lua_pushvalue(_K, -2);                                                                     // _K: linda key args... KeysDB KeyUD key KeyUD
-        lua_rawset(_K, -4);                                                                        // _K: linda key args... KeysDB KeyUD
+    int _count{ 1 };
+    if (lua_gettop(_K) == 3) {                                                                     // _K: linda key count
+        _count = static_cast<int>(lua_tointeger(_K, 3)); // linda:get() made sure _count >= 1
+        lua_pop(_K, 1);                                                                            // _K: linda key
     }
-    lua_remove(_K, -2);                                                                            // _K: linda key args... KeyUD
-    STACK_CHECK(_K, 1);
+    PushKeysDB(_K, 1);                                                                             // _K: linda key KeysDB
+    lua_replace(_K, 1);                                                                            // _K: KeysDB key
+    lua_rawget(_K, 1);                                                                             // _K: KeysDB KeyUD
+    lua_remove(_K, 1);                                                                             // _K: KeyUD
     KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
-    if (_key->limit >= 0 && _key->count + _n > _key->limit) { // not enough room?
-        // don't send anything
-        lua_settop(_K, 0);                                                                         // _K:
-        lua_pushboolean(_K, 0);                                                                    // _K: false
+    if (_key != nullptr) {
+        _key->peek(_K, _count);                                                                    // _K: val...
     } else {
-        // _key should remain unchanged
-        _key->prepareAccess(_K);                                                                   // _K: linda key args... fifo
-        lua_replace(_K, 2);                                                                        // _K: linda fifo args...
-        _key->push(_K, _n);                                                                        // _K: linda fifo
-        lua_settop(_K, 0);                                                                         // _K:
+        // no fifo was ever registered for this key, or it is empty
+        lua_pop(_K, 1);                                                                            // _K:
+    }
+    return lua_gettop(_K);
+}
+
+// #################################################################################################
+
+// in: linda key [n|nil]
+// out: true or nil
+int keepercall_limit(lua_State* const L_)
+{
+    KeeperState const _K{ L_ };
+    int const _limit{ static_cast<int>(luaL_optinteger(_K, 3, -1)) }; // -1 if we read nil because the argument is absent
+    lua_settop(_K, 2);                                                                             // _K: linda key
+    PushKeysDB(_K, 1);                                                                             // _K: linda key KeysDB
+    lua_replace(_K, 1);                                                                            // _K: KeysDB key
+    lua_pushvalue(_K, -1);                                                                         // _K: KeysDB key key
+    lua_rawget(_K, -3);                                                                            // _K: KeysDB key KeyUD|nil
+    KeyUD* _key{ KeyUD::GetPtr(_K, -1) };
+    if (_key == nullptr) {                                                                         // _K: KeysDB key nil
+        lua_pop(_K, 1);                                                                            // _K: KeysDB key
+        _key = KeyUD::Create(_K);                                                                  // _K: KeysDB key KeyUD
+        lua_rawset(_K, -3);                                                                        // _K: KeysDB
+    }
+    // remove any clutter on the stack
+    lua_settop(_K, 0);                                                                             // _K:
+    // return true if we decide that blocked threads waiting to write on that key should be awakened
+    // this is the case if we detect the key was full but it is no longer the case
+    // TODO: make this KeyUD::changeLimit() -> was full (bool)
+    if (
+        ((_key->limit >= 0) && (_key->count >= _key->limit)) // the key was full if limited and count exceeded the previous limit
+        && ((_limit < 0) || (_key->count < _limit))          // the key is not full if unlimited or count is lower than the new limit
+    ) {
         lua_pushboolean(_K, 1);                                                                    // _K: true
     }
-    return 1;
+    // set the new limit
+    _key->limit = _limit;
+    // return 0 or 1 value
+    return lua_gettop(_K);
 }
 
 // #################################################################################################
@@ -427,38 +514,41 @@ int keepercall_receive_batched(lua_State* const L_)
 
 // #################################################################################################
 
-// in: linda_ud key [n|nil]
-// out: true or nil
-int keepercall_limit(lua_State* const L_)
+// in: linda_ud, key, ...
+// out: true|false
+int keepercall_send(lua_State* const L_)
 {
     KeeperState const _K{ L_ };
-    int const _limit{ static_cast<int>(luaL_optinteger(_K, 3, -1)) }; // -1 if we read nil because the argument is absent
-    lua_settop(_K, 2);                                                                             // _K: linda key
-    PushKeysDB(_K, 1);                                                                             // _K: linda key KeysDB
-    lua_replace(_K, 1);                                                                            // _K: KeysDB key
-    lua_pushvalue(_K, -1);                                                                         // _K: KeysDB key key
-    lua_rawget(_K, -3);                                                                            // _K: KeysDB key KeyUD|nil
-    KeyUD* _key{ KeyUD::GetPtr(_K, -1) };
-    if (_key == nullptr) {                                                                         // _K: KeysDB key nil
-        lua_pop(_K, 1);                                                                            // _K: KeysDB key
-        _key = KeyUD::Create(_K);                                                                  // _K: KeysDB key KeyUD
-        lua_rawset(_K, -3);                                                                        // _K: KeysDB
+    int const _n{ lua_gettop(_K) - 2 };
+    STACK_CHECK_START_REL(_K, 0);
+    PushKeysDB(_K, 1);                                                                             // _K: linda key args... KeysDB
+    // get the fifo associated to this key in this linda, create it if it doesn't exist
+    lua_pushvalue(_K, 2);                                                                          // _K: linda key args... KeysDB key
+    lua_rawget(_K, -2);                                                                            // _K: linda key args... KeysDB KeyUD|nil
+    if (lua_isnil(_K, -1)) {
+        lua_pop(_K, 1);                                                                            // _K: linda key args... KeysDB
+        std::ignore = KeyUD::Create(KeeperState{ _K });                                            // _K: linda key args... KeysDB KeyUD
+        // KeysDB[key] = KeyUD
+        lua_pushvalue(_K, 2);                                                                      // _K: linda key args... KeysDB KeyUD key
+        lua_pushvalue(_K, -2);                                                                     // _K: linda key args... KeysDB KeyUD key KeyUD
+        lua_rawset(_K, -4);                                                                        // _K: linda key args... KeysDB KeyUD
     }
-    // remove any clutter on the stack
-    lua_settop(_K, 0);                                                                             // _K:
-    // return true if we decide that blocked threads waiting to write on that key should be awakened
-    // this is the case if we detect the key was full but it is no longer the case
-    // TODO: make this KeyUD::changeLimit() -> was full (bool)
-    if (
-        ((_key->limit >= 0) && (_key->count >= _key->limit)) // the key was full if limited and count exceeded the previous limit
-        && ((_limit < 0) || (_key->count < _limit))          // the key is not full if unlimited or count is lower than the new limit
-    ) {
+    lua_remove(_K, -2);                                                                            // _K: linda key args... KeyUD
+    STACK_CHECK(_K, 1);
+    KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
+    if (_key->limit >= 0 && _key->count + _n > _key->limit) { // not enough room?
+        // don't send anything
+        lua_settop(_K, 0);                                                                         // _K:
+        lua_pushboolean(_K, 0);                                                                    // _K: false
+    } else {
+        // _key should remain unchanged
+        _key->prepareAccess(_K);                                                                   // _K: linda key args... fifo
+        lua_replace(_K, 2);                                                                        // _K: linda fifo args...
+        _key->push(_K, _n);                                                                        // _K: linda fifo
+        lua_settop(_K, 0);                                                                         // _K:
         lua_pushboolean(_K, 1);                                                                    // _K: true
     }
-    // set the new limit
-    _key->limit = _limit;
-    // return 0 or 1 value
-    return lua_gettop(_K);
+    return 1;
 }
 
 // #################################################################################################
@@ -519,95 +609,6 @@ int keepercall_set(lua_State* const L_)
 
 // #################################################################################################
 
-// in: linda_ud key [count]
-// out: at most <count> values
-int keepercall_get(lua_State* const L_)
-{
-    KeeperState const _K{ L_ };
-    int _count{ 1 };
-    if (lua_gettop(_K) == 3) {                                                                     // _K: linda key count
-        _count = static_cast<int>(lua_tointeger(_K, 3)); // linda:get() made sure _count >= 1
-        lua_pop(_K, 1);                                                                            // _K: linda key
-    }
-    PushKeysDB(_K, 1);                                                                             // _K: linda key KeysDB
-    lua_replace(_K, 1);                                                                            // _K: KeysDB key
-    lua_rawget(_K, 1);                                                                             // _K: KeysDB KeyUD
-    lua_remove(_K, 1);                                                                             // _K: KeyUD
-    KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
-    if (_key != nullptr) {
-        _key->peek(_K, _count);                                                                    // _K: val...
-    } else {
-        // no fifo was ever registered for this key, or it is empty
-        lua_pop(_K, 1);                                                                            // _K:
-    }
-    return lua_gettop(_K);
-}
-
-// #################################################################################################
-
-// in: linda_ud [, key [, ...]]
-int keepercall_count(lua_State* const L_)
-{
-    KeeperState const _K{ L_ };
-    switch (lua_gettop(_K)) {
-    // no key is specified: return a table giving the count of all known keys
-    case 1:                                                                                        // _K: linda
-        PushKeysDB(_K, 1);                                                                         // _K: linda KeysDB
-        lua_newtable(_K);                                                                          // _K: linda KeysDB out
-        lua_replace(_K, 1);                                                                        // _K: out KeysDB
-        lua_pushnil(_K);                                                                           // _K: out KeysDB nil
-        while (lua_next(_K, 2)) {                                                                  // _K: out KeysDB key KeyUD
-            KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
-            lua_pop(_K, 1);                                                                        // _K: out KeysDB key
-            lua_pushvalue(_K, -1);                                                                 // _K: out KeysDB key key
-            lua_pushinteger(_K, _key->count);                                                      // _K: out KeysDB key key count
-            lua_rawset(_K, -5);                                                                    // _K: out KeysDB key
-        }
-        lua_pop(_K, 1);                                                                            // _K: out
-        break;
-
-    // 1 key is specified: return its count
-    case 2:                                                                                        // _K: linda key
-        PushKeysDB(_K, 1);                                                                         // _K: linda key KeysDB
-        lua_replace(_K, 1);                                                                        // _K: KeysDB key
-        lua_rawget(_K, -2);                                                                        // _K: KeysDB KeyUD|nil
-        if (lua_isnil(_K, -1)) { // the key is unknown                                             // _K: KeysDB nil
-            lua_remove(_K, -2);                                                                    // _K: nil
-        } else { // the key is known                                                               // _K: KeysDB KeyUD
-            KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
-            lua_pushinteger(_K, _key->count);                                                      // _K: KeysDB KeyUD count
-            lua_replace(_K, -3);                                                                   // _K: count KeyUD
-            lua_pop(_K, 1);                                                                        // _K: count
-        }
-        break;
-
-    // a variable number of keys is specified: return a table of their counts
-    default:                                                                                       // _K: linda keys... key#1
-        lua_pushvalue(_K, 2); // duplicate the first key of the list                               // _K: linda keys... key#1
-        PushKeysDB(_K, 1);                                                                         // _K: linda keys... key#1 KeysDB
-        lua_newtable(_K);                                                                          // _K: linda keys... key#1 KeysDB out
-        lua_replace(_K, 1);                                                                        // _K: out keys... key#1 KeysDB
-        lua_replace(_K, 2); // the list of keys is the same, but for key#1 moved at the end        // _K: out KeysDB keys...
-        while (lua_gettop(_K) > 2) {
-            lua_pushvalue(_K, -1);                                                                 // _K: out KeysDB keys... key
-            lua_rawget(_K, 2);                                                                     // _K: out KeysDB keys... KeyUD|nil
-            KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
-            lua_pop(_K, 1);                                                                        // _K: out KeysDB keys...
-            if (_key != nullptr) { // the key is known
-                lua_pushinteger(_K, _key->count);                                                  // _K: out KeysDB keys... count
-                lua_rawset(_K, 1);                                                                 // _K: out KeysDB keys...
-            } else { // the key is unknown
-                lua_pop(_K, 1);                                                                    // _K: out KeysDB keys...
-            }
-        } // all keys are exhausted                                                                // _K: out KeysDB
-        lua_pop(_K, 1);                                                                            // _K: out
-    }
-    LUA_ASSERT(_K, lua_gettop(_K) == 1);
-    return 1;
-}
-
-// #################################################################################################
-
 /*
  * Call a function ('func_name') in the keeper state, and pass on the returned
  * values to 'L'.
@@ -626,7 +627,7 @@ KeeperCallResult keeper_call(KeeperState K_, keeper_api_t func_, lua_State* L_, 
     LUA_ASSERT(L_, _top_K == 0);
 
     STACK_GROW(K_, 2);
-    PUSH_KEEPER_FUNC(K_, func_);                                                                   // L: ... args...                                  K_: func_
+    lua_pushcclosure(K_, func_, 0);                                                                // L: ... args...                                  K_: func_
     lua_pushlightuserdata(K_, linda_);                                                             // L: ... args...                                  K_: func_ linda
     if (
         (_args == 0) ||
@@ -649,7 +650,7 @@ KeeperCallResult keeper_call(KeeperState K_, keeper_api_t func_, lua_State* L_, 
     lua_settop(K_, _top_K);                                                                        // L: ... args... result...                        K_:
 
     // don't do this for this particular function, as it is only called during Linda destruction, and we don't want to raise an error, ever
-    if (func_ != KEEPER_API(clear)) [[unlikely]] {
+    if (func_ != KEEPER_API(destruct)) [[unlikely]] {
         // since keeper state GC is stopped, let's run a step once in a while if required
         int const _gc_threshold{ linda_->U->keepers.gc_threshold };
         if (_gc_threshold == 0) [[unlikely]] {
