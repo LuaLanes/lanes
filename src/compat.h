@@ -186,6 +186,14 @@ inline int luaL_optint(lua_State* L_, int n_, lua_Integer d_)
 
 // #################################################################################################
 
+// use this in place of lua_absindex to save a function call
+inline int luaG_absindex(lua_State* L_, int idx_)
+{
+    return (((idx_) >= 0 || (idx_) <= LUA_REGISTRYINDEX) ? (idx_) : lua_gettop(L_) + (idx_) + 1);
+}
+
+// #################################################################################################
+
 // a strong-typed wrapper over lua error codes to see them easier in a debugger
 enum class LuaError
 {
