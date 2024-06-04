@@ -61,7 +61,6 @@ inline char const* lua_typename(lua_State* L_, LuaType t_)
 // add some Lua 5.3-style API when building for Lua 5.1
 #if LUA_VERSION_NUM == 501
 
-#define lua501_equal lua_equal
 inline int lua_absindex(lua_State* L_, int idx_)
 {
     return (((idx_) >= 0 || (idx_) <= LUA_REGISTRYINDEX) ? (idx_) : lua_gettop(L_) + (idx_) + 1);
@@ -107,18 +106,6 @@ int luaL_getsubtable(lua_State* L_, int idx_, const char* fname_);
 // wrap Lua 5.2 calls under Lua 5.1 API when it is simpler that way
 #if LUA_VERSION_NUM == 502
 
-#ifndef lua501_equal // already defined when compatibility is active in luaconf.h
-inline int lua501_equal(lua_State* L_, int a_, int b_)
-{
-    return lua_compare(L_, a_, b_, LUA_OPEQ);
-}
-#endif // lua501_equal
-#ifndef lua_lessthan // already defined when compatibility is active in luaconf.h
-inline int lua_lessthan(lua_State* L_, int a_, int b_)
-{
-    return lua_compare(L_, a_, b_, LUA_OPLT);
-}
-#endif // lua_lessthan
 inline void luaG_registerlibfuncs(lua_State* L_, luaL_Reg const funcs_[])
 {
     luaL_setfuncs(L_, funcs_, 0);
@@ -149,18 +136,6 @@ inline int lua504_dump(lua_State* L_, lua_Writer writer_, void* data_, [[maybe_u
 // wrap Lua 5.3 calls under Lua 5.1 API when it is simpler that way
 #if LUA_VERSION_NUM == 503
 
-#ifndef lua501_equal // already defined when compatibility is active in luaconf.h
-inline int lua501_equal(lua_State* L_, int a_, int b_)
-{
-    return lua_compare(L_, a_, b_, LUA_OPEQ);
-}
-#endif // lua501_equal
-#ifndef lua_lessthan // already defined when compatibility is active in luaconf.h
-inline int lua_lessthan(lua_State* L_, int a_, int b_)
-{
-    return lua_compare(L_, a_, b_, LUA_OPLT);
-}
-#endif // lua_lessthan
 inline void luaG_registerlibfuncs(lua_State* L_, luaL_Reg const funcs_[])
 {
     luaL_setfuncs(L_, funcs_, 0);
@@ -193,18 +168,6 @@ int lua_setiuservalue(lua_State* L_, int idx_, int n_);
 // wrap Lua 5.4 calls under Lua 5.1 API when it is simpler that way
 #if LUA_VERSION_NUM == 504
 
-#ifndef lua501_equal // already defined when compatibility is active in luaconf.h
-inline int lua501_equal(lua_State* L_, int a_, int b_)
-{
-    return lua_compare(L_, a_, b_, LUA_OPEQ);
-}
-#endif // lua501_equal
-#ifndef lua_lessthan // already defined when compatibility is active in luaconf.h
-inline int lua_lessthan(lua_State* L_, int a_, int b_)
-{
-    return lua_compare(L_, a_, b_, LUA_OPLT);
-}
-#endif // lua_lessthan
 inline void luaG_registerlibfuncs(lua_State* L_, luaL_Reg const funcs_[])
 {
     luaL_setfuncs(L_, funcs_, 0);

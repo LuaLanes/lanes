@@ -151,14 +151,12 @@ static void update_lookup_entry(lua_State* L_, int ctxBase_, int depth_)
     std::string_view const _newName{ tools::PushFQN(L_, _fqn, depth_) };                           // L_: ... {bfc} k o name? "f.q.n"
     // Lua 5.2 introduced a hash randomizer seed which causes table iteration to yield a different key order
     // on different VMs even when the tables are populated the exact same way.
-    // When Lua is built with compatibility options (such as LUA_COMPAT_ALL),
-    // this causes several base libraries to register functions under multiple names.
-    // This, with the randomizer, can cause the first generated name of an object to be different on different VMs,
-    // which breaks function transfer.
+    // Also, when Lua is built with compatibility options (such as LUA_COMPAT_ALL), some base libraries register functions under multiple names.
+    // This, with the randomizer, can cause the first generated name of an object to be different on different VMs, which breaks function transfer.
     // Also, nothing prevents any external module from exposing a given object under several names, so...
-    // Therefore, when we encounter an object for which a name was previously registered, we need to select the names
+    // Therefore, when we encounter an object for which a name was previously registered, we need to select the a single name
     // based on some sorting order so that we end up with the same name in all databases whatever order the table walk yielded
-    if (!_prevName.empty() && (_prevName.size() < _newName.size() || lua_lessthan(L_, -2, -1))) {
+    if (!_prevName.empty() && ((_prevName.size() < _newName.size()) || (_prevName <= _newName))) {
         DEBUGSPEW_CODE(DebugSpew(_U) << lua_typename(L_, lua_type(L_, -3)) << " '" << _newName << "' remains named '" << _prevName << "'" << std::endl);
         // the previous name is 'smaller' than the one we just generated: keep it!
         lua_pop(L_, 3);                                                                            // L_: ... {bfc} k
