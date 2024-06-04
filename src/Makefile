@@ -124,17 +124,17 @@ all: $(MODULE)/core.$(_SO)
 # Note: Don't put $(LUA_LIBS) ahead of $^; MSYS will not like that (I think)
 #
 $(MODULE_DIR)/core.$(_SO): $(OBJ)
-    mkdir -p $(MODULE_DIR)
-    $(CC) $(LIBFLAG) $^ $(LIBS) $(LUA_LIBS) -o $@
+	mkdir -p $(MODULE_DIR)
+	$(CC) $(LIBFLAG) $^ $(LIBS) $(LUA_LIBS) -o $@
 
 clean:
-    -rm -rf $(MODULE)/core.$(_SO) *.o *.map
+	-rm -rf $(MODULE)/core.$(_SO) *.o *.map
 
 #---
 # NSLU2 "slug" Linux ARM
 #
 nslu2:
-    $(MAKE) all CFLAGS="$(CFLAGS) -I/opt/include -L/opt/lib -D_GNU_SOURCE -lpthread"
+	$(MAKE) all CFLAGS="$(CFLAGS) -I/opt/include -L/opt/lib -D_GNU_SOURCE -lpthread"
 
 #---
 # Cross compiling to Win32 (MinGW on OS X Intel)
@@ -150,15 +150,15 @@ MINGW_GCC=mingw32-gcc
     # i686-pc-mingw32-gcc
 
 win32: $(WIN32_LUA51)/include/lua.h
-    $(MAKE) build CC=$(MINGW_GCC) \
-            LUA_FLAGS=-I$(WIN32_LUA51)/include \
-            LUA_LIBS="-L$(WIN32_LUA51) -llua51" \
-            _SO=dll \
-            SO_FLAGS=-shared
+	$(MAKE) build CC=$(MINGW_GCC) \
+		LUA_FLAGS=-I$(WIN32_LUA51)/include \
+		LUA_LIBS="-L$(WIN32_LUA51) -llua51" \
+		_SO=dll \
+		SO_FLAGS=-shared
 
 $(WIN32_LUA51)/include/lua.h:
-    @echo "Usage: make win32 WIN32_LUA51=<path of extracted LuaBinaries dll8 and dev packages>"
-    @echo "                  [MINGW_GCC=...mingw32-gcc]"
-    @false
+	@echo "Usage: make win32 WIN32_LUA51=<path of extracted LuaBinaries dll8 and dev packages>"
+	@echo "                  [MINGW_GCC=...mingw32-gcc]"
+	@false
 
 .PROXY:	all clean nslu2 win32
