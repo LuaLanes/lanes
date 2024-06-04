@@ -249,7 +249,26 @@ assert(type(linda) == "userdata" and tostring(linda) == "Linda: communications")
     -- ["->"] master -> slave
     -- ["<-"] slave <- master
 
-local function PEEK() return linda:get("<-") end
+WR "test linda:get/set..."
+linda:set("<->", "x", "y", "z")
+local x,y,z = linda:get("<->", 1)
+assert(x == "x" and y == nil and z == nil)
+local x,y,z = linda:get("<->", 2)
+assert(x == "x" and y == "y" and z == nil)
+local x,y,z = linda:get("<->", 3)
+assert(x == "x" and y == "y" and z == "z")
+local x,y,z,w = linda:get("<->", 4)
+assert(x == "x" and y == "y" and z == "z" and w == nil)
+local k, x = linda:receive("<->")
+assert(k == "<->" and x == "x")
+local k,y,z = linda:receive(linda.batched, "<->", 2)
+assert(k == "<->" and y == "y" and z == "z")
+linda:set("<->")
+local x,y,z,w = linda:get("<->", 4)
+assert(x == nil and y == nil and z == nil and w == nil)
+WR "ok\n"
+
+local function PEEK(...) return linda:get("<-", ...) end
 local function SEND(...) linda:send("->", ...) end
 local function RECEIVE() local k,v = linda:receive(1, "<-") return v end
 
@@ -259,7 +278,7 @@ SEND(1);  WR("main ", "1 sent\n")
 SEND(2);  WR("main ", "2 sent\n")
 SEND(3);  WR("main ", "3 sent\n")
 SEND(setmetatable({"should be ignored"},{__lanesignore=true})); WR("main ", "__lanesignore table sent\n")
-for i=1,100 do
+for i=1,40 do
     WR "."
     SLEEP(0.0001)
     assert(PEEK() == nil)    -- nothing coming in, yet

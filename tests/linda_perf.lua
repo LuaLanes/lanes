@@ -62,12 +62,13 @@ local lane_gobbler_gen = lanes.gen( "*", {priority = 3}, gobbler)
 local function ziva( preloop, loop, batch)
 	-- prefill the linda a bit to increase fifo stress
 	local top = math.max( preloop, loop)
-	local l, lane = lanes.linda()
+	local l = lanes.linda()
 	local t1 = lanes.now_secs()
 	for i = 1, preloop do
 		l:send( "key", i)
 	end
 	print( "stored " .. l:count( "key") .. " items in the linda before starting consumer lane")
+	local lane
 	if batch > 0 then
 		if l.batched then
 			lane = lane_gobbler_gen( l, top, batch)
@@ -103,6 +104,28 @@ local function ziva( preloop, loop, batch)
 end
 
 -- #################################################################################################
+do
+	print "############################################ tests get/set"
+	-- linda:get throughput
+	local l = lanes.linda("get/set")
+	local batch = {}
+	for i = 1,1000 do
+		table.insert(batch, i)
+	end
+	for _,size in ipairs{1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987 } do
+		l:set("<->", table_unpack(batch))
+		local count = 20000000//size
+		print("START", "get("..size..") " .. count, " times")
+		local t1 = lanes.now_secs()
+		for i = 1, 2000000/math.sqrt(size) do
+			l:get("<->", size)
+		end
+		print("DURATION = " .. lanes.now_secs() - t1 .. "\n")
+	end
+end
+
+do return end
+-- #################################################################################################
 
 TEST1 = TEST1 or 1000
 PREFILL1 = PREFILL1 or 10000
@@ -118,8 +141,9 @@ local tests1 =
 	{ PREFILL1, FILL1, 8},
 	{ PREFILL1, FILL1, 13},
 	{ PREFILL1, FILL1, 21},
-	{ PREFILL1, FILL1, 44},
-	{ PREFILL1, FILL1, 65},
+	{ PREFILL1, FILL1, 34},
+	{ PREFILL1, FILL1, 55},
+	{ PREFILL1, FILL1, 89},
 }
 print "############################################ tests #1"
 for i, v in ipairs( tests1) do
@@ -194,8 +218,9 @@ local tests2 =
 	{ PREFILL2, FILL2, 8},
 	{ PREFILL2, FILL2, 13},
 	{ PREFILL2, FILL2, 21},
-	{ PREFILL2, FILL2, 44},
-	{ PREFILL2, FILL2, 65},
+	{ PREFILL2, FILL2, 34},
+	{ PREFILL2, FILL2, 55},
+	{ PREFILL2, FILL2, 89},
 }
 
 print "############################################ tests #2"

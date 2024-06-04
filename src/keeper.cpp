@@ -125,15 +125,23 @@ void KeyUD::prepareAccess(KeeperState const K_)
 
 // in: fifo
 // out: ...|nothing
-// expects exactly 1 value on the stack!
-// function assumes that there is enough data in the fifo to satisfy the request
+// pops the fifo, push as much data as is available (up to the specified count) without consuming it
 void KeyUD::peek(KeeperState const K_, int const count_)
 {
-    //LUA_ASSERT(K_, KeyUD::GetPtr(K_, 1) == this);
-    STACK_GROW(K_, count_);
-    for (int const _i : std::ranges::iota_view{ 0, count_ }) {
-        lua_rawgeti(K_, 1, first + _i);
+    LUA_ASSERT(K_, KeyUD::GetPtr(K_, -1) == this);
+    if (count <= 0) { // no data is available
+        lua_pop(K_, 1);                                                                            // K_:
+        return;
     }
+
+    // read <count_> value off the fifo
+    prepareAccess(K_);                                                                             // K_: fifo
+    int const _at{ lua_gettop(K_) };
+    for (int const _i : std::ranges::iota_view{ 1, std::min(count_, count) }) { // push val2 to valN
+        lua_rawgeti(K_, 1, first + _i);                                                            // K_: fifo val2..N
+    }
+    lua_rawgeti(K_, 1, first); // push val1                                                        // K_: fifo val2..N val1
+    lua_replace(K_, _at); // replace fifo by val1 to get the output properly ordered               // K_: val1..N
 }
 
 // #################################################################################################
@@ -518,23 +526,21 @@ int keepercall_get(lua_State* const L_)
     KeeperState const _K{ L_ };
     int _count{ 1 };
     if (lua_gettop(_K) == 3) {                                                                     // _K: linda key count
-        _count = static_cast<int>(lua_tointeger(_K, 3));
+        _count = static_cast<int>(lua_tointeger(_K, 3)); // linda:get() made sure _count >= 1
         lua_pop(_K, 1);                                                                            // _K: linda key
     }
     PushKeysDB(_K, 1);                                                                             // _K: linda key KeysDB
     lua_replace(_K, 1);                                                                            // _K: KeysDB key
     lua_rawget(_K, 1);                                                                             // _K: KeysDB KeyUD
+    lua_remove(_K, 1);                                                                             // _K: KeyUD
     KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
-    if (_key != nullptr && _key->count > 0) {
-        _key->prepareAccess(_K);                                                                   // _K: KeysDB fifo
-        lua_remove(_K, 1);                                                                         // _K: fifo
-        _count = std::min(_count, _key->count);
-        // read <count> value off the fifo
-        _key->peek(_K, _count);                                                                    // _K: fifo ...
-        return _count;
+    if (_key != nullptr) {
+        _key->peek(_K, _count);                                                                    // _K: val...
+    } else {
+        // no fifo was ever registered for this key, or it is empty
+        lua_pop(_K, 1);                                                                            // _K:
     }
-    // no fifo was ever registered for this key, or it is empty
-    return 0;
+    return lua_gettop(_K);
 }
 
 // #################################################################################################
