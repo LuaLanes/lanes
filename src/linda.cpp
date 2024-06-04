@@ -470,12 +470,15 @@ LUAG_FUNC(linda_receive)
             _selected_keeper_receive = KEEPER_API(receive_batched);
             // we expect a user-defined amount of return value
             _expected_pushed_min = (int) luaL_checkinteger(L_, _key_i + 1);
+            if (_expected_pushed_min < 1) {
+                raise_luaL_argerror(L_, _key_i + 1, "bad min count");
+            }
             _expected_pushed_max = (int) luaL_optinteger(L_, _key_i + 2, _expected_pushed_min);
             // don't forget to count the key in addition to the values
             ++_expected_pushed_min;
             ++_expected_pushed_max;
             if (_expected_pushed_min > _expected_pushed_max) {
-                raise_luaL_error(L_, "batched min/max error");
+                raise_luaL_argerror(L_, _key_i + 2, "batched min/max error");
             }
         } else {
             // make sure the keys are of a valid type

@@ -1224,7 +1224,8 @@
 	The <tt>send()</tt> and <tt>receive()</tt> methods use Linda keys as FIFO stacks (first in, first out).<br/>
 	By default, stack sizes are unlimited but limits can be enforced using the <tt>limit()</tt> method. This can be useful to balance execution speeds in a producer/consumer scenario. <tt>nil</tt> removes the limit.<br/>
 	A limit of 0 is allowed to block everything.<br/>
-	If the key was full but the limit change added some room, <tt>limit()</tt> returns <tt>true</tt> and the linda is signalled so that <tt>send()</tt>-blocked threads are awakened.
+	If the key was full but the limit change added some room, <tt>limit()</tt> returns <tt>true</tt> and the linda is signalled so that <tt>send()</tt>-blocked threads are awakened.<br/>
+	In batched mode, <tt>linda:receive()</tt> will raise an error if <tt>min_count < 1</tt> or <tt>max_count < min_count</tt>.
 </p>
 
 <p>

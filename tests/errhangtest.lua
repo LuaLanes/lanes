@@ -1,4 +1,8 @@
-local lanes = require "lanes".configure{with_timers=false}
+local lanes = require "lanes".configure{with_timers=false,strip_functions=false}
+
+local require_assert_result_1, require_assert_result_2 = require "assert"    -- assert.fails()
+print("require_assert_result:", require_assert_result_1, require_assert_result_2)
+
 local linda = lanes.linda()
 
 -- we are not allowed to send coroutines through a lane
@@ -22,6 +26,9 @@ end
 -- get/set a few values
 if true then
 	print "\n#### set 3 -> receive batched"
+	assert.fails(function() linda:receive(linda.batched, "some key", -1, 1) end)
+	assert.fails(function() linda:receive(linda.batched, "some key", 2, 1) end)
+	assert.failsnot(function() linda:receive(0, linda.batched, "some key", 1, 3) end)
 	local fun = function() print "function test ok" end
 	print(pcall(linda.set, linda, 'test', true, nil, fun))
 	-- read back the contents

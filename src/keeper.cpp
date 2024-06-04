@@ -81,7 +81,7 @@ class KeyUD
     [[nodiscard]] static KeyUD* Create(KeeperState K_);
     [[nodiscard]] static KeyUD* GetPtr(KeeperState K_, int idx_);
     void peek(KeeperState K_, int count_);
-    void pop(KeeperState K_, int count_);
+    [[nodiscard]] int pop(KeeperState K_, int minCount_, int maxCount_);
     void prepareAccess(KeeperState K_);
     void push(KeeperState K_, int count_);
     [[nodiscard]] bool reset(KeeperState K_);
@@ -150,14 +150,21 @@ void KeyUD::peek(KeeperState const K_, int const count_)
 
 // in: fifo
 // out: remove the fifo table from the stack, push as many items as required on the stack (function assumes they exist in sufficient number)
-void KeyUD::pop(KeeperState const K_, int const count_)
+int KeyUD::pop(KeeperState const K_, int const minCount_, int const maxCount_)
 {
-    LUA_ASSERT(K_, lua_istable(K_, -1));
-    int const _fifo_idx{ lua_gettop(K_) };                                                         // K_: ... fifo
+    if (count < minCount_) {
+        // pop ourselves, return nothing
+        lua_pop(K_, 1);                                                                            // K_: ... this
+        return 0;
+    }
+    int const _popCount{ std::min(count, maxCount_) };
+    LUA_ASSERT(K_, KeyUD::GetPtr(K_, -1) == this);                                                 // K_: ... this
+    prepareAccess(K_);                                                                             // K_: ... fifo
+    int const _fifo_idx{ lua_gettop(K_) };
     // each iteration pushes a value on the stack!
-    STACK_GROW(K_, count_ + 2);
+    STACK_GROW(K_, _popCount + 2);
     // skip first item, we will push it last
-    for (int const _i : std::ranges::iota_view{ 1, count_ }) {
+    for (int const _i : std::ranges::iota_view{ 1, _popCount }) {
         int const _at{ first + _i };
         // push item on the stack
         lua_rawgeti(K_, _fifo_idx, _at);                                                           // K_: ... fifo val
@@ -166,20 +173,16 @@ void KeyUD::pop(KeeperState const K_, int const count_)
         lua_rawseti(K_, _fifo_idx, _at);                                                           // K_: ... fifo val
     }
     // now process first item
-    {
-        int const _at{ first };
-        lua_rawgeti(K_, _fifo_idx, _at);                                                           // K_: ... fifo vals val
-        lua_pushnil(K_);                                                                           // K_: ... fifo vals val nil
-        lua_rawseti(K_, _fifo_idx, _at);                                                           // K_: ... fifo vals val
-        lua_replace(K_, _fifo_idx);                                                                // K_: ... vals
-    }
+    lua_rawgeti(K_, _fifo_idx, first);                                                             // K_: ... fifo vals val
+    lua_pushnil(K_);                                                                               // K_: ... fifo vals val nil
+    lua_rawseti(K_, _fifo_idx, first);                                                             // K_: ... fifo vals val
+    lua_replace(K_, _fifo_idx);                                                                    // K_: ... vals
 
     // avoid ever-growing indexes by resetting each time we detect the fifo is empty
-    {
-        int const _new_count{ count - count_ };
-        first = (_new_count == 0) ? 1 : (first + count_);
-        count = _new_count;
-    }
+    int const _new_count{ count - _popCount };
+    first = (_new_count == 0) ? 1 : (first + _popCount);
+    count = _new_count;
+    return _popCount;
 }
 
 // #################################################################################################
@@ -466,21 +469,20 @@ int keepercall_receive(lua_State* const L_)
     PushKeysDB(_K, 1);                                                                             // _K: linda keys... KeysDB
     lua_replace(_K, 1);                                                                            // _K: KeysDB keys...
     
-    for (int const _i : std::ranges::iota_view{ 2, _top + 1 }) {
-        lua_pushvalue(_K, _i);                                                                     // _K: KeysDB keys... key[i]
+    for (int const _keyIdx : std::ranges::iota_view{ 2, _top + 1 }) {
+        lua_pushvalue(_K, _keyIdx);                                                                // _K: KeysDB keys... key[i]
         lua_rawget(_K, 1);                                                                         // _K: KeysDB keys... KeyUD
         KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
-        if (_key != nullptr && _key->count > 0) {
-            _key->prepareAccess(_K);                                                               // _K: KeysDB keys... fifo
-            _key->pop(_K, 1);                                                                      // _K: KeysDB keys... val
-            if (!lua_isnil(_K, -1)) {
+        if (_key != nullptr) { // it's fine to attempt a read on a key that wasn't yet written to
+            int const _popped{ _key->pop(_K, 1, 1) };                                              // _K: KeysDB keys... val
+            if (_popped > 0) {
                 lua_replace(_K, 1);                                                                // _K: val keys...
-                lua_settop(_K, _i);                                                                // _K: val keys... key[i]
-                if (_i != 2) {
-                    lua_replace(_K, 2);                                                            // _K: val key keys...
-                    lua_settop(_K, 2);                                                             // _K: val key
+                lua_settop(_K, _keyIdx);                                                           // _K: val keys... key[i]
+                if (_keyIdx != 2) {
+                    lua_replace(_K, 2);                                                            // _K: val key[i] keys...
+                    lua_settop(_K, 2);                                                             // _K: val key[i]
                 }
-                lua_insert(_K, 1);                                                                 // _K: key, val
+                lua_insert(_K, 1);                                                                 // _K: key val
                 return 2;
             }
         }
@@ -496,27 +498,23 @@ int keepercall_receive(lua_State* const L_)
 int keepercall_receive_batched(lua_State* const L_)
 {
     KeeperState const _K{ L_ };
+    // linda:receive() made sure that _min_count > 0 and _max_count > _min_count
     int const _min_count{ static_cast<int>(lua_tointeger(_K, 3)) };
-    if (_min_count > 0) {
-        int const _max_count{ static_cast<int>(luaL_optinteger(_K, 4, _min_count)) };
-        lua_settop(_K, 2);                                                                         // _K: linda key
-        lua_insert(_K, 1);                                                                         // _K: key linda
-        PushKeysDB(_K, 2);                                                                         // _K: key linda KeysDB
-        lua_remove(_K, 2);                                                                         // _K: key KeysDB
-        lua_pushvalue(_K, 1);                                                                      // _K: key KeysDB key
-        lua_rawget(_K, 2);                                                                         // _K: key KeysDB KeyUD
-        lua_remove(_K, 2);                                                                         // _K: key KeyUD
-        KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
-        if (_key != nullptr && _key->count >= _min_count) {
-            _key->prepareAccess(_K);                                                               // _K: key fifo
-            _key->pop(_K, std::min(_max_count, _key->count));                                      // _K: key val...
-        } else {
-            lua_settop(_K, 0);                                                                     // _K:
-        }
-        // return whatever remains on the stack at that point
-        return lua_gettop(_K);
-    } else {
+    int const _max_count{ static_cast<int>(luaL_optinteger(_K, 4, _min_count)) };
+    lua_settop(_K, 2);                                                                             // _K: linda key
+    lua_insert(_K, 1);                                                                             // _K: key linda
+    PushKeysDB(_K, 2);                                                                             // _K: key linda KeysDB
+    lua_remove(_K, 2);                                                                             // _K: key KeysDB
+    lua_pushvalue(_K, 1);                                                                          // _K: key KeysDB key
+    lua_rawget(_K, 2);                                                                             // _K: key KeysDB KeyUD
+    lua_remove(_K, 2);                                                                             // _K: key KeyUD
+    KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
+    if (_key == nullptr || _key->pop(_K, _min_count, _max_count) == 0) {                           // _K: [key val...]|crap
+        // Lua will adjust the stack for us when we return
         return 0;
+    } else {
+        // return whatever remains on the stack at that point: the key and the values we pulled from the fifo
+        return lua_gettop(_K);
     }
 }
 
