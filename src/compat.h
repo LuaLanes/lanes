@@ -61,10 +61,6 @@ inline char const* lua_typename(lua_State* L_, LuaType t_)
 // add some Lua 5.3-style API when building for Lua 5.1
 #if LUA_VERSION_NUM == 501
 
-inline int lua_absindex(lua_State* L_, int idx_)
-{
-    return (((idx_) >= 0 || (idx_) <= LUA_REGISTRYINDEX) ? (idx_) : lua_gettop(L_) + (idx_) + 1);
-}
 #if LUAJIT_VERSION_NUM < 20200 // moonjit is 5.1 plus bits of 5.2 that we don't need to wrap
 inline void lua_pushglobaltable(lua_State* L_)
 {

@@ -804,7 +804,7 @@ Lane::~Lane()
 
 void Lane::changeDebugName(int const nameIdx_)
 {
-    int const _nameIdx{ lua_absindex(L, nameIdx_) };
+    int const _nameIdx{ luaG_absindex(L, nameIdx_) };
     luaL_checktype(L, _nameIdx, LUA_TSTRING);                                                      // L: ... "name" ...
     STACK_CHECK_START_REL(L, 0);
     // store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...

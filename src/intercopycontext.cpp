@@ -142,7 +142,7 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
 // get a unique ID for metatable at [i].
 [[nodiscard]] static lua_Integer get_mt_id(Universe* U_, lua_State* L_, int idx_)
 {
-    idx_ = lua_absindex(L_, idx_);
+    idx_ = luaG_absindex(L_, idx_);
 
     STACK_GROW(L_, 3);
 
@@ -618,7 +618,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 
 [[nodiscard]] bool InterCopyContext::tryCopyClonable() const
 {
-    SourceIndex const _L1_i{ lua_absindex(L1, L1_i) };
+    SourceIndex const _L1_i{ luaG_absindex(L1, L1_i) };
     void* const _source{ lua_touserdata(L1, _L1_i) };
 
     STACK_CHECK_START_REL(L1, 0);
@@ -650,7 +650,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 
     // we need to copy over the uservalues of the userdata as well
     {
-        int const mt{ lua_absindex(L1, -2) };                                                      // L1: ... mt __lanesclone
+        int const _mt{ luaG_absindex(L1, -2) };                                                    // L1: ... mt __lanesclone
         size_t const userdata_size{ lua_rawlen(L1, _L1_i) };
         // extract all the uservalues, but don't transfer them yet
         int _uvi{ 0 };
@@ -661,7 +661,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         // create the clone userdata with the required number of uservalue slots
         void* const _clone{ lua_newuserdatauv(L2, userdata_size, _uvi) };                          //                                                L2: ... u
         // copy the metatable in the target state, and give it to the clone we put there
-        InterCopyContext _c{ U, L2, L1, L2_cache_i, SourceIndex{ mt }, VT::NORMAL, mode, name };
+        InterCopyContext _c{ U, L2, L1, L2_cache_i, SourceIndex{ _mt }, VT::NORMAL, mode, name };
         if (_c.inter_copy_one()) {                                                                 //                                                L2: ... u mt|sentinel
             if (LookupMode::ToKeeper == mode) {                                                    //                                                L2: ... u sentinel
                 LUA_ASSERT(L1, lua_tocfunction(L2, -1) == table_lookup_sentinel);
@@ -688,7 +688,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         }
         // assign uservalues
         while (_uvi > 0) {
-            _c.L1_i = SourceIndex{ lua_absindex(L1, -1) };
+            _c.L1_i = SourceIndex{ luaG_absindex(L1, -1) };
             if (!_c.inter_copy_one()) {                                                            //                                                L2: ... u uv
                 raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
             }
@@ -748,7 +748,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         InterCopyContext _c{ U, L2, L1, L2_cache_i, {}, VT::NORMAL, mode, name };
         int const _clone_i{ lua_gettop(L2) };
         while (_nuv) {
-            _c.L1_i = SourceIndex{ lua_absindex(L1, -1) };
+            _c.L1_i = SourceIndex{ luaG_absindex(L1, -1) };
             if (!_c.inter_copy_one()) {                                                            // L1: ... u [uv]*                               L2: u uv
                 raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
             }
@@ -835,7 +835,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
             // transfer and assign uservalues
             InterCopyContext c{ *this };
             while (_uvi > 0) {
-                c.L1_i = SourceIndex{ lua_absindex(L1, -1) };
+                c.L1_i = SourceIndex{ luaG_absindex(L1, -1) };
                 if (!c.inter_copy_one()) {                                                         //                                                L2: ... mt u uv
                     raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
                 }

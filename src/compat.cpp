@@ -39,7 +39,7 @@ int luaL_getsubtable(lua_State* L_, int idx_, const char* fname_)
         return 1; /* table already there */
     else {
         lua_pop(L_, 1); /* remove previous result */
-        idx_ = lua_absindex(L_, idx_);
+        idx_ = luaG_absindex(L_, idx_);
         lua_newtable(L_);
         lua_pushvalue(L_, -1); /* copy to be left at top */
         lua_setfield(L_, idx_, fname_); /* assign new table to field */

@@ -71,7 +71,7 @@ static constexpr int kWriterReturnCode{ 666 };
     }
     {
         int _mustpush{ 0 };
-        if (lua_absindex(L_, _i) != lua_gettop(L_)) {
+        if (luaG_absindex(L_, _i) != lua_gettop(L_)) {
             lua_pushvalue(L_, _i);
             _mustpush = 1;
         }
@@ -306,7 +306,7 @@ namespace tools {
     // create a "fully.qualified.name" <-> function equivalence database
     void PopulateFuncLookupTable(lua_State* const L_, int const i_, std::string_view const& name_)
     {
-        int const _in_base{ lua_absindex(L_, i_) };
+        int const _in_base{ luaG_absindex(L_, i_) };
         DEBUGSPEW_CODE(Universe* _U = Universe::Get(L_));
         std::string_view _name{ name_.empty() ? std::string_view{} : name_ };
         DEBUGSPEW_CODE(DebugSpew(_U) << L_ << ": PopulateFuncLookupTable('" << _name << "')" << std::endl);
