@@ -461,7 +461,7 @@ LUAG_FUNC(linda_receive)
         keeper_api_t _selected_keeper_receive{ nullptr };
         int _expected_pushed_min{ 0 }, _expected_pushed_max{ 0 };
         // are we in batched mode?
-        if (kLindaBatched.equals(L_, -1)) {
+        if (kLindaBatched.equals(L_, _key_i)) {
             // no need to pass linda.batched in the keeper state
             ++_key_i;
             // make sure the keys are of a valid type
