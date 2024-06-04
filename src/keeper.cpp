@@ -77,14 +77,28 @@ class KeyUD
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete([[maybe_unused]] void* p_, [[maybe_unused]] KeeperState L_) { LUA_ASSERT(L_, !"should never be called"); }
 
-    [[nodiscard]] static KeyUD* GetPtr(KeeperState K_, int idx_);
+    [[nodiscard]] bool changeLimit(int limit_);
     [[nodiscard]] static KeyUD* Create(KeeperState K_);
-    void prepareAccess(KeeperState K_);
+    [[nodiscard]] static KeyUD* GetPtr(KeeperState K_, int idx_);
     void peek(KeeperState K_, int count_);
     void pop(KeeperState K_, int count_);
+    void prepareAccess(KeeperState K_);
     void push(KeeperState K_, int count_);
     [[nodiscard]] bool reset(KeeperState K_);
 };
+
+// #################################################################################################
+
+bool KeyUD::changeLimit(int const limit_)
+{
+    bool const _newSlackAvailable{
+        ((limit >= 0) && (count >= limit)) // then: the key was full if limited and count exceeded the previous limit
+        && ((limit_ < 0) || (count < limit_)) // now: the key is not full if unlimited or count is lower than the new limit
+    };
+    // set the new limit
+    limit = limit_;
+    return _newSlackAvailable;
+}
 
 // #################################################################################################
 
@@ -107,18 +121,6 @@ KeyUD* KeyUD::Create(KeeperState const K_)
 KeyUD* KeyUD::GetPtr(KeeperState const K_, int idx_)
 {
     return lua_tofulluserdata<KeyUD>(K_, idx_);
-}
-
-// #################################################################################################
-
-// expects 'this' on top of the stack
-// replaces it by its uservalue on the stack
-void KeyUD::prepareAccess(KeeperState const K_)
-{
-    LUA_ASSERT(K_, KeyUD::GetPtr(K_, -1) == this);
-    // we can replace the key userdata in the stack without fear of it being GCed, there are other references around
-    lua_getiuservalue(K_, -1, kContentsTableIndex);
-    lua_replace(K_, -2);
 }
 
 // #################################################################################################
@@ -178,6 +180,18 @@ void KeyUD::pop(KeeperState const K_, int const count_)
         first = (_new_count == 0) ? 1 : (first + count_);
         count = _new_count;
     }
+}
+
+// #################################################################################################
+
+// expects 'this' on top of the stack
+// replaces it by its uservalue on the stack
+void KeyUD::prepareAccess(KeeperState const K_)
+{
+    LUA_ASSERT(K_, KeyUD::GetPtr(K_, -1) == this);
+    // we can replace the key userdata in the stack without fear of it being GCed, there are other references around
+    lua_getiuservalue(K_, -1, kContentsTableIndex);
+    lua_replace(K_, -2);
 }
 
 // #################################################################################################
@@ -432,17 +446,11 @@ int keepercall_limit(lua_State* const L_)
     }
     // remove any clutter on the stack
     lua_settop(_K, 0);                                                                             // _K:
-    // return true if we decide that blocked threads waiting to write on that key should be awakened
-    // this is the case if we detect the key was full but it is no longer the case
-    // TODO: make this KeyUD::changeLimit() -> was full (bool)
-    if (
-        ((_key->limit >= 0) && (_key->count >= _key->limit)) // the key was full if limited and count exceeded the previous limit
-        && ((_limit < 0) || (_key->count < _limit))          // the key is not full if unlimited or count is lower than the new limit
-    ) {
+    if (_key->changeLimit(_limit)) {
+        // return true if we decide that blocked threads waiting to write on that key should be awakened
+        // this is the case if we detect the key was full but it is no longer the case
         lua_pushboolean(_K, 1);                                                                    // _K: true
     }
-    // set the new limit
-    _key->limit = _limit;
     // return 0 or 1 value
     return lua_gettop(_K);
 }
