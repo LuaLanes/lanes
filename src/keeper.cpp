@@ -63,6 +63,9 @@
 // the full userdata associated to a given Linda key to store its contents
 class KeyUD
 {
+    private:
+    static constexpr int kContentsTableIndex{ 1 };
+
     public:
     int first{ 1 };
     int count{ 0 };
@@ -80,9 +83,8 @@ class KeyUD
     void peek(KeeperState K_, int count_);
     void pop(KeeperState K_, int count_);
     void push(KeeperState K_, int count_);
+    [[nodiscard]] bool reset(KeeperState K_);
 };
-
-static constexpr int kContentsTableIndex{ 1 };
 
 // #################################################################################################
 
@@ -107,10 +109,10 @@ KeyUD* KeyUD::GetPtr(KeeperState const K_, int idx_)
     return lua_tofulluserdata<KeyUD>(K_, idx_);
 }
 
-
 // #################################################################################################
 
-// replaces the fifo ud by its uservalue on the stack
+// replaces the KeyUD by its uservalue on the stack
+// TODO: make it a non-static member to be called after KeyUD::GetPtr()
 KeyUD* KeyUD::PrepareAccess(KeeperState const K_, int const idx_)
 {
     KeyUD* const _key{ KeyUD::GetPtr(K_, idx_) };
@@ -129,10 +131,10 @@ KeyUD* KeyUD::PrepareAccess(KeeperState const K_, int const idx_)
 // in: fifo
 // out: ...|nothing
 // expects exactly 1 value on the stack!
-// currently only called with a count of 1, but this may change in the future
 // function assumes that there is enough data in the fifo to satisfy the request
 void KeyUD::peek(KeeperState const K_, int const count_)
 {
+    //LUA_ASSERT(K_, KeyUD::GetPtr(K_, 1) == this);
     STACK_GROW(K_, count_);
     for (int const _i : std::ranges::iota_view{ 0, count_ }) {
         lua_rawgeti(K_, 1, first + _i);
@@ -142,28 +144,28 @@ void KeyUD::peek(KeeperState const K_, int const count_)
 // #################################################################################################
 
 // in: fifo
-// out: remove the fifo from the stack, push as many items as required on the stack (function assumes they exist in sufficient number)
+// out: remove the fifo table from the stack, push as many items as required on the stack (function assumes they exist in sufficient number)
 void KeyUD::pop(KeeperState const K_, int const count_)
 {
     LUA_ASSERT(K_, lua_istable(K_, -1));
-    int const _fifo_idx{ lua_gettop(K_) };                                                         // K_: ... fifotbl
+    int const _fifo_idx{ lua_gettop(K_) };                                                         // K_: ... fifo
     // each iteration pushes a value on the stack!
     STACK_GROW(K_, count_ + 2);
     // skip first item, we will push it last
     for (int const _i : std::ranges::iota_view{ 1, count_ }) {
         int const _at{ first + _i };
         // push item on the stack
-        lua_rawgeti(K_, _fifo_idx, _at);                                                           // K_: ... fifotbl val
+        lua_rawgeti(K_, _fifo_idx, _at);                                                           // K_: ... fifo val
         // remove item from the fifo
-        lua_pushnil(K_);                                                                           // K_: ... fifotbl val nil
-        lua_rawseti(K_, _fifo_idx, _at);                                                           // K_: ... fifotbl val
+        lua_pushnil(K_);                                                                           // K_: ... fifo val nil
+        lua_rawseti(K_, _fifo_idx, _at);                                                           // K_: ... fifo val
     }
     // now process first item
     {
         int const _at{ first };
-        lua_rawgeti(K_, _fifo_idx, _at);                                                           // K_: ... fifotbl vals val
-        lua_pushnil(K_);                                                                           // K_: ... fifotbl vals val nil
-        lua_rawseti(K_, _fifo_idx, _at);                                                           // K_: ... fifotbl vals val
+        lua_rawgeti(K_, _fifo_idx, _at);                                                           // K_: ... fifo vals val
+        lua_pushnil(K_);                                                                           // K_: ... fifo vals val nil
+        lua_rawseti(K_, _fifo_idx, _at);                                                           // K_: ... fifo vals val
         lua_replace(K_, _fifo_idx);                                                                // K_: ... vals
     }
 
@@ -189,6 +191,23 @@ void KeyUD::push(KeeperState const K_, int const count_)
         lua_rawseti(K_, _idx, _start + _i);
     }
     count += count_;
+}
+
+// #################################################################################################
+
+// expects 'this' on top of the stack
+bool KeyUD::reset(KeeperState const K_)
+{
+    LUA_ASSERT(K_, KeyUD::GetPtr(K_, -1) == this);
+    STACK_CHECK_START_REL(K_, 0);
+    bool const _wasFull{ (limit > 0) && (count >= limit) };
+    // empty the KeyUD: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
+    lua_newtable(K_);                                                                              // K_: KeysDB key val... KeyUD {}
+    lua_setiuservalue(K_, -2, kContentsTableIndex);                                                // K_: KeysDB key val... KeyUD
+    first = 1;
+    count = 0;
+    STACK_CHECK(K_, 0);
+    return _wasFull;
 }
 
 // #################################################################################################
@@ -247,22 +266,22 @@ int keeper_push_linda_storage(Linda& linda_, DestState L_)
     InterCopyContext _c{ linda_.U, L_, SourceState{ _K }, {}, {}, {}, LookupMode::FromKeeper, {} };
     lua_pushnil(_K);                                                                               // _K: KeysDB nil                                     L_: out
     while (lua_next(_K, -2)) {                                                                     // _K: KeysDB key KeyUD                               L_: out
-        KeyUD* const _keyUD{ KeyUD::PrepareAccess(_K, -1) };                                       // _K: KeysDB key fifo                                L_: out
+        KeyUD* const _key{ KeyUD::PrepareAccess(_K, -1) };                                         // _K: KeysDB key fifo                                L_: out
         lua_pushvalue(_K, -2);                                                                     // _K: KeysDB key fifo key                            L_: out
         std::ignore = _c.inter_move(1);                                                            // _K: KeysDB key fifo                                L_: out key
         STACK_CHECK(L_, 2);
         lua_newtable(L_);                                                                          // _K: KeysDB key fifo                                L_: out key keyout
         std::ignore = _c.inter_move(1);                                                            // _K: KeysDB key                                     L_: out key keyout fifo
         // keyout.first
-        lua_pushinteger(L_, _keyUD->first);                                                        // _K: KeysDB key                                     L_: out key keyout fifo first
+        lua_pushinteger(L_, _key->first);                                                          // _K: KeysDB key                                     L_: out key keyout fifo first
         STACK_CHECK(L_, 5);
         lua_setfield(L_, -3, "first");                                                             // _K: KeysDB key                                     L_: out key keyout fifo
         // keyout.count
-        lua_pushinteger(L_, _keyUD->count);                                                        // _K: KeysDB key                                     L_: out key keyout fifo count
+        lua_pushinteger(L_, _key->count);                                                          // _K: KeysDB key                                     L_: out key keyout fifo count
         STACK_CHECK(L_, 5);
         lua_setfield(L_, -3, "count");                                                             // _K: KeysDB key                                     L_: out key keyout fifo
         // keyout.limit
-        lua_pushinteger(L_, _keyUD->limit);                                                        // _K: KeysDB key                                     L_: out key keyout fifo limit
+        lua_pushinteger(L_, _key->limit);                                                          // _K: KeysDB key                                     L_: out key keyout fifo limit
         STACK_CHECK(L_, 5);
         lua_setfield(L_, -3, "limit");                                                             // _K: KeysDB key                                     L_: out key keyout fifo
         // keyout.fifo
@@ -461,13 +480,9 @@ int keepercall_set(lua_State* const L_)
                 lua_pushnil(_K);                                                                   // _K: KeysDB key nil
                 lua_rawset(_K, -3);                                                                // _K: KeysDB
             } else {
-                // we create room if the KeyUD was full but it is no longer the case
-                _should_wake_writers = (_key->limit > 0) && (_key->count >= _key->limit);
                 lua_remove(_K, -2);                                                                // _K: KeysDB KeyUD
-                lua_newtable(_K);                                                                  // _K: KeysDB KeyUD {}
-                lua_setiuservalue(_K, -2, kContentsTableIndex);                                    // _K: KeysDB KeyUD
-                _key->first = 1;
-                _key->count = 0;
+                // we create room if the KeyUD was full but it is no longer the case
+                _should_wake_writers = _key->reset(_K);
             }
         }
     } else { // set/replace contents stored at the specified key?
@@ -478,22 +493,16 @@ int keepercall_set(lua_State* const L_)
         if (_key == nullptr) { // can be nullptr if we store a value at a new key                  // KeysDB key val... nil
             // no need to wake writers in that case, because a writer can't wait on an inexistent key
             lua_pop(_K, 1);                                                                        // _K: KeysDB key val...
-            std::ignore = KeyUD::Create(KeeperState{ _K });                                        // _K: KeysDB key val... KeyUD
+            _key = KeyUD::Create(KeeperState{ _K });                                               // _K: KeysDB key val... KeyUD
             lua_pushvalue(_K, 2);                                                                  // _K: KeysDB key val... KeyUD key
             lua_pushvalue(_K, -2);                                                                 // _K: KeysDB key val... KeyUD key KeyUD
             lua_rawset(_K, 1);                                                                     // _K: KeysDB key val... KeyUD
         } else {                                                                                   // _K: KeysDB key val... KeyUD
             // the KeyUD exists, we just want to update its contents
-            // we create room if the KeyUD was full but it is no longer the case
-            _should_wake_writers = (_key->limit > 0) && (_key->count >= _key->limit) && (_count < _key->limit);
-            // TODO: turn this into a KeyUD::reset() method
-            // empty the KeyUD for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
-            lua_newtable(_K);                                                                      // _K: KeysDB key val... KeyUD {}
-            lua_setiuservalue(_K, -2, kContentsTableIndex);                                        // _K: KeysDB key val... KeyUD
-            _key->first = 1;
-            _key->count = 0;
+            // we create room if the KeyUD was full but we didn't refill it to the brim with new data
+            _should_wake_writers = _key->reset(_K) && (_count < _key->limit);
         }
-        _key = KeyUD::PrepareAccess(_K, -1);                                                       // _K: KeysDB key val... fifo
+        std::ignore = KeyUD::PrepareAccess(_K, -1);                                                // _K: KeysDB key val... fifo
         // move the fifo below the values we want to store
         lua_insert(_K, 3);                                                                         // _K: KeysDB key fifo val...
         _key->push(_K, _count);                                                                    // _K: KeysDB key fifo
