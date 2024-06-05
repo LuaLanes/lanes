@@ -111,15 +111,15 @@ DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* L_) const
         break;
 
     case 1: // 1 parameter, either a name or a group
-        if (lua_type(L_, -1) == LUA_TSTRING) {
-            _linda_name = lua_tostringview(L_, -1);
+        if (luaG_type(L_, -1) == LuaType::STRING) {
+            _linda_name = luaG_tostringview(L_, -1);
         } else {
             _linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L_, -1)) };
         }
         break;
 
     case 2: // 2 parameters, a name and group, in that order
-        _linda_name = lua_tostringview(L_, -2);
+        _linda_name = luaG_tostringview(L_, -2);
         _linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L_, -1)) };
         break;
     }

@@ -46,7 +46,7 @@ static LUAG_FUNC(get_debug_threadname)
 {
     Lane* const _lane{ ToLane(L_, 1) };
     luaL_argcheck(L_, lua_gettop(L_) == 1, 2, "too many arguments");
-    std::ignore = lua_pushstringview(L_, _lane->debugName);
+    std::ignore = luaG_pushstringview(L_, _lane->debugName);
     return 1;
 }
 
@@ -104,7 +104,7 @@ static LUAG_FUNC(thread_join)
     Lane* const _lane{ ToLane(L_, 1) };
 
     std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
-    if (lua_type(L_, 2) == LUA_TNUMBER) { // we don't want to use lua_isnumber() because of autocoercion
+    if (luaG_type(L_, 2) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
         lua_Duration const duration{ lua_tonumber(L_, 2) };
         if (duration.count() >= 0.0) {
             _until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration);
@@ -300,7 +300,7 @@ static int thread_index_string(lua_State* L_)
     Lane* const _lane{ ToLane(L_, kSelf) };
     LUA_ASSERT(L_, lua_gettop(L_) == 2);                                                           // L_: lane "key"
 
-    std::string_view const _keystr{ lua_tostringview(L_, kKey) };
+    std::string_view const _keystr{ luaG_tostringview(L_, kKey) };
     lua_settop(L_, 2); // keep only our original arguments on the stack
     if (_keystr == "status") {
         std::ignore = _lane->pushThreadStatus(L_);                                                 // L_: lane "key" "<status>"
@@ -331,11 +331,11 @@ static LUAG_FUNC(thread_index)
     Lane* const _lane{ ToLane(L_, kSelf) };
     LUA_ASSERT(L_, lua_gettop(L_) == 2);
 
-    switch (lua_type(L_, kKey)) {
-    case LUA_TNUMBER:
+    switch (luaG_type(L_, kKey)) {
+    case LuaType::NUMBER:
         return thread_index_number(L_); // stack modification is undefined, returned value is at the top
 
-    case LUA_TSTRING:
+    case LuaType::STRING:
         return thread_index_string(L_); // stack modification is undefined, returned value is at the top
 
     default: // unknown key
@@ -345,7 +345,7 @@ static LUAG_FUNC(thread_index)
         lua_pushvalue(L_, kKey);                                                                   // L_: mt error "Unknown key: " k
         lua_concat(L_, 2);                                                                         // L_: mt error "Unknown key: <k>"
         lua_call(L_, 1, 0); // error( "Unknown key: " .. key) -> doesn't return                    // L_: mt
-        raise_luaL_error(L_, "%s[%s]: should not get here!", _lane->debugName.data(), lua_typename(L_, lua_type(L_, kKey)));
+        raise_luaL_error(L_, "%s[%s]: should not get here!", _lane->debugName.data(), luaG_typename(L_, luaG_type(L_, kKey)));
     }
 }
 
@@ -498,7 +498,7 @@ static void push_stack_trace(lua_State* L_, Lane::ErrorTraceLevel errorTraceLeve
 
             // For cancellation the error message is kCancelError, and a stack trace isn't placed
             // For other errors, the message can be whatever was thrown, and we should have a stack trace table
-            LUA_ASSERT(L_, lua_type(L_, 1 + stk_base_) == (kCancelError.equals(L_, stk_base_) ? LUA_TNIL : LUA_TTABLE));
+            LUA_ASSERT(L_, luaG_type(L_, 1 + stk_base_) == (kCancelError.equals(L_, stk_base_) ? LuaType::NIL : LuaType::TABLE));
             // Just leaving the stack trace table on the stack is enough to get it through to the master.
         } else {
             // any kind of error can be thrown with error(), or through a lane/linda cancellation
@@ -510,7 +510,7 @@ static void push_stack_trace(lua_State* L_, Lane::ErrorTraceLevel errorTraceLeve
     case LuaError::ERRERR: // error while running the error handler (if any, for example an out-of-memory condition)
     default:
         // the Lua core provides a string error message in those situations
-        LUA_ASSERT(L_, (lua_gettop(L_) == stk_base_) && (lua_type(L_, stk_base_) == LUA_TSTRING));
+        LUA_ASSERT(L_, (lua_gettop(L_) == stk_base_) && (luaG_type(L_, stk_base_) == LuaType::STRING));
         break;
     }
 }
@@ -551,7 +551,7 @@ static void push_stack_trace(lua_State* L_, Lane::ErrorTraceLevel errorTraceLeve
         LUA_ASSERT(L_, lua_isfunction(L_, -1));
         if (lua_rc_ != LuaError::OK) { // we have an error message and an optional stack trace at the bottom of the stack
             LUA_ASSERT(L_, _finalizers_index == 2 || _finalizers_index == 3);
-            //std::string_view const _err_msg{ lua_tostringview(L_, 1) };
+            //std::string_view const _err_msg{ luaG_tostringview(L_, 1) };
             lua_pushvalue(L_, 1);                                                                  // L_: ... finalizers lane_error finalizer err_msg
             // note we don't always have a stack trace for example when kCancelError, or when we got an error that doesn't call our handler, such as LUA_ERRMEM
             if (_finalizers_index == 3) {
@@ -683,7 +683,7 @@ static void lane_main(Lane* lane_)
         // in case of error and if it exists, fetch stack trace from registry and push it
         push_stack_trace(_L, lane_->errorTraceLevel, _rc, 1);                                      // L: retvals|error [trace]
 
-        DEBUGSPEW_CODE(DebugSpew(_U) << "Lane " << _L << " body: " << GetErrcodeName(_rc) << " (" << (kCancelError.equals(_L, 1) ? "cancelled" : lua_typename(_L, lua_type(_L, 1))) << ")" << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(_U) << "Lane " << _L << " body: " << GetErrcodeName(_rc) << " (" << (kCancelError.equals(_L, 1) ? "cancelled" : luaG_typename(_L, luaG_type(_L, 1))) << ")" << std::endl);
         //  Call finalizers, if the script has set them up.
         //
         LuaError const _rc2{ run_finalizers(_L, lane_->errorTraceLevel, _rc) };
@@ -745,7 +745,7 @@ static void lane_main(Lane* lane_)
     lua_rawget(L_, -2);                                                                            // L_: ud uservalue gc_cb|nil
     if (!lua_isnil(L_, -1)) {
         lua_remove(L_, -2);                                                                        // L_: ud gc_cb|nil
-        std::ignore = lua_pushstringview(L_, _lane->debugName);                                    // L_: ud gc_cb name
+        std::ignore = luaG_pushstringview(L_, _lane->debugName);                                   // L_: ud gc_cb name
         _have_gc_cb = true;
     } else {
         lua_pop(L_, 2);                                                                            // L_: ud
@@ -810,7 +810,7 @@ void Lane::changeDebugName(int const nameIdx_)
     // store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...
     kLaneNameRegKey.setValue(L, [idx = _nameIdx](lua_State* L_) { lua_pushvalue(L_, idx); });      // L: ... "name" ...
     // keep a direct pointer on the string
-    debugName = lua_tostringview(L, _nameIdx);
+    debugName = luaG_tostringview(L, _nameIdx);
     if constexpr (HAVE_DECODA_SUPPORT()) {
         // to see VM name in Decoda debugger Virtual Machine window
         lua_pushvalue(L, _nameIdx);                                                                // L: ... "name" ... "name"
@@ -897,7 +897,7 @@ void Lane::PushMetatable(lua_State* L_)
     std::string_view const _str{ threadStatusString() };
     LUA_ASSERT(L_, !_str.empty());
 
-    return lua_pushstringview(L_, _str);
+    return luaG_pushstringview(L_, _str);
 }
 
 // #################################################################################################
@@ -907,7 +907,7 @@ void Lane::PushMetatable(lua_State* L_)
     std::string_view const _str{ errorTraceLevelString() };
     LUA_ASSERT(L_, !_str.empty());
 
-    return lua_pushstringview(L_, _str);
+    return luaG_pushstringview(L_, _str);
 }
 
 // #################################################################################################
@@ -922,7 +922,7 @@ void Lane::securizeDebugName(lua_State* L_)
     LUA_ASSERT(L_, lua_istable(L_, -1));
     // we don't care about the actual key, so long as it's unique and can't collide with anything.
     lua_newtable(L_);                                                                              // L_: lane ... {uv} {}
-    debugName = lua_pushstringview(L_, debugName);                                                 // L_: lane ... {uv} {} name
+    debugName = luaG_pushstringview(L_, debugName);                                                // L_: lane ... {uv} {} name
     lua_rawset(L_, -3);                                                                            // L_: lane ... {uv}
     lua_pop(L_, 1);                                                                                // L_: lane
     STACK_CHECK(L_, 0);

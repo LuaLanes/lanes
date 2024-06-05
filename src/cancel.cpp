@@ -185,8 +185,8 @@ CancelOp which_cancel_op(std::string_view const& opString_)
 
 [[nodiscard]] static CancelOp which_cancel_op(lua_State* L_, int idx_)
 {
-    if (lua_type(L_, idx_) == LUA_TSTRING) {
-        std::string_view const _str{ lua_tostringview(L_, idx_) };
+    if (luaG_type(L_, idx_) == LuaType::STRING) {
+        std::string_view const _str{ luaG_tostringview(L_, idx_) };
         CancelOp _op{ which_cancel_op(_str) };
         lua_remove(L_, idx_); // argument is processed, remove it
         if (_op == CancelOp::Invalid) {
@@ -215,7 +215,7 @@ LUAG_FUNC(thread_cancel)
     }
 
     std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
-    if (lua_type(L_, 2) == LUA_TNUMBER) { // we don't want to use lua_isnumber() because of autocoercion
+    if (luaG_type(L_, 2) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
         lua_Duration const duration{ lua_tonumber(L_, 2) };
         if (duration.count() >= 0.0) {
             _until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration);

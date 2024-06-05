@@ -59,8 +59,8 @@ THE SOFTWARE.
     // scan table contents
     lua_pushnil(L_);                                                                               // L_: o "r" {c} {fqn} ... {?} nil
     while (lua_next(L_, -2)) {                                                                     // L_: o "r" {c} {fqn} ... {?} k v
-        // std::string_view const _strKey{ (lua_type(L_, -2) == LUA_TSTRING) ? lua_tostringview(L_, -2) : "" }; // only for debugging
-        // lua_Number const numKey = (lua_type(L_, -2) == LUA_TNUMBER) ? lua_tonumber(L_, -2) : -6666; // only for debugging
+        // std::string_view const _strKey{ (luaG_type(L_, -2) == LuaType::STRING) ? luaG_tostringview(L_, -2) : "" }; // only for debugging
+        // lua_Number const numKey = (luaG_type(L_, -2) == LuaType::NUMBER) ? lua_tonumber(L_, -2) : -6666; // only for debugging
         STACK_CHECK(L_, 2);
         // append key name to fqn stack
         ++depth_;
@@ -79,11 +79,11 @@ THE SOFTWARE.
             STACK_CHECK(L_, 0);
             break;
         }
-        switch (lua_type(L_, -1)) {                                                                // L_: o "r" {c} {fqn} ... {?} k v
+        switch (luaG_type(L_, -1)) {                                                               // L_: o "r" {c} {fqn} ... {?} k v
         default: // nil, boolean, light userdata, number and string aren't identifiable
             break;
 
-        case LUA_TTABLE:                                                                           // L_: o "r" {c} {fqn} ... {?} k {}
+        case LuaType::TABLE:                                                                       // L_: o "r" {c} {fqn} ... {?} k {}
             STACK_CHECK(L_, 2);
             shortest_ = DiscoverObjectNameRecur(L_, shortest_, depth_);
             // search in the table's metatable too
@@ -102,11 +102,11 @@ THE SOFTWARE.
             STACK_CHECK(L_, 2);
             break;
 
-        case LUA_TTHREAD:                                                                          // L_: o "r" {c} {fqn} ... {?} k T
+        case LuaType::THREAD:                                                                      // L_: o "r" {c} {fqn} ... {?} k T
             // TODO: explore the thread's stack frame looking for our culprit?
             break;
 
-        case LUA_TUSERDATA:                                                                        // L_: o "r" {c} {fqn} ... {?} k U
+        case LuaType::USERDATA:                                                                    // L_: o "r" {c} {fqn} ... {?} k U
             STACK_CHECK(L_, 2);
             // search in the object's metatable (some modules are built that way)
             if (lua_getmetatable(L_, -1)) {                                                        // L_: o "r" {c} {fqn} ... {?} k U {mt}
@@ -172,7 +172,7 @@ LUAG_FUNC(nameof)
     }
 
     // nil, boolean, light userdata, number and string aren't identifiable
-    if (lua_type(L_, 1) < LUA_TTABLE) {
+    if (luaG_type(L_, 1) < LuaType::TABLE) {
         lua_pushstring(L_, luaL_typename(L_, 1));                                                  // L_: o "type"
         lua_insert(L_, -2);                                                                        // L_: "type" o
         return 2;

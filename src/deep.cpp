@@ -240,7 +240,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
                 raise_luaL_error(errL_, "lanes receiving deep userdata should register the 'package' library");
             }
 
-            std::ignore = lua_pushstringview(L_, _modname);                                        // L_: DPC proxy metatable require() "module"
+            std::ignore = luaG_pushstringview(L_, _modname);                                       // L_: DPC proxy metatable require() "module"
             if (luaG_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE) != LuaType::TABLE) {        // L_: DPC proxy metatable require() "module" _R._LOADED
                 // no L.registry._LOADED; can this ever happen?
                 lua_pop(L_, 6);                                                                    // L_:
@@ -259,7 +259,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
                     LuaError const _require_result{ lua_pcall(L_, 1, 0, 0) };                      // L_: DPC proxy metatable error?
                     if (_require_result != LuaError::OK) {
                         // failed, raise the error in the proper state
-                        std::ignore = lua_pushstringview(errL_, lua_tostringview(L_, -1));
+                        std::ignore = luaG_pushstringview(errL_, luaG_tostringview(L_, -1));
                         raise_lua_error(errL_);
                     }
                 }
@@ -269,7 +269,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
         }
     }
     STACK_CHECK(L_, 3);                                                                            // L_: DPC proxy metatable
-    LUA_ASSERT(L_, lua_type_as_enum(L_, -2) == LuaType::USERDATA);
+    LUA_ASSERT(L_, luaG_type(L_, -2) == LuaType::USERDATA);
     LUA_ASSERT(L_, lua_istable(L_, -1));
     lua_setmetatable(L_, -2);                                                                      // L_: DPC proxy
 
@@ -278,7 +278,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
     lua_pushvalue(L_, -2);                                                                         // L_: DPC proxy deep proxy
     lua_rawset(L_, -4);                                                                            // L_: DPC proxy
     lua_remove(L_, -2);                                                                            // L_: proxy
-    LUA_ASSERT(L_, lua_type_as_enum(L_, -1) == LuaType::USERDATA);
+    LUA_ASSERT(L_, luaG_type(L_, -1) == LuaType::USERDATA);
     STACK_CHECK(L_, 1);
 }
 

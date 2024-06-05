@@ -184,9 +184,9 @@ namespace state {
         STACK_CHECK(L_, 1);
         // capture error and raise it in caller state
         std::string_view const _stateType{ mode_ == LookupMode::LaneBody ? "lane" : "keeper" };
-        std::ignore = lua_pushstringview(L_, _stateType);                                          // L_: on_state_create() "<type>"
+        std::ignore = luaG_pushstringview(L_, _stateType);                                         // L_: on_state_create() "<type>"
         if (lua_pcall(L_, 1, 0, 0) != LUA_OK) {
-            raise_luaL_error(from_, "%s failed: \"%s\"", kOnStateCreate, lua_isstring(L_, -1) ? lua_tostring(L_, -1) : lua_typename(L_, lua_type(L_, -1)));
+            raise_luaL_error(from_, "%s failed: \"%s\"", kOnStateCreate, lua_isstring(L_, -1) ? lua_tostring(L_, -1) : luaG_typename(L_, luaG_type(L_, -1)));
         }
         STACK_CHECK(L_, 0);
     }
@@ -365,19 +365,19 @@ namespace state {
             kLookupRegKey.pushValue(_L);                                                           // L: {}
             lua_pushnil(_L);                                                                       // L: {} nil
             while (lua_next(_L, -2)) {                                                             // L: {} k v
-                std::ignore = lua_pushstringview(_L, "[");                                         // L: {} k v "["
+                std::ignore = luaG_pushstringview(_L, "[");                                        // L: {} k v "["
 
                 lua_getglobal(_L, "tostring");                                                     // L: {} k v "[" tostring
                 lua_pushvalue(_L, -4);                                                             // L: {} k v "[" tostring k
                 lua_call(_L, 1, 1);                                                                // L: {} k v "[" 'k'
 
-                std::ignore = lua_pushstringview(_L, "] = ");                                      // L: {} k v "[" 'k' "] = "
+                std::ignore = luaG_pushstringview(_L, "] = ");                                     // L: {} k v "[" 'k' "] = "
 
                 lua_getglobal(_L, "tostring");                                                     // L: {} k v "[" 'k' "] = " tostring
                 lua_pushvalue(_L, -5);                                                             // L: {} k v "[" 'k' "] = " tostring v
                 lua_call(_L, 1, 1);                                                                // L: {} k v "[" 'k' "] = " 'v'
                 lua_concat(_L, 4);                                                                 // L: {} k v "[k] = v"
-                DEBUGSPEW_CODE(DebugSpew(U_) << lua_tostringview(_L, -1) << std::endl);
+                DEBUGSPEW_CODE(DebugSpew(U_) << luaG_tostringview(_L, -1) << std::endl);
                 lua_pop(_L, 2);                                                                    // L: {} k
             } // lua_next()                                                                        // L: {}
             lua_pop(_L, 1);                                                                        // L:

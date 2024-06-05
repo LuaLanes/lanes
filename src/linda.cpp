@@ -43,7 +43,7 @@ THE SOFTWARE.
 static void check_key_types(lua_State* L_, int start_, int end_)
 {
     for (int _i{ start_ }; _i <= end_; ++_i) {
-        LuaType const t{ lua_type_as_enum(L_, _i) };
+        LuaType const t{ luaG_type(L_, _i) };
         switch (t) {
         case LuaType::BOOLEAN:
         case LuaType::NUMBER:
@@ -79,10 +79,10 @@ template <bool OPT>
 {
     Linda* const _linda{ ToLinda<OPT>(L_, idx_) };
     if (_linda != nullptr) {
-        std::ignore = lua_pushstringview(L_, "Linda: ");
+        std::ignore = luaG_pushstringview(L_, "Linda: ");
         std::string_view const _lindaName{ _linda->getName() };
         if (!_lindaName.empty()) {
-            std::ignore = lua_pushstringview(L_, _lindaName);
+            std::ignore = luaG_pushstringview(L_, _lindaName);
         } else {
             lua_pushfstring(L_, "%p", _linda);
         }
@@ -247,7 +247,7 @@ void Linda::setName(std::string_view const& name_)
 LUAG_FUNC(linda_cancel)
 {
     Linda* const _linda{ ToLinda<false>(L_, 1) };
-    std::string_view const _who{ luaL_optstringview(L_, 2, "both") };
+    std::string_view const _who{ luaG_optstringview(L_, 2, "both") };
     // make sure we got 2 arguments: the linda and the cancellation mode
     luaL_argcheck(L_, lua_gettop(L_) <= 2, 2, "wrong number of arguments");
 
@@ -412,7 +412,7 @@ LUAG_FUNC(linda_limit)
             _pushed = keeper_call(_K->L, KEEPER_API(limit), L_, _linda, 2);
             LUA_ASSERT(L_, _pushed.has_value() && (_pushed.value() == 0 || _pushed.value() == 1)); // no error, optional boolean value saying if we should wake blocked writer threads
             if (_pushed.value() == 1) {
-                LUA_ASSERT(L_, lua_type(L_, -1) == LUA_TBOOLEAN && lua_toboolean(L_, -1) == 1);
+                LUA_ASSERT(L_, luaG_type(L_, -1) == LuaType::BOOLEAN && lua_toboolean(L_, -1) == 1);
                 _linda->readHappened.notify_all(); // To be done from within the 'K' locking area
             }
         } else { // linda is cancelled
@@ -446,7 +446,7 @@ LUAG_FUNC(linda_receive)
         int _key_i{ 2 }; // index of first key, if timeout not there
 
         std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
-        if (lua_type(L_, 2) == LUA_TNUMBER) { // we don't want to use lua_isnumber() because of autocoercion
+        if (luaG_type(L_, 2) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
             lua_Duration const _duration{ lua_tonumber(L_, 2) };
             if (_duration.count() >= 0.0) {
                 _until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(_duration);
@@ -559,7 +559,7 @@ LUAG_FUNC(linda_receive)
                 if (_nbPushed == 0) {
                     // not enough data in the linda slot to fulfill the request, return nil, "timeout"
                     lua_pushnil(L_);
-                    std::ignore = lua_pushstringview(L_, "timeout");
+                    std::ignore = luaG_pushstringview(L_, "timeout");
                     return 2;
                 }
                 return _nbPushed;
@@ -600,7 +600,7 @@ LUAG_FUNC(linda_send)
         int _key_i{ 2 }; // index of first key, if timeout not there
 
         std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
-        if (lua_type(L_, 2) == LUA_TNUMBER) { // we don't want to use lua_isnumber() because of autocoercion
+        if (luaG_type(L_, 2) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
             lua_Duration const _duration{ lua_tonumber(L_, 2) };
             if (_duration.count() >= 0.0) {
                 _until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(_duration);
@@ -742,7 +742,7 @@ LUAG_FUNC(linda_set)
                 }
                 if (_pushed.value() == 1) {
                     // the key was full, but it is no longer the case, tell writers they should wake
-                    LUA_ASSERT(L_, lua_type(L_, -1) == LUA_TBOOLEAN && lua_toboolean(L_, -1) == 1);
+                    LUA_ASSERT(L_, luaG_type(L_, -1) == LuaType::BOOLEAN && lua_toboolean(L_, -1) == 1);
                     _linda->readHappened.notify_all(); // To be done from within the 'K' locking area
                 }
             }
@@ -826,7 +826,7 @@ LUAG_FUNC(linda)
     int _groupIdx{};
     luaL_argcheck(L_, _top <= 2, _top, "too many arguments");
     if (_top == 1) {
-        LuaType const _t{ lua_type_as_enum(L_, 1) };
+        LuaType const _t{ luaG_type(L_, 1) };
         int const _nameIdx{ (_t == LuaType::STRING) ? 1 : 0 };
         _groupIdx = (_t == LuaType::NUMBER) ? 1 : 0;
         luaL_argcheck(L_, _nameIdx || _groupIdx, 1, "wrong parameter (should be a string or a number)");

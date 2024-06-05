@@ -92,7 +92,7 @@ void LaneTracker::tracking_add(Lane* lane_)
         while (_lane != TRACKING_END) {
             // insert a { name='<name>', status='<status>' } tuple, so that several lanes with the same name can't clobber each other
             lua_createtable(L_, 0, 2);                                                             // L_: {} {}
-            std::ignore = lua_pushstringview(L_, _lane->debugName);                                // L_: {} {} "name"
+            std::ignore = luaG_pushstringview(L_, _lane->debugName);                               // L_: {} {} "name"
             lua_setfield(L_, -2, "name");                                                          // L_: {} {}
             std::ignore = _lane->pushThreadStatus(L_);                                             // L_: {} {} "status"
             lua_setfield(L_, -2, "status");                                                        // L_: {} {}
