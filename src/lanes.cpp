@@ -354,7 +354,9 @@ LUAG_FUNC(lane_new)
                     lua_Debug _ar;
                     lua_pushvalue(L, 1);                                                           // L: ... lane func
                     lua_getinfo(L, ">S", &_ar);                                                    // L: ... lane
-                    lua_pushfstring(_L2, "%s:%d", _ar.short_src, _ar.linedefined);                 // L: ... lane                                    L2: "<name>"
+                    std::ignore = luaG_pushstringview(
+                        _L2, "%s:%d", _ar.short_src, _ar.linedefined
+                    );                                                                             // L: ... lane                                    L2: "<name>"
                 }
                 lane->changeDebugName(-1);
                 lua_pop(_L2, 1);                                                                   // L: ... lane                                    L2:
@@ -706,7 +708,7 @@ LUAG_FUNC(configure)
     lua_pushcclosure(L_, LG_require, 1);                                                           // L_: settings M lanes.require
     lua_setfield(L_, -2, "require");                                                               // L_: settings M
 
-    lua_pushfstring(
+    std::ignore = luaG_pushstringview(
         L_,
         "%d.%d.%d",
         LANES_VERSION_MAJOR,

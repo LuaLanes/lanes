@@ -462,9 +462,9 @@ static constexpr RegistryUniqueKey kStackTraceRegKey{ 0x3F327747CACAA904ull };
             lua_pushstring(L_, _ar.what);                                                          // L_: some_error {} {} what
             lua_setfield(L_, -2, "what");                                                          // L_: some_error {} {}
         } else if (_ar.currentline > 0) {
-            lua_pushfstring(L_, "%s:%d", _ar.short_src, _ar.currentline);                          // L_: some_error {} "blah:blah"
+            std::ignore = luaG_pushstringview(L_, "%s:%d", _ar.short_src, _ar.currentline);        // L_: some_error {} "blah:blah"
         } else {
-            lua_pushfstring(L_, "%s:?", _ar.short_src);                                            // L_: some_error {} "blah"
+            std::ignore = luaG_pushstringview(L_, "%s:?", _ar.short_src);                          // L_: some_error {} "blah"
         }
         lua_rawseti(L_, -2, static_cast<lua_Integer>(_n));                                         // L_: some_error {}
     }

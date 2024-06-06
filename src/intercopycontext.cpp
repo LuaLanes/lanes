@@ -1188,11 +1188,11 @@ namespace {
 
     STACK_CHECK_START_REL(L1, 0);
     if (luaG_type(L1, L1_i) != LuaType::TABLE) {
-        lua_pushfstring(L1, "expected package as table, got %s", luaL_typename(L1, L1_i));
+        std::string_view const _msg{ luaG_pushstringview(L1, "expected package as table, got a %s", luaL_typename(L1, L1_i)) };
         STACK_CHECK(L1, 1);
         // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
         if (mode == LookupMode::LaneBody) {
-            raise_lua_error(getErrL()); // that's ok, getErrL() is L1 in that case
+            raise_luaL_error(getErrL(), _msg);
         }
         return InterCopyResult::Error;
     }
@@ -1224,10 +1224,10 @@ namespace {
             if (_result == InterCopyResult::Success) {
                 lua_setfield(L2, -2, _entry.data()); // set package[entry]
             } else {
-                lua_pushfstring(L1, "failed to copy package entry %s", _entry);
+                std::string_view const _msg{ luaG_pushstringview(L1, "failed to copy package.%s", _entry.data()) };
                 // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
                 if (mode == LookupMode::LaneBody) {
-                    raise_lua_error(getErrL());
+                    raise_luaL_error(getErrL(), _msg);
                 }
                 lua_pop(L1, 1);
                 break;

@@ -259,8 +259,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
                     LuaError const _require_result{ lua_pcall(L_, 1, 0, 0) };                      // L_: DPC proxy metatable error?
                     if (_require_result != LuaError::OK) {
                         // failed, raise the error in the proper state
-                        std::ignore = luaG_pushstringview(errL_, luaG_tostringview(L_, -1));
-                        raise_lua_error(errL_);
+                        raise_luaL_error(errL_, luaG_tostringview(L_, -1));
                     }
                 }
             } else { // already loaded, we are happy

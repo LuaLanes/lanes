@@ -323,21 +323,21 @@ inline void luaG_setmetatable(lua_State* const L_, std::string_view const& tname
 #define STRINGVIEW_FMT "%.*s"
 
 // a replacement of lua_tolstring
-[[nodiscard]] inline std::string_view luaG_tostringview(lua_State* L_, int idx_)
+[[nodiscard]] inline std::string_view luaG_tostringview(lua_State* const L_, int const idx_)
 {
     size_t _len{ 0 };
     char const* _str{ lua_tolstring(L_, idx_, &_len) };
     return std::string_view{ _str, _len };
 }
 
-[[nodiscard]] inline std::string_view luaG_checkstringview(lua_State* L_, int idx_)
+[[nodiscard]] inline std::string_view luaG_checkstringview(lua_State* const L_, int const idx_)
 {
     size_t _len{ 0 };
     char const* _str{ luaL_checklstring(L_, idx_, &_len) };
     return std::string_view{ _str, _len };
 }
 
-[[nodiscard]] inline std::string_view luaG_optstringview(lua_State* L_, int idx_, std::string_view const& default_)
+[[nodiscard]] inline std::string_view luaG_optstringview(lua_State* const L_, int const idx_, std::string_view const& default_)
 {
     if (lua_isnoneornil(L_, idx_)) {
         return default_;
@@ -347,13 +347,19 @@ inline void luaG_setmetatable(lua_State* const L_, std::string_view const& tname
     return std::string_view{ _str, _len };
 }
 
-[[nodiscard]] inline std::string_view luaG_pushstringview(lua_State* L_, std::string_view const& str_)
+template<typename ...EXTRA>
+[[nodiscard]] inline std::string_view luaG_pushstringview(lua_State* const L_, std::string_view const& str_, EXTRA&&... extra_)
 {
-#if LUA_VERSION_NUM == 501
-    // lua_pushlstring doesn't return a value in Lua 5.1
-    lua_pushlstring(L_, str_.data(), str_.size());
-    return luaG_tostringview(L_, -1);
-#else
-    return std::string_view{ lua_pushlstring(L_, str_.data(), str_.size()), str_.size() };
-#endif // LUA_VERSION_NUM > 501
+    if constexpr (sizeof...(EXTRA) == 0) {
+        if constexpr (LUA_VERSION_NUM == 501) {
+            // lua_pushlstring doesn't return a value in Lua 5.1
+            lua_pushlstring(L_, str_.data(), str_.size());
+            return luaG_tostringview(L_, -1);
+        } else {
+            return std::string_view{ lua_pushlstring(L_, str_.data(), str_.size()), str_.size() };
+        }
+    } else {
+        static_assert((... && std::is_trivial_v<std::decay_t<EXTRA>>));
+        return std::string_view{ lua_pushfstring(L_, str_.data(), std::forward<EXTRA>(extra_)...) };
+    }
 }
