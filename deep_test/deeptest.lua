@@ -4,8 +4,11 @@ local l = lanes.linda "my linda"
 -- we will transfer userdata created by this module, so we need to make Lanes aware of it
 local dt = lanes.require "deep_test"
 
-local test_deep = true
-local test_clonable = true
+-- set DEEP to any non-false value to run the Deep Userdata tests. "gc" selects a special test for debug purposes
+DEEP = DEEP or true
+-- set CLONABLE to any non-false value to run the Clonable Userdata tests
+CLONABLE = CLONABLE or true
+
 -- lua 5.1->5.2 support a single table uservalue
 -- lua 5.3->5.4 supports an arbitrary type uservalue
 local test_uvtype = (_VERSION == "Lua 5.4") and "function" or (_VERSION == "Lua 5.3") and "string" or "table"
@@ -86,13 +89,34 @@ local performTest = function( obj_)
 	printDeep( "from lane:", h[1], h[2])
 end
 
-if test_deep then
+if DEEP then
 	print "================================================================"
 	print "DEEP"
-	performTest( dt.new_deep(nupvals))
+	local d = dt.new_deep(nupvals)
+	if DEEP == "gc" then
+		local thrasher = function(repeat_, size_)
+			print "in thrasher"
+			-- result is a table of repeat_ tables, each containing size_ entries
+			local result = {}
+			for i = 1, repeat_ do
+				local batch_values = {}
+				for j = 1, size_ do
+					table.insert(batch_values, j)
+				end
+				table.insert(result, batch_values)
+			end
+			print "thrasher done"
+			return result
+		end
+		-- have the object call the function from inside one of its functions, to detect if it gets collected from there (while in use!)
+		local r = d:invoke(thrasher, REPEAT or 10, SIZE or 10)
+		print("invoke -> ", tostring(r))
+	else
+		performTest(d)
+	end
 end
 
-if test_clonable then
+if CLONABLE then
 	print "================================================================"
 	print "CLONABLE"
 	performTest( dt.new_clonable(nupvals))

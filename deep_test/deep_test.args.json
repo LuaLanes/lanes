@@ -8,7 +8,7 @@
       "Items": [
         {
           "Id": "10e30bb2-dc23-4882-b918-b5939c14e588",
-          "Command": "-i deeptest.lua"
+          "Command": "-e \"REPEAT=1000, SIZE=1000\" -i deeptest.lua"
         }
       ]
     }

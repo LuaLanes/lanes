@@ -47,6 +47,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 [[nodiscard]] static int deep_gc(lua_State* L)
 {
     MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, 1)) };
+    luaL_argcheck(L, 1, !_self->inUse.load(), "being collected while in use!");
     return 0;
 }
 
@@ -70,6 +71,18 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
     int _uv = (int) luaL_optinteger(L, 2, 1);
     lua_getiuservalue(L, 1, _uv);
+    _self->inUse.fetch_sub(1, std::memory_order_seq_cst);
+    return 1;
+}
+
+// #################################################################################################
+
+[[nodiscard]] static int deep_invoke(lua_State* L)
+{
+    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, 1)) };
+    luaL_argcheck(L, 2, lua_gettop(L) >= 2, "need something to call");
+    _self->inUse.fetch_add(1, std::memory_order_seq_cst);
+    lua_call(L, lua_gettop(L) - 2, LUA_MULTRET);
     _self->inUse.fetch_sub(1, std::memory_order_seq_cst);
     return 1;
 }
@@ -105,6 +118,7 @@ static luaL_Reg const deep_mt[] = {
     { "__gc", deep_gc },
     { "__tostring", deep_tostring },
     { "getuv", deep_getuv },
+    { "invoke", deep_invoke },
     { "set", deep_set },
     { "setuv", deep_setuv },
     { nullptr, nullptr }
