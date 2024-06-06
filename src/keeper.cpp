@@ -139,7 +139,9 @@ void KeyUD::peek(KeeperState const K_, int const count_)
     // read <count_> value off the fifo
     prepareAccess(K_, -1);                                                                         // K_: fifo
     int const _at{ lua_gettop(K_) };
-    for (int const _i : std::ranges::iota_view{ 1, std::min(count_, count) }) { // push val2 to valN
+    int const _count{ std::min(count_, count) };
+    STACK_GROW(K_, _count);
+    for (int const _i : std::ranges::iota_view{ 1, _count }) { // push val2 to valN
         lua_rawgeti(K_, 1, first + _i);                                                            // K_: fifo val2..N
     }
     lua_rawgeti(K_, 1, first); // push val1                                                        // K_: fifo val2..N val1

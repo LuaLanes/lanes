@@ -18,6 +18,30 @@ local finalizer = function(err, stk)
 end
 
 -- #################################################################################################
+if false then
+	do
+		print "############################################ tests get/set"
+		-- linda:get throughput
+		local l = lanes.linda("get/set")
+		local batch = {}
+		for i = 1,1000 do
+			table.insert(batch, i)
+		end
+		for _,size in ipairs{1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987 } do
+			l:set("<->", table_unpack(batch))
+			local count = math.floor(20000000/size)
+			print("START", "get("..size..") " .. count, " times")
+			local t1 = lanes.now_secs()
+			for i = 1, 2000000/math.sqrt(size) do
+				l:get("<->", size)
+			end
+			print("DURATION = " .. lanes.now_secs() - t1 .. "\n")
+		end
+	end
+	collectgarbage()
+end
+
+-- #################################################################################################
 
 -- this lane eats items in the linda one by one
 local eater = function( l, loop)
@@ -59,10 +83,10 @@ local lane_gobbler_gen = lanes.gen( "*", {priority = 3}, gobbler)
 -- #################################################################################################
 
 -- main thread writes data while a lane reads it
-local function ziva( preloop, loop, batch)
+local function ziva1( preloop, loop, batch)
 	-- prefill the linda a bit to increase fifo stress
 	local top = math.max( preloop, loop)
-	local l = lanes.linda()
+	local l = lanes.linda("ziva1("..preloop..":"..loop..":"..batch..")")
 	local t1 = lanes.now_secs()
 	for i = 1, preloop do
 		l:send( "key", i)
@@ -104,60 +128,44 @@ local function ziva( preloop, loop, batch)
 end
 
 -- #################################################################################################
-do
-	print "############################################ tests get/set"
-	-- linda:get throughput
-	local l = lanes.linda("get/set")
-	local batch = {}
-	for i = 1,1000 do
-		table.insert(batch, i)
-	end
-	for _,size in ipairs{1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987 } do
-		l:set("<->", table_unpack(batch))
-		local count = 20000000//size
-		print("START", "get("..size..") " .. count, " times")
-		local t1 = lanes.now_secs()
-		for i = 1, 2000000/math.sqrt(size) do
-			l:get("<->", size)
+
+if true then
+	do
+		TEST1 = TEST1 or 1000
+		PREFILL1 = PREFILL1 or 10000
+		FILL1 = FILL1 or 2000000
+
+		local tests1 =
+		{
+			{ PREFILL1, FILL1, 0},
+			{ PREFILL1, FILL1, 1},
+			{ PREFILL1, FILL1, 2},
+			{ PREFILL1, FILL1, 3},
+			{ PREFILL1, FILL1, 5},
+			{ PREFILL1, FILL1, 8},
+			{ PREFILL1, FILL1, 13},
+			{ PREFILL1, FILL1, 21},
+			{ PREFILL1, FILL1, 34},
+			{ PREFILL1, FILL1, 55},
+			{ PREFILL1, FILL1, 89},
+		}
+		print "############################################ tests #1"
+		for i, v in ipairs( tests1) do
+			if i > TEST1 then break end
+			local pre, loop, batch = v[1], v[2], v[3]
+			print("-------------------------------------------------\n")
+			print("START", "prefill="..pre, "fill="..loop, "batch="..batch)
+			print("DURATION = " .. ziva1( pre, loop, batch) .. "\n")
 		end
-		print("DURATION = " .. lanes.now_secs() - t1 .. "\n")
 	end
-end
-
--- #################################################################################################
-
-TEST1 = TEST1 or 1000
-PREFILL1 = PREFILL1 or 10000
-FILL1 = FILL1 or 2000000
-
-local tests1 =
-{
-	{ PREFILL1, FILL1, 0},
-	{ PREFILL1, FILL1, 1},
-	{ PREFILL1, FILL1, 2},
-	{ PREFILL1, FILL1, 3},
-	{ PREFILL1, FILL1, 5},
-	{ PREFILL1, FILL1, 8},
-	{ PREFILL1, FILL1, 13},
-	{ PREFILL1, FILL1, 21},
-	{ PREFILL1, FILL1, 34},
-	{ PREFILL1, FILL1, 55},
-	{ PREFILL1, FILL1, 89},
-}
-print "############################################ tests #1"
-for i, v in ipairs( tests1) do
-	if i > TEST1 then break end
-	local pre, loop, batch = v[1], v[2], v[3]
-	print("-------------------------------------------------\n")
-	print("START", "prefill="..pre, "fill="..loop, "batch="..batch)
-	print("DURATION = " .. ziva( pre, loop, batch) .. "\n")
+	collectgarbage()
 end
 
 -- #################################################################################################
 
 -- sequential write/read (no parallelization involved)
 local function ziva2( preloop, loop, batch)
-	local l = lanes.linda()
+	local l = lanes.linda("ziva2("..preloop..":"..loop..":"..tostring(batch)..")")
 	-- prefill the linda a bit to increase fifo stress
 	local top, step = math.max( preloop, loop), (l.batched and batch) and batch or 1
 	local batch_send, batch_read
@@ -203,32 +211,37 @@ end
 
 -- #################################################################################################
 
-TEST2 = TEST2 or 1000
-PREFILL2 = PREFILL2 or 0
-FILL2 = FILL2 or 4000000
+if true then
+	do
+		TEST2 = TEST2 or 1000
+		PREFILL2 = PREFILL2 or 0
+		FILL2 = FILL2 or 4000000
 
-local tests2 =
-{
-	{ PREFILL2, FILL2},
-	{ PREFILL2, FILL2, 1},
-	{ PREFILL2, FILL2, 2},
-	{ PREFILL2, FILL2, 3},
-	{ PREFILL2, FILL2, 5},
-	{ PREFILL2, FILL2, 8},
-	{ PREFILL2, FILL2, 13},
-	{ PREFILL2, FILL2, 21},
-	{ PREFILL2, FILL2, 34},
-	{ PREFILL2, FILL2, 55},
-	{ PREFILL2, FILL2, 89},
-}
+		local tests2 =
+		{
+			{ PREFILL2, FILL2},
+			{ PREFILL2, FILL2, 1},
+			{ PREFILL2, FILL2, 2},
+			{ PREFILL2, FILL2, 3},
+			{ PREFILL2, FILL2, 5},
+			{ PREFILL2, FILL2, 8},
+			{ PREFILL2, FILL2, 13},
+			{ PREFILL2, FILL2, 21},
+			{ PREFILL2, FILL2, 34},
+			{ PREFILL2, FILL2, 55},
+			{ PREFILL2, FILL2, 89},
+		}
 
-print "############################################ tests #2"
-for i, v in ipairs( tests2) do
-	if i > TEST2 then break end
-	local pre, loop, batch = v[1], v[2], v[3]
-	print("-------------------------------------------------\n")
-	print("START", "prefill="..pre, "fill="..loop, "batch="..(batch or "no"))
-	print("DURATION = " .. ziva2( pre, loop, batch) .. "\n")
+		print "############################################ tests #2"
+		for i, v in ipairs( tests2) do
+			if i > TEST2 then break end
+			local pre, loop, batch = v[1], v[2], v[3]
+			print("-------------------------------------------------\n")
+			print("START", "prefill="..pre, "fill="..loop, "batch="..(batch or "no"))
+			print("DURATION = " .. ziva2( pre, loop, batch) .. "\n")
+		end
+	end
+	collectgarbage()
 end
 
 print "############################################"
