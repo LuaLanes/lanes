@@ -37,30 +37,34 @@ THE SOFTWARE.
 #include "tools.h"
 
 #include <functional>
+#include <ranges>
 
 // #################################################################################################
 
-static void check_key_types(lua_State* L_, int start_, int end_)
+static void check_key_types(lua_State* const L_, int const start_, int const end_)
 {
-    for (int _i{ start_ }; _i <= end_; ++_i) {
-        LuaType const t{ luaG_type(L_, _i) };
-        switch (t) {
+    for (int const _i : std::ranges::iota_view{ start_, end_ + 1 }) {
+        switch (LuaType const _t{ luaG_type(L_, _i) }) {
         case LuaType::BOOLEAN:
         case LuaType::NUMBER:
         case LuaType::STRING:
-            continue;
+            break;
 
         case LuaType::LIGHTUSERDATA:
-            static constexpr std::array<std::reference_wrapper<UniqueKey const>, 3> kKeysToCheck{ kLindaBatched, kCancelError, kNilSentinel };
-            for (UniqueKey const& _key : kKeysToCheck) {
-                if (_key.equals(L_, _i)) {
-                    raise_luaL_error(L_, "argument #%d: can't use %s as a key", _i, _key.debugName.data());
-                    break;
+            {
+                static constexpr std::array<std::reference_wrapper<UniqueKey const>, 3> kKeysToCheck{ kLindaBatched, kCancelError, kNilSentinel };
+                for (UniqueKey const& _key : kKeysToCheck) {
+                    if (_key.equals(L_, _i)) {
+                        raise_luaL_error(L_, "argument #%d: can't use %s as a key", _i, _key.debugName.data());
+                        break;
+                    }
                 }
             }
             break;
+
+        default:
+            raise_luaL_error(L_, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", _i);
         }
-        raise_luaL_error(L_, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", _i);
     }
 }
 
@@ -496,7 +500,7 @@ LUAG_FUNC(linda_receive)
             return 0;
 
         CancelRequest _cancel{ CancelRequest::None };
-        KeeperCallResult _pushed;
+        KeeperCallResult _pushed{};
         STACK_CHECK_START_REL(_KL, 0);
         for (bool _try_again{ true };;) {
             if (_lane != nullptr) {
