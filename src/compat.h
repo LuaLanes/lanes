@@ -172,9 +172,21 @@ struct Wrap
         return ::lua_dump(L_, writer_, data_, strip_);
     }
 
+    template <size_t N>
+    static inline void (luaL_newlib)(lua_State* const L_, luaL_Reg const (&funcs_)[N])
+    {
+        lua_createtable(L_, 0, N - 1);
+        ::luaL_setfuncs(L_, funcs_, 0);
+    }
+
     static void luaL_setfuncs(lua_State* const L_, luaL_Reg const funcs_[], int nup_)
     {
         ::luaL_setfuncs(L_, funcs_, nup_);
+    }
+
+    static void luaL_setmetatable(lua_State* const L_, std::string_view const& tname_)
+    {
+        ::luaL_setmetatable(L_, tname_.data());
     }
 };
 
@@ -188,9 +200,21 @@ struct Wrap<VERSION, typename std::enable_if<VERSION == 503>::type>
         return ::lua_dump(L_, writer_, data_, strip_);
     }
 
+    template <size_t N>
+    static inline void (luaL_newlib)(lua_State* const L_, luaL_Reg const (&funcs_)[N])
+    {
+        lua_createtable(L_, 0, N - 1);
+        ::luaL_setfuncs(L_, funcs_, 0);
+    }
+
     static void luaL_setfuncs(lua_State* const L_, luaL_Reg const funcs_[], int const nup_)
     {
         ::luaL_setfuncs(L_, funcs_, nup_);
+    }
+
+    static void luaL_setmetatable(lua_State* const L_, std::string_view const& tname_)
+    {
+        ::luaL_setmetatable(L_, tname_.data());
     }
 };
 
@@ -204,9 +228,21 @@ struct Wrap<VERSION, typename std::enable_if<VERSION == 502>::type>
         return ::lua_dump(L_, writer_, data_);
     }
 
+    template <size_t N>
+    static inline void (luaL_newlib)(lua_State* const L_, luaL_Reg const (&funcs_)[N])
+    {
+        lua_createtable(L_, 0, N - 1);
+        ::luaL_setfuncs(L_, funcs_, 0);
+    }
+
     static void luaL_setfuncs(lua_State* const L_, luaL_Reg const funcs_[], int const nup_)
     {
         ::luaL_setfuncs(L_, funcs_, nup_);
+    }
+
+    static void luaL_setmetatable(lua_State* const L_, std::string_view const& tname_)
+    {
+        ::luaL_setmetatable(L_, tname_.data());
     }
 };
 
@@ -220,9 +256,22 @@ struct Wrap<VERSION, typename std::enable_if<VERSION == 501>::type>
         return ::lua_dump(L_, writer_, data_);
     }
 
+    template<size_t N>
+    static inline void (luaL_newlib)(lua_State* const L_, luaL_Reg const (&funcs_)[N])
+    {
+        lua_createtable(L_, 0, N - 1);
+        ::luaL_register(L_, nullptr, funcs_);
+    }
+
     static void luaL_setfuncs(lua_State* const L_, luaL_Reg const funcs_[], [[maybe_unused]] int const nup_)
     {
         ::luaL_register(L_, nullptr, funcs_);
+    }
+
+    static void luaL_setmetatable(lua_State* const L_, std::string_view const& tname_)
+    {
+        luaL_getmetatable(L_, tname_.data());
+        lua_setmetatable(L_, -2);
     }
 };
 
@@ -248,9 +297,24 @@ LuaType luaG_getmodule(lua_State* L_, std::string_view const& name_);
 
 // -------------------------------------------------------------------------------------------------
 
+template<size_t N>
+inline void luaG_newlib(lua_State* const L_, luaL_Reg const (&funcs_)[N])
+{
+    (Wrap<LUA_VERSION_NUM>::luaL_newlib)(L_, funcs_);
+}
+
+// -------------------------------------------------------------------------------------------------
+
 inline void luaG_registerlibfuncs(lua_State* L_, luaL_Reg const funcs_[])
 {
     Wrap<LUA_VERSION_NUM>::luaL_setfuncs(L_, funcs_, 0);
+}
+
+// -------------------------------------------------------------------------------------------------
+
+inline void luaG_setmetatable(lua_State* const L_, std::string_view const& tname_)
+{
+    return Wrap<LUA_VERSION_NUM>::luaL_setmetatable(L_, tname_);
 }
 
 // #################################################################################################

@@ -6,16 +6,21 @@ local dt = lanes.require "deep_test"
 
 local test_deep = true
 local test_clonable = true
-local test_uvtype = "string"
+-- lua 5.1->5.2 support a single table uservalue
+-- lua 5.3->5.4 supports an arbitrary type uservalue
+local test_uvtype = (_VERSION == "Lua 5.4") and "function" or (_VERSION == "Lua 5.3") and "string" or "table"
+-- lua 5.4 supports multiple uservalues
 local nupvals = _VERSION == "Lua 5.4" and 3 or 1
 
 local makeUserValue = function( obj_)
-	if test_uvtype == "string" then
+	if test_uvtype == "table" then
+		return {"some uservalue"}
+	elseif test_uvtype == "string" then
 		return "some uservalue"
 	elseif test_uvtype == "function" then
 		-- a function that pull the userdata as upvalue
 		local f = function()
-			return tostring( obj_)
+			return "-> '" .. tostring( obj_) .. "'"
 		end
 		return f
 	end
@@ -25,7 +30,7 @@ local printDeep = function( prefix_, obj_, t_)
 	print( prefix_, obj_)
 	for uvi = 1, nupvals do
 		local uservalue = obj_:getuv(uvi)
-		print ( "uv #" .. uvi, uservalue, type( uservalue) == "function" and uservalue() or "")
+		print ("uv #" .. uvi, type( uservalue), uservalue, type(uservalue) == "function" and uservalue() or "")
 	end
 	if t_ then
 		for k, v in pairs( t_) do
@@ -38,10 +43,7 @@ end
 local performTest = function( obj_)
 	-- setup the userdata with some value and a uservalue
 	obj_:set( 666)
-	-- lua 5.1->5.2 support a single table uservalue
-	-- lua 5.3 supports an arbitrary type uservalue
 	obj_:setuv( 1, makeUserValue( obj_))
-	-- lua 5.4 supports multiple uservalues of arbitrary types
 	if nupvals > 1 then
 		-- keep uv #2 as nil
 		obj_:setuv( 3, "ENDUV")
@@ -95,3 +97,6 @@ if test_clonable then
 	print "CLONABLE"
 	performTest( dt.new_clonable(nupvals))
 end
+
+print "================================================================"
+print "TEST OK"

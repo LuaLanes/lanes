@@ -3,20 +3,23 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|x64'">
     <LocalDebuggerCommand>$(SolutionDir)..\Lua53\bin\$(Platform)\Debug\lua53.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-i</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>deeptest.lua</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
+    <RemoteDebuggerCommandArguments>deeptest.lua</RemoteDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'">
-    <LocalDebuggerCommand>$(SolutionDir)..\Lua52\bin\$(Platform)\Debug\lua51.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommand>$(SolutionDir)..\Lua51\bin\$(Platform)\Debug\lua51.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-i</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-i deeptest.lua</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
+    <RemoteDebuggerCommandArguments>-i deeptest.lua</RemoteDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">
-    <LocalDebuggerCommand>$(SolutionDir)..\Lua51\bin\$(Platform)\Debug\lua52.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommand>$(SolutionDir)..\Lua52\bin\$(Platform)\Debug\lua52.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-i</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-i deeptest.lua</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
+    <RemoteDebuggerCommandArguments>-i deeptest.lua</RemoteDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT 2.1.0-beta3|x64'">
     <LocalDebuggerCommand>$(SolutionDir)..\LuaJIT-2.1.0-beta3\bin\$(Platform)\luajit210.exe</LocalDebuggerCommand>
