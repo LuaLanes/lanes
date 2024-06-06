@@ -94,12 +94,7 @@ local function ziva1( preloop, loop, batch)
 	print( "stored " .. l:count( "key") .. " items in the linda before starting consumer lane")
 	local lane
 	if batch > 0 then
-		if l.batched then
-			lane = lane_gobbler_gen( l, top, batch)
-		else
-			print "no batch support in this version of Lanes"
-			lane = lane_eater_gen( l, top)
-		end
+		lane = lane_gobbler_gen( l, top, batch)
 	else
 		lane = lane_eater_gen( l, top)
 	end
@@ -131,7 +126,7 @@ end
 
 if true then
 	do
-		TEST1 = TEST1 or 1000
+		TEST1 = TEST1 or 1000 -- how many tests do we run?
 		PREFILL1 = PREFILL1 or 10000
 		FILL1 = FILL1 or 2000000
 
@@ -213,7 +208,7 @@ end
 
 if true then
 	do
-		TEST2 = TEST2 or 1000
+		TEST2 = TEST2 or 1000 -- how many tests do we run?
 		PREFILL2 = PREFILL2 or 0
 		FILL2 = FILL2 or 4000000
 
