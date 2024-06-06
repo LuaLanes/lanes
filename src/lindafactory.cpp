@@ -101,7 +101,7 @@ std::string_view LindaFactory::moduleName() const
 
 // #################################################################################################
 
-DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* L_) const
+DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* const L_) const
 {
     std::string_view _linda_name{};
     LindaGroup _linda_group{ 0 };
@@ -122,6 +122,20 @@ DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* L_) const
         _linda_name = luaG_tostringview(L_, -2);
         _linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L_, -1)) };
         break;
+    }
+
+    // store in the linda the location of the script that created it
+    if (_linda_name == "auto") {
+        lua_Debug _ar;
+        if (lua_getstack(L_, 1, &_ar) == 1) { // 1 because we want the name of the function that called lanes.linda (where we currently are)
+            lua_getinfo(L_, "Sln", &_ar);
+            _linda_name = luaG_pushstringview(L_, "%s:%d", _ar.short_src, _ar.currentline);
+        } else {
+            _linda_name = luaG_pushstringview(L_, "<unresolved>");
+        }
+        // since the name is not empty, it is at slot 1, and we can replace "auto" with the result, just in case
+        LUA_ASSERT(L_, luaG_tostringview(L_, 1) == "auto");
+        lua_replace(L_, 1);
     }
 
     // The deep data is allocated separately of Lua stack; we might no longer be around when last reference to it is being released.

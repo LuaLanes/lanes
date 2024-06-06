@@ -88,7 +88,8 @@ template <bool OPT>
         if (!_lindaName.empty()) {
             std::ignore = luaG_pushstringview(L_, _lindaName);
         } else {
-            lua_pushfstring(L_, "%p", _linda);
+            // obfuscate the pointer so that we can't read the value with our eyes out of a script
+            std::ignore = luaG_pushstringview(L_, "%p", std::bit_cast<uintptr_t>(_linda) ^ kConfigRegKey.storage);
         }
         lua_concat(L_, 2);
         return 1;

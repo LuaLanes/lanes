@@ -15,7 +15,7 @@ local require_assert_result_1, require_assert_result_2 = require "assert"    -- 
 print("require_assert_result:", require_assert_result_1, require_assert_result_2)
 
 local lanes_gen=    assert(lanes.gen)
-local lanes_linda=  assert(lanes.linda)
+local lanes_linda = assert(lanes.linda)
 
 local tostring=     assert(tostring)
 
@@ -160,7 +160,7 @@ PRINT(" "..st)
 assert(st == "cancelled", "st is '" .. st .. "' instead of 'cancelled'")
 
 -- cancellation of lanes waiting on a linda
-local limited = lanes.linda("limited")
+local limited = lanes_linda("limited")
 assert.fails(function() limited:limit("key", -1) end)
 assert.failsnot(function() limited:limit("key", 1) end)
 -- [[################################################
@@ -422,6 +422,7 @@ local function chunk2(linda)
     --
     local info= debug.getinfo(1)    -- 1 = us
     --
+    PRINT("linda named-> '" ..tostring(linda).."'")
     PRINT "debug.getinfo->"
     for k,v in pairs(info) do PRINT(k,v) end
 
@@ -448,7 +449,7 @@ local function chunk2(linda)
     linda:send("up", function() return ":)" end, "ok2")
 end
 
-local linda= lanes.linda("linda")
+local linda = lanes_linda("auto")
 local t2= lanes_gen("debug,string,io", {gc_cb = gc_cb}, chunk2)(linda)     -- prepare & launch
 linda:send("down", function(linda) linda:send("up", "ready!") end,
                     "ok")

@@ -1217,6 +1217,11 @@
 </pre></td></tr></table>
 
 <p>
+	Converting the Linda to a string will yield the provided name prefixed by <tt>"Linda: "</tt>.<br/>
+	If <tt>opt_name</tt> is omitted, it will evaluate to an hexadecimal number uniquely representing that linda.<br/>
+	If <tt>opt_name</tt> is <tt>"auto"</tt>, Lanes will try to construct a name from the source location that called <tt>lanes.linda()</tt>. If that fails, the linda name will be <tt>"&lt;unresolved&gt;"</tt>.
+</p>
+<p>
 	Timeouts are given in seconds (&gt= 0, millisecond accuracy) or <tt>nil</tt>. Timeout can be omitted only if the first key is not a number (then it's equivalent to an infinite duration).
 </p>
 
