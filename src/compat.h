@@ -67,14 +67,6 @@ inline void lua_pushglobaltable(lua_State* L_)
     lua_pushvalue(L_, LUA_GLOBALSINDEX);
 }
 #endif // LUAJIT_VERSION_NUM
-inline int lua_setuservalue(lua_State* L_, int idx_)
-{
-    return lua_setfenv(L_, idx_);
-}
-inline void lua_getuservalue(lua_State* L_, int idx_)
-{
-    lua_getfenv(L_, idx_);
-}
 inline size_t lua_rawlen(lua_State* L_, int idx_)
 {
     return lua_objlen(L_, idx_);
