@@ -26,6 +26,19 @@ extern "C"
 #define LUA_JITLIBNAME "jit"
 #endif // LUA_JITLIBNAME
 
+#ifndef LUA_OK
+#define LUA_OK 0 // doesn't exist in Lua 5.1
+#endif // LUA_OK
+
+#ifndef LUA_ERRGCMM
+#define LUA_ERRGCMM 666 // doesn't exist in Lua 5.1 and Lua 5.4, we don't care about the actual value
+#endif // LUA_ERRGCMM
+
+
+#ifndef LUA_LOADED_TABLE
+#define LUA_LOADED_TABLE "_LOADED" // doesn't exist before Lua 5.3
+#endif // LUA_LOADED_TABLE
+
 // code is now preferring Lua 5.4 API
 
 // #################################################################################################
@@ -46,61 +59,20 @@ enum class LuaType
     CDATA = 10 // LuaJIT CDATA
 };
 
-inline LuaType luaG_type(lua_State* L_, int idx_)
-{
-    return static_cast<LuaType>(lua_type(L_, idx_));
-}
-inline char const* luaG_typename(lua_State* L_, LuaType t_)
-{
-    return lua_typename(L_, static_cast<int>(t_));
-}
-
 // #################################################################################################
 
 // add some Lua 5.3-style API when building for Lua 5.1
 #if LUA_VERSION_NUM == 501
 
-#if LUAJIT_VERSION_NUM < 20200 // moonjit is 5.1 plus bits of 5.2 that we don't need to wrap
-inline void lua_pushglobaltable(lua_State* L_)
-{
-    lua_pushvalue(L_, LUA_GLOBALSINDEX);
-}
-#endif // LUAJIT_VERSION_NUM
 inline size_t lua_rawlen(lua_State* L_, int idx_)
 {
     return lua_objlen(L_, idx_);
 }
-// keep as macros to be consistent with Lua headers
-#define LUA_OK 0
-#define LUA_ERRGCMM 666 // doesn't exist in Lua 5.1, we don't care about the actual value
 void luaL_requiref(lua_State* L_, const char* modname_, lua_CFunction openf_, int glb_); // implementation copied from Lua 5.2 sources
-#define LUA_LOADED_TABLE "_LOADED" // // doesn't exist in Lua 5.1
 
 int luaL_getsubtable(lua_State* L_, int idx_, const char* fname_);
 
 #endif // LUA_VERSION_NUM == 501
-
-// #################################################################################################
-
-// wrap Lua 5.2 calls under Lua 5.1 API when it is simpler that way
-#if LUA_VERSION_NUM == 502
-
-#define LUA_LOADED_TABLE "_LOADED" // // doesn't exist in Lua 5.2
-
-#endif // LUA_VERSION_NUM == 502
-
-// #################################################################################################
-
-[[nodiscard]] inline LuaType luaG_getfield(lua_State* L_, int idx_, std::string_view const& k_)
-{
-// starting with Lua 5.3, lua_getfield returns the type of the value it found
-#if LUA_VERSION_NUM < 503
-    lua_getfield(L_, idx_, k_.data());
-    return luaG_type(L_, -1);
-#else // LUA_VERSION_NUM >= 503
-    return static_cast<LuaType>(lua_getfield(L_, idx_, k_.data()));
-#endif // LUA_VERSION_NUM >= 503
-}
 
 // #################################################################################################
 
@@ -135,7 +107,6 @@ inline int luaL_optint(lua_State* L_, int n_, lua_Integer d_)
 {
     return static_cast<int>(luaL_optinteger(L_, n_, d_));
 }
-#define LUA_ERRGCMM 666 // doesn't exist in Lua 5.4, we don't care about the actual value
 
 #endif // LUA_VERSION_NUM == 504
 
@@ -149,18 +120,26 @@ enum class LuaError
     ERRRUN = LUA_ERRRUN,
     ERRSYNTAX = LUA_ERRSYNTAX,
     ERRMEM = LUA_ERRMEM,
-    ERRGCMM = LUA_ERRGCMM, // pre-5.4
+    ERRGCMM = LUA_ERRGCMM,
     ERRERR = LUA_ERRERR,
     ERRFILE = LUA_ERRFILE
 };
 
-inline constexpr LuaError ToLuaError(int rc_)
+inline constexpr LuaError ToLuaError(int const rc_)
 {
-    assert(rc_ == LUA_OK || rc_ == LUA_YIELD || rc_ == LUA_ERRRUN || rc_ == LUA_ERRSYNTAX || rc_ == LUA_ERRMEM || rc_ == LUA_ERRGCMM || rc_ == LUA_ERRERR);
+    assert(rc_ == LUA_OK || rc_ == LUA_YIELD || rc_ == LUA_ERRRUN || rc_ == LUA_ERRSYNTAX || rc_ == LUA_ERRMEM || rc_ == LUA_ERRGCMM || rc_ == LUA_ERRERR || rc_ == LUA_ERRFILE);
     return static_cast<LuaError>(rc_);
 }
 
 // #################################################################################################
+
+// break lexical order for that one because it's needed below
+inline LuaType luaG_type(lua_State* const L_, int const idx_)
+{
+    return static_cast<LuaType>(lua_type(L_, idx_));
+}
+
+// -------------------------------------------------------------------------------------------------
 
 // Default matches Lua 5.4 as of now
 template <int VERSION, typename SPECIALIZE = void>
@@ -169,6 +148,12 @@ struct Wrap
     static inline int lua_dump(lua_State* const L_, lua_Writer const writer_, void* const data_, int const strip_)
     {
         return ::lua_dump(L_, writer_, data_, strip_);
+    }
+
+    static inline LuaType lua_getfield(lua_State* L_, int idx_, std::string_view const& k_)
+    {
+        // starting with Lua 5.3, lua_getfield returns the type of the pushed value
+        return static_cast<LuaType>(::lua_getfield(L_, idx_, k_.data()));
     }
 
     template <size_t N>
@@ -199,6 +184,12 @@ struct Wrap<VERSION, typename std::enable_if<VERSION == 503>::type>
         return ::lua_dump(L_, writer_, data_, strip_);
     }
 
+    static inline LuaType lua_getfield(lua_State* L_, int idx_, std::string_view const& k_)
+    {
+        // starting with Lua 5.3, lua_getfield returns the type of the pushed value
+        return static_cast<LuaType>(::lua_getfield(L_, idx_, k_.data()));
+    }
+
     template <size_t N>
     static inline void (luaL_newlib)(lua_State* const L_, luaL_Reg const (&funcs_)[N])
     {
@@ -227,10 +218,17 @@ struct Wrap<VERSION, typename std::enable_if<VERSION == 502>::type>
         return ::lua_dump(L_, writer_, data_);
     }
 
+    static inline LuaType lua_getfield(lua_State* L_, int idx_, std::string_view const& k_)
+    {
+        // before Lua 5.3, lua_getfield returns nothing
+        ::lua_getfield(L_, idx_, k_.data());
+        return luaG_type(L_, -1);
+    }
+
     template <size_t N>
     static inline void (luaL_newlib)(lua_State* const L_, luaL_Reg const (&funcs_)[N])
     {
-        lua_createtable(L_, 0, N - 1);
+        ::lua_createtable(L_, 0, N - 1);
         ::luaL_setfuncs(L_, funcs_, 0);
     }
 
@@ -255,6 +253,13 @@ struct Wrap<VERSION, typename std::enable_if<VERSION == 501>::type>
         return ::lua_dump(L_, writer_, data_);
     }
 
+    static inline LuaType lua_getfield(lua_State* L_, int idx_, std::string_view const& k_)
+    {
+        // before Lua 5.3, lua_getfield returns nothing
+        ::lua_getfield(L_, idx_, k_.data());
+        return luaG_type(L_, -1);
+    }
+
     template<size_t N>
     static inline void (luaL_newlib)(lua_State* const L_, luaL_Reg const (&funcs_)[N])
     {
@@ -277,6 +282,8 @@ struct Wrap<VERSION, typename std::enable_if<VERSION == 501>::type>
 // #################################################################################################
 // All the compatibility wrappers we expose start with luaG_
 
+// -------------------------------------------------------------------------------------------------
+
 // use this in place of lua_absindex to save a function call
 inline int luaG_absindex(lua_State* L_, int idx_)
 {
@@ -296,6 +303,13 @@ int luaG_getalluservalues(lua_State* L_, int idx_);
 
 // -------------------------------------------------------------------------------------------------
 
+[[nodiscard]] inline LuaType luaG_getfield(lua_State* L_, int idx_, std::string_view const& k_)
+{
+    return Wrap<LUA_VERSION_NUM>::lua_getfield(L_, idx_, k_);
+}
+
+// -------------------------------------------------------------------------------------------------
+
 LuaType luaG_getmodule(lua_State* L_, std::string_view const& name_);
 
 // -------------------------------------------------------------------------------------------------
@@ -312,6 +326,17 @@ template <typename T>
 [[nodiscard]] T* luaG_newuserdatauv(lua_State* L_, int nuvalue_)
 {
     return static_cast<T*>(lua_newuserdatauv(L_, sizeof(T), nuvalue_));
+}
+
+// -------------------------------------------------------------------------------------------------
+
+inline void luaG_pushglobaltable(lua_State* const L_)
+{
+#ifdef LUA_GLOBALSINDEX // All flavors of Lua 5.1
+    ::lua_pushvalue(L_, LUA_GLOBALSINDEX);
+#else // LUA_GLOBALSINDEX
+    ::lua_rawgeti(L_, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
+#endif // LUA_GLOBALSINDEX
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -349,6 +374,13 @@ template <typename T>
     } else {
         return static_cast<T*>(lua_touserdata(L_, index_));
     }
+}
+
+// -------------------------------------------------------------------------------------------------
+
+inline char const* luaG_typename(lua_State* L_, LuaType t_)
+{
+    return lua_typename(L_, static_cast<int>(t_));
 }
 
 // #################################################################################################

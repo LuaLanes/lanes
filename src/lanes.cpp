@@ -466,7 +466,7 @@ LUAG_FUNC(lane_new)
         lua_pushnil(L_);                                                                           // L_: [fixed] args... nil                        L2:
         // Lua 5.2 wants us to push the globals table on the stack
         InterCopyContext _c{ _U, DestState{ _L2 }, SourceState{ L_ }, {}, {}, {}, {}, {} };
-        lua_pushglobaltable(_L2);                                                                  // L_: [fixed] args... nil                        L2: _G
+        luaG_pushglobaltable(_L2);                                                                 // L_: [fixed] args... nil                        L2: _G
         while (lua_next(L_, _globals_idx)) {                                                       // L_: [fixed] args... k v                        L2: _G
             std::ignore = _c.inter_copy(2);                                                        // L_: [fixed] args... k v                        L2: _G k v
             // assign it in L2's globals table
@@ -740,7 +740,7 @@ LUAG_FUNC(configure)
         // don't do this when called during the initialization of a new lane,
         // because we will do it after on_state_create() is called,
         // and we don't want to skip _G because of caching in case globals are created then
-        lua_pushglobaltable(L_);                                                                   // L_: settings M _G
+        luaG_pushglobaltable(L_);                                                                  // L_: settings M _G
         tools::PopulateFuncLookupTable(L_, -1, {});
         lua_pop(L_, 1);                                                                            // L_: settings M
     }

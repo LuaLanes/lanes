@@ -352,7 +352,7 @@ namespace state {
 
         STACK_CHECK(_L, 0);
         // after all this, register everything we find in our name<->function database
-        lua_pushglobaltable(_L);                                                                   // L: _G
+        luaG_pushglobaltable(_L);                                                                  // L: _G
         tools::PopulateFuncLookupTable(_L, -1, {});
         lua_pop(_L, 1);                                                                            // L:
         STACK_CHECK(_L, 0);

@@ -262,12 +262,12 @@ void InterCopyContext::copy_func() const
         {
             InterCopyContext _c{ U, L2, L1, L2_cache_i, {}, VT::NORMAL, mode, {} };
             // if we encounter an upvalue equal to the global table in the source, bind it to the destination's global table
-            lua_pushglobaltable(L1);                                                               // L1: ... _G
+            luaG_pushglobaltable(L1);                                                              // L1: ... _G
             for (_n = 0; (_c.name = lua_getupvalue(L1, L1_i, 1 + _n)) != nullptr; ++_n) {          // L1: ... _G up[n]
                 DEBUGSPEW_CODE(DebugSpew(U) << "UPNAME[" << _n << "]: " << _c.name << " -> ");
                 if (lua_rawequal(L1, -1, -2)) { // is the upvalue equal to the global table?
                     DEBUGSPEW_CODE(DebugSpew(nullptr) << "pushing destination global scope" << std::endl);
-                    lua_pushglobaltable(L2);                                                       //                                                L2: ... {cache} ... function <upvalues>
+                    luaG_pushglobaltable(L2);                                                      //                                                L2: ... {cache} ... function <upvalues>
                 } else {
                     DEBUGSPEW_CODE(DebugSpew(nullptr) << "copying value" << std::endl);
                     _c.L1_i = SourceIndex{ lua_gettop(L1) };

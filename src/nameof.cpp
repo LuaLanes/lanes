@@ -191,7 +191,7 @@ LUAG_FUNC(nameof)
     lua_pushliteral(L_, LUA_GNAME);                                                                // L_: o nil {c} {fqn} "_G"
     lua_rawseti(L_, -2, 1);                                                                        // L_: o nil {c} {fqn}
     // this is where we start the search
-    lua_pushglobaltable(L_);                                                                       // L_: o nil {c} {fqn} _G
+    luaG_pushglobaltable(L_);                                                                      // L_: o nil {c} {fqn} _G
     std::ignore = DiscoverObjectNameRecur(L_, std::numeric_limits<int>::max(), 1);
     if (lua_isnil(L_, 2)) { // try again with registry, just in case...
         lua_pop(L_, 1);                                                                            // L_: o nil {c} {fqn}
