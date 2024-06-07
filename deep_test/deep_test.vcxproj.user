@@ -36,9 +36,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">
     <LocalDebuggerCommand>$(SolutionDir)..\framework\lua54.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>-e "REPEAT=1000, SIZE=1000" -i deeptest.lua</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>deeptest.lua</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
-    <RemoteDebuggerCommandArguments>-e "REPEAT=1000, SIZE=1000" -i deeptest.lua</RemoteDebuggerCommandArguments>
+    <RemoteDebuggerCommandArguments>deeptest.lua</RemoteDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">
     <LocalDebuggerCommand>$(SolutionDir)..\MoonJIT\bin\$(Platform)\moonjit.exe</LocalDebuggerCommand>

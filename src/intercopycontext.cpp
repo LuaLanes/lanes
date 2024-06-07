@@ -653,13 +653,9 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         int const _mt{ luaG_absindex(L1, -2) };                                                    // L1: ... mt __lanesclone
         size_t const userdata_size{ lua_rawlen(L1, _L1_i) };
         // extract all the uservalues, but don't transfer them yet
-        int _uvi{ 0 };
-        while (lua_getiuservalue(L1, _L1_i, ++_uvi) != LUA_TNONE) {}                               // L1: ... mt __lanesclone [uv]+ nil
-        // when lua_getiuservalue() returned LUA_TNONE, it pushed a nil. pop it now
-        lua_pop(L1, 1);                                                                            // L1: ... mt __lanesclone [uv]+
-        --_uvi;
+        int const _nuv{ luaG_getalluservalues(L1, _L1_i) };                                        // L1: ... mt __lanesclone [uv]*
         // create the clone userdata with the required number of uservalue slots
-        void* const _clone{ lua_newuserdatauv(L2, userdata_size, _uvi) };                          //                                                L2: ... u
+        void* const _clone{ lua_newuserdatauv(L2, userdata_size, _nuv) };                          //                                                L2: ... u
         // copy the metatable in the target state, and give it to the clone we put there
         InterCopyContext _c{ U, L2, L1, L2_cache_i, SourceIndex{ _mt }, VT::NORMAL, mode, name };
         if (_c.inter_copy_one()) {                                                                 //                                                L2: ... u mt|sentinel
@@ -687,6 +683,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
             lua_getupvalue(L2, -1, 2);                                                             //                                                L2: ... userdata_clone_sentinel u
         }
         // assign uservalues
+        int _uvi{ _nuv };
         while (_uvi > 0) {
             _c.L1_i = SourceIndex{ luaG_absindex(L1, -1) };
             if (!_c.inter_copy_one()) {                                                            //                                                L2: ... u uv
@@ -732,12 +729,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     STACK_CHECK_START_REL(L2, 0);
 
     // extract all uservalues of the source. unfortunately, the only way to know their count is to iterate until we fail
-    int _nuv{ 0 };
-    while (lua_getiuservalue(L1, L1_i, _nuv + 1) != LUA_TNONE) {                                   // L1: ... deep ... [uv]* nil
-        ++_nuv;
-    }
-    // last call returned TNONE and pushed nil, that we don't need
-    lua_pop(L1, 1);                                                                                // L1: ... deep ... [uv]*
+    int const _nuv{ luaG_getalluservalues(L1, L1_i) };                                             // L1: ... deep ... [uv]*
     STACK_CHECK(L1, _nuv);
 
     DeepPrelude* const _deep{ *luaG_tofulluserdata<DeepPrelude*>(L1, L1_i) };
@@ -747,16 +739,17 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     {
         InterCopyContext _c{ U, L2, L1, L2_cache_i, {}, VT::NORMAL, mode, name };
         int const _clone_i{ lua_gettop(L2) };
-        // TODO: STACK_GROW(L2, _nuv), and same for L1 above and everywhere we use lua_getiuservalue
-        while (_nuv) {
+        STACK_GROW(L2, _nuv);
+        int _uvi{ _nuv };
+        while (_uvi) {
             _c.L1_i = SourceIndex{ luaG_absindex(L1, -1) };
             if (!_c.inter_copy_one()) {                                                            // L1: ... deep ... [uv]*                           L2: deep uv
                 raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
             }
             lua_pop(L1, 1);                                                                        // L1: ... deep ... [uv]*
             // this pops the value from the stack
-            lua_setiuservalue(L2, _clone_i, _nuv);                                                 //                                                  L2: deep
-            --_nuv;
+            lua_setiuservalue(L2, _clone_i, _uvi);                                                 //                                                  L2: deep
+            --_uvi;
         } // loop done: no uv remains on L1 stack                                                  // L1: ... deep ...
     }
 
@@ -818,14 +811,10 @@ void InterCopyContext::inter_copy_keyvaluepair() const
         size_t const userdata_size{ lua_rawlen(L1, -1) };
         {
             // extract uservalues (don't transfer them yet)
-            int _uvi = 0;
-            while (lua_getiuservalue(L1, source_i, ++_uvi) != LUA_TNONE) {}                        // L1: ... u uv
-            // when lua_getiuservalue() returned LUA_TNONE, it pushed a nil. pop it now
-            lua_pop(L1, 1);                                                                        // L1: ... u [uv]*
-            --_uvi;
-            STACK_CHECK(L1, _uvi + 1);
+            int const _nuv{ luaG_getalluservalues(L1, source_i) };                                 // L1: ... u [uv]*
+            STACK_CHECK(L1, _nuv + 1);
             // create the clone userdata with the required number of uservalue slots
-            _clone = lua_newuserdatauv(L2, userdata_size, _uvi);                                   //                                                L2: ... mt u
+            _clone = lua_newuserdatauv(L2, userdata_size, _nuv);                                   //                                                L2: ... mt u
             // add it in the cache
             lua_pushlightuserdata(L2, _source);                                                    //                                                L2: ... mt u source
             lua_pushvalue(L2, -2);                                                                 //                                                L2: ... mt u source u
@@ -835,6 +824,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
             lua_setmetatable(L2, -2);                                                              //                                                L2: ... mt u
             // transfer and assign uservalues
             InterCopyContext c{ *this };
+            int _uvi{ _nuv };
             while (_uvi > 0) {
                 c.L1_i = SourceIndex{ luaG_absindex(L1, -1) };
                 if (!c.inter_copy_one()) {                                                         //                                                L2: ... mt u uv

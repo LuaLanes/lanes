@@ -7,6 +7,14 @@
       "Command": "DeepTest",
       "Items": [
         {
+          "Id": "d762af99-3873-4084-a9a1-ae42f57802a0",
+          "Command": "deeptest.lua"
+        },
+        {
+          "Id": "a8d142a9-be5f-459d-8b80-61c7f3a263a1",
+          "Command": "-e \"REPEAT=1000, SIZE=1000\" -i deeptest.lua"
+        },
+        {
           "Id": "10e30bb2-dc23-4882-b918-b5939c14e588",
           "Command": "-e \"REPEAT=1000, SIZE=1000 DEEP='stack_abuser'\" -i deeptest.lua"
         }

@@ -3,25 +3,37 @@
 
 #include "macros_and_utils.h"
 
-
-// #################################################################################################
-// ###################################### Lua 5.1 / 5.2 / 5.3 ######################################
 // #################################################################################################
 
+int luaG_getalluservalues(lua_State* const L_, int const idx_)
+{
+    STACK_CHECK_START_REL(L_, 0);
+    int const _idx{ luaG_absindex(L_, idx_) };
+    int _nuv{ 0 };
+    do {
+        // we don't know how many uservalues we are going to extract, there might be a lot...
+        STACK_GROW(L_, 1);
+    } while (lua_getiuservalue(L_, _idx, ++_nuv) != LUA_TNONE);                                    // L_: ... [uv]* nil
+    // last call returned TNONE and pushed nil, that we don't need
+    lua_pop(L_, 1);                                                                                // L_: ... [uv]*
+    --_nuv;
+    STACK_CHECK(L_, _nuv);
+    return _nuv;
+}
 
 // #################################################################################################
 
 // a small helper to obtain a module's table from the registry instead of relying on the presence of _G["<name>"]
-LuaType luaG_getmodule(lua_State* L_, std::string_view const& name_)
+LuaType luaG_getmodule(lua_State* const L_, std::string_view const& name_)
 {
     STACK_CHECK_START_REL(L_, 0);
-    LuaType _type{ luaG_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE) };                        // L_: _R._LOADED|nil
-    if (_type != LuaType::TABLE) {                                                                  // L_: _R._LOADED|nil
+    LuaType _type{ luaG_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE) };                       // L_: _R._LOADED|nil
+    if (_type != LuaType::TABLE) {                                                                 // L_: _R._LOADED|nil
         STACK_CHECK(L_, 1);
         return _type;
     }
-    _type = luaG_getfield(L_, -1, name_);                                                           // L_: _R._LOADED {module}|nil
-    lua_remove(L_, -2);                                                                             // L_: {module}|nil
+    _type = luaG_getfield(L_, -1, name_);                                                          // L_: _R._LOADED {module}|nil
+    lua_remove(L_, -2);                                                                            // L_: {module}|nil
     STACK_CHECK(L_, 1);
     return _type;
 }
