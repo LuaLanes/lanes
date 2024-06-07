@@ -114,14 +114,14 @@ DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* const L_) const
 
     case 1: // 1 parameter, either a name or a group
         if (luaG_type(L_, -1) == LuaType::STRING) {
-            _linda_name = luaG_tostringview(L_, -1);
+            _linda_name = luaG_tostring(L_, -1);
         } else {
             _linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L_, -1)) };
         }
         break;
 
     case 2: // 2 parameters, a name and group, in that order
-        _linda_name = luaG_tostringview(L_, -2);
+        _linda_name = luaG_tostring(L_, -2);
         _linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L_, -1)) };
         break;
     }
@@ -131,12 +131,12 @@ DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* const L_) const
         lua_Debug _ar;
         if (lua_getstack(L_, 1, &_ar) == 1) { // 1 because we want the name of the function that called lanes.linda (where we currently are)
             lua_getinfo(L_, "Sln", &_ar);
-            _linda_name = luaG_pushstringview(L_, "%s:%d", _ar.short_src, _ar.currentline);
+            _linda_name = luaG_pushstring(L_, "%s:%d", _ar.short_src, _ar.currentline);
         } else {
-            _linda_name = luaG_pushstringview(L_, "<unresolved>");
+            _linda_name = luaG_pushstring(L_, "<unresolved>");
         }
         // since the name is not empty, it is at slot 1, and we can replace "auto" with the result, just in case
-        LUA_ASSERT(L_, luaG_tostringview(L_, 1) == "auto");
+        LUA_ASSERT(L_, luaG_tostring(L_, 1) == "auto");
         lua_replace(L_, 1);
     }
 

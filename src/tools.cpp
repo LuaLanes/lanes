@@ -112,7 +112,7 @@ namespace tools {
         // &b is popped at that point (-> replaced by the result)
         luaL_pushresult(&_b);                                                                      // L_: ... {} ... "<result>"
         STACK_CHECK(L_, 1);
-        return luaG_tostringview(L_, -1);
+        return luaG_tostring(L_, -1);
     }
 
 } // namespace tools
@@ -142,7 +142,7 @@ static void update_lookup_entry(lua_State* L_, int ctxBase_, int depth_)
     // first, raise an error if the function is already known
     lua_pushvalue(L_, -1);                                                                         // L_: ... {bfc} k o o
     lua_rawget(L_, _dest);                                                                         // L_: ... {bfc} k o name?
-    std::string_view const _prevName{ luaG_tostringview(L_, -1) }; // nullptr if we got nil (first encounter of this object)
+    std::string_view const _prevName{ luaG_tostring(L_, -1) }; // nullptr if we got nil (first encounter of this object)
     // push name in fqn stack (note that concatenation will crash if name is a not string or a number)
     lua_pushvalue(L_, -3);                                                                         // L_: ... {bfc} k o name? k
     LUA_ASSERT(L_, luaG_type(L_, -1) == LuaType::NUMBER || luaG_type(L_, -1) == LuaType::STRING);
@@ -237,7 +237,7 @@ static void populate_func_lookup_table_recur(lua_State* L_, int dbIdx_, int i_, 
     lua_pushnil(L_);                                                                               // L_: ... {i_} {bfc} nil
     while (lua_next(L_, i_) != 0) {                                                                // L_: ... {i_} {bfc} k v
         // just for debug, not actually needed
-        // std::string_view const _key{ (luaG_type(L_, -2) == LuaType::STRING) ? luaG_tostringview(L_, -2) : "not a string" };
+        // std::string_view const _key{ (luaG_type(L_, -2) == LuaType::STRING) ? luaG_tostring(L_, -2) : "not a string" };
         // subtable: process it recursively
         if (lua_istable(L_, -1)) {                                                                 // L_: ... {i_} {bfc} k {}
             // increment visit count to make sure we will actually scan it at this recursive level
@@ -267,7 +267,7 @@ static void populate_func_lookup_table_recur(lua_State* L_, int dbIdx_, int i_, 
     ++depth_;
     lua_pushnil(L_);                                                                               // L_: ... {i_} {bfc} nil
     while (lua_next(L_, breadthFirstCache) != 0) {                                                 // L_: ... {i_} {bfc} k {}
-        DEBUGSPEW_CODE(std::string_view const _key{ (luaG_type(L_, -2) == LuaType::STRING) ? luaG_tostringview(L_, -2) : std::string_view{ "<not a string>" } });
+        DEBUGSPEW_CODE(std::string_view const _key{ (luaG_type(L_, -2) == LuaType::STRING) ? luaG_tostring(L_, -2) : std::string_view{ "<not a string>" } });
         DEBUGSPEW_CODE(DebugSpew(_U) << "table '"<< _key <<"'" << std::endl);
         DEBUGSPEW_CODE(DebugSpewIndentScope _scope2{ _U });
         // un-visit this table in case we do need to process it
@@ -323,9 +323,9 @@ namespace tools {
                 _name = "nullptr";
             }
             lua_pushvalue(L_, _in_base);                                                           // L_: {} f
-            std::ignore = luaG_pushstringview(L_, _name);                                          // L_: {} f name_
+            std::ignore = luaG_pushstring(L_, _name);                                              // L_: {} f name_
             lua_rawset(L_, -3);                                                                    // L_: {}
-            std::ignore = luaG_pushstringview(L_, _name);                                          // L_: {} name_
+            std::ignore = luaG_pushstring(L_, _name);                                              // L_: {} name_
             lua_pushvalue(L_, _in_base);                                                           // L_: {} name_ f
             lua_rawset(L_, -3);                                                                    // L_: {}
             lua_pop(L_, 1);                                                                        // L_:
@@ -334,7 +334,7 @@ namespace tools {
             int _startDepth{ 0 };
             if (!_name.empty()) {
                 STACK_CHECK(L_, 2);
-                std::ignore = luaG_pushstringview(L_, _name);                                      // L_: {} {fqn} "name"
+                std::ignore = luaG_pushstring(L_, _name);                                          // L_: {} {fqn} "name"
                 // generate a name, and if we already had one name, keep whichever is the shorter
                 lua_pushvalue(L_, _in_base);                                                       // L_: {} {fqn} "name" t
                 update_lookup_entry(L_, _dbIdx, _startDepth);                                      // L_: {} {fqn} "name"
@@ -367,7 +367,7 @@ namespace tools {
             +[](lua_State* L_)
             {
                 int const _args{ lua_gettop(L_) };                                                 // L_: args...
-                //[[maybe_unused]] std::string_view const _modname{ luaG_checkstringview(L_, 1) };
+                //[[maybe_unused]] std::string_view const _modname{ luaG_checkstring(L_, 1) };
 
                 STACK_GROW(L_, 1);
 

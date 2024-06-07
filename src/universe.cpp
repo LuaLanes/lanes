@@ -135,13 +135,13 @@ Universe::Universe()
 
     // Initialize 'timerLinda'; a common Linda object shared by all states
     lua_pushcfunction(L_, LG_linda);                                                               // L_: settings lanes.linda
-    std::ignore = luaG_pushstringview(L_, "lanes-timer");                                          // L_: settings lanes.linda "lanes-timer"
+    std::ignore = luaG_pushstring(L_, "lanes-timer");                                              // L_: settings lanes.linda "lanes-timer"
     lua_pushinteger(L_, 0);                                                                        // L_: settings lanes.linda "lanes-timer" 0
     lua_call(L_, 2, 1);                                                                            // L_: settings linda
     STACK_CHECK(L_, 1);
 
     // Proxy userdata contents is only a 'DeepPrelude*' pointer
-    _U->timerLinda = *lua_tofulluserdata<DeepPrelude*>(L_, -1);
+    _U->timerLinda = *luaG_tofulluserdata<DeepPrelude*>(L_, -1);
     // increment refcount so that this linda remains alive as long as the universe exists.
     _U->timerLinda->refcount.fetch_add(1, std::memory_order_relaxed);
     lua_pop(L_, 1);                                                                                // L_: settings
@@ -210,7 +210,7 @@ void Universe::initializeAllocatorFunction(lua_State* const L_)
     STACK_CHECK(L_, 1);
 
     std::ignore = luaG_getfield(L_, -1, "internal_allocator");                                     // L_: settings "libc"|"allocator"
-    std::string_view const _allocator{ luaG_tostringview(L_, -1) };
+    std::string_view const _allocator{ luaG_tostring(L_, -1) };
     if (_allocator == "libc") {
         internalAllocator = AllocatorDefinition{ libc_lua_Alloc, nullptr };
     } else if (provideAllocator == luaG_provide_protected_allocator) {
@@ -317,9 +317,9 @@ void Universe::terminateFreeRunningLanes(lua_State* const L_, lua_Duration const
 LUAG_FUNC(universe_gc)
 {
     lua_Duration const _shutdown_timeout{ lua_tonumber(L_, lua_upvalueindex(1)) };
-    std::string_view const _op_string{ luaG_tostringview(L_, lua_upvalueindex(2)) };
+    std::string_view const _op_string{ luaG_tostring(L_, lua_upvalueindex(2)) };
     STACK_CHECK_START_ABS(L_, 1);
-    Universe* const _U{ lua_tofulluserdata<Universe>(L_, 1) };                                     // L_: U
+    Universe* const _U{ luaG_tofulluserdata<Universe>(L_, 1) };                                    // L_: U
     _U->terminateFreeRunningLanes(L_, _shutdown_timeout, which_cancel_op(_op_string));
 
     // invoke the function installed by lanes.finally()

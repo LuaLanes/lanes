@@ -100,7 +100,7 @@ THE SOFTWARE.
         lua_pushvalue(L1, L1_i);                                                                   // L1: ... v ... {} v
         lua_rawget(L1, -2);                                                                        // L1: ... v ... {} "f.q.n"
     }
-    std::string_view _fqn{ luaG_tostringview(L1, -1) };
+    std::string_view _fqn{ luaG_tostring(L1, -1) };
     DEBUGSPEW_CODE(DebugSpew(Universe::Get(L1)) << "function [C] " << _fqn << std::endl);
     // popping doesn't invalidate the pointer since this is an interned string gotten from the lookup database
     lua_pop(L1, (mode == LookupMode::FromKeeper) ? 1 : 2);                                         // L1: ... v ...
@@ -224,7 +224,7 @@ void InterCopyContext::copy_func() const
         }
 
         {
-            std::string_view const _bytecode{ luaG_tostringview(L1, -1) };                         // L1: ... b
+            std::string_view const _bytecode{ luaG_tostring(L1, -1) };                             // L1: ... b
             LUA_ASSERT(L1, !_bytecode.empty());
             STACK_GROW(L2, 2);
             // Note: Line numbers seem to be taken precisely from the
@@ -313,7 +313,7 @@ void InterCopyContext::lookup_native_func() const
 
     case LookupMode::ToKeeper:
         // push a sentinel closure that holds the lookup name as upvalue
-        std::ignore = luaG_pushstringview(L2, _fqn);                                               // L1: ... f ...                                  L2: "f.q.n"
+        std::ignore = luaG_pushstring(L2, _fqn);                                                   // L1: ... f ...                                  L2: "f.q.n"
         lua_pushcclosure(L2, func_lookup_sentinel, 1);                                             // L1: ... f ...                                  L2: f
         break;
 
@@ -322,7 +322,7 @@ void InterCopyContext::lookup_native_func() const
         kLookupRegKey.pushValue(L2);                                                               // L1: ... f ...                                  L2: {}
         STACK_CHECK(L2, 1);
         LUA_ASSERT(L1, lua_istable(L2, -1));
-        std::ignore = luaG_pushstringview(L2, _fqn);                                               // L1: ... f ...                                  L2: {} "f.q.n"
+        std::ignore = luaG_pushstring(L2, _fqn);                                                   // L1: ... f ...                                  L2: {} "f.q.n"
         lua_rawget(L2, -2);                                                                        // L1: ... f ...                                  L2: {} f
         // nil means we don't know how to transfer stuff: user should do something
         // anything other than function or table should not happen!
@@ -388,7 +388,7 @@ void InterCopyContext::copy_cached_func() const
         // push a light userdata uniquely representing the function
         lua_pushlightuserdata(L2, _aspointer);                                                     //                                                L2: ... {cache} ... p
 
-        //DEBUGSPEW_CODE(DebugSpew(U) << "<< ID: " << luaG_tostringview(L2, -1) << " >>" << std::endl);
+        //DEBUGSPEW_CODE(DebugSpew(U) << "<< ID: " << luaG_tostring(L2, -1) << " >>" << std::endl);
 
         lua_pushvalue(L2, -1);                                                                     //                                                L2: ... {cache} ... p p
         lua_rawget(L2, L2_cache_i);                                                                //                                                L2: ... {cache} ... p function|nil|true
@@ -433,7 +433,7 @@ void InterCopyContext::copy_cached_func() const
 
     case LookupMode::ToKeeper:
         // push a sentinel closure that holds the lookup name as upvalue
-        std::ignore = luaG_pushstringview(L2, _fqn);                                               // L1: ... t ...                                  L2: "f.q.n"
+        std::ignore = luaG_pushstring(L2, _fqn);                                                   // L1: ... t ...                                  L2: "f.q.n"
         lua_pushcclosure(L2, table_lookup_sentinel, 1);                                            // L1: ... t ...                                  L2: f
         break;
 
@@ -442,7 +442,7 @@ void InterCopyContext::copy_cached_func() const
         kLookupRegKey.pushValue(L2);                                                               // L1: ... t ...                                  L2: {}
         STACK_CHECK(L2, 1);
         LUA_ASSERT(L1, lua_istable(L2, -1));
-        std::ignore = luaG_pushstringview(L2, _fqn);                                               //                                                L2: {} "f.q.n"
+        std::ignore = luaG_pushstring(L2, _fqn);                                                   //                                                L2: {} "f.q.n"
         lua_rawget(L2, -2);                                                                        //                                                L2: {} t
         // we accept destination lookup failures in the case of transfering the Lanes body function (this will result in the source table being cloned instead)
         // but not when we extract something out of a keeper, as there is nothing to clone!
@@ -492,7 +492,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     if (U->verboseErrors) {
         // for debug purposes, let's try to build a useful name
         if (luaG_type(L1, _key_i) == LuaType::STRING) {
-            std::string_view const _key{ luaG_tostringview(L1, _key_i) };
+            std::string_view const _key{ luaG_tostring(L1, _key_i) };
             size_t const _bufLen{ strlen(name) + _key.size() + 2 }; // +2 for separator dot and terminating 0
             _valPath = static_cast<char*>(alloca(_bufLen));
             sprintf(_valPath, "%s." STRINGVIEW_FMT, name, (int) _key.size(), _key.data());
@@ -597,7 +597,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
     // push a light userdata uniquely representing the table
     lua_pushlightuserdata(L2, const_cast<void*>(_p));                                              // L1: ... t ...                                  L2: ... p
 
-    //DEBUGSPEW_CODE(DebugSpew(U) << "<< ID: " << luaG_tostringview(L2, -1) << " >>" << std::endl);
+    //DEBUGSPEW_CODE(DebugSpew(U) << "<< ID: " << luaG_tostring(L2, -1) << " >>" << std::endl);
 
     lua_rawget(L2, L2_cache_i);                                                                    // L1: ... t ...                                  L2: ... {cached|nil}
     bool const _not_found_in_cache{ lua_isnil(L2, -1) };
@@ -723,7 +723,7 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 // Returns false if not a deep userdata, else true (unless an error occured)
 [[nodiscard]] bool InterCopyContext::tryCopyDeep() const
 {
-    DeepFactory* const _factory{ DeepFactory::LookupFactory(L1, L1_i, mode) };
+    DeepFactory* const _factory{ DeepFactory::LookupFactory(L1, L1_i, mode) };                     // L1: ... deep ...
     if (_factory == nullptr) {
         return false; // not a deep userdata
     }
@@ -733,30 +733,31 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 
     // extract all uservalues of the source. unfortunately, the only way to know their count is to iterate until we fail
     int _nuv{ 0 };
-    while (lua_getiuservalue(L1, L1_i, _nuv + 1) != LUA_TNONE) {                                   // L1: ... u [uv]* nil
+    while (lua_getiuservalue(L1, L1_i, _nuv + 1) != LUA_TNONE) {                                   // L1: ... deep ... [uv]* nil
         ++_nuv;
     }
     // last call returned TNONE and pushed nil, that we don't need
-    lua_pop(L1, 1);                                                                                // L1: ... u [uv]*
+    lua_pop(L1, 1);                                                                                // L1: ... deep ... [uv]*
     STACK_CHECK(L1, _nuv);
 
-    DeepPrelude* const _u{ *lua_tofulluserdata<DeepPrelude*>(L1, L1_i) };
-    DeepFactory::PushDeepProxy(L2, _u, _nuv, mode, getErrL());                                     // L1: ... u [uv]*                               L2: u
+    DeepPrelude* const _deep{ *luaG_tofulluserdata<DeepPrelude*>(L1, L1_i) };
+    DeepFactory::PushDeepProxy(L2, _deep, _nuv, mode, getErrL());                                  // L1: ... deep ... [uv]*                           L2: deep
 
     // transfer all uservalues of the source in the destination
     {
         InterCopyContext _c{ U, L2, L1, L2_cache_i, {}, VT::NORMAL, mode, name };
         int const _clone_i{ lua_gettop(L2) };
+        // TODO: STACK_GROW(L2, _nuv), and same for L1 above and everywhere we use lua_getiuservalue
         while (_nuv) {
             _c.L1_i = SourceIndex{ luaG_absindex(L1, -1) };
-            if (!_c.inter_copy_one()) {                                                            // L1: ... u [uv]*                               L2: u uv
+            if (!_c.inter_copy_one()) {                                                            // L1: ... deep ... [uv]*                           L2: deep uv
                 raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
             }
-            lua_pop(L1, 1);                                                                        // L1: ... u [uv]*
+            lua_pop(L1, 1);                                                                        // L1: ... deep ... [uv]*
             // this pops the value from the stack
-            lua_setiuservalue(L2, _clone_i, _nuv);                                                 //                                               L2: u
+            lua_setiuservalue(L2, _clone_i, _nuv);                                                 //                                                  L2: deep
             --_nuv;
-        }
+        } // loop done: no uv remains on L1 stack                                                  // L1: ... deep ...
     }
 
     STACK_CHECK(L2, 1);
@@ -940,9 +941,9 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 
 [[nodiscard]] bool InterCopyContext::inter_copy_string() const
 {
-    std::string_view const _s{ luaG_tostringview(L1, L1_i) };
+    std::string_view const _s{ luaG_tostring(L1, L1_i) };
     DEBUGSPEW_CODE(DebugSpew(nullptr) << "'" << _s << "'" << std::endl);
-    std::ignore = luaG_pushstringview(L2, _s);
+    std::ignore = luaG_pushstring(L2, _s);
     return true;
 }
 
@@ -1188,7 +1189,7 @@ namespace {
 
     STACK_CHECK_START_REL(L1, 0);
     if (luaG_type(L1, L1_i) != LuaType::TABLE) {
-        std::string_view const _msg{ luaG_pushstringview(L1, "expected package as table, got a %s", luaL_typename(L1, L1_i)) };
+        std::string_view const _msg{ luaG_pushstring(L1, "expected package as table, got a %s", luaL_typename(L1, L1_i)) };
         STACK_CHECK(L1, 1);
         // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
         if (mode == LookupMode::LaneBody) {
@@ -1224,7 +1225,7 @@ namespace {
             if (_result == InterCopyResult::Success) {
                 lua_setfield(L2, -2, _entry.data()); // set package[entry]
             } else {
-                std::string_view const _msg{ luaG_pushstringview(L1, "failed to copy package.%s", _entry.data()) };
+                std::string_view const _msg{ luaG_pushstring(L1, "failed to copy package.%s", _entry.data()) };
                 // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
                 if (mode == LookupMode::LaneBody) {
                     raise_luaL_error(getErrL(), _msg);

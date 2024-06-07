@@ -186,7 +186,7 @@ CancelOp which_cancel_op(std::string_view const& opString_)
 [[nodiscard]] static CancelOp which_cancel_op(lua_State* L_, int idx_)
 {
     if (luaG_type(L_, idx_) == LuaType::STRING) {
-        std::string_view const _str{ luaG_tostringview(L_, idx_) };
+        std::string_view const _str{ luaG_tostring(L_, idx_) };
         CancelOp _op{ which_cancel_op(_str) };
         lua_remove(L_, idx_); // argument is processed, remove it
         if (_op == CancelOp::Invalid) {

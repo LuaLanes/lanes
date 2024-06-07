@@ -70,7 +70,7 @@ class RegistryUniqueKey
         STACK_GROW(L_, 1);
         STACK_CHECK_START_REL(L_, 0);
         pushValue(L_);
-        T* const value{ lua_tolightuserdata<T>(L_, -1) }; // lightuserdata/nil
+        T* const value{ luaG_tolightuserdata<T>(L_, -1) }; // lightuserdata/nil
         lua_pop(L_, 1);
         STACK_CHECK(L_, 0);
         return value;

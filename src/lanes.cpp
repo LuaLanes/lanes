@@ -169,7 +169,7 @@ LUAG_FUNC(sleep)
     lua_pushcfunction(L_, LG_linda_receive);                                                       // L_: duration|nil receive()
     STACK_CHECK_START_REL(L_, 0); // we pushed the function we intend to call, now prepare the arguments
     _U->timerLinda->push(L_);                                                                      // L_: duration|nil receive() timerLinda
-    if (luaG_tostringview(L_, 1) == "indefinitely") {
+    if (luaG_tostring(L_, 1) == "indefinitely") {
         lua_pushnil(L_);                                                                           // L_: duration? receive() timerLinda nil
     } else if (lua_isnoneornil(L_, 1)) {
         lua_pushnumber(L_, 0);                                                                     // L_: duration? receive() timerLinda 0
@@ -179,7 +179,7 @@ LUAG_FUNC(sleep)
     else {
         lua_pushnumber(L_, lua_tonumber(L_, 1));                                                   // L_: duration? receive() timerLinda duration
     }
-    std::ignore = luaG_pushstringview(L_, "ac100de1-a696-4619-b2f0-a26de9d58ab8");                 // L_: duration? receive() timerLinda duration key
+    std::ignore = luaG_pushstring(L_, "ac100de1-a696-4619-b2f0-a26de9d58ab8");                     // L_: duration? receive() timerLinda duration key
     STACK_CHECK(L_, 3); // 3 arguments ready
     lua_call(L_, 3, LUA_MULTRET); // timerLinda:receive(duration,key)                              // L_: duration? result...
     return lua_gettop(L_) - 1;
@@ -193,7 +193,7 @@ LUAG_FUNC(sleep)
 // upvalue[1]: _G.require
 LUAG_FUNC(require)
 {
-    std::string_view const _name{ luaG_tostringview(L_, 1) };                                      // L_: "name" ...
+    std::string_view const _name{ luaG_tostring(L_, 1) };                                          // L_: "name" ...
     int const _nargs{ lua_gettop(L_) };
     DEBUGSPEW_CODE(Universe * _U{ Universe::Get(L_) });
     STACK_CHECK_START_REL(L_, 0);
@@ -215,7 +215,7 @@ LUAG_FUNC(require)
 // lanes.register( "modname", module)
 LUAG_FUNC(register)
 {
-    std::string_view const _name{ luaG_checkstringview(L_, 1) };
+    std::string_view const _name{ luaG_checkstring(L_, 1) };
     LuaType const _mod_type{ luaG_type(L_, 2) };
     // ignore extra parameters, just in case
     lua_settop(L_, 2);
@@ -265,7 +265,7 @@ LUAG_FUNC(lane_new)
     Universe* const _U{ Universe::Get(L_) };
     DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: setup" << std::endl);
 
-    std::optional<std::string_view> _libs_str{ lua_isnil(L_, kLibsIdx) ? std::nullopt : std::make_optional(luaG_tostringview(L_, kLibsIdx)) };
+    std::optional<std::string_view> _libs_str{ lua_isnil(L_, kLibsIdx) ? std::nullopt : std::make_optional(luaG_tostring(L_, kLibsIdx)) };
     lua_State* const _L2{ state::NewLaneState(_U, SourceState{ L_ }, _libs_str) };                 // L_: [fixed] ...                                L2:
     STACK_CHECK_START_REL(_L2, 0);
 
@@ -318,7 +318,7 @@ LUAG_FUNC(lane_new)
             DEBUGSPEW_CODE(DebugSpew(lane->U) << "lane_new: preparing lane userdata" << std::endl);
             STACK_CHECK_START_REL(L, 0);
             // a Lane full userdata needs a single uservalue
-            Lane** const _ud{ lua_newuserdatauv<Lane*>(L, 1) };                                    // L: ... lane
+            Lane** const _ud{ luaG_newuserdatauv<Lane*>(L, 1) };                                   // L: ... lane
             *_ud = lane; // don't forget to store the pointer in the userdata!
 
             // Set metatable for the userdata
@@ -344,18 +344,16 @@ LUAG_FUNC(lane_new)
             lua_State* _L2{ lane->L };
             STACK_CHECK_START_REL(_L2, 0);
             int const _name_idx{ lua_isnoneornil(L, kNameIdx) ? 0 : kNameIdx };
-            std::string_view const _debugName{ (_name_idx > 0) ? luaG_tostringview(L, _name_idx) : std::string_view{} };
+            std::string_view const _debugName{ (_name_idx > 0) ? luaG_tostring(L, _name_idx) : std::string_view{} };
             if (!_debugName.empty())
             {
                 if (_debugName != "auto") {
-                    std::ignore = luaG_pushstringview(_L2, _debugName);                            // L: ... lane                                    L2: "<name>"
+                    std::ignore = luaG_pushstring(_L2, _debugName);                                // L: ... lane                                    L2: "<name>"
                 } else {
                     lua_Debug _ar;
                     lua_pushvalue(L, 1);                                                           // L: ... lane func
                     lua_getinfo(L, ">S", &_ar);                                                    // L: ... lane
-                    std::ignore = luaG_pushstringview(
-                        _L2, "%s:%d", _ar.short_src, _ar.linedefined
-                    );                                                                             // L: ... lane                                    L2: "<name>"
+                    std::ignore = luaG_pushstring(_L2, "%s:%d", _ar.short_src, _ar.linedefined);   // L: ... lane                                    L2: "<name>"
                 }
                 lane->changeDebugName(-1);
                 lua_pop(_L2, 1);                                                                   // L: ... lane                                    L2:
@@ -424,7 +422,7 @@ LUAG_FUNC(lane_new)
                 raise_luaL_error(L_, "required module list should be a list of strings");
             } else {
                 // require the module in the target state, and populate the lookup table there too
-                std::string_view const _name{ luaG_tostringview(L_, -1) };
+                std::string_view const _name{ luaG_tostring(L_, -1) };
                 DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: require '" << _name << "'" << std::endl);
 
                 // require the module in the target lane
@@ -433,7 +431,7 @@ LUAG_FUNC(lane_new)
                     lua_pop(_L2, 1);                                                               // L_: [fixed] args... n "modname"                L2:
                     raise_luaL_error(L_, "cannot pre-require modules without loading 'package' library first");
                 } else {
-                    std::ignore = luaG_pushstringview(_L2, _name);                                 // L_: [fixed] args... n "modname"                L2: require() name
+                    std::ignore = luaG_pushstring(_L2, _name);                                     // L_: [fixed] args... n "modname"                L2: require() name
                     LuaError const _rc{ lua_pcall(_L2, 1, 1, 0) };                                 // L_: [fixed] args... n "modname"                L2: ret/errcode
                     if (_rc != LuaError::OK) {
                         // propagate error to main state if any
@@ -656,7 +654,7 @@ LUAG_FUNC(configure)
 
     Universe* _U{ Universe::Get(L_) };
     bool const _from_master_state{ _U == nullptr };
-    std::string_view const _name{ luaG_checkstringview(L_, lua_upvalueindex(1)) };
+    std::string_view const _name{ luaG_checkstring(L_, lua_upvalueindex(1)) };
     LUA_ASSERT(L_, luaG_type(L_, 1) == LuaType::TABLE);
 
     STACK_GROW(L_, 4);
@@ -667,7 +665,7 @@ LUAG_FUNC(configure)
 
     if (_U == nullptr) {
         // store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...
-        kLaneNameRegKey.setValue(L_, [](lua_State* L_) { std::ignore = luaG_pushstringview(L_, "main"); });
+        kLaneNameRegKey.setValue(L_, [](lua_State* L_) { std::ignore = luaG_pushstring(L_, "main"); });
 
         // create the universe
         _U = Universe::Create(L_);                                                                 // L_: settings universe
@@ -707,7 +705,7 @@ LUAG_FUNC(configure)
     lua_pushcclosure(L_, LG_require, 1);                                                           // L_: settings M lanes.require
     lua_setfield(L_, -2, "require");                                                               // L_: settings M
 
-    std::ignore = luaG_pushstringview(
+    std::ignore = luaG_pushstring(
         L_,
         "%d.%d.%d",
         LANES_VERSION_MAJOR,

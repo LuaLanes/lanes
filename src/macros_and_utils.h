@@ -31,33 +31,6 @@ inline void STACK_GROW(lua_State* L_, int n_)
 
 // #################################################################################################
 
-// a small helper to extract a full userdata pointer from the stack in a safe way
-template <typename T>
-[[nodiscard]] T* lua_tofulluserdata(lua_State* L_, int index_)
-{
-    LUA_ASSERT(L_, lua_isnil(L_, index_) || lua_type(L_, index_) == LUA_TUSERDATA);
-    return static_cast<T*>(lua_touserdata(L_, index_));
-}
-
-template <typename T>
-[[nodiscard]] auto lua_tolightuserdata(lua_State* L_, int index_)
-{
-    LUA_ASSERT(L_, lua_isnil(L_, index_) || lua_islightuserdata(L_, index_));
-    if constexpr (std::is_pointer_v<T>) {
-        return static_cast<T>(lua_touserdata(L_, index_));
-    } else {
-        return static_cast<T*>(lua_touserdata(L_, index_));
-    }
-}
-
-template <typename T>
-[[nodiscard]] T* lua_newuserdatauv(lua_State* L_, int nuvalue_)
-{
-    return static_cast<T*>(lua_newuserdatauv(L_, sizeof(T), nuvalue_));
-}
-
-// #################################################################################################
-
 using lua_Duration = std::chrono::template duration<lua_Number>;
 
 // #################################################################################################

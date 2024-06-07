@@ -81,13 +81,13 @@ template <bool OPT>
 {
     Linda* const _linda{ ToLinda<OPT>(L_, idx_) };
     if (_linda != nullptr) {
-        std::ignore = luaG_pushstringview(L_, "Linda: ");
+        std::ignore = luaG_pushstring(L_, "Linda: ");
         std::string_view const _lindaName{ _linda->getName() };
         if (!_lindaName.empty()) {
-            std::ignore = luaG_pushstringview(L_, _lindaName);
+            std::ignore = luaG_pushstring(L_, _lindaName);
         } else {
             // obfuscate the pointer so that we can't read the value with our eyes out of a script
-            std::ignore = luaG_pushstringview(L_, "%p", std::bit_cast<uintptr_t>(_linda) ^ kConfigRegKey.storage);
+            std::ignore = luaG_pushstring(L_, "%p", std::bit_cast<uintptr_t>(_linda) ^ kConfigRegKey.storage);
         }
         lua_concat(L_, 2);
         return 1;
@@ -252,7 +252,7 @@ void Linda::setName(std::string_view const& name_)
 LUAG_FUNC(linda_cancel)
 {
     Linda* const _linda{ ToLinda<false>(L_, 1) };
-    std::string_view const _who{ luaG_optstringview(L_, 2, "both") };
+    std::string_view const _who{ luaG_optstring(L_, 2, "both") };
     // make sure we got 2 arguments: the linda and the cancellation mode
     luaL_argcheck(L_, lua_gettop(L_) <= 2, 2, "wrong number of arguments");
 
@@ -564,7 +564,7 @@ LUAG_FUNC(linda_receive)
                 if (_nbPushed == 0) {
                     // not enough data in the linda slot to fulfill the request, return nil, "timeout"
                     lua_pushnil(L_);
-                    std::ignore = luaG_pushstringview(L_, "timeout");
+                    std::ignore = luaG_pushstring(L_, "timeout");
                     return 2;
                 }
                 return _nbPushed;

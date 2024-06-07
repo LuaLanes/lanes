@@ -70,7 +70,7 @@ namespace {
      */
     [[nodiscard]] static int DeepGC(lua_State* const L_)
     {
-        DeepPrelude* const* const _proxy{ lua_tofulluserdata<DeepPrelude*>(L_, 1) };
+        DeepPrelude* const* const _proxy{ luaG_tofulluserdata<DeepPrelude*>(L_, 1) };
         DeepPrelude* const _p{ *_proxy };
 
         // can work without a universe if creating a deep userdata from some external C module when Lanes isn't loaded
@@ -135,7 +135,7 @@ void DeepFactory::DeleteDeepObject(lua_State* const L_, DeepPrelude* const o_)
 {
     // when looking inside a keeper, we are 100% sure the object is a deep userdata
     if (mode_ == LookupMode::FromKeeper) {
-        DeepPrelude* const _proxy{ *lua_tofulluserdata<DeepPrelude*>(L_, index_) };
+        DeepPrelude* const _proxy{ *luaG_tofulluserdata<DeepPrelude*>(L_, index_) };
         // we can (and must) cast and fetch the internally stored factory
         return &_proxy->factory;
     } else {
@@ -152,7 +152,7 @@ void DeepFactory::DeleteDeepObject(lua_State* const L_, DeepPrelude* const o_)
         // replace metatable with the factory pointer, if it is actually a deep userdata
         LookupDeep(L_);                                                                            // L_: deep ... factory|nil
 
-        DeepFactory* const _ret{ lua_tolightuserdata<DeepFactory>(L_, -1) }; // nullptr if not a userdata
+        DeepFactory* const _ret{ luaG_tolightuserdata<DeepFactory>(L_, -1) }; // nullptr if not a userdata
         lua_pop(L_, 1);
         STACK_CHECK(L_, 0);
         return _ret;
@@ -188,7 +188,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
     STACK_GROW(L_, 7);
 
     // a new full userdata, fitted with the specified number of uservalue slots (always 1 for Lua < 5.4)
-    DeepPrelude** const _proxy{ lua_newuserdatauv<DeepPrelude*>(L_, nuv_) };                       // L_: DPC proxy
+    DeepPrelude** const _proxy{ luaG_newuserdatauv<DeepPrelude*>(L_, nuv_) };                      // L_: DPC proxy
     LUA_ASSERT(L_, _proxy);
     *_proxy = prelude_;
     prelude_->refcount.fetch_add(1, std::memory_order_relaxed); // one more proxy pointing to this deep data
@@ -237,7 +237,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
                 raise_luaL_error(errL_, "lanes receiving deep userdata should register the 'package' library");
             }
 
-            std::ignore = luaG_pushstringview(L_, _modname);                                       // L_: DPC proxy metatable require() "module"
+            std::ignore = luaG_pushstring(L_, _modname);                                           // L_: DPC proxy metatable require() "module"
             if (luaG_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE) != LuaType::TABLE) {        // L_: DPC proxy metatable require() "module" _R._LOADED
                 // no L.registry._LOADED; can this ever happen?
                 lua_pop(L_, 6);                                                                    // L_:
@@ -256,7 +256,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
                     LuaError const _require_result{ lua_pcall(L_, 1, 0, 0) };                      // L_: DPC proxy metatable error?
                     if (_require_result != LuaError::OK) {
                         // failed, raise the error in the proper state
-                        raise_luaL_error(errL_, luaG_tostringview(L_, -1));
+                        raise_luaL_error(errL_, luaG_tostring(L_, -1));
                     }
                 }
             } else { // already loaded, we are happy
@@ -368,7 +368,7 @@ DeepPrelude* DeepFactory::toDeep(lua_State* const L_, int const index_) const
     }
     STACK_CHECK(L_, 0);
 
-    DeepPrelude** const _proxy{ lua_tofulluserdata<DeepPrelude*>(L_, index_) };
+    DeepPrelude** const _proxy{ luaG_tofulluserdata<DeepPrelude*>(L_, index_) };
     return *_proxy;
 }
 

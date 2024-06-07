@@ -11,6 +11,8 @@ extern "C"
 }
 #endif // __cplusplus
 
+#include "debug.h"
+
 // try to detect if we are building against LuaJIT or MoonJIT
 #if defined(LUA_JITLIBNAME)
 #include "luajit.h"
@@ -302,6 +304,14 @@ inline void luaG_newlib(lua_State* const L_, luaL_Reg const (&funcs_)[N])
 
 // -------------------------------------------------------------------------------------------------
 
+template <typename T>
+[[nodiscard]] T* luaG_newuserdatauv(lua_State* L_, int nuvalue_)
+{
+    return static_cast<T*>(lua_newuserdatauv(L_, sizeof(T), nuvalue_));
+}
+
+// -------------------------------------------------------------------------------------------------
+
 inline void luaG_registerlibfuncs(lua_State* L_, luaL_Reg const funcs_[])
 {
     Wrap<LUA_VERSION_NUM>::luaL_setfuncs(L_, funcs_, 0);
@@ -314,27 +324,50 @@ inline void luaG_setmetatable(lua_State* const L_, std::string_view const& tname
     return Wrap<LUA_VERSION_NUM>::luaL_setmetatable(L_, tname_);
 }
 
+// -------------------------------------------------------------------------------------------------
+
+// a small helper to extract a full userdata pointer from the stack in a safe way
+template <typename T>
+[[nodiscard]] T* luaG_tofulluserdata(lua_State* L_, int index_)
+{
+    LUA_ASSERT(L_, lua_isnil(L_, index_) || lua_type(L_, index_) == LUA_TUSERDATA);
+    return static_cast<T*>(lua_touserdata(L_, index_));
+}
+
+// -------------------------------------------------------------------------------------------------
+
+template <typename T>
+[[nodiscard]] auto luaG_tolightuserdata(lua_State* L_, int index_)
+{
+    LUA_ASSERT(L_, lua_isnil(L_, index_) || lua_islightuserdata(L_, index_));
+    if constexpr (std::is_pointer_v<T>) {
+        return static_cast<T>(lua_touserdata(L_, index_));
+    } else {
+        return static_cast<T*>(lua_touserdata(L_, index_));
+    }
+}
+
 // #################################################################################################
 
 // must keep as a macro as long as we do constant string concatenations
 #define STRINGVIEW_FMT "%.*s"
 
 // a replacement of lua_tolstring
-[[nodiscard]] inline std::string_view luaG_tostringview(lua_State* const L_, int const idx_)
+[[nodiscard]] inline std::string_view luaG_tostring(lua_State* const L_, int const idx_)
 {
     size_t _len{ 0 };
     char const* _str{ lua_tolstring(L_, idx_, &_len) };
     return std::string_view{ _str, _len };
 }
 
-[[nodiscard]] inline std::string_view luaG_checkstringview(lua_State* const L_, int const idx_)
+[[nodiscard]] inline std::string_view luaG_checkstring(lua_State* const L_, int const idx_)
 {
     size_t _len{ 0 };
     char const* _str{ luaL_checklstring(L_, idx_, &_len) };
     return std::string_view{ _str, _len };
 }
 
-[[nodiscard]] inline std::string_view luaG_optstringview(lua_State* const L_, int const idx_, std::string_view const& default_)
+[[nodiscard]] inline std::string_view luaG_optstring(lua_State* const L_, int const idx_, std::string_view const& default_)
 {
     if (lua_isnoneornil(L_, idx_)) {
         return default_;
@@ -345,13 +378,13 @@ inline void luaG_setmetatable(lua_State* const L_, std::string_view const& tname
 }
 
 template<typename ...EXTRA>
-[[nodiscard]] inline std::string_view luaG_pushstringview(lua_State* const L_, std::string_view const& str_, EXTRA&&... extra_)
+[[nodiscard]] inline std::string_view luaG_pushstring(lua_State* const L_, std::string_view const& str_, EXTRA&&... extra_)
 {
     if constexpr (sizeof...(EXTRA) == 0) {
         if constexpr (LUA_VERSION_NUM == 501) {
             // lua_pushlstring doesn't return a value in Lua 5.1
             lua_pushlstring(L_, str_.data(), str_.size());
-            return luaG_tostringview(L_, -1);
+            return luaG_tostring(L_, -1);
         } else {
             return std::string_view{ lua_pushlstring(L_, str_.data(), str_.size()), str_.size() };
         }

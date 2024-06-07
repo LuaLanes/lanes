@@ -171,7 +171,7 @@ class Universe
     std::atomic<int> selfdestructingCount{ 0 };
 
     public:
-    [[nodiscard]] static void* operator new([[maybe_unused]] size_t size_, lua_State* L_) noexcept { return lua_newuserdatauv<Universe>(L_, 0); };
+    [[nodiscard]] static void* operator new([[maybe_unused]] size_t size_, lua_State* L_) noexcept { return luaG_newuserdatauv<Universe>(L_, 0); };
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete([[maybe_unused]] void* p_, [[maybe_unused]] lua_State* L_) {} // nothing to do, as nothing is allocated independently
 

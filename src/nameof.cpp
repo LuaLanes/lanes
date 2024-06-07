@@ -60,7 +60,7 @@ THE SOFTWARE.
     // scan table contents
     lua_pushnil(L_);                                                                               // L_: o "r" {c} {fqn} ... {?} nil
     while (lua_next(L_, -2)) {                                                                     // L_: o "r" {c} {fqn} ... {?} k v
-        // std::string_view const _strKey{ (luaG_type(L_, -2) == LuaType::STRING) ? luaG_tostringview(L_, -2) : "" }; // only for debugging
+        // std::string_view const _strKey{ (luaG_type(L_, -2) == LuaType::STRING) ? luaG_tostring(L_, -2) : "" }; // only for debugging
         // lua_Number const numKey = (luaG_type(L_, -2) == LuaType::NUMBER) ? lua_tonumber(L_, -2) : -6666; // only for debugging
         STACK_CHECK(L_, 2);
         // append key name to fqn stack

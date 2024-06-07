@@ -69,7 +69,7 @@ class KeyUD
     int limit{ -1 };
 
     // a fifo full userdata has one uservalue, the table that holds the actual fifo contents
-    [[nodiscard]] static void* operator new([[maybe_unused]] size_t size_, KeeperState L_) noexcept { return lua_newuserdatauv<KeyUD>(L_, 1); }
+    [[nodiscard]] static void* operator new([[maybe_unused]] size_t size_, KeeperState L_) noexcept { return luaG_newuserdatauv<KeyUD>(L_, 1); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete([[maybe_unused]] void* p_, [[maybe_unused]] KeeperState L_) { LUA_ASSERT(L_, !"should never be called"); }
@@ -117,7 +117,7 @@ KeyUD* KeyUD::Create(KeeperState const K_)
 
 KeyUD* KeyUD::GetPtr(KeeperState const K_, int idx_)
 {
-    return lua_tofulluserdata<KeyUD>(K_, idx_);
+    return luaG_tofulluserdata<KeyUD>(K_, idx_);
 }
 
 // #################################################################################################
@@ -824,7 +824,7 @@ void Keepers::initialize(Universe& U_, lua_State* L_, int const nbKeepers_, int 
         keeper_.K = _K;
 
         // Give a name to the state
-        std::ignore = luaG_pushstringview(_K, "Keeper #%d", i_ + 1);                               // L_: settings                                   _K: "Keeper #n"
+        std::ignore = luaG_pushstring(_K, "Keeper #%d", i_ + 1);                                   // L_: settings                                   _K: "Keeper #n"
         if constexpr (HAVE_DECODA_SUPPORT()) {
             lua_pushvalue(_K, -1);                                                                 //                                                _K: "Keeper #n" Keeper #n"
             lua_setglobal(_K, "decoda_name");                                                      // L_: settings                                   _K: "Keeper #n"
