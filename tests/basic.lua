@@ -427,7 +427,7 @@ local function chunk2(linda)
     for k,v in pairs(info) do PRINT(k,v) end
 
     -- some assertions are adjusted depending on config.strip_functions, because it changes what we get out of debug.getinfo
-    assert(info.nups == (_VERSION == "Lua 5.1" and 3 or 4), "bad nups")    -- upvalue + config + PRINT + _ENV (Lua > 5.2 only)
+    assert(info.nups == (_VERSION == "Lua 5.1" and 4 or 5), "bad nups " .. info.nups)    -- upvalue + config + PRINT + tostring + _ENV (Lua > 5.2 only)
     assert(info.what == "Lua", "bad what")
     --assert(info.name == "chunk2")   -- name does not seem to come through
     assert(config.strip_functions and info.source=="=?" or string.match(info.source, "^@.*basic.lua$"), "bad info.source")
