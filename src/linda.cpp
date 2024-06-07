@@ -136,11 +136,11 @@ Linda::~Linda()
 Keeper* Linda::acquireKeeper() const
 {
     // can be nullptr if this happens during main state shutdown (lanes is being GC'ed -> no keepers)
-    Keeper* const _K{ whichKeeper() };
-    if (_K) {
-        _K->mutex.lock();
+    Keeper* const _keeper{ whichKeeper() };
+    if (_keeper) {
+        _keeper->mutex.lock();
     }
-    return _K;
+    return _keeper;
 }
 
 // #################################################################################################
@@ -177,14 +177,14 @@ int Linda::ProtectedCall(lua_State* L_, lua_CFunction f_)
     Linda* const _linda{ ToLinda<false>(L_, 1) };
 
     // acquire the keeper
-    Keeper* const _K{ _linda->acquireKeeper() };
-    lua_State* const _KL{ _K ? _K->L : nullptr };
-    if (_KL == nullptr)
+    Keeper* const _keeper{ _linda->acquireKeeper() };
+    KeeperState const _K{ _keeper ? _keeper->K : nullptr };
+    if (_K == nullptr)
         return 0;
 
     LUA_ASSERT_CODE(auto const _koip{ _linda->startKeeperOperation(L_) });
     // if we didn't do anything wrong, the keeper stack should be clean
-    LUA_ASSERT(L_, lua_gettop(_KL) == 0);
+    LUA_ASSERT(L_, lua_gettop(_K) == 0);
 
     // push the function to be called and move it before the arguments
     lua_pushcfunction(L_, f_);
@@ -192,10 +192,10 @@ int Linda::ProtectedCall(lua_State* L_, lua_CFunction f_)
     // do a protected call
     LuaError const _rc{ lua_pcall(L_, lua_gettop(L_) - 1, LUA_MULTRET, 0) };
     // whatever happens, the keeper state stack must be empty when we are done
-    lua_settop(_KL, 0);
+    lua_settop(_K, 0);
 
     // release the keeper
-    _linda->releaseKeeper(_K);
+    _linda->releaseKeeper(_keeper);
 
     // if there was an error, forward it
     if (_rc != LuaError::OK) {
@@ -207,11 +207,11 @@ int Linda::ProtectedCall(lua_State* L_, lua_CFunction f_)
 
 // #################################################################################################
 
-void Linda::releaseKeeper(Keeper* const K_) const
+void Linda::releaseKeeper(Keeper* const keeper_) const
 {
-    if (K_) { // can be nullptr if we tried to acquire during shutdown
-        assert(K_ == whichKeeper());
-        K_->mutex.unlock();
+    if (keeper_) { // can be nullptr if we tried to acquire during shutdown
+        assert(keeper_ == whichKeeper());
+        keeper_->mutex.unlock();
     }
 }
 
@@ -316,8 +316,8 @@ LUAG_FUNC(linda_count)
         // make sure the keys are of a valid type
         check_key_types(L_, 2, lua_gettop(L_));
 
-        Keeper* const _K{ _linda->whichKeeper() };
-        KeeperCallResult const _pushed{ keeper_call(_K->L, KEEPER_API(count), L_, _linda, 2) };
+        Keeper* const _keeper{ _linda->whichKeeper() };
+        KeeperCallResult const _pushed{ keeper_call(_keeper->K, KEEPER_API(count), L_, _linda, 2) };
         return OptionalValue(_pushed, L_, "tried to count an invalid key");
     };
     return Linda::ProtectedCall(L_, _count);
@@ -376,8 +376,8 @@ LUAG_FUNC(linda_get)
 
         KeeperCallResult _pushed;
         if (_linda->cancelRequest == CancelRequest::None) {
-            Keeper* const _K{ _linda->whichKeeper() };
-            _pushed = keeper_call(_K->L, KEEPER_API(get), L_, _linda, 2);
+            Keeper* const _keeper{ _linda->whichKeeper() };
+            _pushed = keeper_call(_keeper->K, KEEPER_API(get), L_, _linda, 2);
         } else { // linda is cancelled
             // do nothing and return lanes.cancel_error
             kCancelError.pushKey(L_);
@@ -415,8 +415,8 @@ LUAG_FUNC(linda_limit)
 
         KeeperCallResult _pushed;
         if (_linda->cancelRequest == CancelRequest::None) {
-            Keeper* const _K{ _linda->whichKeeper() };
-            _pushed = keeper_call(_K->L, KEEPER_API(limit), L_, _linda, 2);
+            Keeper* const _keeper{ _linda->whichKeeper() };
+            _pushed = keeper_call(_keeper->K, KEEPER_API(limit), L_, _linda, 2);
             LUA_ASSERT(L_, _pushed.has_value() && (_pushed.value() == 0 || _pushed.value() == 1)); // no error, optional boolean value saying if we should wake blocked writer threads
             if (_pushed.value() == 1) {
                 LUA_ASSERT(L_, luaG_type(L_, -1) == LuaType::BOOLEAN && lua_toboolean(L_, -1) == 1);
@@ -497,14 +497,14 @@ LUAG_FUNC(linda_receive)
         }
 
         Lane* const _lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
-        Keeper* const _K{ _linda->whichKeeper() };
-        KeeperState const _KL{ _K ? _K->L : nullptr };
-        if (_KL == nullptr)
+        Keeper* const _keeper{ _linda->whichKeeper() };
+        KeeperState const _K{ _keeper ? _keeper->K : nullptr };
+        if (_K == nullptr)
             return 0;
 
         CancelRequest _cancel{ CancelRequest::None };
         KeeperCallResult _pushed{};
-        STACK_CHECK_START_REL(_KL, 0);
+        STACK_CHECK_START_REL(_K, 0);
         for (bool _try_again{ true };;) {
             if (_lane != nullptr) {
                 _cancel = _lane->cancelRequest;
@@ -517,7 +517,7 @@ LUAG_FUNC(linda_receive)
             }
 
             // all arguments of receive() but the first are passed to the keeper's receive function
-            _pushed = keeper_call(_KL, _selected_keeper_receive, L_, _linda, _key_i);
+            _pushed = keeper_call(_K, _selected_keeper_receive, L_, _linda, _key_i);
             if (!_pushed.has_value()) {
                 break;
             }
@@ -543,9 +543,9 @@ LUAG_FUNC(linda_receive)
                     _lane->waiting_on = &_linda->writeHappened;
                 }
                 // not enough data to read: wakeup when data was sent, or when timeout is reached
-                std::unique_lock<std::mutex> _keeper_lock{ _K->mutex, std::adopt_lock };
-                std::cv_status const _status{ _linda->writeHappened.wait_until(_keeper_lock, _until) };
-                _keeper_lock.release();                              // we don't want to release the lock!
+                std::unique_lock<std::mutex> _guard{ _keeper->mutex, std::adopt_lock };
+                std::cv_status const _status{ _linda->writeHappened.wait_until(_guard, _until) };
+                _guard.release(); // we don't want to unlock the mutex on exit!
                 _try_again = (_status == std::cv_status::no_timeout); // detect spurious wakeups
                 if (_lane != nullptr) {
                     _lane->waiting_on = nullptr;
@@ -553,7 +553,7 @@ LUAG_FUNC(linda_receive)
                 }
             }
         }
-        STACK_CHECK(_KL, 0);
+        STACK_CHECK(_K, 0);
 
         if (!_pushed.has_value()) {
             raise_luaL_error(L_, "tried to copy unsupported types");
@@ -634,12 +634,12 @@ LUAG_FUNC(linda_send)
         KeeperCallResult _pushed;
         {
             Lane* const _lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
-            Keeper* const _K{ _linda->whichKeeper() };
-            KeeperState const _KL{ _K ? _K->L : nullptr };
-            if (_KL == nullptr)
+            Keeper* const _keeper{ _linda->whichKeeper() };
+            KeeperState const _K{ _keeper ? _keeper->K : nullptr };
+            if (_K == nullptr)
                 return 0;
 
-            STACK_CHECK_START_REL(_KL, 0);
+            STACK_CHECK_START_REL(_K, 0);
             for (bool _try_again{ true };;) {
                 if (_lane != nullptr) {
                     _cancel = _lane->cancelRequest;
@@ -651,8 +651,8 @@ LUAG_FUNC(linda_send)
                     break;
                 }
 
-                STACK_CHECK(_KL, 0);
-                _pushed = keeper_call(_KL, KEEPER_API(send), L_, _linda, _key_i);
+                STACK_CHECK(_K, 0);
+                _pushed = keeper_call(_K, KEEPER_API(send), L_, _linda, _key_i);
                 if (!_pushed.has_value()) {
                     break;
                 }
@@ -684,9 +684,9 @@ LUAG_FUNC(linda_send)
                         _lane->waiting_on = &_linda->readHappened;
                     }
                     // could not send because no room: wait until some data was read before trying again, or until timeout is reached
-                    std::unique_lock<std::mutex> _keeper_lock{ _K->mutex, std::adopt_lock };
-                    std::cv_status const status{ _linda->readHappened.wait_until(_keeper_lock, _until) };
-                    _keeper_lock.release(); // we don't want to release the lock!
+                    std::unique_lock<std::mutex> _guard{ _keeper->mutex, std::adopt_lock };
+                    std::cv_status const status{ _linda->readHappened.wait_until(_guard, _until) };
+                    _guard.release(); // we don't want to unlock the mutex on exit!
                     _try_again = (status == std::cv_status::no_timeout); // detect spurious wakeups
                     if (_lane != nullptr) {
                         _lane->waiting_on = nullptr;
@@ -694,7 +694,7 @@ LUAG_FUNC(linda_send)
                     }
                 }
             }
-            STACK_CHECK(_KL, 0);
+            STACK_CHECK(_K, 0);
         }
 
         if (!_pushed.has_value()) {
@@ -736,10 +736,10 @@ LUAG_FUNC(linda_set)
         // make sure the key is of a valid type (throws an error if not the case)
         check_key_types(L_, 2, 2);
 
-        Keeper* const _K{ _linda->whichKeeper() };
+        Keeper* const _keeper{ _linda->whichKeeper() };
         KeeperCallResult _pushed;
         if (_linda->cancelRequest == CancelRequest::None) {
-            _pushed = keeper_call(_K->L, KEEPER_API(set), L_, _linda, 2);
+            _pushed = keeper_call(_keeper->K, KEEPER_API(set), L_, _linda, 2);
             if (_pushed.has_value()) { // no error?
                 LUA_ASSERT(L_, _pushed.value() == 0 || _pushed.value() == 1);
 

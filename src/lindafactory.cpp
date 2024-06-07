@@ -70,19 +70,20 @@ void LindaFactory::deleteDeepObjectInternal(lua_State* L_, DeepPrelude* o_) cons
 {
     Linda* const _linda{ static_cast<Linda*>(o_) };
     LUA_ASSERT(L_, _linda && !_linda->inKeeperOperation());
-    Keeper* const _myK{ _linda->whichKeeper() };
+    Keeper* const _myKeeper{ _linda->whichKeeper() };
     // if collected after the universe, keepers are already destroyed, and there is nothing to clear
-    if (_myK) {
+    if (_myKeeper) {
         // if collected from my own keeper, we can't acquire/release it
         // because we are already inside a protected area, and trying to do so would deadlock!
-        bool const _need_acquire_release{ _myK->L != L_ };
+        bool const _need_acquire_release{ _myKeeper->K != L_ };
         // Clean associated structures in the keeper state.
-        Keeper* const _K{ _need_acquire_release ? _linda->acquireKeeper() : _myK };
+        Keeper* const _keeper{ _need_acquire_release ? _linda->acquireKeeper() : _myKeeper };
+        LUA_ASSERT(L_, _keeper == _myKeeper); // should always be the same
         // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
-        [[maybe_unused]] KeeperCallResult const result{ keeper_call(_K->L, KEEPER_API(destruct), L_, _linda, 0) };
+        [[maybe_unused]] KeeperCallResult const result{ keeper_call(_keeper->K, KEEPER_API(destruct), L_, _linda, 0) };
         LUA_ASSERT(L_, result.has_value() && result.value() == 0);
         if (_need_acquire_release) {
-            _linda->releaseKeeper(_K);
+            _linda->releaseKeeper(_keeper);
         }
     }
 

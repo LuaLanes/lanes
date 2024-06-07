@@ -28,7 +28,7 @@ using KeeperState = Unique<lua_State*>;
 struct Keeper
 {
     std::mutex mutex;
-    KeeperState L{ nullptr };
+    KeeperState K{ nullptr };
 
     [[nodiscard]] static void* operator new[](size_t size_, Universe* U_) noexcept;
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception

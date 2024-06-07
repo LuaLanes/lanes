@@ -276,7 +276,7 @@ static void PushKeysDB(KeeperState const K_, int const idx_)
 int keeper_push_linda_storage(Linda& linda_, DestState L_)
 {
     Keeper* const _keeper{ linda_.whichKeeper() };
-    KeeperState const _K{ _keeper ? _keeper->L : nullptr };
+    KeeperState const _K{ _keeper ? _keeper->K : nullptr };
     if (_K == nullptr) {
         return 0;
     }
@@ -710,7 +710,7 @@ void Keeper::operator delete[](void* p_, Universe* U_)
 // #################################################################################################
 // #################################################################################################
 
-void Keepers::DeleteKV::operator()(Keeper* k_) const
+void Keepers::DeleteKV::operator()(Keeper* const k_) const
 {
     for (Keeper& _k : std::views::counted(k_, count)) {
         _k.~Keeper();
@@ -733,7 +733,7 @@ void Keepers::close()
     }
 
     auto _closeOneKeeper = [](Keeper& keeper_) {
-        lua_State* const _K{ std::exchange(keeper_.L, KeeperState{ nullptr }) };
+        lua_State* const _K{ std::exchange(keeper_.K, KeeperState{ nullptr }) };
         if (_K) {
             lua_close(_K);
         }
@@ -824,7 +824,7 @@ void Keepers::initialize(Universe& U_, lua_State* L_, int const nbKeepers_, int 
             raise_luaL_error(L, "out of memory while creating keeper states");
         }
 
-        keeper_.L = _K;
+        keeper_.K = _K;
 
         // Give a name to the state
         std::ignore = luaG_pushstringview(_K, "Keeper #%d", i_ + 1);                               // L_: settings                                   _K: "Keeper #n"
