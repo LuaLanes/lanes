@@ -31,13 +31,10 @@ THE SOFTWARE.
 
 ===============================================================================
 */
-
+#include "_pch.h"
 #include "deep.h"
 
 #include "tools.h"
-
-#include <bit>
-#include <cassert>
 
 /*-- Metatable copying --*/
 

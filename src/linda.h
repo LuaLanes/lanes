@@ -4,11 +4,6 @@
 #include "deep.h"
 #include "universe.h"
 
-#include <array>
-#include <condition_variable>
-#include <string_view>
-#include <variant>
-
 struct Keeper;
 
 // #################################################################################################

@@ -14,8 +14,6 @@ extern "C"
 #include "macros_and_utils.h"
 #include "uniquekey.h"
 
-#include <string_view>
-
 // #################################################################################################
 
 class Lane; // forward

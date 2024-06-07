@@ -34,6 +34,8 @@ THE SOFTWARE.
 
 ===============================================================================
 */
+#include "_pch.h"
+
 #if defined(__linux__)
 
 #ifndef _GNU_SOURCE // definition by the makefile can cause a redefinition error

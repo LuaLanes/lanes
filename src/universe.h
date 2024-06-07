@@ -14,9 +14,6 @@ extern "C"
 #include "tracker.h"
 #include "uniquekey.h"
 
-#include <atomic>
-#include <mutex>
-
 // #################################################################################################
 
 // forwards

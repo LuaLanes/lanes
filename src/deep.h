@@ -17,9 +17,6 @@ extern "C"
 #include "lanesconf.h"
 #include "uniquekey.h"
 
-#include <atomic>
-#include <string_view>
-
 // forwards
 enum class LookupMode;
 class DeepFactory;

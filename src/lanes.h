@@ -11,8 +11,6 @@ extern "C"
 
 #include "lanesconf.h"
 
-#include <type_traits>
-
 #define LANES_VERSION_MAJOR 4
 #define LANES_VERSION_MINOR 0
 #define LANES_VERSION_PATCH 0

@@ -60,6 +60,7 @@ build = {
 		{
 			sources =
 			{
+				"src/_pch.cpp",
 				"src/cancel.cpp",
 				"src/compat.cpp",
 				"src/deep.cpp",

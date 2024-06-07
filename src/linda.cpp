@@ -30,14 +30,12 @@ THE SOFTWARE.
 ===============================================================================
 */
 
+#include "_pch.h"
 #include "linda.h"
 
 #include "lane.h"
 #include "lindafactory.h"
 #include "tools.h"
-
-#include <functional>
-#include <ranges>
 
 // #################################################################################################
 

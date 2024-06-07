@@ -24,9 +24,6 @@ extern "C"
 #define LUA_JITLIBNAME "jit"
 #endif // LUA_JITLIBNAME
 
-#include <cassert>
-#include <string_view>
-
 // code is now preferring Lua 5.4 API
 
 // #################################################################################################

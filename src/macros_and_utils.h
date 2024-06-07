@@ -14,9 +14,6 @@ extern "C"
 #include "debug.h"
 #include "luaerrors.h"
 
-#include <chrono>
-#include <type_traits>
-
 using namespace std::chrono_literals;
 
 // #################################################################################################

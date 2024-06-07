@@ -30,6 +30,7 @@ THE SOFTWARE.
 ===============================================================================
 */
 
+#include "_pch.h"
 #include "lindafactory.h"
 
 #include "linda.h"

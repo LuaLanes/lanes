@@ -3,8 +3,6 @@
 #include "lanesconf.h"
 #include "universe.h"
 
-#include <iostream>
-
 // #################################################################################################
 
 #if USE_DEBUG_SPEW()

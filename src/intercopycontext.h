@@ -2,8 +2,6 @@
 
 #include "tools.h"
 
-#include <string_view>
-
 // forwards
 class Universe;
 

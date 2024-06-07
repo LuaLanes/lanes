@@ -3,8 +3,6 @@
 #include "compat.h"
 #include "macros_and_utils.h"
 
-#include <bit>
-
 // #################################################################################################
 
 class UniqueKey

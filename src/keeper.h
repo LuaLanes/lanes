@@ -11,11 +11,6 @@ extern "C"
 
 #include "uniquekey.h"
 
-#include <atomic>
-#include <mutex>
-#include <optional>
-#include <variant>
-
 // forwards
 class Linda;
 enum class LookupMode;

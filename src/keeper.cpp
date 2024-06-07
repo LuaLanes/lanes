@@ -37,16 +37,13 @@
  ===============================================================================
  ]]--
  */
+#include "_pch.h"
 #include "keeper.h"
 
 #include "intercopycontext.h"
 #include "lane.h"
 #include "linda.h"
 #include "state.h"
-
-#include <algorithm>
-#include <cassert>
-#include <ranges>
 
 // There is a table at _R[kLindasRegKey] (aka LindasDB)
 // This table contains entries of the form [Linda*] = {KeysDB...}

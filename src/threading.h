@@ -2,8 +2,6 @@
 
 #include "platform.h"
 
-#include <thread>
-
 #define THREADAPI_WINDOWS 1
 #define THREADAPI_PTHREAD 2
 

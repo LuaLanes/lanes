@@ -31,6 +31,7 @@ THE SOFTWARE.
 ===============================================================================
 */
 
+#include "_pch.h"
 #include "state.h"
 
 #include "intercopycontext.h"
@@ -38,8 +39,6 @@ THE SOFTWARE.
 #include "lanes.h"
 #include "tools.h"
 #include "universe.h"
-
-#include <source_location>
 
 // #################################################################################################
 

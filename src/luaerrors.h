@@ -11,10 +11,6 @@ extern "C"
 }
 #endif // __cplusplus
 
-#include <cassert>
-#include <string_view>
-#include <tuple>
-
 // #################################################################################################
 
 // use this instead of Lua's lua_error

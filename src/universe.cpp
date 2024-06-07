@@ -28,6 +28,7 @@ THE SOFTWARE.
 ===============================================================================
 */
 
+#include "_pch.h"
 #include "universe.h"
 
 #include "deep.h"
@@ -35,8 +36,6 @@ THE SOFTWARE.
 #include "keeper.h"
 #include "lane.h"
 #include "state.h"
-
-#include <ranges>
 
 extern LUAG_FUNC(linda);
 
