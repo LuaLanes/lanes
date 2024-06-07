@@ -1,6 +1,8 @@
 local lanes = require("lanes").configure{ with_timers = false}
 local l = lanes.linda "my linda"
 
+local table_unpack = table.unpack or unpack -- Lua 5.1 support
+
 -- we will transfer userdata created by this module, so we need to make Lanes aware of it
 local dt = lanes.require "deep_test"
 
@@ -93,24 +95,44 @@ if DEEP then
 	print "================================================================"
 	print "DEEP"
 	local d = dt.new_deep(nupvals)
-	if DEEP == "gc" then
-		local thrasher = function(repeat_, size_)
-			print "in thrasher"
-			-- result is a table of repeat_ tables, each containing size_ entries
-			local result = {}
-			for i = 1, repeat_ do
-				local batch_values = {}
-				for j = 1, size_ do
-					table.insert(batch_values, j)
+	if type(DEEP) == "string" then
+		local gc_tests = {
+			thrasher = function(repeat_, size_)
+				print "in thrasher"
+				-- result is a table of repeat_ tables, each containing size_ entries
+				local result = {}
+				for i = 1, repeat_ do
+					local batch_values = {}
+					for j = 1, size_ do
+						table.insert(batch_values, j)
+					end
+					table.insert(result, batch_values)
 				end
-				table.insert(result, batch_values)
+				print "thrasher done"
+				return result
+			end,
+			stack_abuser = function(repeat_, size_)
+				print "in stack_abuser"
+				for i = 1, repeat_ do
+					local batch_values = {}
+					for j = 1, size_ do
+						table.insert(batch_values, j)
+					end
+					-- return size_ values
+					local _ = table_unpack(batch_values)
+				end
+				print "stack_abuser done"
+				return result
 			end
-			print "thrasher done"
-			return result
-		end
+		}
 		-- have the object call the function from inside one of its functions, to detect if it gets collected from there (while in use!)
-		local r = d:invoke(thrasher, REPEAT or 10, SIZE or 10)
-		print("invoke -> ", tostring(r))
+		local testf = gc_tests[DEEP]
+		if testf then
+			local r = d:invoke(gc_tests[DEEP], REPEAT or 10, SIZE or 10)
+			print("invoke -> ", tostring(r))
+		else
+			print("unknown test '" .. DEEP .. "'")
+		end
 	else
 		performTest(d)
 	end

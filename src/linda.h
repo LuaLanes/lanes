@@ -23,15 +23,39 @@ using LindaGroup = Unique<int>;
 class Linda
 : public DeepPrelude // Deep userdata MUST start with this header
 {
+    public:
+    class KeeperOperationInProgress
+    {
+        private:
+        Linda& linda;
+        [[maybe_unused]] lua_State* const L; // just here for inspection while debugging
+
+        public:
+        KeeperOperationInProgress(Linda& linda_, lua_State* const L_)
+        : linda{ linda_ }
+        , L{ L_ }
+        {
+            [[maybe_unused]] int const _prev{ linda.keeperOperationCount.fetch_add(1, std::memory_order_seq_cst) };
+        }
+
+        public:
+        ~KeeperOperationInProgress()
+        {
+            [[maybe_unused]] int const _prev{ linda.keeperOperationCount.fetch_sub(1, std::memory_order_seq_cst) };
+        }
+    };
+
     private:
     static constexpr size_t kEmbeddedNameLength = 24;
     using EmbeddedName = std::array<char, kEmbeddedNameLength>;
     // depending on the name length, it is either embedded inside the Linda, or allocated separately
-    std::variant<std::string_view, EmbeddedName> nameVariant;
+    std::variant<std::string_view, EmbeddedName> nameVariant{};
+    // counts the keeper operations in progress
+    std::atomic<int> keeperOperationCount{};
 
     public:
-    std::condition_variable readHappened;
-    std::condition_variable writeHappened;
+    std::condition_variable readHappened{};
+    std::condition_variable writeHappened{};
     Universe* const U{ nullptr }; // the universe this linda belongs to
     int const keeperIndex{ -1 }; // the keeper associated to this linda
     CancelRequest cancelRequest{ CancelRequest::None };
@@ -60,7 +84,9 @@ class Linda
     public:
     [[nodiscard]] Keeper* acquireKeeper() const;
     [[nodiscard]] std::string_view getName() const;
+    [[nodiscard]] bool inKeeperOperation() const { return keeperOperationCount.load(std::memory_order_seq_cst) != 0; }
     void releaseKeeper(Keeper* keeper_) const;
     [[nodiscard]] static int ProtectedCall(lua_State* L_, lua_CFunction f_);
+    [[nodiscard]] KeeperOperationInProgress startKeeperOperation(lua_State* const L_) { return KeeperOperationInProgress{ *this, L_ }; };
     [[nodiscard]] Keeper* whichKeeper() const { return U->keepers.getKeeper(keeperIndex); }
 };

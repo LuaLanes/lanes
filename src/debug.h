@@ -15,6 +15,7 @@ inline void LUA_ASSERT_IMPL(lua_State* L_, bool cond_, char const* file_, int co
 }
 
 #define LUA_ASSERT(L_, cond_) LUA_ASSERT_IMPL(L_, cond_, __FILE__, __LINE__, #cond_)
+#define LUA_ASSERT_CODE(code_) code_
 
 class StackChecker
 {
@@ -102,6 +103,7 @@ class StackChecker
 #else // HAVE_LUA_ASSERT()
 
 #define LUA_ASSERT(L_, c) nullptr // nothing
+#define LUA_ASSERT_CODE(code_) nullptr
 
 #define STACK_CHECK_START_REL(L_, offset_)
 #define STACK_CHECK_START_ABS(L_, offset_)

@@ -69,7 +69,7 @@ void LindaFactory::createMetatable(lua_State* L_) const
 void LindaFactory::deleteDeepObjectInternal(lua_State* L_, DeepPrelude* o_) const
 {
     Linda* const _linda{ static_cast<Linda*>(o_) };
-    LUA_ASSERT(L_, _linda);
+    LUA_ASSERT(L_, _linda && !_linda->inKeeperOperation());
     Keeper* const _myK{ _linda->whichKeeper() };
     // if collected after the universe, keepers are already destroyed, and there is nothing to clear
     if (_myK) {

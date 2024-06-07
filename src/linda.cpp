@@ -181,6 +181,8 @@ int Linda::ProtectedCall(lua_State* L_, lua_CFunction f_)
     lua_State* const _KL{ _K ? _K->L : nullptr };
     if (_KL == nullptr)
         return 0;
+
+    LUA_ASSERT_CODE(auto const _koip{ _linda->startKeeperOperation(L_) });
     // if we didn't do anything wrong, the keeper stack should be clean
     LUA_ASSERT(L_, lua_gettop(_KL) == 0);
 
