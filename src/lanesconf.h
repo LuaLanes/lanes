@@ -41,5 +41,12 @@
 #endif // __cplusplus
 #endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 
+// kind of MSVC-specific
+#ifdef _DEBUG
+#define HAVE_LUA_ASSERT() 1
+#else // NDEBUG
+#define HAVE_LUA_ASSERT() 0
+#endif // NDEBUG
+
 #define USE_DEBUG_SPEW() 0
 #define HAVE_DECODA_SUPPORT() 0
