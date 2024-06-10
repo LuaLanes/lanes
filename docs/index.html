@@ -368,19 +368,6 @@
 		</tr>
 
 		<tr valign=top>
-			<td id="demote_full_userdata">
-				<code>.demote_full_userdata</code>
-			</td>
-			<td>
-				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
-			</td>
-			<td>
-				If equal to <tt>false</tt> or <tt>nil</tt>, Lanes raises an error when attempting to transfer a non-deep full userdata, else it will be demoted to a light userdata in the destination.
-				Default is <tt>false</tt> (set to <tt>true</tt> to get the legacy behaviour).
-			</td>
-		</tr>
-
-		<tr valign=top>
 			<td id="track_lanes">
 				<code>.track_lanes</code>
 			</td>
@@ -1547,22 +1534,28 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 
 <p>
 	Data passed between lanes (either as starting parameters, return values, upvalues or via Lindas) must conform to the following:
-</p>
-
-<p>
 	<ul>
+		<li>Coroutines cannot be passed. A coroutine's Lua state is tied to the Lua state that created it, and there is no way the mixed C/Lua stack of a coroutine can be transfered from one Lua state to another.</li>
+		<li>Lane handles cannot be passed between lanes.</li>
 		<li>Booleans, numbers, strings, light userdata, Lua functions and tables of such can always be passed.</li>
 		<li>
 			Cyclic tables and/or duplicate references are allowed and reproduced appropriately, but only <u>within the same transmission</u>.
+			Using the same source table in multiple <a href="#lindas">Linda</a> messages keeps no ties between the tables (this is the same reason why tables can't be used as keys).
+		</li>
+		<li>
+			For tables and full userdata: before anything else, the metatable is searched for a <tt>__lanesconvert</tt> field. If found, the source object is converted as follows depending on <tt>__lanesconvert</tt>'s value:
 			<ul>
-				<li>Using the same source table in multiple <a href="#lindas">Linda</a> messages keeps no ties between the tables (this is the same reason why tables can't be used as keys).</li>
+				<li><tt>lanes.null</tt>: The value is converted to <tt>nil</tt>.</li>
+				<li><tt>"decay"</tt>: The value is converted to a light userdata obtained from <tt>lua_topointer()</tt>.</li>
+				<li>A function: The function is called as <tt>o:__lanesconvert(string)</tt>, where the argument is either <tt>"keeper"</tt> or <tt>"regular"</tt>, depending on the type of destination. Its (single) return value is the result of the conversion.</li>
+				<li>Any other value raises an error.</li>
 			</ul>
 		</li>
 		<li>
-			Objects (tables with a metatable) are copyable between lanes.
-			<ul>
-				<li>Metatables are assumed to be immutable; they are internally indexed and only copied once per each type of objects per lane.</li>
-			</ul>
+			Non-converted full userdata can be passed only if it is prepared using the <a href="#deep_userdata">deep userdata</a> system, which handles its lifespan management.
+		</li>
+		<li>
+			Objects (tables with a metatable) are copyable between lanes. Metatables are assumed to be immutable; they are internally indexed and only copied once per each type of objects per lane.
 		</li>
 		<li>
 			C functions (<tt>lua_CFunction</tt>) referring to <tt>LUA_ENVIRONINDEX</tt> or <tt>LUA_REGISTRYINDEX</tt> might not do what you expect in the target, since they will actually use a different environment.
@@ -1571,23 +1564,6 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 			Lua 5.2 functions may have a special <tt>_ENV</tt> upvalue if they perform 'global namespace' lookups. Unless special care is taken, this upvalue defaults to the table found at <tt>LUA_RIDX_GLOBALS</tt>.
 			Obviously, we don't want to transfer the whole global table along with each Lua function. Therefore, any upvalue equal to the global table is not transfered by value, but simply bound
 			to the global table in the destination state. Note that this also applies when Lanes is built for Lua 5.1, as it doesn't hurt.
-		</li>
-		<li>
-			Full userdata can be passed only if it is prepared using the <a href="#deep_userdata">deep userdata</a> system, which handles its lifespan management
-			<ul>
-				<li>In particular, lane handles cannot be passed between lanes.</li>
-				<li>Lanes can either throw an error or attempt a <a href="#demote_full_userdata">light userdata demotion</a>.</li>
-			</ul>
-		</li>
-		<li>Coroutines cannot be passed. A coroutine's Lua state is tied to the Lua state that created it, and there is no way the mixed C/Lua stack of a coroutine can be transfered from one Lua state to another.</li>
-		<li>
-			If the metatable contains <tt>__lanesconvert</tt>, the object is converted as follows depending on the value:
-			<ul>
-				<li><tt>lanes.null</tt>: The value is converted to <tt>nil</tt>.</li>
-				<li><tt>"decay"</tt>: The value is converted to a light userdata obtained from <tt>lua_topointer()</tt>.</li>
-				<li>A function: The function is called as <tt>o:__lanesconvert(string)</tt>, where the argument is either <tt>"keeper"</tt> or <tt>"regular"</tt>, depending on the type of destination. Its (single) return value is the result of the conversion.</li>
-				<li>Any other value raises an error.</li>
-			</ul>
 		</li>
 	</ul>
 </p>

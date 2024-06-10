@@ -58,7 +58,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 {
     MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, 1)) };
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
-    std::ignore = luaG_pushstring(L, "%p:deep(%d)", lua_topointer(L, 1), _self->val);
+    std::ignore = luaG_pushstring(L, "%p:deep(%d)", _self, _self->val);
     _self->inUse.fetch_sub(1, std::memory_order_seq_cst);
     return 1;
 }

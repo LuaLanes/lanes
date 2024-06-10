@@ -128,8 +128,6 @@ class Universe
     // for verbose errors
     bool verboseErrors{ false };
 
-    bool demoteFullUserdata{ false };
-
     bool stripFunctions{ true };
 
     // before a state is created, this function will be called to obtain the allocator

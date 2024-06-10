@@ -92,7 +92,6 @@ local default_params =
 {
     -- LuaJIT provides a thread-unsafe allocator by default, so we need to protect it when used in parallel lanes
     allocator = isLuaJIT and "protected" or nil,
-    demote_full_userdata = nil,
     -- it looks also like LuaJIT allocator may not appreciate direct use of its allocator for other purposes than the VM operation
     internal_allocator = isLuaJIT and "libc" or "allocator",
     keepers_gc_threshold = -1,
@@ -119,7 +118,6 @@ local param_checkers =
         -- can be nil, "protected", or a function
         return val_ and (type(val_) == "function" or val_ == "protected") or true
     end,
-    demote_full_userdata = boolean_param_checker,
     internal_allocator = function(val_)
         -- can be "libc" or "allocator"
         return val_ == "libc" or val_ == "allocator"

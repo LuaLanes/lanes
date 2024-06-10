@@ -107,16 +107,12 @@ Universe::Universe()
     lua_setmetatable(L_, -2);                                                                      // L_: settings universe
     lua_pop(L_, 1);                                                                                // L_: settings
 
-    // TODO: write some tests to see what happens when we trigger errors in stripped mode
     std::ignore = luaG_getfield(L_, 1, "strip_functions");                                         // L_: settings strip_functions
     _U->stripFunctions = lua_toboolean(L_, -1) ? true : false;
     lua_pop(L_, 1);                                                                                // L_: settings
 
     std::ignore = luaG_getfield(L_, 1, "verbose_errors");                                          // L_: settings verbose_errors
     _U->verboseErrors = lua_toboolean(L_, -1) ? true : false;
-    lua_pop(L_, 1);                                                                                // L_: settings
-    std::ignore = luaG_getfield(L_, 1, "demote_full_userdata");                                    // L_: settings demote_full_userdata
-    _U->demoteFullUserdata = lua_toboolean(L_, -1) ? true : false;
     lua_pop(L_, 1);                                                                                // L_: settings
 
     // tracking

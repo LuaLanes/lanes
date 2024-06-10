@@ -718,6 +718,8 @@ LuaType InterCopyContext::processConversion() const
         return false;
     }
 
+    DEBUGSPEW_CODE(DebugSpew(U) << "CLONABLE USERDATA" << std::endl);
+
     // we need to copy over the uservalues of the userdata as well
     {
         int const _mt{ luaG_absindex(L1, -2) };                                                    // L1: ... mt __lanesclone
@@ -795,6 +797,7 @@ LuaType InterCopyContext::processConversion() const
         return false; // not a deep userdata
     }
 
+    DEBUGSPEW_CODE(DebugSpew(U) << "DEEP USERDATA" << std::endl);
     STACK_CHECK_START_REL(L1, 0);
     STACK_CHECK_START_REL(L2, 0);
 
@@ -1085,27 +1088,13 @@ LuaType InterCopyContext::processConversion() const
     STACK_CHECK(L2, 0);
 
     // Allow only deep userdata entities to be copied across
-    DEBUGSPEW_CODE(DebugSpew(nullptr) << "USERDATA" << std::endl);
     if (tryCopyDeep()) {
         STACK_CHECK(L1, 0);
         STACK_CHECK(L2, 1);
         return true;
     }
 
-    STACK_CHECK(L1, 0);
-    STACK_CHECK(L2, 0);
-
-    // Not a deep or clonable full userdata
-    if (U->demoteFullUserdata) { // attempt demotion to light userdata
-        void* const _lud{ lua_touserdata(L1, L1_i) };
-        lua_pushlightuserdata(L2, _lud);
-    } else { // raise an error
-        raise_luaL_error(getErrL(), "can't copy non-deep full userdata across lanes");
-    }
-
-    STACK_CHECK(L2, 1);
-    STACK_CHECK(L1, 0);
-    return true;
+    raise_luaL_error(getErrL(), "can't copy non-deep full userdata across lanes");
 }
 
 // #################################################################################################

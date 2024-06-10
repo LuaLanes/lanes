@@ -38,9 +38,13 @@ local printDeep = function( prefix_, obj_, t_)
 		print ("uv #" .. uvi, type( uservalue), uservalue, type(uservalue) == "function" and uservalue() or "")
 	end
 	if t_ then
-		for k, v in pairs( t_) do
+		local count = 0
+		for k, v in ipairs( t_) do
 			print( "t["..tostring(k).."]", v)
+			count = count + 1
 		end
+		-- we should have only 2 indexed entries with the same value
+		assert(count == 2 and t_[1] == t_[2])
 	end
 	print()
 end
@@ -56,8 +60,11 @@ local performTest = function( obj_)
 
 	local t =
 	{
-		["key"] = obj_,
-		[obj_] = "val" -- this one won't transfer because we don't support full uservalue as keys
+		-- two indices with an identical value: we should also have identical values on the other side (even if not the same as the original ones when they are clonables)
+		obj_,
+		obj_,
+		-- this one won't transfer because we don't support full uservalue as keys
+		[obj_] = "val"
 	}
 
 	-- read back the contents of the object
