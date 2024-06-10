@@ -546,7 +546,7 @@
 			</td>
 			<td />
 			<td>
-				root level names, <tt>print</tt>, <tt>assert</tt>, <tt>unpack</tt> etc.
+				<tt>_G</tt> namespace (the default function environment): <tt>print</tt>, <tt>assert</tt>, <tt>dofile</tt>, etc.
 			</td>
 		</tr>
 		<tr>
@@ -1150,13 +1150,13 @@
 <h2 id="lindas">Lindas</h2>
 
 <p>
-	Communications between lanes is completely detached from the lane handles themselves. By itself, a lane can only provide return values once it's finished, or throw an error.
+	Communications between lanes is completely detached from the lane handles themselves. By itself, a lane can only provide return values once it is finished, or throw an error.
 	Needs to communicate during runtime are handled by <a href="http://en.wikipedia.org/wiki/Linda_%28coordination_language%29" target="_blank">Linda objects</a>, which are
 	<a href="#deep_userdata">deep userdata</a> instances. They can be provided to a lane as startup parameters, upvalues or in some other Linda's message.
 </p>
 
 <p>
-	Access to a Linda object means a lane can read or write to any of its data slots. Multiple lanes can be accessing the same Linda in parallel. No application level locking is required; each Linda operation is atomic.
+	Access to a Linda object means a lane can read or write to any of its data slots. Multiple lanes can be accessing the same Linda simultaneously. Seen from Lua, no application level locking is required; each Linda operation is atomic.
 </p>
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
@@ -1212,14 +1212,6 @@
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
 	h = lanes.linda([opt_name, [opt_group]])
-
-	true|lanes.cancel_error = h:send([timeout_secs,] key, ...)
-
-	key, val = h:receive([timeout_secs,] key [, key...])
-
-	key, val [, val...] = h:receive(timeout, h.batched, key, n_uint_min[, n_uint_max])
-
-	true|lanes.cancel_error = h:limit(key, n_uint)
 </pre></td></tr></table>
 
 <p>
@@ -1227,34 +1219,50 @@
 	If <tt>opt_name</tt> is omitted, it will evaluate to an hexadecimal number uniquely representing that Linda when the Linda is converted to a string. The value is the same as returned by <tt>linda:deep()</tt>.<br/>
 	If <tt>opt_name</tt> is <tt>"auto"</tt>, Lanes will try to construct a name from the source location that called <tt>lanes.linda()</tt>. If that fails, the Linda name will be <tt>"&lt;unresolved&gt;"</tt>.
 </p>
+
+<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
+	true|lanes.cancel_error = h:limit(key, n_uint)
+</pre></td></tr></table>
+
 <p>
-	Timeouts are given in seconds (&gt= 0, millisecond accuracy) or <tt>nil</tt>. Timeout can be omitted only if the first key is not a number (then it's equivalent to an infinite duration).
+	By default, queue sizes are unlimited but limits can be enforced using the <tt>limit()</tt> method. This can be useful to balance execution speeds in a producer/consumer scenario. <tt>nil</tt> removes the limit.<br/>
+	A limit of 0 is allowed to block everything.<br/>
+	If the key was full but the limit change added some room, <tt>limit()</tt> returns <tt>true</tt> and the Linda is signalled so that <tt>send()</tt>-blocked threads are awakened.<br/>
 </p>
+
+<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
+	true|lanes.cancel_error = h:send([timeout_secs,] key, ...)
+</pre></td></tr></table>
+
+<p>
+	Timeouts are given in seconds (&gt= 0, millisecond accuracy) or <tt>nil</tt>. Timeout can be omitted only if the first key is not a number (then it is equivalent to an infinite duration).<br/>
+	Each key acts as a FIFO queue. There is no limit to the number of keys a Linda may contain. Different Lindas can have identical keys, which are totally unrelated.
+</p>
+<p>
+	If no data is provided after the key, <tt>send()</tt> raises an error.<br/>
+	Also, if <tt>linda.null</tt> or <tt>lanes.null</tt> is sent as data in a Linda, it will be read as a <tt>nil</tt>.<br/>
+	<tt>send()</tt> returns <tt>true</tt> if the sending succeeded, and <tt>false</tt> if the queue limit was met, and the queue did not empty enough during the given timeout.<br/>
+	<tt>send()</tt> returns <tt>lanes.cancel_error</tt> if interrupted by a soft cancel request.<br/>
+</p>
+
+<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
+	key, val = h:receive([timeout_secs,] key [, key...])
+
+	key, val [, val...] = h:receive(timeout, h.batched, key, n_uint_min[, n_uint_max])
+</pre></td></tr></table>
+
 
 <p>
 	The <tt>send()</tt> and <tt>receive()</tt> methods use Linda keys as FIFO stacks (first in, first out).<br/>
-	By default, stack sizes are unlimited but limits can be enforced using the <tt>limit()</tt> method. This can be useful to balance execution speeds in a producer/consumer scenario. <tt>nil</tt> removes the limit.<br/>
-	A limit of 0 is allowed to block everything.<br/>
-	If the key was full but the limit change added some room, <tt>limit()</tt> returns <tt>true</tt> and the Linda is signalled so that <tt>send()</tt>-blocked threads are awakened.<br/>
 	In batched mode, <tt>linda:receive()</tt> will raise an error if <tt>min_count < 1</tt> or <tt>max_count < min_count</tt>.
 </p>
 
 <p>
-	Note that any number of lanes can be reading or writing a Linda. There can be many producers, and many consumers. It's up to you.
+	Note that any number of lanes can be reading or writing a Linda. There can be many producers, and many consumers. It is up to you.
 </p>
 
 <p>
 	<a href="#cancelling">Hard cancellation</a> will cause pending Linda operations to abort execution of the lane through a cancellation error. This means that you have to install a <a href="#finalizers">finalizer</a> in your lane if you want to run some code in that situation.
-</p>
-
-<p>
-	<tt>send()</tt> returns <tt>true</tt> if the sending succeeded, and <tt>false</tt> if the queue limit was met, and the queue did not empty enough during the given timeout.
-	<br/>
-	<tt>send()</tt> returns <tt>lanes.cancel_error</tt> if interrupted by a soft cancel request.
-	<br/>
-	If no data is provided after the key, <tt>send()</tt> raises an error.
-	<br/>
-	Also, if <tt>linda.null</tt> or <tt>lanes.null</tt> is sent as data in a Linda, it will be read as a <tt>nil</tt>.
 </p>
 
 <p>
@@ -1558,14 +1566,22 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 			to the global table in the destination state. Note that this also applies when Lanes is built for Lua 5.1, as it doesn't hurt.
 		</li>
 		<li>
-			Full userdata can be passed only if it's prepared using the <a href="#deep_userdata">deep userdata</a> system, which handles its lifespan management
+			Full userdata can be passed only if it is prepared using the <a href="#deep_userdata">deep userdata</a> system, which handles its lifespan management
 			<ul>
 				<li>In particular, lane handles cannot be passed between lanes.</li>
 				<li>Lanes can either throw an error or attempt a <a href="#demote_full_userdata">light userdata demotion</a>.</li>
 			</ul>
 		</li>
 		<li>Coroutines cannot be passed. A coroutine's Lua state is tied to the Lua state that created it, and there is no way the mixed C/Lua stack of a coroutine can be transfered from one Lua state to another.</li>
-		<li>If the metatable contains <tt>__lanesignore</tt>, the object is skipped and <tt>nil</tt> is transfered instead.</li>
+		<li>
+			If the metatable contains <tt>__lanesconvert</tt>, the object is converted as follows depending on the value:
+			<ul>
+				<li><tt>lanes.null</tt>: The value is converted to <tt>nil</tt>.</li>
+				<li><tt>"decay"</tt>: The value is converted to a light userdata obtained from <tt>lua_topointer()</tt>.</li>
+				<li>A function: The function is called as <tt>o:__lanesconvert(string)</tt>, where the argument is either <tt>"keeper"</tt> or <tt>"regular"</tt>, depending on the type of destination. Its (single) return value is the result of the conversion.</li>
+				<li>Any other value raises an error.</li>
+			</ul>
+		</li>
 	</ul>
 </p>
 
@@ -1573,26 +1589,7 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 <h3 id="function_notes">Notes about passing C functions</h3>
 
 <p>
-	Originally, a C function was copied from one Lua state to another as follows:
-</p>
-
-<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
-	// expects a C function on top of the source Lua stack
-	copy_func(lua_State *dest, lua_State* source)
-	{
-		// extract C function pointer from source
-		lua_CFunction func = lua_tocfunction(source, -1);
-		// transfer upvalues
-		int nup = transfer_upvalues(dest, source);
-		// dest Lua stack contains a copy of all upvalues
-		lua_pushcfunction(dest, func, nup);
-	}
-</pre></td></tr></table>
-
-<p>
-	This has the main drawback of not being LuaJIT-compatible, because some functions registered by LuaJIT are not regular C functions, but specially optimized implementations. As a result, <tt>lua_tocfunction()</tt> returns <tt>nullptr</tt> for them.
-	<br/>
-	Therefore, Lanes no longer transfers functions that way. Instead, functions are transfered as follows (more or less):
+	Functions are transfered as follows (more or less):
 </p>
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>

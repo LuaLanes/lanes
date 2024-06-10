@@ -226,7 +226,7 @@ local chunk= function(linda)
     k,v=receive(); WR("chunk ", v.." received (expecting 1)\n"); assert(v==1)
     k,v=receive(); WR("chunk ", v.." received (expecting 2)\n"); assert(v==2)
     k,v=receive(); WR("chunk ", v.." received  (expecting 3)\n"); assert(v==3)
-    k,v=receive(); WR("chunk ", tostring(v).." received  (expecting nil from __lanesignore)\n"); assert(v==nil) -- a table with __lanesignore was sent
+    k,v=receive(); WR("chunk ", tostring(v).." received  (expecting nil from __lanesconvert)\n"); assert(v==nil, "table with __lanesconvert==lanes.null should be received as nil, got " .. tostring(v)) -- a table with __lanesconvert was sent
     k,v=receive(); WR("chunk ", tostring(v).." received (expecting nil)\n"); assert(v==nil)
 
     send(4,5,6);              WR("chunk ", "4,5,6 sent\n")
@@ -277,7 +277,7 @@ local comms_lane = lanes_gen("io", {gc_cb = gc_cb, name = "auto"}, chunk)(linda)
 SEND(1);  WR("main ", "1 sent\n")
 SEND(2);  WR("main ", "2 sent\n")
 SEND(3);  WR("main ", "3 sent\n")
-SEND(setmetatable({"should be ignored"},{__lanesignore=true})); WR("main ", "__lanesignore table sent\n")
+SEND(setmetatable({"should be ignored"},{__lanesconvert=lanes.null})); WR("main ", "__lanesconvert table sent\n")
 for i=1,40 do
     WR "."
     SLEEP(0.0001)

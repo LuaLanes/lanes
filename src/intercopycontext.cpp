@@ -532,6 +532,76 @@ void InterCopyContext::inter_copy_keyvaluepair() const
 
 // #################################################################################################
 
+LuaType InterCopyContext::processConversion() const
+{
+    static constexpr int kPODmask = (1 << LUA_TNIL) | (1 << LUA_TBOOLEAN) | (1 << LUA_TLIGHTUSERDATA) | (1 << LUA_TNUMBER) | (1 << LUA_TSTRING);
+
+    LuaType _val_type{ luaG_type(L1, L1_i) };
+
+    STACK_CHECK_START_REL(L1, 0);
+
+    // it's a POD: nothing to do
+    if (((1 << static_cast<int>(_val_type)) & kPODmask) != 0) {
+        return _val_type;
+    }
+
+    // no metatable: nothing to do
+    if (!lua_getmetatable(L1, L1_i)) {                                                             // L1: ...
+        STACK_CHECK(L1, 0);
+        return _val_type;
+    }
+    // we have a metatable                                                                         // L1: ... mt
+    static constexpr std::string_view kConvertField{ "__lanesconvert" };
+    LuaType const _converterType{ luaG_getfield(L1, -1, kConvertField) };                          // L1: ... mt kConvertField
+    switch (_converterType) {
+    case LuaType::NIL:
+        // no __lanesconvert, nothing to do
+        lua_pop(L1, 2);                                                                            // L1: ...
+        break;
+
+    case LuaType::LIGHTUSERDATA:
+        if (kNilSentinel.equals(L1, -1)) {
+            DEBUGSPEW_CODE(DebugSpew(U) << "converted " << luaG_typename(L1, _val_type) << " to nil" << std::endl);
+            lua_replace(L1, L1_i);                                                                 // L1: ... mt
+            lua_pop(L1, 1);                                                                        // L1: ...
+            _val_type = _converterType;
+        } else {
+            raise_luaL_error(getErrL(), "Invalid %s type %s", kConvertField.data(), luaG_typename(L1, _converterType).data());
+        }
+        break;
+
+    case LuaType::STRING:
+        // kConvertField == "decay" -> replace source value with it's pointer
+        if (std::string_view const _mode{ luaG_tostring(L1, -1) }; _mode == "decay") {
+            lua_pop(L1, 1);                                                                        // L1: ... mt
+            lua_pushlightuserdata(L1, const_cast<void*>(lua_topointer(L1, L1_i)));                 // L1: ... mt decayed
+            lua_replace(L1, L1_i);                                                                 // L1: ... mt
+            lua_pop(L1, 1);                                                                        // L1: ...
+            _val_type = LuaType::LIGHTUSERDATA;
+        } else {
+            raise_luaL_error(getErrL(), "Invalid %s mode '%s'", kConvertField.data(), _mode.data());
+        }
+        break;
+
+    case LuaType::FUNCTION:
+        lua_pushvalue(L1, L1_i);                                                                   // L1: ... mt kConvertField val
+        std::ignore = luaG_pushstring(L1, mode == LookupMode::ToKeeper ? "keeper" : "regular");    // L1: ... mt kConvertField val string
+        lua_call(L1, 2, 1); // val:kConvertField(str) -> result                                    // L1: ... mt kConvertField converted
+        lua_replace(L1, L1_i);                                                                     // L1: ... mt
+        lua_pop(L1, 1);                                                                            // L1: ... mt
+        _val_type =  luaG_type(L1, L1_i);
+        break;
+
+    default:
+        raise_luaL_error(getErrL(), "Invalid %s type %s", kConvertField.data(), luaG_typename(L1, _converterType).data());
+    }
+    STACK_CHECK(L1, 0);
+    LUA_ASSERT(getErrL(), luaG_type(L1, L1_i) == _val_type);
+    return _val_type;
+}
+
+// #################################################################################################
+
 [[nodiscard]] bool InterCopyContext::push_cached_metatable() const
 {
     STACK_CHECK_START_REL(L1, 0);
@@ -1085,21 +1155,10 @@ namespace {
     DEBUGSPEW_CODE(DebugSpew(U) << "inter_copy_one()" << std::endl);
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
 
-    LuaType _val_type{ luaG_type(L1, L1_i) };
-    DEBUGSPEW_CODE(DebugSpew(U) << local::sLuaTypeNames[static_cast<int>(_val_type)] << " " << local::sValueTypeNames[static_cast<int>(vt)] << ": ");
-
-    // Non-POD can be skipped if its metatable contains { __lanesignore = true }
-    if (((1 << static_cast<int>(_val_type)) & kPODmask) == 0) {
-        if (lua_getmetatable(L1, L1_i)) {                                                          // L1: ... mt
-            LuaType const _type{ luaG_getfield(L1, -1, "__lanesignore") };                         // L1: ... mt ignore?
-            if (_type == LuaType::BOOLEAN && lua_toboolean(L1, -1)) {
-                DEBUGSPEW_CODE(DebugSpew(U) << "__lanesignore -> LUA_TNIL" << std::endl);
-                _val_type = LuaType::NIL;
-            }
-            lua_pop(L1, 2);                                                                        // L1: ...
-        }
-    }
+    // replace the value at L1_i with the result of a conversion if required
+    LuaType const _val_type{ processConversion() };
     STACK_CHECK(L1, 0);
+    DEBUGSPEW_CODE(DebugSpew(U) << local::sLuaTypeNames[static_cast<int>(_val_type)] << " " << local::sValueTypeNames[static_cast<int>(vt)] << ": ");
 
     // Lets push nil to L2 if the object should be ignored
     bool _ret{ true };
