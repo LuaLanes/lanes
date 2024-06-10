@@ -357,7 +357,7 @@ inline void luaG_setmetatable(lua_State* const L_, std::string_view const& tname
 
 // a small helper to extract a full userdata pointer from the stack in a safe way
 template <typename T>
-[[nodiscard]] T* luaG_tofulluserdata(lua_State* L_, int index_)
+[[nodiscard]] T* luaG_tofulluserdata(lua_State* const L_, int const index_)
 {
     LUA_ASSERT(L_, lua_isnil(L_, index_) || lua_type(L_, index_) == LUA_TUSERDATA);
     return static_cast<T*>(lua_touserdata(L_, index_));
@@ -366,7 +366,7 @@ template <typename T>
 // -------------------------------------------------------------------------------------------------
 
 template <typename T>
-[[nodiscard]] auto luaG_tolightuserdata(lua_State* L_, int index_)
+[[nodiscard]] auto luaG_tolightuserdata(lua_State* const L_, int const index_)
 {
     LUA_ASSERT(L_, lua_isnil(L_, index_) || lua_islightuserdata(L_, index_));
     if constexpr (std::is_pointer_v<T>) {
@@ -378,9 +378,16 @@ template <typename T>
 
 // -------------------------------------------------------------------------------------------------
 
-inline char const* luaG_typename(lua_State* L_, LuaType t_)
+[[nodiscard]] inline std::string_view luaG_typename(lua_State* const L_, LuaType const t_)
 {
     return lua_typename(L_, static_cast<int>(t_));
+}
+
+// -------------------------------------------------------------------------------------------------
+
+[[nodiscard]] inline std::string_view luaG_typename(lua_State* const L_, int const idx_)
+{
+    return luaG_typename(L_, luaG_type(L_, idx_));
 }
 
 // #################################################################################################

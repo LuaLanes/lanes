@@ -479,7 +479,7 @@ LUAG_FUNC(lane_new)
     STACK_CHECK(_L2, 0);
 
     // Lane main function
-    [[maybe_unused]] int const errorHandlerCount{ _lane->pushErrorHandler() };                     // L_: [fixed] args...                            L2: eh?
+    [[maybe_unused]] int const _errorHandlerCount{ _lane->pushErrorHandler() };                    // L_: [fixed] args...                            L2: eh?
     LuaType const _func_type{ luaG_type(L_, kFuncIdx) };
     if (_func_type == LuaType::FUNCTION) {
         DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: transfer lane body" << std::endl);
@@ -497,11 +497,11 @@ LUAG_FUNC(lane_new)
             raise_luaL_error(L_, "error when parsing lane function code");
         }
     } else {
-        raise_luaL_error(L_, "Expected function, got %s", luaG_typename(L_, _func_type));
+        raise_luaL_error(L_, "Expected function, got %s", luaG_typename(L_, _func_type).data());
     }
     STACK_CHECK(L_, 0);
-    STACK_CHECK(_L2, errorHandlerCount + 1);
-    LUA_ASSERT(L_, lua_isfunction(_L2, errorHandlerCount + 1));
+    STACK_CHECK(_L2, _errorHandlerCount + 1);
+    LUA_ASSERT(L_, lua_isfunction(_L2, _errorHandlerCount + 1));
 
     // revive arguments
     if (_nargs > 0) {
@@ -520,7 +520,7 @@ LUAG_FUNC(lane_new)
     kLanePointerRegKey.setValue(
         _L2, [lane = _lane](lua_State* L_) { lua_pushlightuserdata(L_, lane); }                    // L_: [fixed]                                    L2: eh? func args...
     );
-    STACK_CHECK(_L2, errorHandlerCount + 1 + _nargs);
+    STACK_CHECK(_L2, _errorHandlerCount + 1 + _nargs);
 
     STACK_CHECK_RESET_REL(L_, 0);
     // all went well, the lane's thread can start working

@@ -462,7 +462,7 @@ void InterCopyContext::copy_cached_func() const
                 "%s: source table '%s' found as %s in %s destination transfer database.",
                 _from ? _from : "main",
                 _fqn,
-                luaG_typename(L2, luaG_type(L2, -1)),
+                luaG_typename(L2, -1).data(),
                 _to ? _to : "main");
         }
         lua_remove(L2, -2);                                                                        // L1: ... t ...                                  L2: t

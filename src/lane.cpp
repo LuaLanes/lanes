@@ -345,7 +345,7 @@ static LUAG_FUNC(thread_index)
         lua_pushvalue(L_, kKey);                                                                   // L_: mt error "Unknown key: " k
         lua_concat(L_, 2);                                                                         // L_: mt error "Unknown key: <k>"
         lua_call(L_, 1, 0); // error( "Unknown key: " .. key) -> doesn't return                    // L_: mt
-        raise_luaL_error(L_, "%s[%s]: should not get here!", _lane->debugName.data(), luaG_typename(L_, luaG_type(L_, kKey)));
+        raise_luaL_error(L_, "%s[%s]: should not get here!", _lane->debugName.data(), luaG_typename(L_, kKey).data());
     }
 }
 
@@ -683,7 +683,7 @@ static void lane_main(Lane* lane_)
         // in case of error and if it exists, fetch stack trace from registry and push it
         push_stack_trace(_L, lane_->errorTraceLevel, _rc, 1);                                      // L: retvals|error [trace]
 
-        DEBUGSPEW_CODE(DebugSpew(_U) << "Lane " << _L << " body: " << GetErrcodeName(_rc) << " (" << (kCancelError.equals(_L, 1) ? "cancelled" : luaG_typename(_L, luaG_type(_L, 1))) << ")" << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(_U) << "Lane " << _L << " body: " << GetErrcodeName(_rc) << " (" << (kCancelError.equals(_L, 1) ? "cancelled" : luaG_typename(_L, 1)) << ")" << std::endl);
         //  Call finalizers, if the script has set them up.
         //
         LuaError const _rc2{ run_finalizers(_L, lane_->errorTraceLevel, _rc) };

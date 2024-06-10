@@ -185,7 +185,7 @@ namespace state {
         std::string_view const _stateType{ mode_ == LookupMode::LaneBody ? "lane" : "keeper" };
         std::ignore = luaG_pushstring(L_, _stateType);                                             // L_: on_state_create() "<type>"
         if (lua_pcall(L_, 1, 0, 0) != LUA_OK) {
-            raise_luaL_error(from_, "%s failed: \"%s\"", kOnStateCreate, lua_isstring(L_, -1) ? lua_tostring(L_, -1) : luaG_typename(L_, luaG_type(L_, -1)));
+            raise_luaL_error(from_, "%s failed: \"%s\"", kOnStateCreate, lua_isstring(L_, -1) ? lua_tostring(L_, -1) : luaG_typename(L_, -1).data());
         }
         STACK_CHECK(L_, 0);
     }

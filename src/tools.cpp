@@ -158,7 +158,7 @@ static void update_lookup_entry(lua_State* L_, int ctxBase_, int depth_)
     // Therefore, when we encounter an object for which a name was previously registered, we need to select the a single name
     // based on some sorting order so that we end up with the same name in all databases whatever order the table walk yielded
     if (!_prevName.empty() && ((_prevName.size() < _newName.size()) || (_prevName <= _newName))) {
-        DEBUGSPEW_CODE(DebugSpew(_U) << luaG_typename(L_, luaG_type(L_, -3)) << " '" << _newName << "' remains named '" << _prevName << "'" << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(_U) << luaG_typename(L_, -3) << " '" << _newName << "' remains named '" << _prevName << "'" << std::endl);
         // the previous name is 'smaller' than the one we just generated: keep it!
         lua_pop(L_, 3);                                                                            // L_: ... {bfc} k
     } else {
@@ -172,7 +172,7 @@ static void update_lookup_entry(lua_State* L_, int ctxBase_, int depth_)
         } else {
             lua_remove(L_, -2);                                                                    // L_: ... {bfc} k o "f.q.n"
         }
-        DEBUGSPEW_CODE(DebugSpew(_U) << luaG_typename(L_, luaG_type(L_, -2)) << " '" << _newName << "'" << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(_U) << luaG_typename(L_, -2) << " '" << _newName << "'" << std::endl);
         // prepare the stack for database feed
         lua_pushvalue(L_, -1);                                                                     // L_: ... {bfc} k o "f.q.n" "f.q.n"
         lua_pushvalue(L_, -3);                                                                     // L_: ... {bfc} k o "f.q.n" "f.q.n" o
@@ -349,7 +349,7 @@ namespace tools {
             lua_pop(L_, 3);                                                                        // L_:
         } else {
             lua_pop(L_, 1);                                                                        // L_:
-            raise_luaL_error(L_, "unsupported module type %s", luaG_typename(L_, luaG_type(L_, _in_base)));
+            raise_luaL_error(L_, "unsupported module type %s", luaG_typename(L_, _in_base).data());
         }
         STACK_CHECK(L_, 0);
     }
