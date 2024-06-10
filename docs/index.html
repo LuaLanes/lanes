@@ -97,11 +97,11 @@
 	<h3>Features:</h3>
 
 	<ul>
-		<li>Lanes have separated data, by default. Shared data is possible with Linda objects.</li>
-		<li>Communications is separate of threads, using Linda objects.</li>
+		<li>Lanes have separated data, by default. Shared data is possible with <a href="#lindas">Linda</a> objects.</li>
+		<li>Communications is separate of threads, using <a href="#lindas">Linda</a> objects.</li>
 		<li>Data passing uses fast inter-state copies (no serialization required).</li>
 		<li>"Deep userdata" concept, for sharing userdata over multiple lanes.</li>
-		<li>Millisecond level timers, integrated with the Linda system.</li>
+		<li>Millisecond level timers, integrated with the <a href="#lindas">Linda</a> system.</li>
 		<li>Threads can be given priorities.</li>
 		<li>Lanes are cancellable, with proper cleanup.</li>
 		<li>No Lua-side application level locking - ever!</li>
@@ -142,8 +142,8 @@
 
 </p>
 <p>
-	The underlying threading code can be compiled either towards Win32 API or <a TARGET="_blank" HREF="http://en.wikipedia.org/wiki/POSIX_Threads">Pthreads</a>. Unfortunately, thread prioritization under Pthreads is a JOKE,
-	requiring OS specific tweaks and guessing undocumented behaviour. Other features should be portable to any modern platform.
+	The underlying threading code can be compiled either towards Win32 API or <a TARGET="_blank" HREF="http://en.wikipedia.org/wiki/POSIX_Threads">Pthreads</a>. Unfortunately, thread prioritization under Pthreads
+	requires OS specific tweaks and guessing undocumented behaviour. Other features should be portable to any modern platform.
 </p>
 
 
@@ -285,9 +285,9 @@
 			</td>
 			<td>integer in [0,100]</td>
 			<td>
-				Controls the number of "user" keeper states used internally by lindas to transfer data between lanes. (see <a href="#lindas">below</a>). Default is <tt>0</tt>.<br/>
-				Lanes always creates at least one keeper state for the internal timer linda. If <tt>nb_user_keepers</tt> is <tt>0</tt>, the other lindas you create will share this keeper by necessity.<br/>
-				If there is more than one keeper (in total), linda creation must specify the group it belongs to.
+				Controls the number of "user" <a href="#keepers">Keeper state</a> used internally by <a href="#lindas">Linda</a>) objects to transfer data between lanes. Default is <tt>0</tt>.<br/>
+				Lanes always creates at least one keeper state (of group <tt>0</tt> for the internal timer <a href="#lindas">Linda</a>. If <tt>nb_user_keepers</tt> is <tt>0</tt>, the other lindas you create will share this keeper by necessity.<br/>
+				If there is more than one <a href="#keepers">Keeper state</a> (in total), <a href="#lindas">Linda</a> creation must specify the group it belongs to.
 			</td>
 		</tr>
 
@@ -298,8 +298,8 @@
 			<td>integer</td>
 			<td>
 				If &lt;0, GC runs automatically. This is the default.<br/>
-				If 0, GC runs after *every* keeper operation.<br/>
-				If &gt;0, Keepers run GC manually with <tt>lua_gc(LUA_GCCOLLECT)</tt> whenever memory usage reported by <tt>lua_gc(LUA_GCCOUNT)</tt> reaches this threshold. Check is made after every keeper operation (see <a href="#lindas">below</a>). If memory usage remains above threshold after the GC cycle, an error is raised.
+				If 0, GC runs after *every* <a href="#keepers">Keeper</a> operation.<br/>
+				If &gt;0, <a href="#keepers">Keeper states</a> run GC manually with <tt>lua_gc(LUA_GCCOLLECT)</tt> whenever memory usage reported by <tt>lua_gc(LUA_GCCOUNT)</tt> reaches this threshold. Check is made after every operation (see <a href="#lindas">below</a>). If memory usage remains above threshold after the GC cycle, an error is raised.
 			</td>
 		</tr>
 
@@ -360,7 +360,7 @@
 				<tt>"libc"</tt>/<tt>"allocator"</tt>
 			</td>
 			<td>
-				Controls which allocator is used for Lanes internal allocations (for keeper, linda and lane management).
+				Controls which allocator is used for Lanes internal allocations (for <a href="#keepers">Keeper state</a>, <a href="#lindas">Linda</a> and lane management).
 				If <tt>"libc"</tt>, Lanes uses <tt>realloc</tt> and <tt>free</tt>.<br/>
 				If <tt>"allocator"</tt>, Lanes uses whatever was obtained from the <tt>"allocator"</tt> setting.<br/>
 				This option is mostly useful for embedders that want control all memory allocations, but have issues when Lanes tries to use the Lua State allocator for internal purposes (especially with LuaJIT).
@@ -403,7 +403,7 @@
 			<td>
 				If provided, will be called in every created Lua state right after initializing the base libraries, with a single string argument, either <tt>"lane"</tt> or <tt>"keeper"</tt>.<br/>
 				If it is a C function, a C closure will be reconstructed in the created state from the C pointer. Lanes will raise an error if the function has upvalues.<br/>
-				Keeper states will call it as well, but only if it is a C function (keeper states are not able to execute any user Lua code).<br/>
+				Keeper states will call it as well, but only if it is a C function (<a href="#keepers">Keeper states</a> are not able to execute any user Lua code).<br/>
 				Typical usage is twofold:
 				<ul>
 					<li>Tweak <tt>package.loaders</tt></li>
@@ -1072,13 +1072,13 @@
 	<br/>
 	First argument is a <tt>mode</tt> can be one of <tt>"hard"</tt>, <tt>"soft"</tt>, <tt>"call"</tt>, <tt>"ret"</tt>, <tt>"line"</tt>, <tt>"count"</tt>.
 	If <tt>mode</tt> is not specified, it defaults to <tt>"hard"</tt>.
-	If <tt>wake_lane</tt> is <tt>true</tt>, the lane is also signalled so that execution returns from any pending linda operation. Linda operations detecting the cancellation request return <tt>lanes.cancel_error</tt>.
+	If <tt>wake_lane</tt> is <tt>true</tt>, the lane is also signalled so that execution returns from any pending <a href="#lindas">Linda</a> operation. <a href="#lindas">Linda</a> operations detecting the cancellation request return <tt>lanes.cancel_error</tt>.
 </p>
 <p>
 	If <tt>mode</tt> is <tt>"soft"</tt>, cancellation will only cause <tt>cancel_test()</tt> to return <tt>true</tt>, so that the lane can cleanup manually.<br/>
 </p>
 <p>
-	If <tt>mode</tt> is <tt>"hard"</tt>, waits for the request to be processed, or a timeout to occur. Linda operations detecting the cancellation request will raise a special cancellation error (meaning they won't return in that case).<br/>
+	If <tt>mode</tt> is <tt>"hard"</tt>, waits for the request to be processed, or a timeout to occur. <a href="#lindas">Linda</a> operations detecting the cancellation request will raise a special cancellation error (meaning they won't return in that case).<br/>
 	<tt>wake_lane</tt> defaults to <tt>true</tt>, and <tt>timeout</tt> defaults to 0 if not specified.
 </p>
 <p>
@@ -1094,7 +1094,7 @@
 <p>
 	Cancellation is tested <u>before</u> going to sleep in <tt>receive()</tt> or <tt>send()</tt> calls and after executing <tt>cancelstep</tt> Lua statements. A pending <tt>receive()</tt>or <tt>send()</tt> call is awakened.
 	<br/>
-	This means the execution of the lane will resume although the operation has not completed, to give the lane a chance to detect cancellation (even in the case the code waits on a <a href="#lindas">linda</a> with infinite timeout).
+	This means the execution of the lane will resume although the operation has not completed, to give the lane a chance to detect cancellation (even in the case the code waits on a <a href="#lindas">Linda</a> with infinite timeout).
 	<br/>
 	The code should be able to handle this situation appropriately if required (in other words, it should gracefully handle the fact that it didn't receive the expected values).
 	<br/>
@@ -1199,8 +1199,14 @@
 		<li><tt>receive</tt> has a batched mode to consume more than one value from a single key, as in <tt>linda:receive(1.0, linda.batched, "key", 3, 6).</tt></li>
 		<li>individual keys' queue length can be limited, balancing speed differences in a producer/consumer scenario (making <tt>:send</tt> wait).</li>
 		<li><tt>tostring(linda)</tt> returns a string of the form <tt>"Linda: &lt;opt_name&gt;"</tt></li>
-		<li>Several lindas may share the same keeper state. In case there is more than one user keeper state, assignation must be controlled with the linda's group (an integer in <tt>[0,nb_user_keepers]</tt>).
-		Lanes has an internal linda used for timers and <tt>lanes.wait</tt>; this linda uses group 0.</li>
+		<li>
+			Several Linda objects may share the same <a href="#keepers">Keeper state</a>. In case there is more than one user <a href="#keepers">Keeper state</a>, assignation must be controlled with the Linda's group (an integer in <tt>[0,nb_user_keepers]</tt>).
+			Lanes has an internal Linda used for timers and <tt>lanes.wait</tt>; this Linda uses group 0.
+		</li>
+		<li>
+			IMPORTANT: *all* Linda operations are wrapped inside a <tt>lua_gc STOP/RESTART</tt> pair.
+			This is to prevent potential collection of a Linda during another Linda's operation, as this can cause a crash if they are bound to the same <a href="#keepers">Keeper state</a>.
+		</li>
 	</ul>
 </p>
 
@@ -1218,8 +1224,8 @@
 
 <p>
 	Converting the Linda to a string will yield the provided name prefixed by <tt>"Linda: "</tt>.<br/>
-	If <tt>opt_name</tt> is omitted, it will evaluate to an hexadecimal number uniquely representing that linda.<br/>
-	If <tt>opt_name</tt> is <tt>"auto"</tt>, Lanes will try to construct a name from the source location that called <tt>lanes.linda()</tt>. If that fails, the linda name will be <tt>"&lt;unresolved&gt;"</tt>.
+	If <tt>opt_name</tt> is omitted, it will evaluate to an hexadecimal number uniquely representing that Linda.<br/>
+	If <tt>opt_name</tt> is <tt>"auto"</tt>, Lanes will try to construct a name from the source location that called <tt>lanes.linda()</tt>. If that fails, the Linda name will be <tt>"&lt;unresolved&gt;"</tt>.
 </p>
 <p>
 	Timeouts are given in seconds (&gt= 0, millisecond accuracy) or <tt>nil</tt>. Timeout can be omitted only if the first key is not a number (then it's equivalent to an infinite duration).
@@ -1229,7 +1235,7 @@
 	The <tt>send()</tt> and <tt>receive()</tt> methods use Linda keys as FIFO stacks (first in, first out).<br/>
 	By default, stack sizes are unlimited but limits can be enforced using the <tt>limit()</tt> method. This can be useful to balance execution speeds in a producer/consumer scenario. <tt>nil</tt> removes the limit.<br/>
 	A limit of 0 is allowed to block everything.<br/>
-	If the key was full but the limit change added some room, <tt>limit()</tt> returns <tt>true</tt> and the linda is signalled so that <tt>send()</tt>-blocked threads are awakened.<br/>
+	If the key was full but the limit change added some room, <tt>limit()</tt> returns <tt>true</tt> and the Linda is signalled so that <tt>send()</tt>-blocked threads are awakened.<br/>
 	In batched mode, <tt>linda:receive()</tt> will raise an error if <tt>min_count < 1</tt> or <tt>max_count < min_count</tt>.
 </p>
 
@@ -1238,7 +1244,7 @@
 </p>
 
 <p>
-	<a href="#cancelling">Hard cancellation</a> will cause pending linda operations to abort execution of the lane through a cancellation error. This means that you have to install a <a href="#finalizers">finalizer</a> in your lane if you want to run some code in that situation.
+	<a href="#cancelling">Hard cancellation</a> will cause pending Linda operations to abort execution of the lane through a cancellation error. This means that you have to install a <a href="#finalizers">finalizer</a> in your lane if you want to run some code in that situation.
 </p>
 
 <p>
@@ -1248,7 +1254,7 @@
 	<br/>
 	If no data is provided after the key, <tt>send()</tt> raises an error.
 	<br/>
-	Also, if <tt>linda.null</tt> or <tt>lanes.null</tt> is sent as data in a linda, it will be read as a <tt>nil</tt>.
+	Also, if <tt>linda.null</tt> or <tt>lanes.null</tt> is sent as data in a Linda, it will be read as a <tt>nil</tt>.
 </p>
 
 <p>
@@ -1273,29 +1279,24 @@
 </pre></td></tr></table>
 
 <p>
-	The table access methods are for accessing a slot without queuing or consuming. They can be used for making shared tables of storage among the lanes.
-	<br/>
-	Writing to a slot never blocks because it ignores the limit. It overwrites existing value and clears any possible queued entries.
-	<br/>
-	Reading doesn't block either because <tt>get()</tt> returns whatever is available (which can be nothing), up to the specified count.
-	<br/>
+	The table access methods are for accessing a slot without queuing or consuming. They can be used for making shared tables of storage among the lanes.<br/>
+	Writing to a slot never blocks because it ignores the limit. It overwrites existing value and clears any possible queued entries.<br/>
+	Reading doesn't block either because <tt>get()</tt> returns whatever is available (which can be nothing), up to the specified count.<br/>
 	Table access and <tt>send()</tt>/<tt>receive()</tt> can be used together; reading a slot essentially peeks the next outcoming value of a queue.
 </p>
 
 <p>
-	<tt>set()</tt> signals the linda for write if a value is stored. If nothing special happens, <tt>set() </tt>returns nothing.
-	<br/>
-	If the key was full but the new data count of the key after <tt>set()</tt> is below its limit, <tt>set()</tt> returns <tt>true</tt> and the linda is also signaled for read so that <tt>send()</tt>-blocked threads are awakened.
+	<tt>set()</tt> signals the Linda for write if a value is stored. If nothing special happens, <tt>set() </tt>returns nothing.<br/>
+	If the key was full but the new data count of the key after <tt>set()</tt> is below its limit, <tt>set()</tt> returns <tt>true</tt> and the Linda is also signaled for read so that <tt>send()</tt>-blocked threads are awakened.
 </p>
 
 <p>
-	<tt>set()</tt> can write several values at the specified key, writing <tt>nil</tt> values is now possible, and clearing the contents at the specified key is done by not providing any value.
-	<br/>
+	<tt>set()</tt> can write several values at the specified key, writing <tt>nil</tt> values is now possible, and clearing the contents at the specified key is done by not providing any value.<br/>
 	Also, <tt>get()</tt> can read several values at once. If the key contains no data, <tt>get()</tt> returns no value. This can be used to separate the case when reading stored <tt>nil</tt> values.
 </p>
 
 <p>
-	Trying to send or receive data through a cancelled linda does nothing and returns <tt>lanes.cancel_error</tt>.
+	Trying to send or receive data through a cancelled Linda does nothing and returns <tt>lanes.cancel_error</tt>.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
@@ -1303,14 +1304,10 @@
 </pre></td></tr></table>
 
 <p>
-	Returns some information about the contents of the linda.
-	<br/>
-	If no key is specified, and the linda is empty, returns nothing.
-	<br/>
-	If no key is specified, and the linda is not empty, returns a table of key/count pairs that counts the number of items in each of the exiting keys of the linda. This count can be 0 if the key has been used but is empty.
-	<br/>
-	If a single key is specified, returns the number of pending items, or nothing if the key is unknown.
-	<br/>
+	Returns some information about the contents of the Linda.<br/>
+	If no key is specified, and the Linda is empty, returns nothing.<br/>
+	If no key is specified, and the Linda is not empty, returns a table of key/count pairs that counts the number of items in each of the exiting keys of the Linda. This count can be 0 if the key has been used but is empty.<br/>
+	If a single key is specified, returns the number of pending items, or nothing if the key is unknown.<br/>
 	If more than one key is specified, return a table of key/count pairs for the known keys.
 </p>
 
@@ -1319,8 +1316,8 @@
 </pre></td></tr></table>
 
 <p>
-	Returns a table describing the full contents of a linda, or <tt>nil</tt> if the linda wasn't used yet.<br/>
-	If Decoda support is enabled with <tt>HAVE_DECODA_SUPPORT()</tt>, linda metatable contain a <tt>__towatch</tt> special function that generates a similar table used for debug display.
+	Returns a table describing the full contents of a Linda, or <tt>nil</tt> if the Linda wasn't used yet.<br/>
+	If Decoda support is enabled with <tt>HAVE_DECODA_SUPPORT()</tt>, <a Linda metatable contain a <tt>__towatch</tt> special function that generates a similar table used for debug display.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
@@ -1328,30 +1325,22 @@
 </pre></td></tr></table>
 
 <p>
-	Signals the linda so that lanes waiting for read, write, or both, wake up.
-	All linda operations (including <tt>get()</tt> and <tt>set()</tt>) will return <tt>lanes.cancel_error</tt> as when the calling lane is <a href="#cancelling">soft-cancelled</a> as long as the linda is marked as cancelled.
-	<br/>
-	<tt>"none"</tt> reset the linda's cancel status, but doesn't signal it.
-	<br/>
-	If not void, the lane's cancel status overrides the linda's cancel status.
+	Signals the Linda so that lanes waiting for read, write, or both, wake up.
+	All Linda operations (including <tt>get()</tt> and <tt>set()</tt>) will return <tt>lanes.cancel_error</tt> as when the calling lane is <a href="#cancelling">soft-cancelled</a> as long as the Linda is marked as cancelled.<br/>
+	<tt>"none"</tt> reset the Linda's cancel status, but doesn't signal it.<br/>
+	If not void, the lane's cancel status overrides the Linda's cancel status.
 </p>
 
-<h3>Granularity of using Lindas</h3>
+<h3 id="keepers">Granularity of using Lindas</h3>
 
 <p>
-	A linda is a gateway to read and write data inside some hidden Lua states, called keeper states. Lindas are hashed to a fixed number of keeper states, which are a locking entity.
-	<br/>
-	The data sent through a linda is stored inside the associated keeper state in a Lua table where each linda slot is the key to another table containing a FIFO for that slot.
-	<br/>
-	Each keeper state is associated with an OS mutex, to prevent concurrent access to the keeper state. The linda itself uses two signals to be made aware of operations occuring on it.
-	<br/>
-	Whenever Lua code reads from or writes to a linda, the mutex is acquired. If linda limits don't block the operation, it is fulfilled, then the mutex is released.
-	<br/>
-	If the linda has to block, the mutex is released and the OS thread sleeps, waiting for a linda operation to be signalled. When an operation occurs on the same linda, possibly fufilling the condition, or a timeout expires, the thread wakes up.
-	<br/>
-	If the thread is woken but the condition is not yet fulfilled, it goes back to sleep, until the timeout expires.
-	<br/>
-	When a lane is cancelled, the signal it is waiting on (if any) is signalled. In that case, the linda operation will return <tt>lanes.cancel_error</tt>.
+	A Linda is a gateway to read and write data inside some hidden Lua states, called keeper states. Lindas are hashed to a fixed number of keeper states, which are a locking entity.<br/>
+	The data sent through a Linda is stored inside the associated keeper state in a Lua table where each Linda slot is the key to another table containing a FIFO for that slot.<br/>
+	Each keeper state is associated with an OS mutex, to prevent concurrent access to the keeper state. The Linda itself uses two signals to be made aware of operations occuring on it.<br/>
+	Whenever Lua code reads from or writes to a Linda, the mutex is acquired. If Linda limits don't block the operation, it is fulfilled, then the mutex is released.<br/>
+	If the Linda has to block, the mutex is released and the OS thread sleeps, waiting for a Linda operation to be signalled. When an operation occurs on the same Linda, possibly fufilling the condition, or a timeout expires, the thread wakes up.<br/>
+	If the thread is woken but the condition is not yet fulfilled, it goes back to sleep, until the timeout expires.<br/>
+	When a lane is cancelled, the signal it is waiting on (if any) is signalled. In that case, the Linda operation will return <tt>lanes.cancel_error</tt>.
 </p>
 
 <p>
@@ -1372,7 +1361,7 @@
 
 		<li>
 			Performance. Changing any slot in a Linda causes all pending threads for that Linda to be momentarily awakened (at least in the C level).
-			This can degrade performance due to unnecessary OS level context switches. The more keeper states you declared with <a href="#initialization"><tt>lanes.configure()</tt></a> the less this should be a problem.
+			This can degrade performance due to unnecessary OS level context switches. The more Keeper states you declared with <a href="#initialization"><tt>lanes.configure()</tt></a> the less this should be a problem.
 		</li>
 	</ul>
 
@@ -1401,7 +1390,7 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 </p>
 
 <p>
-	Once a timer expires, the <tt>key</tt> is set with the current time (in seconds, same offset as <tt>os.time()</tt> but with millisecond accuracy). The key can be waited upon using the regular Linda <tt>:receive()</tt> method.
+	Once a timer expires, the <tt>key</tt> is set with the current time (in seconds, same offset as <tt>os.time()</tt> but with millisecond accuracy). The key can be waited upon using the regular <a href="#lindas">Linda</a> <tt>:receive()</tt> method.
 </p>
 
 <p>
@@ -1440,9 +1429,9 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 		<td valign=top><i><nobr>Design note:</nobr></i></td>
 		<td>
 			<font size="-1">
-			Having the API as <tt>lanes.timer()</tt> is intentional. Another alternative would be <tt>linda_h:timer()</tt> but timers are not traditionally seen to be part of Lindas. Also, it would mean any lane getting a Linda handle would be able to modify timers on it.
-			A third choice could be abstracting the timers out of Linda realm altogether (<tt>timer_h= lanes.timer(date|first_secs, period_secs )</tt>) but that would mean separate waiting functions for timers, and lindas.
-			Even if a linda object and key was returned, that key couldn't be waited upon simultaneously with one's general linda events.
+			Having the API as <tt>lanes.timer()</tt> is intentional. Another alternative would be <tt>linda_h:timer()</tt> but timers are not traditionally seen to be part of Lindas. Also, it would mean any lane getting a <a href="#lindas">Linda</a> handle would be able to modify timers on it.
+			A third choice could be abstracting the timers out of <a href="#lindas">Linda</a> realm altogether (<tt>timer_h= lanes.timer(date|first_secs, period_secs )</tt>) but that would mean separate waiting functions for timers, and lindas.
+			Even if a <a href="#lindas">Linda</a> object and key was returned, that key couldn't be waited upon simultaneously with one's general <a href="#lindas">Linda</a> events.
 			The current system gives maximum capabilities with minimum API, and any smoothenings can easily be crafted in Lua at the application level.
 			</font>
 		</td>
@@ -1465,8 +1454,8 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 </pre></td></tr></table>
 
 <p>
-	A very simple way of sleeping when nothing else is available. Is implemented by attempting to read some data in an unused channel of the internal linda used for timers (this linda exists even when timers aren't enabled).
-	Default duration is 0, which should only cause a thread context switch.<br />
+	A very simple way of sleeping when nothing else is available. Is implemented by attempting to read some data in an unused channel of the internal <a href="#lindas">Linda</a> used for timers (this <a href="#lindas">Linda</a> exists even when timers aren't enabled).
+	Default duration is 0, which should only cause a thread context switch.<br/>
 	Return values should always be <tt>nil, "timeout"</tt> (or <tt>nil, lanes.cancel_error</tt> in case of interruption).
 </p>
 
@@ -1475,7 +1464,7 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 </pre></td></tr></table>
 
 <p>
-	Returns the current value of the clock used by timers and lindas.
+	Returns the current value of the clock used by timers and <a href="#lindas">Linda</a> objects.
 </p>
 
 <!-- locks +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
@@ -1497,7 +1486,7 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 <p>
 	The generated function acquires M tokens from the N available, or releases them if the value is negative. The acquiring call will suspend the lane, if necessary. Use <tt>M=N=1</tt> for a critical section lock (only one lane allowed to enter).
 	<br/>
-	When passsing <tt>"try"</tt> as second argument when acquiring, then <tt>lock_func</tt> operates on the linda with a timeout of 0 to emulate a TryLock() operation. If locking fails, <tt>lock_func</tt> returns <tt>false</tt>. <tt>"try"</tt> is ignored when releasing (as it it not expected to ever have to wait unless the acquisition/release pairs are not properly matched).
+	When passsing <tt>"try"</tt> as second argument when acquiring, then <tt>lock_func</tt> operates on the <a href="#lindas">Linda</a> with a timeout of 0 to emulate a TryLock() operation. If locking fails, <tt>lock_func</tt> returns <tt>false</tt>. <tt>"try"</tt> is ignored when releasing (as it it not expected to ever have to wait unless the acquisition/release pairs are not properly matched).
 	<br/>
 	Upon successful lock/unlock, <tt>lock_func</tt> returns <tt>true</tt> (always the case when block-waiting for completion).
 </p>
@@ -1543,7 +1532,7 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 		<li>
 			Cyclic tables and/or duplicate references are allowed and reproduced appropriately, but only <u>within the same transmission</u>.
 			<ul>
-				<li>Using the same source table in multiple Linda messages keeps no ties between the tables (this is the same reason why tables can't be used as keys).</li>
+				<li>Using the same source table in multiple <a href="#lindas">Linda</a> messages keeps no ties between the tables (this is the same reason why tables can't be used as keys).</li>
 			</ul>
 		</li>
 		<li>
@@ -1650,7 +1639,7 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 		</li>
 	</ul>
 	Another more immediate reason of failed transfer is when the destination state doesn't know about the C function that has to be transferred. This occurs if a function is transferred in a lane before it had a chance to scan the module.
-	If the C function is sent through a linda, it is enough for the destination lane body to have required the module before the function is sent.
+	If the C function is sent through a <a href="#lindas">Linda</a>, it is enough for the destination lane body to have required the module before the function is sent.
 	But if the lane body provided to the generator has a C function as upvalue, the transfer itself must succeed, therefore the module that imported that C function must be required in the destination lane before the lane body starts executing. This is where the <a href = "#.required"><tt>.required</tt></a> options play their role.
 </p>
 
@@ -1754,7 +1743,7 @@ int luaD_new_clonable(lua_State* L)
 <h3 id="deep_userdata">Deep userdata in your own apps</h3>
 
 <p>
-	The mechanism Lanes uses for sharing Linda handles between separate Lua states can be used for custom userdata as well. Here's what to do.
+	The mechanism Lanes uses for sharing <a href="#lindas">Linda</a> handles between separate Lua states can be used for custom userdata as well. Here's what to do.
 </p>
 
 <ol>
@@ -1792,10 +1781,10 @@ static MyDeepFactory g_MyDeepFactory;
 </p>
 
 <p>
-	Deep userdata in transit inside keeper states (sent in a linda but not yet consumed) don't call <tt>deleteDeepObjectInternal</tt> and aren't considered by reference counting. The rationale is the following:<br/>
+	Deep userdata in transit inside <a href="#keepers">Keeper states</a> (sent in a <a href="#lindas">Linda</a> but not yet consumed) don't call <tt>deleteDeepObjectInternal</tt> and aren't considered by reference counting. The rationale is the following:<br/>
 	If some non-keeper state holds a deep userdata for some deep object, then even if the keeper collects its own deep userdata, it shouldn't be cleaned up since the refcount is not 0.<br/>
 	OTOH, if a keeper state holds the last deep userdata for some deep object, then no lane can do actual work with it. Deep userdata's <tt>factory()</tt> interface is never accessed from a keeper state.<br/>
-	Therefore, Lanes can just call <tt>deleteDeepObjectInternal</tt> when the last non-keeper-held deep userdata is collected, as long as it doesn't do the same in a keeper state after that, since any remaining deep userdata in keeper states now hold stale pointers.
+	Therefore, Lanes can just call <tt>deleteDeepObjectInternal</tt> when the last non-keeper-held deep userdata is collected, as long as it doesn't do the same in a keeper state after that, since any remaining deep userdata in <a href="#keepers">Keeper states</a> now hold stale pointers.
 </p>
 
 <p>
@@ -1810,7 +1799,7 @@ static MyDeepFactory g_MyDeepFactory;
 </p>
 
 <p>
-	The same benefits can be achieved by having a single worker lane spawn all the sublanes, and keep track of them. Communications to and from this lane can be handled via a Linda.
+	The same benefits can be achieved by having a single worker lane spawn all the sublanes, and keep track of them. Communications to and from this lane can be handled via a <a href="#lindas">Linda</a>.
 </p>
 
 
@@ -1838,12 +1827,12 @@ static MyDeepFactory g_MyDeepFactory;
 
 <p>
 	<ul>
-		<li>Data passing (parameters, upvalues, Linda messages) is generally fast, doing two binary state-to-state copies (from source state to hidden state, hidden state to target state). Remember that not only the function you specify but also its upvalues, their upvalues, etc. etc. will get copied.</li>
+		<li>Data passing (parameters, upvalues, <a href="#lindas">Linda</a> messages) is generally fast, doing two binary state-to-state copies (from source state to hidden state, hidden state to target state). Remember that not only the function you specify but also its upvalues, their upvalues, etc. etc. will get copied.</li>
 		<li>Lane startup is fast (1000's of lanes a second), depending on the number of standard libraries initialized. Initializing all standard libraries is about 3-4 times slower than having no standard libraries at all. If you throw in a lot of lanes per second, make sure you give them minimal necessary set of libraries.</li>
-		<li>Waiting Lindas are woken up (and execute some hidden Lua code) each time <u>any</u> key in the Lindas they are waiting for are changed. This may give essential slow-down (not measured, just a gut feeling) if a lot of Linda keys are used. Using separate Linda objects for logically separate issues will help (which is good practice anyhow).</li>
-		<li>Linda objects are light. The memory footprint is two OS-level signalling objects (<tt>HANDLE</tt> or <tt>pthread_cond_t</tt>) for each, plus one C pointer for the proxies per each Lua state using the Linda. Barely nothing.</li>
+		<li>Waiting Lindas are woken up (and execute some hidden Lua code) each time <u>any</u> key in the <a href="#lindas">Lindas</a> they are waiting for are changed. This may give essential slow-down (not measured, just a gut feeling) if a lot of <a href="#lindas">Linda</a> keys are used. Using separate <a href="#lindas">Lindas</a> for logically separate issues will help (which is good practice anyhow).</li>
+		<li><a href="#lindas">Linda</a> objects are light. The memory footprint is two OS-level signalling objects (<tt>HANDLE</tt> or <tt>pthread_cond_t</tt>) for each, plus one C pointer for the proxies per each Lua state using the <a href="#lindas">Linda</a>. Barely nothing.</li>
 		<li>Timers are light. You can probably expect timers up to 0.01 second resolution to be useful, but that is very system specific. All timers are merged into one main timer state (see <tt>timer.lua</tt>); no OS side timers are utilized.</li>
-		<li>If you are using a lot of Linda objects, it may be useful to try having more of these keeper states. By default, only one is used (see <a href="#initialization"><tt>lanes.configure()</tt></a>).</li>
+		<li>If you are using a lot of <a href="#lindas">Linda</a> objects, it may be useful to try having more of these <a href="#keepers">Keeper states</a>. By default, only one is used (see <a href="#initialization"><tt>lanes.configure()</tt></a>).</li>
 </ul>
 </p>
 

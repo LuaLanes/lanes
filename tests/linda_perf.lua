@@ -1,5 +1,5 @@
-local lanes = require "lanes"
-lanes.configure{ with_timers = false }
+local config = {nb_user_keepers=1}
+local lanes = require "lanes".configure(config)
 
 -- set TEST1, PREFILL1, FILL1, TEST2, PREFILL2, FILL2 from the command line
 
@@ -82,11 +82,14 @@ local lane_gobbler_gen = lanes.gen( "*", {priority = 3}, gobbler)
 
 -- #################################################################################################
 
+local group_uid = 1
+
 -- main thread writes data while a lane reads it
 local function ziva1( preloop, loop, batch)
 	-- prefill the linda a bit to increase fifo stress
 	local top = math.max( preloop, loop)
-	local l = lanes.linda("ziva1("..preloop..":"..loop..":"..batch..")")
+	local l = lanes.linda("ziva1("..preloop..":"..loop..":"..batch..")", group_uid)
+	group_uid = (group_uid % config.nb_user_keepers) + 1
 	local t1 = lanes.now_secs()
 	for i = 1, preloop do
 		l:send( "key", i)
@@ -160,7 +163,8 @@ end
 
 -- sequential write/read (no parallelization involved)
 local function ziva2( preloop, loop, batch)
-	local l = lanes.linda("ziva2("..preloop..":"..loop..":"..tostring(batch)..")")
+	local l = lanes.linda("ziva2("..preloop..":"..loop..":"..tostring(batch)..")", group_uid)
+	group_uid = (group_uid % config.nb_user_keepers) + 1
 	-- prefill the linda a bit to increase fifo stress
 	local top, step = math.max( preloop, loop), (l.batched and batch) and batch or 1
 	local batch_send, batch_read

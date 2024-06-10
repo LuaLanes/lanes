@@ -180,6 +180,11 @@ int Linda::ProtectedCall(lua_State* L_, lua_CFunction f_)
     if (_K == nullptr)
         return 0;
 
+    // no GC allowed during the call, because we don't want to trigger collection of another linda
+    // bound to the same keeper, as that would cause a deadlock when trying to acquire it while
+    // doing LindaFactory::deleteDeepObjectInternal -> keeper_call(clear)
+    lua_gc(L_, LUA_GCSTOP, 0);
+
     LUA_ASSERT_CODE(auto const _koip{ _linda->startKeeperOperation(L_) });
     // if we didn't do anything wrong, the keeper stack should be clean
     LUA_ASSERT(L_, lua_gettop(_K) == 0);
@@ -191,6 +196,9 @@ int Linda::ProtectedCall(lua_State* L_, lua_CFunction f_)
     LuaError const _rc{ lua_pcall(L_, lua_gettop(L_) - 1, LUA_MULTRET, 0) };
     // whatever happens, the keeper state stack must be empty when we are done
     lua_settop(_K, 0);
+
+    // restore normal GC operations
+    lua_gc(L_, LUA_GCRESTART, 0);
 
     // release the keeper
     _linda->releaseKeeper(_keeper);
