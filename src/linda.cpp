@@ -709,17 +709,25 @@ LUAG_FUNC(linda_send)
 
         switch (_cancel) {
         case CancelRequest::Soft:
-            // if user wants to soft-cancel, the call returns lanes.cancel_error
+            // if user wants to soft-cancel, the call returns nil, kCancelError
+            lua_pushnil(L_);
             kCancelError.pushKey(L_);
-            return 1;
+            return 2;
 
         case CancelRequest::Hard:
             // raise an error interrupting execution only in case of hard cancel
             raise_cancel_error(L_); // raises an error and doesn't return
 
         default:
-            lua_pushboolean(L_, _ret); // true (success) or false (timeout)
-            return 1;
+            if (_ret) {
+                lua_pushboolean(L_, _ret); // true (success)
+                return 1;
+            } else {
+                // not enough room in the Linda slot to fulfill the request, return nil, "timeout"
+                lua_pushnil(L_);
+                std::ignore = luaG_pushstring(L_, "timeout");
+                return 2;
+            }
         }
     };
     return Linda::ProtectedCall(L_, _send);

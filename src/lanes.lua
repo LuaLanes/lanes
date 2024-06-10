@@ -728,7 +728,8 @@ local genatomic = function(linda_, key_, initial_val_)
     return function(diff_)
         -- 'nil' allows 'key_' to be numeric
         -- suspends until our 'true' is in
-        if linda_:send(nil, key_, true) == cancel_error then
+        local _res, _err = linda_:send(nil, key_, true)
+        if _err == cancel_error then
             return cancel_error
         end
         local val = linda_:get(key_)

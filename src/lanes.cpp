@@ -867,10 +867,10 @@ LANES_API void luaopen_lanes_embedded(lua_State* L_, lua_CFunction _luaopen_lane
 {
     STACK_CHECK_START_REL(L_, 0);
     // pre-require lanes.core so that when lanes.lua calls require "lanes.core" it finds it is already loaded
-    luaL_requiref(L_, "lanes.core", luaopen_lanes_core, 0);                                        // L_: ... lanes.core
+    luaL_requiref(L_, kLanesCoreLibName, luaopen_lanes_core, 0);                                   // L_: ... lanes.core
     lua_pop(L_, 1);                                                                                // L_: ...
     STACK_CHECK(L_, 0);
     // call user-provided function that runs the chunk "lanes.lua" from wherever they stored it
-    luaL_requiref(L_, "lanes", _luaopen_lanes ? _luaopen_lanes : default_luaopen_lanes, 0);        // L_: ... lanes
+    luaL_requiref(L_, kLanesLibName, _luaopen_lanes ? _luaopen_lanes : default_luaopen_lanes, 0);  // L_: ... lanes
     STACK_CHECK(L_, 1);
 }

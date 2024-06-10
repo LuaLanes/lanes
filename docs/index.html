@@ -1221,7 +1221,7 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	true|lanes.cancel_error = h:limit(key, n_uint)
+	true|(nil,[lanes.cancel_error|"timeout"]) = h:limit(key, n_uint)
 </pre></td></tr></table>
 
 <p>
@@ -1238,22 +1238,40 @@
 	Timeouts are given in seconds (&gt= 0, millisecond accuracy) or <tt>nil</tt>. Timeout can be omitted only if the first key is not a number (then it is equivalent to an infinite duration).<br/>
 	Each key acts as a FIFO queue. There is no limit to the number of keys a Linda may contain. Different Lindas can have identical keys, which are totally unrelated.
 </p>
+
+<p>
+	Multiple values can be sent to a given key at once, atomically (the send will fail unless all the values fit within the queue limit). This can be useful for multiple producer scenarios, if the protocols used are giving data in streams of multiple units.
+	Atomicity avoids the producers from garbling each others messages, which could happen if the units were sent individually.
+</p>
+
 <p>
 	If no data is provided after the key, <tt>send()</tt> raises an error.<br/>
 	Also, if <tt>linda.null</tt> or <tt>lanes.null</tt> is sent as data in a Linda, it will be read as a <tt>nil</tt>.<br/>
-	<tt>send()</tt> returns <tt>true</tt> if the sending succeeded, and <tt>false</tt> if the queue limit was met, and the queue did not empty enough during the given timeout.<br/>
-	<tt>send()</tt> returns <tt>lanes.cancel_error</tt> if interrupted by a soft cancel request.<br/>
+	<tt>send()</tt> return values can be:
+	<ul>
+		<li><tt>true</tt> on success.</li>
+		<li><tt>nil, "timeout"</tt> if the queue limit was met, and the queue did not empty enough during the given duration.</li>
+		<li><tt>nil, lanes.cancel_error</tt> if interrupted by a soft cancel request.</li>
+		<li>Raises <tt>lanes.cancel_error</tt> if interrupted by a hard cancel request.</li>
+	</ul>
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
 	key, val = h:receive([timeout_secs,] key [, key...])
 
-	key, val [, val...] = h:receive(timeout, h.batched, key, n_uint_min[, n_uint_max])
+	key, val [, val...] = h:receive([timeout,] h.batched, key, n_uint_min[, n_uint_max])
 </pre></td></tr></table>
 
+<p>
+	Unbatched <tt>receive()</tt> return values can be:
+	<ul>
+		<li><tt>nil, lanes.cancel_error</tt> if interrupted by a hard cancel request.</li>
+		<li><tt>nil, "timeout"</tt> if nothing was available.</li>
+		<li>A key and the value extracted from it. Note that <tt>nil</tt> can be sent and received; the <tt>key</tt> value will tell it apart from a timeout.</li>
+	</ul>
+</p>
 
 <p>
-	The <tt>send()</tt> and <tt>receive()</tt> methods use Linda keys as FIFO stacks (first in, first out).<br/>
 	In batched mode, <tt>linda:receive()</tt> will raise an error if <tt>min_count < 1</tt> or <tt>max_count < min_count</tt>.
 </p>
 
@@ -1262,18 +1280,7 @@
 </p>
 
 <p>
-	<a href="#cancelling">Hard cancellation</a> will cause pending Linda operations to abort execution of the lane through a cancellation error. This means that you have to install a <a href="#finalizers">finalizer</a> in your lane if you want to run some code in that situation.
-</p>
-
-<p>
-	Equally, <tt>receive()</tt> returns a key and the value extracted from it. Note that <tt>nil</tt>s can be sent and received; the <tt>key</tt> value will tell it apart from a timeout.<br/>
-	<tt>receive()</tt> returns <tt>nil, lanes.cancel_error</tt> if interrupted by a hard cancel request.<br/>
-	<tt>receive()</tt> returns <tt>nil, "timeout"</tt> if nothing was available.
-</p>
-
-<p>
-	Multiple values can be sent to a given key at once, atomically (the send will fail unless all the values fit within the queue limit). This can be useful for multiple producer scenarios, if the protocols used are giving data in streams of multiple units.
-	Atomicity avoids the producers from garbling each others messages, which could happen if the units were sent individually.
+	Remember that <a href="#cancelling">Hard cancellation</a> will cause pending Linda operations to abort execution of the lane through a cancellation error. This means that you have to install a <a href="#finalizers">finalizer</a> in your lane if you want to run some code in that situation.
 </p>
 
 <p>

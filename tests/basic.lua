@@ -218,16 +218,16 @@ local function WR(...) io.stderr:write(...) end
 
 local chunk= function(linda)
     local function receive() return linda:receive("->") end
-    local function send(...) linda:send("<-", ...) end
+    local function send(...) local _res, _err = linda:send("<-", ...) assert(_res == true and _err == nil) end
 
     WR("chunk ", "Lane starts!\n")
 
     local k,v
-    k,v=receive(); WR("chunk ", v.." received (expecting 1)\n"); assert(v==1)
-    k,v=receive(); WR("chunk ", v.." received (expecting 2)\n"); assert(v==2)
-    k,v=receive(); WR("chunk ", v.." received  (expecting 3)\n"); assert(v==3)
-    k,v=receive(); WR("chunk ", tostring(v).." received  (expecting nil from __lanesconvert)\n"); assert(v==nil, "table with __lanesconvert==lanes.null should be received as nil, got " .. tostring(v)) -- a table with __lanesconvert was sent
-    k,v=receive(); WR("chunk ", tostring(v).." received (expecting nil)\n"); assert(v==nil)
+    k,v=receive(); WR("chunk ", v.." received (expecting 1)\n"); assert(k and v==1)
+    k,v=receive(); WR("chunk ", v.." received (expecting 2)\n"); assert(k and v==2)
+    k,v=receive(); WR("chunk ", v.." received  (expecting 3)\n"); assert(k and v==3)
+    k,v=receive(); WR("chunk ", tostring(v).." received  (expecting nil from __lanesconvert)\n"); assert(k and v==nil, "table with __lanesconvert==lanes.null should be received as nil, got " .. tostring(v)) -- a table with __lanesconvert was sent
+    k,v=receive(); WR("chunk ", tostring(v).." received (expecting nil)\n"); assert(k and v==nil)
 
     send(4,5,6);              WR("chunk ", "4,5,6 sent\n")
     send 'aaa';               WR("chunk ", "'aaa' sent\n")
@@ -269,7 +269,7 @@ assert(x == nil and y == nil and z == nil and w == nil)
 WR "ok\n"
 
 local function PEEK(...) return linda:get("<-", ...) end
-local function SEND(...) linda:send("->", ...) end
+local function SEND(...) local _res, _err = linda:send("->", ...) assert(_res == true and _err == nil) end
 local function RECEIVE() local k,v = linda:receive(1, "<-") return v end
 
 local comms_lane = lanes_gen("io", {gc_cb = gc_cb, name = "auto"}, chunk)(linda)     -- prepare & launch
