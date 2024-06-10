@@ -80,6 +80,13 @@ class Linda
     [[nodiscard]] Keeper* acquireKeeper() const;
     [[nodiscard]] std::string_view getName() const;
     [[nodiscard]] bool inKeeperOperation() const { return keeperOperationCount.load(std::memory_order_seq_cst) != 0; }
+    template <typename T = uintptr_t>
+    [[nodiscard]] T obfuscated() const
+    {
+        // xxh64 of string "kObfuscator" generated at https://www.pelock.com/products/hash-calculator
+        static constexpr UniqueKey kObfuscator{ 0x7B8AA1F99A3BD782ull };
+        return std::bit_cast<T>(std::bit_cast<uintptr_t>(this) ^ kObfuscator.storage);
+    };
     void releaseKeeper(Keeper* keeper_) const;
     [[nodiscard]] static int ProtectedCall(lua_State* L_, lua_CFunction f_);
     [[nodiscard]] KeeperOperationInProgress startKeeperOperation(lua_State* const L_) { return KeeperOperationInProgress{ *this, L_ }; };

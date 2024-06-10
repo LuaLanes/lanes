@@ -87,7 +87,7 @@ template <bool OPT>
             std::ignore = luaG_pushstring(L_, _lindaName);
         } else {
             // obfuscate the pointer so that we can't read the value with our eyes out of a script
-            std::ignore = luaG_pushstring(L_, "%p", std::bit_cast<uintptr_t>(_linda) ^ kConfigRegKey.storage);
+            std::ignore = luaG_pushstring(L_, "%p", _linda->obfuscated());
         }
         lua_concat(L_, 2);
         return 1;
@@ -344,7 +344,7 @@ LUAG_FUNC(linda_count)
 LUAG_FUNC(linda_deep)
 {
     Linda* const _linda{ ToLinda<false>(L_, 1) };
-    lua_pushlightuserdata(L_, _linda); // just the address
+    lua_pushlightuserdata(L_, _linda->obfuscated<void*>()); // just the address
     return 1;
 }
 

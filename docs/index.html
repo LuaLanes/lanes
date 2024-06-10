@@ -1213,18 +1213,18 @@
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
 	h = lanes.linda([opt_name, [opt_group]])
 
-	[true|lanes.cancel_error] = h:send([timeout_secs,] key, ...)
+	true|lanes.cancel_error = h:send([timeout_secs,] key, ...)
 
 	key, val = h:receive([timeout_secs,] key [, key...])
 
 	key, val [, val...] = h:receive(timeout, h.batched, key, n_uint_min[, n_uint_max])
 
-	[true|lanes.cancel_error] = h:limit(key, n_uint)
+	true|lanes.cancel_error = h:limit(key, n_uint)
 </pre></td></tr></table>
 
 <p>
 	Converting the Linda to a string will yield the provided name prefixed by <tt>"Linda: "</tt>.<br/>
-	If <tt>opt_name</tt> is omitted, it will evaluate to an hexadecimal number uniquely representing that Linda.<br/>
+	If <tt>opt_name</tt> is omitted, it will evaluate to an hexadecimal number uniquely representing that Linda when the Linda is converted to a string. The value is the same as returned by <tt>linda:deep()</tt>.<br/>
 	If <tt>opt_name</tt> is <tt>"auto"</tt>, Lanes will try to construct a name from the source location that called <tt>lanes.linda()</tt>. If that fails, the Linda name will be <tt>"&lt;unresolved&gt;"</tt>.
 </p>
 <p>
@@ -1329,6 +1329,14 @@
 	All Linda operations (including <tt>get()</tt> and <tt>set()</tt>) will return <tt>lanes.cancel_error</tt> as when the calling lane is <a href="#cancelling">soft-cancelled</a> as long as the Linda is marked as cancelled.<br/>
 	<tt>"none"</tt> reset the Linda's cancel status, but doesn't signal it.<br/>
 	If not void, the lane's cancel status overrides the Linda's cancel status.
+</p>
+
+<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
+	light userdata = h:deep()
+</pre></td></tr></table>
+
+<p>
+	Returns a light userdata that uniquely represents the Linda. The stored value is the same as what is seen when converting an unnamed Linda to a string.
 </p>
 
 <h3 id="keepers">Granularity of using Lindas</h3>
