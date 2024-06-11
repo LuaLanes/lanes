@@ -1,5 +1,38 @@
 CHANGES:
 
+CHANGE 2: BGe 11-Jun-24
+   * Lanes API changes
+       - Version is now 4.0.0
+       - Lanes configuration settings:
+           - demote_full_userdata removed.
+           - keepers_gc_threshold added. Control when GC runs inside keepers.
+           - nb_keepers changed to nb_user_keepers. limited to 100 keepers on top of the internal keeper used by the timer Linda.
+           - shutdown_mode added. Controls how free running lanes are signalled at Lanes shutdown.
+           - strip_functions added. Only useful for Lua 5.3+.
+           - verbose_errors removed.
+           - with_timers is false by default.
+        - Full userdata conversion:
+            - __lanesignore removed.
+            - __lanesconvert added. Also replaces the global Lanes setting demote_full_userdata.
+        - Lanes API and behavior:
+            - new function lanes.finally(). Installs a function that gets called at Lanes shutdown.
+            - lanes can no longer be "killed" by hard-stopping their thread without any resource cleanup (see lane:cancel()).
+            - lane:join(), linda:receive(), linda:send() return nil, error in case of problem.
+            - lane function body must return a non-nil first value on success if lane is waited upon with lane:join().
+            - lanes.sleep() accept a new argument "indefinitely" to block forever (until hard cancellation is received).
+        - Lindas:
+            - providing "auto" as name when constructing a Linda cause Lanes to provide a name built from the source location of the construction.
+            - specifying a group to lanes.linda() is mandatory when Lanes is configured with user Keepers.
+            - linda:deep() result no longer contains the raw C pointer of the Linda object.
+        - Lane generator settings:
+            - error_trace_level added. Replaces the global verbose_errors setting.
+            - name added. Can be used to set the name early (before the lane body calls set_debug_threadname()).
+   * Internal changes
+       - Lanes is implemented in C++20: jthread, condition_variable, mutex, string_view, variant, and more!
+       - Decoda support inactive by default.
+       - Linda no longer bind to random keepers if group is not provided on construction. Provide one!
+       - Deep userdata interface fully revamped to C++20 too.
+
 CHANGE 1: BGe 9-Apr-24
    * reset changelog, next entry will list API changes since last C-implementation.
 
