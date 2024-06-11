@@ -685,7 +685,11 @@ local genlock = function(linda_, key_, N)
         local timeout = (mode_ == "try") and 0 or nil
         if M_ > 0 then
             -- 'nil' timeout allows 'key_' to be numeric
-            return linda_:send(timeout, key_, true)    -- suspends until been able to push them
+            local _status, _err = linda_:send(timeout, key_, true) -- suspends until been able to push them
+            -- if success, _status is true, that's what we return
+            -- if failure, _status is nil, _err contains the error, that's what we return
+            -- propagate cancel_error if we got it, else return true or false
+            return (_err == cancel_error and _err) or (_status and true or false)
         else
             local _k, _v = linda_:receive(nil, key_)
             -- propagate cancel_error if we got it, else return true or false
