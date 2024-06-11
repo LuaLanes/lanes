@@ -30,6 +30,7 @@ local function lane1()
     WR( "Via upvalue: ", same(a,b[1]), same(a[1],b) )
     assert( a[1]==b )
     assert( b[1]==a )
+    return true
 end
 local L1= lanes.gen( "io", lane1 )()
     -- ...running
@@ -40,6 +41,7 @@ local function lane2( aa, bb )
     WR( "Via parameters:", same(aa,bb[1]), same(aa[1],bb) )
     assert( aa[1]==bb )
     assert( bb[1]==aa )
+    return true
 end
 local L2= lanes.gen( "io", lane2 )( a, b )
     -- ...running
@@ -52,6 +54,7 @@ c.a= c
 local function lane3( cc )
     WR( "Directly recursive: ", same(cc, cc.a) )
     assert( cc and cc.a==cc )
+    return true
 end
 local L3= lanes.gen("io", lane3)(c)
 

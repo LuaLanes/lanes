@@ -39,6 +39,7 @@ local function lane(error_)
         error(error_, 0)    -- exception here; the value needs NOT be a string
     end
     -- no exception
+    return true
 end
 
 -- 

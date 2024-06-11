@@ -56,6 +56,7 @@ local eater = function( l, loop)
 	-- print "loop is over"
 	key, val = l:receive( "done")
 	print("eater: done ("..val..")")
+	return true
 end
 
 -- #################################################################################################
@@ -73,6 +74,7 @@ local gobbler = function( l, loop, batch)
 	print "loop is over"
 	key, val = l:receive( "done")
 	print("gobbler: done ("..val..")")
+	return true
 end
 
 -- #################################################################################################

@@ -82,4 +82,6 @@ print( B:receive( 2.0))
 --       by multiple threads (other parts will be copied but the 'linda'
 --       handle is shared userdata and will thus point to the single place)
 lanes.timer_lane:cancel() -- hard cancel, 0 timeout
-lanes.timer_lane:join()
+local status, err = lanes.timer_lane:join()
+assert(status == nil and err == lanes.cancel_error, "status="..tostring(status).." err="..tostring(err))
+print "TEST OK"

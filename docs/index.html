@@ -991,25 +991,23 @@
 </pre></td></tr></table>
 
 <p>
-	<tt>timeout</tt> is an optional number &gt= 0 (the default if unspecified).
-	<br/>
-	Waits until the lane finishes, or <tt>timeout</tt> seconds have passed.
-	<br/>
-	Returns <tt>nil, "timeout"</tt> on timeout, <tt>nil,err,stack_tbl</tt> if the lane hit an error, <tt>nil, "killed"</tt> if forcefully killed, or the return values of the lane.
-	<br/>
-	Unlike in reading the results in table fashion, errors are not propagated.
-</p>
-
-<p>
-<tt>stack_tbl</tt> is a table describing where the error was thrown.
-	<br/>
-	In <tt>"extended"</tt> mode, <tt>stack_tbl</tt> is an array of tables containing info gathered with <tt>lua_getinfo()</tt> (<tt>"source"</tt>,<tt>"currentline"</tt>,<tt>"name"</tt>,<tt>"namewhat"</tt>,<tt>"what"</tt>).
-	<br/>
-	In <tt>"basic"</tt> mode, <tt>stack_tbl</tt> is an array of <tt>"&lt;filename&gt;:&lt;line&gt;"</tt> strings. Use <tt>table.concat()</tt> to format it to your liking (or just ignore it).
-</p>
-
-<p>
-	If you use <tt>:join()</tt>, make sure your lane main function returns a non-nil value so you can tell timeout and error cases apart from succesful return (using the <tt>.status</tt> property may be risky, since it might change between a timed out join and the moment you read it).
+	<tt>timeout</tt> is an optional number &gt= 0 (the default if unspecified).<br/>
+	Waits until the lane finishes, or <tt>timeout</tt> seconds have passed.<br/>
+	Unlike in reading the results in table fashion, errors are not propagated.<br/>
+	Possible return values are:
+	<ul>
+		<li><tt>nil, "timeout"</tt> on timeout.</li>
+		<li>
+			<tt>nil,err,stack_tbl</tt> if the lane hit an error. The contents of <tt>stack_tbl</tt> change with <a href="#.error_trace_level"><tt>error_trace_level</tt></a>.<br/>
+			<ul>
+				<li><tt>"minimal"</tt>: <tt>stack_tbl</tt> is <tt>nil</tt>.</li>
+				<li><tt>"basic"</tt>: <tt>stack_tbl</tt> is an array of <tt>"&lt;filename&gt;:&lt;line&gt;"</tt> strings. You can use <tt>table.concat()</tt> to format it to your liking (or just ignore it).</li>
+				<li><tt>"extended"</tt>: <tt>stack_tbl</tt> is an array of tables containing info gathered with <tt>lua_getinfo()</tt> (<tt>"source"</tt>,<tt>"currentline"</tt>,<tt>"name"</tt>,<tt>"namewhat"</tt>,<tt>"what"</tt>).</li>
+			</ul>
+		</li>
+		<li><tt>nil, "killed"</tt> if forcefully killed.</li>
+		<li>The return values of the lane function. If the first return value is <tt>nil</tt> (or there is no return value), an error is raised, to make sure you can tell timeout and error cases apart from successful return.</li>
+	</ul>
 </p>
 
 <table border=1 bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>

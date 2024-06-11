@@ -155,6 +155,7 @@ if true then
         c.some= 3
         assert( c.some==3 )
         PRINT("c.some == " .. c.some)
+        return true
     end
 
     PRINT("lane started")

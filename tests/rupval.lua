@@ -25,6 +25,19 @@ end
 
 local g = lanes.gen( "base", a)
 
-local l = g(10)
+local l = g(7)
 local r = l:join()
+assert(r == y)
 print(r)
+
+local l = g(8)
+local r = l:join()
+assert(r == z)
+print(r)
+
+local l = g(9)
+local r = l:join()
+assert(r == x)
+print(r)
+
+print "TEST OK"

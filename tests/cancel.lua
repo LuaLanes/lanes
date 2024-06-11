@@ -15,6 +15,7 @@ local SLEEP = function(...)
 		local lanes = require "lanes"
 		local k, v = lanes.sleep(...)
 		assert(k == nil and v == "timeout")
+		return true
 	end
 	local sleeper = lanes.gen("*", sleeperBody)(...)
 	-- then wait for the lane to terminate

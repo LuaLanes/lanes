@@ -135,7 +135,11 @@ static LUAG_FUNC(thread_join)
     switch (_lane->status) {
     case Lane::Done:
         {
+            bool const _calledFromIndex{ lua_toboolean(L_, lua_upvalueindex(1)) ? true : false }; // this upvalue doesn't exist when called from Lua
             int const _n{ lua_gettop(_L2) }; // whole L2 stack
+            if (!_calledFromIndex && (_n == 0 || lua_isnil(_L2, 1))) {
+                raise_luaL_error(L_, "First return value must be non-nil when using join()");
+            }
             if (
                 (_n > 0) &&
                 (InterCopyContext{ _lane->U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} }.inter_move(_n) != InterCopyResult::Success)
@@ -161,7 +165,11 @@ static LUAG_FUNC(thread_join)
         break;
 
     case Lane::Cancelled:
-        _ret = 0;
+        // we should have a single value, kCancelError, in the stack of _L2
+        LUA_ASSERT(L_, lua_gettop(_L2) == 1 && kCancelError.equals(_L2, 1));
+        lua_pushnil(L_);                                                                           // L_: lane nil
+        kCancelError.pushKey(L_);                                                                  // L_: lane nil cancel_error
+        _ret = 2;
         break;
 
     default:
@@ -207,8 +215,10 @@ static int thread_index_number(lua_State* L_)
         lua_pushinteger(L_, 0);                                                                    // L_: lane n {uv} 0
         lua_pushboolean(L_, 1);                                                                    // L_: lane n {uv} 0 true
         lua_rawset(L_, kUsr);                                                                      // L_: lane n {uv}
+        // tell join() that we are called from __index, to avoid raising an error if the first returned value is not nil
+        lua_pushboolean(L_, 1);                                                                    // L_: lane n {uv} true
         // wait until thread has completed, transfer everything from the lane's stack to our side
-        lua_pushcfunction(L_, LG_thread_join);                                                     // L_: lane n {uv} join
+        lua_pushcclosure(L_, LG_thread_join, 1);                                                   // L_: lane n {uv} join
         lua_pushvalue(L_, kSelf);                                                                  // L_: lane n {uv} join lane
         lua_call(L_, 1, LUA_MULTRET); // lane:join()                                               // L_: lane n {uv} ...
         switch (_lane->status) {
