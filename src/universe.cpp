@@ -256,7 +256,7 @@ void Universe::terminateFreeRunningLanes(lua_State* const L_, lua_Duration const
                 // if waiting on a linda, they will raise a cancel_error.
                 // if a cancellation hook is desired, it will be installed to try to raise an error
                 if (_lane->thread.joinable()) {
-                    std::ignore = thread_cancel(_lane, op_, 1, std::chrono::steady_clock::now() + 1us, true);
+                    std::ignore = _lane->cancel(op_, 1, std::chrono::steady_clock::now() + 1us, true);
                 }
                 _lane = _lane->selfdestruct_next;
             }
@@ -316,7 +316,7 @@ LUAG_FUNC(universe_gc)
     std::string_view const _op_string{ luaG_tostring(L_, lua_upvalueindex(2)) };
     STACK_CHECK_START_ABS(L_, 1);
     Universe* const _U{ luaG_tofulluserdata<Universe>(L_, 1) };                                    // L_: U
-    _U->terminateFreeRunningLanes(L_, _shutdown_timeout, which_cancel_op(_op_string));
+    _U->terminateFreeRunningLanes(L_, _shutdown_timeout, WhichCancelOp(_op_string));
 
     // invoke the function installed by lanes.finally()
     kFinalizerRegKey.pushValue(L_);                                                                // L_: U finalizer|nil

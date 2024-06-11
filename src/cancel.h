@@ -38,8 +38,8 @@ enum class CancelOp
 // xxh64 of string "kCancelError" generated at https://www.pelock.com/products/hash-calculator
 static constexpr UniqueKey kCancelError{ 0x0630345FEF912746ull, "lanes.cancel_error" }; // 'raise_cancel_error' sentinel
 
-[[nodiscard]] CancelOp which_cancel_op(std::string_view const& opString_);
-[[nodiscard]] CancelResult thread_cancel(Lane* lane_, CancelOp op_, int hookCount_, std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_);
+[[nodiscard]] CancelRequest cancel_test(lua_State* L_);
+[[nodiscard]] CancelOp WhichCancelOp(std::string_view const& opString_);
 
 [[noreturn]] static inline void raise_cancel_error(lua_State* L_)
 {

@@ -39,7 +39,9 @@ static constexpr UniqueKey kCachedError{ 0xD6F35DD608D0A203ull };
 static constexpr UniqueKey kCachedTostring{ 0xAB5EA23BCEA0C35Cull };
 
 // #################################################################################################
+// #################################################################################################
 // ######################################### Lua API ###############################################
+// #################################################################################################
 // #################################################################################################
 
 static LUAG_FUNC(get_debug_threadname)
@@ -826,6 +828,69 @@ Lane::Lane(Universe* U_, lua_State* L_, ErrorTraceLevel errorTraceLevel_)
 Lane::~Lane()
 {
     std::ignore = U->tracker.tracking_remove(this);
+}
+
+// #################################################################################################
+
+CancelResult Lane::cancel(CancelOp op_, int hookCount_, std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_)
+{
+    auto _cancel_hook = +[](lua_State* const L_, [[maybe_unused]] lua_Debug* const ar_) {
+        DEBUGSPEW_CODE(DebugSpew(nullptr) << "cancel_hook" << std::endl);
+        if (cancel_test(L_) != CancelRequest::None) {
+            lua_sethook(L_, nullptr, 0, 0);
+            raise_cancel_error(L_);
+        }
+    };
+
+    // remember that lanes are not transferable: only one thread can cancel a lane, so no multithreading issue here
+    // We can read 'lane_->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
+    if (status >= Lane::Done) {
+        // say "ok" by default, including when lane is already done
+        return CancelResult::Cancelled;
+    }
+
+    // signal the linda the wake up the thread so that it can react to the cancel query
+    // let us hope we never land here with a pointer on a linda that has been destroyed...
+    if (op_ == CancelOp::Soft) {
+        return cancelSoft(until_, wakeLane_);
+    } else if (static_cast<int>(op_) > static_cast<int>(CancelOp::Soft)) {
+        lua_sethook(L, _cancel_hook, static_cast<int>(op_), hookCount_);
+    }
+
+    return cancelHard(until_, wakeLane_);
+}
+
+// #################################################################################################
+
+[[nodiscard]] CancelResult Lane::cancelHard(std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_)
+{
+    cancelRequest = CancelRequest::Hard; // it's now signaled to stop
+    // lane_->thread.get_stop_source().request_stop();
+    if (wakeLane_) { // wake the thread so that execution returns from any pending linda operation if desired
+        std::condition_variable* const _waiting_on{ waiting_on };
+        if (status == Lane::Waiting && _waiting_on != nullptr) {
+            _waiting_on->notify_all();
+        }
+    }
+
+    CancelResult result{ waitForCompletion(until_) ? CancelResult::Cancelled : CancelResult::Timeout };
+    return result;
+}
+
+// #################################################################################################
+
+[[nodiscard]] CancelResult Lane::cancelSoft(std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_)
+{
+    cancelRequest = CancelRequest::Soft; // it's now signaled to stop
+    // negative timeout: we don't want to truly abort the lane, we just want it to react to cancel_test() on its own
+    if (wakeLane_) { // wake the thread so that execution returns from any pending linda operation if desired
+        std::condition_variable* const _waiting_on{ waiting_on };
+        if (status == Lane::Waiting && _waiting_on != nullptr) {
+            _waiting_on->notify_all();
+        }
+    }
+
+    return waitForCompletion(until_) ? CancelResult::Cancelled : CancelResult::Timeout;
 }
 
 // #################################################################################################

@@ -120,6 +120,14 @@ class Lane
     Lane(Universe* U_, lua_State* L_, ErrorTraceLevel errorTraceLevel_);
     ~Lane();
 
+    private:
+
+    [[nodiscard]] CancelResult cancelHard(std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_);
+    [[nodiscard]] CancelResult cancelSoft(std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_);
+
+    public:
+
+    CancelResult cancel(CancelOp op_, int hookCount_, std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_);
     void changeDebugName(int const nameIdx_);
     void close() { lua_State* _L{ L }; L = nullptr; lua_close(_L); }
     [[nodiscard]] std::string_view errorTraceLevelString() const;
@@ -137,7 +145,7 @@ class Lane
 
 // To allow free-running threads (longer lifespan than the handle's)
 // 'Lane' are malloc/free'd and the handle only carries a pointer.
-// This is not deep userdata since the handle's not portable among lanes.
+// This is not deep userdata since the handle is not portable among lanes.
 //
 [[nodiscard]] inline Lane* ToLane(lua_State* L_, int i_)
 {
