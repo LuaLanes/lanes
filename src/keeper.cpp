@@ -712,8 +712,7 @@ void Keepers::DeleteKV::operator()(Keeper* const k_) const
     for (Keeper& _k : std::views::counted(k_, count)) {
         _k.~Keeper();
     }
-    // operator[] returns the result of the allocation shifted by a size_t (the hidden element count)
-    U->internalAllocator.free(reinterpret_cast<size_t*>(k_) - 1, count * sizeof(Keeper));
+    U->internalAllocator.free(k_, count * sizeof(Keeper));
 }
 
 // #################################################################################################
