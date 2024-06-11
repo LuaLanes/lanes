@@ -1,16 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif // __cplusplus
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-#ifdef __cplusplus
-}
-#endif // __cplusplus
-
 #include "debug.h"
 
 // try to detect if we are building against LuaJIT or MoonJIT

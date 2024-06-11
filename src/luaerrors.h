@@ -1,16 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif // __cplusplus
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-#ifdef __cplusplus
-}
-#endif // __cplusplus
-
 // #################################################################################################
 
 // use this instead of Lua's lua_error

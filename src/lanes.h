@@ -1,14 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif // __cplusplus
-#include "lua.h"
-#ifdef __cplusplus
-}
-#endif // __cplusplus
-
 #include "lanesconf.h"
 
 #define LANES_VERSION_MAJOR 4

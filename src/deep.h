@@ -5,15 +5,6 @@
  * said modules can either link against lanes, or embed compat.cpp/h deep.cpp/h tools.cpp/h universe.cpp/h
  */
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif // __cplusplus
-#include "lua.h"
-#ifdef __cplusplus
-}
-#endif // __cplusplus
-
 #include "lanesconf.h"
 #include "uniquekey.h"
 
