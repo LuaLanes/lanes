@@ -5,11 +5,7 @@
 
 // #################################################################################################
 
-class Lane; // forward
-
-/*
- * Lane cancellation request modes
- */
+// Lane cancellation request modes
 enum class CancelRequest
 {
     None, // no pending cancel request
@@ -38,10 +34,14 @@ enum class CancelOp
 // xxh64 of string "kCancelError" generated at https://www.pelock.com/products/hash-calculator
 static constexpr UniqueKey kCancelError{ 0x0630345FEF912746ull, "lanes.cancel_error" }; // 'raise_cancel_error' sentinel
 
-[[nodiscard]] CancelRequest cancel_test(lua_State* L_);
+// #################################################################################################
+
+[[nodiscard]] CancelRequest CheckCancelRequest(lua_State* L_);
 [[nodiscard]] CancelOp WhichCancelOp(std::string_view const& opString_);
 
-[[noreturn]] static inline void raise_cancel_error(lua_State* L_)
+// #################################################################################################
+
+[[noreturn]] static inline void raise_cancel_error(lua_State* const L_)
 {
     STACK_GROW(L_, 1);
     kCancelError.pushKey(L_); // special error value
@@ -49,9 +49,6 @@ static constexpr UniqueKey kCancelError{ 0x0630345FEF912746ull, "lanes.cancel_er
 }
 
 // #################################################################################################
-// #################################################################################################
 
 LUAG_FUNC(cancel_test);
 LUAG_FUNC(thread_cancel);
-
-// #################################################################################################

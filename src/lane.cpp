@@ -832,13 +832,16 @@ Lane::~Lane()
 
 // #################################################################################################
 
-CancelResult Lane::cancel(CancelOp op_, int hookCount_, std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_)
+CancelResult Lane::cancel(CancelOp const op_, int const hookCount_, std::chrono::time_point<std::chrono::steady_clock> const until_, bool const wakeLane_)
 {
-    auto _cancel_hook = +[](lua_State* const L_, [[maybe_unused]] lua_Debug* const ar_) {
-        DEBUGSPEW_CODE(DebugSpew(nullptr) << "cancel_hook" << std::endl);
-        if (cancel_test(L_) != CancelRequest::None) {
-            lua_sethook(L_, nullptr, 0, 0);
-            raise_cancel_error(L_);
+    // this is a hook installed with lua_sethook: can't capture anything to be convertible to lua_Hook
+    static constexpr lua_Hook _cancelHook{
+        +[](lua_State* const L_, [[maybe_unused]] lua_Debug* const ar_) {
+            DEBUGSPEW_CODE(DebugSpew(nullptr) << "cancel_hook" << std::endl);
+            if (CheckCancelRequest(L_) != CancelRequest::None) {
+                lua_sethook(L_, nullptr, 0, 0);
+                raise_cancel_error(L_);
+            }
         }
     };
 
@@ -854,7 +857,7 @@ CancelResult Lane::cancel(CancelOp op_, int hookCount_, std::chrono::time_point<
     if (op_ == CancelOp::Soft) {
         return cancelSoft(until_, wakeLane_);
     } else if (static_cast<int>(op_) > static_cast<int>(CancelOp::Soft)) {
-        lua_sethook(L, _cancel_hook, static_cast<int>(op_), hookCount_);
+        lua_sethook(L, _cancelHook, static_cast<int>(op_), hookCount_);
     }
 
     return cancelHard(until_, wakeLane_);

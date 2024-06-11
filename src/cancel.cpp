@@ -50,7 +50,7 @@ THE SOFTWARE.
  * Returns CANCEL_SOFT/HARD if any locks are to be exited, and 'raise_cancel_error()' called,
  * to make execution of the lane end.
  */
-[[nodiscard]] CancelRequest cancel_test(lua_State* const L_)
+[[nodiscard]] CancelRequest CheckCancelRequest(lua_State* const L_)
 {
     Lane* const _lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
     // 'lane' is nullptr for the original main state (and no-one can cancel that)
@@ -129,7 +129,7 @@ CancelOp WhichCancelOp(std::string_view const& opString_)
 //
 LUAG_FUNC(cancel_test)
 {
-    CancelRequest _test{ cancel_test(L_) };
+    CancelRequest _test{ CheckCancelRequest(L_) };
     lua_pushboolean(L_, _test != CancelRequest::None);
     return 1;
 }
