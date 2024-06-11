@@ -1008,6 +1008,7 @@
 		<li><tt>nil, "killed"</tt> if forcefully killed.</li>
 		<li>The return values of the lane function. If the first return value is <tt>nil</tt> (or there is no return value), an error is raised, to make sure you can tell timeout and error cases apart from successful return.</li>
 	</ul>
+	If the lane handle obtained from <tt>lanes.gen()</tt> is to-be-closed, closing the value will cause a call to <tt>join()</tt>. Since it is implicit, the lane body isn't forced to return non-<tt>nil</tt> in that case.
 </p>
 
 <table border=1 bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>

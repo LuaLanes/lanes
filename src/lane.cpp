@@ -135,9 +135,9 @@ static LUAG_FUNC(thread_join)
     switch (_lane->status) {
     case Lane::Done:
         {
-            bool const _calledFromIndex{ lua_toboolean(L_, lua_upvalueindex(1)) ? true : false }; // this upvalue doesn't exist when called from Lua
+            bool const _calledFromLua{ lua_toboolean(L_, lua_upvalueindex(1)) ? false : true }; // this upvalue doesn't exist when called from Lua
             int const _n{ lua_gettop(_L2) }; // whole L2 stack
-            if (!_calledFromIndex && (_n == 0 || lua_isnil(_L2, 1))) {
+            if (_calledFromLua && (_n == 0 || lua_isnil(_L2, 1))) {
                 raise_luaL_error(L_, "First return value must be non-nil when using join()");
             }
             if (
@@ -216,7 +216,7 @@ static int thread_index_number(lua_State* L_)
         lua_pushboolean(L_, 1);                                                                    // L_: lane n {uv} 0 true
         lua_rawset(L_, kUsr);                                                                      // L_: lane n {uv}
         // tell join() that we are called from __index, to avoid raising an error if the first returned value is not nil
-        lua_pushboolean(L_, 1);                                                                    // L_: lane n {uv} true
+        std::ignore = luaG_pushstring(L_, "[]");                                                   // L_: lane n {uv} "[]"
         // wait until thread has completed, transfer everything from the lane's stack to our side
         lua_pushcclosure(L_, LG_thread_join, 1);                                                   // L_: lane n {uv} join
         lua_pushvalue(L_, kSelf);                                                                  // L_: lane n {uv} join lane
@@ -733,6 +733,24 @@ static void lane_main(Lane* lane_)
 
 // #################################################################################################
 
+#if LUA_VERSION_NUM >= 504
+static LUAG_FUNC(lane_close)
+{
+    [[maybe_unused]] Lane* const _lane{ ToLane(L_, 1) };                                           // L_: lane err|nil
+    // drop the error if any
+    lua_settop(L_, 1);                                                                             // L_: lane
+
+    // no error if the lane body doesn't return a non-nil first value
+    std::ignore = luaG_pushstring(L_, "close");                                                    // L_: lane "close"
+    lua_pushcclosure(L_, LG_thread_join, 1);                                                       // L_: lane join()
+    lua_insert(L_, 1);                                                                             // L_: join() lane
+    lua_call(L_, 1, LUA_MULTRET);                                                                  // L_: join() results
+    return lua_gettop(L_);
+}
+#endif // LUA_VERSION_NUM >= 504
+
+// #################################################################################################
+
 // = thread_gc( lane_ud )
 //
 // Cleanup for a thread userdata. If the thread is still executing, leave it
@@ -744,7 +762,7 @@ static void lane_main(Lane* lane_)
 // and the issue of canceling/killing threads at gc is not very nice, either
 // (would easily cause waits at gc cycle, which we don't want).
 //
-[[nodiscard]] static int lane_gc(lua_State* L_)
+static LUAG_FUNC(lane_gc)
 {
     bool _have_gc_cb{ false };
     Lane* const _lane{ ToLane(L_, 1) };                                                             // L_: ud
@@ -859,7 +877,10 @@ void Lane::changeDebugName(int const nameIdx_)
 namespace {
     namespace local {
         static struct luaL_Reg const sLaneFunctions[] = {
-            { "__gc", lane_gc },
+#if LUA_VERSION_NUM >= 504
+            { "__close", LG_lane_close },
+#endif // LUA_VERSION_NUM >= 504
+            { "__gc", LG_lane_gc },
             { "__index", LG_thread_index },
             { "cancel", LG_thread_cancel },
             { "get_debug_threadname", LG_get_debug_threadname },
