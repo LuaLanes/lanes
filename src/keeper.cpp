@@ -298,10 +298,14 @@ int keeper_push_linda_storage(Linda& linda_, DestState L_)
         KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
         _key->prepareAccess(_K, -1);                                                               // _K: KeysDB key fifo                                L_: out
         lua_pushvalue(_K, -2);                                                                     // _K: KeysDB key fifo key                            L_: out
-        std::ignore = _c.inter_move(1);                                                            // _K: KeysDB key fifo                                L_: out key
+        if (_c.interMove(1) != InterCopyResult::Success) {                                         // _K: KeysDB key fifo                                L_: out key
+            raise_luaL_error(L_, "Internal error reading Keeper contents");
+        }
         STACK_CHECK(L_, 2);
         lua_newtable(L_);                                                                          // _K: KeysDB key fifo                                L_: out key keyout
-        std::ignore = _c.inter_move(1);                                                            // _K: KeysDB key                                     L_: out key keyout fifo
+        if (_c.interMove(1) != InterCopyResult::Success) {                                         // _K: KeysDB key                                     L_: out key keyout fifo
+            raise_luaL_error(L_, "Internal error reading Keeper contents");
+        }
         // keyout.first
         lua_pushinteger(L_, _key->first);                                                          // _K: KeysDB key                                     L_: out key keyout fifo first
         STACK_CHECK(L_, 5);
@@ -642,7 +646,7 @@ KeeperCallResult keeper_call(KeeperState K_, keeper_api_t func_, lua_State* L_, 
     lua_pushlightuserdata(K_, linda_);                                                             // L: ... args...                                  K_: func_ linda
     if (
         (_args == 0) ||
-        (InterCopyContext{ linda_->U, DestState{ K_ }, SourceState{ L_ }, {}, {}, {}, LookupMode::ToKeeper, {} }.inter_copy(_args) == InterCopyResult::Success)
+        (InterCopyContext{ linda_->U, DestState{ K_ }, SourceState{ L_ }, {}, {}, {}, LookupMode::ToKeeper, {} }.interCopy(_args) == InterCopyResult::Success)
     ) {                                                                                            // L: ... args...                                  K_: func_ linda args...
         lua_call(K_, 1 + _args, LUA_MULTRET);                                                      // L: ... args...                                  K_: result...
         int const _retvals{ lua_gettop(K_) - _top_K };
@@ -652,7 +656,7 @@ KeeperCallResult keeper_call(KeeperState K_, keeper_api_t func_, lua_State* L_, 
         // when attempting to grab the mutex again (WINVER <= 0x400 does this, but locks just fine, I don't know about pthread)
         if (
             (_retvals == 0) ||
-            (InterCopyContext{ linda_->U, DestState{ L_ }, SourceState{ K_ }, {}, {}, {}, LookupMode::FromKeeper, {} }.inter_move(_retvals) == InterCopyResult::Success)
+            (InterCopyContext{ linda_->U, DestState{ L_ }, SourceState{ K_ }, {}, {}, {}, LookupMode::FromKeeper, {} }.interMove(_retvals) == InterCopyResult::Success)
         ) {                                                                                        // L: ... args... result...                        K_: result...
             _result.emplace(_retvals);
         }
@@ -848,7 +852,7 @@ void Keepers::initialize(Universe& U_, lua_State* L_, int const nbKeepers_, int 
         if (luaG_getmodule(L, LUA_LOADLIBNAME) != LuaType::NIL) {                                  // L_: settings package                           _K:
             // when copying with mode LookupMode::ToKeeper, error message is pushed at the top of the stack, not raised immediately
             InterCopyContext _c{ U, DestState{ _K }, SourceState{ L }, {}, SourceIndex{ luaG_absindex(L, -1) }, {}, LookupMode::ToKeeper, {} };
-            if (_c.inter_copy_package() != InterCopyResult::Success) {                             // L_: settings ... error_msg                     _K:
+            if (_c.interCopyPackage() != InterCopyResult::Success) {                               // L_: settings ... error_msg                     _K:
                 // if something went wrong, the error message is at the top of the stack
                 lua_remove(L, -2);                                                                 // L_: settings error_msg
                 raise_lua_error(L);

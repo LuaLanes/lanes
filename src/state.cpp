@@ -136,7 +136,7 @@ namespace {
         kConfigRegKey.pushValue(L1_);                                                              // L1_: config
         // copy settings from from source to destination registry
         InterCopyContext _c{ U_, L2_, L1_, {}, {}, {}, {}, {} };
-        if (_c.inter_move(1) != InterCopyResult::Success) {                                        // L1_:                                           L2_: config
+        if (_c.interMove(1) != InterCopyResult::Success) {                                         // L1_:                                           L2_: config
             raise_luaL_error(L1_, "failed to copy settings when loading " kLanesCoreLibName);
         }
         // set L2:_R[kConfigRegKey] = settings

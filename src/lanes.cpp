@@ -400,9 +400,9 @@ LUAG_FUNC(lane_new)
     if (_package_idx != 0) {
         DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: update 'package'" << std::endl);
         // when copying with mode LookupMode::LaneBody, should raise an error in case of problem, not leave it one the stack
-        InterCopyContext c{ _U, DestState{ _L2 }, SourceState{ L_ }, {}, SourceIndex{ _package_idx }, {}, {}, {} };
-        [[maybe_unused]] InterCopyResult const ret{ c.inter_copy_package() };
-        LUA_ASSERT(L_, ret == InterCopyResult::Success); // either all went well, or we should not even get here
+        InterCopyContext _c{ _U, DestState{ _L2 }, SourceState{ L_ }, {}, SourceIndex{ _package_idx }, {}, {}, {} };
+        [[maybe_unused]] InterCopyResult const _ret{ _c.interCopyPackage() };
+        LUA_ASSERT(L_, _ret == InterCopyResult::Success); // either all went well, or we should not even get here
     }
 
     // modules to require in the target lane *before* the function is transfered!
@@ -436,7 +436,7 @@ LUAG_FUNC(lane_new)
                     if (_rc != LuaError::OK) {
                         // propagate error to main state if any
                         InterCopyContext _c{ _U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} };
-                        std::ignore = _c.inter_move(1);                                            // L_: [fixed] args... n "modname" error          L2:
+                        std::ignore = _c.interMove(1);                                             // L_: [fixed] args... n "modname" error          L2:
                         raise_lua_error(L_);
                     }
                     // here the module was successfully required                                   // L_: [fixed] args... n "modname"                L2: ret
@@ -468,7 +468,7 @@ LUAG_FUNC(lane_new)
         InterCopyContext _c{ _U, DestState{ _L2 }, SourceState{ L_ }, {}, {}, {}, {}, {} };
         luaG_pushglobaltable(_L2);                                                                 // L_: [fixed] args... nil                        L2: _G
         while (lua_next(L_, _globals_idx)) {                                                       // L_: [fixed] args... k v                        L2: _G
-            std::ignore = _c.inter_copy(2);                                                        // L_: [fixed] args... k v                        L2: _G k v
+            std::ignore = _c.interCopy(2);                                                         // L_: [fixed] args... k v                        L2: _G k v
             // assign it in L2's globals table
             lua_rawset(_L2, -3);                                                                   // L_: [fixed] args... k v                        L2: _G
             lua_pop(L_, 1);                                                                        // L_: [fixed] args... k
@@ -486,7 +486,7 @@ LUAG_FUNC(lane_new)
         DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
         lua_pushvalue(L_, kFuncIdx);                                                               // L_: [fixed] args... func                       L2: eh?
         InterCopyContext _c{ _U, DestState{ _L2 }, SourceState{ L_ }, {}, {}, {}, {}, {} };
-        InterCopyResult const _res{ _c.inter_move(1) };                                            // L_: [fixed] args...                            L2: eh? func
+        InterCopyResult const _res{ _c.interMove(1) };                                             // L_: [fixed] args...                            L2: eh? func
         if (_res != InterCopyResult::Success) {
             raise_luaL_error(L_, "tried to copy unsupported types");
         }
@@ -508,7 +508,7 @@ LUAG_FUNC(lane_new)
         DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: transfer lane arguments" << std::endl);
         DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
         InterCopyContext _c{ _U, DestState{ _L2 }, SourceState{ L_ }, {}, {}, {}, {}, {} };
-        InterCopyResult const res{ _c.inter_move(_nargs) };                                        // L_: [fixed]                                    L2: eh? func args...
+        InterCopyResult const res{ _c.interMove(_nargs) };                                         // L_: [fixed]                                    L2: eh? func args...
         if (res != InterCopyResult::Success) {
             raise_luaL_error(L_, "tried to copy unsupported types");
         }

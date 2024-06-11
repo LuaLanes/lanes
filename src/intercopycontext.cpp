@@ -177,7 +177,7 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
 
 // Copy a function over, which has not been found in the cache.
 // L2 has the cache key for this function at the top of the stack
-void InterCopyContext::copy_func() const
+void InterCopyContext::copyFunction() const
 {
     LUA_ASSERT(L1, L2_cache_i != 0);                                                               //                                                L2: ... {cache} ... p
     STACK_GROW(L1, 2);
@@ -271,7 +271,7 @@ void InterCopyContext::copy_func() const
                 } else {
                     DEBUGSPEW_CODE(DebugSpew(nullptr) << "copying value" << std::endl);
                     _c.L1_i = SourceIndex{ lua_gettop(L1) };
-                    if (!_c.inter_copy_one()) {                                                    //                                                L2: ... {cache} ... function <upvalues>
+                    if (_c.interCopyOne() != InterCopyResult::Success) {                           //                                                L2: ... {cache} ... function <upvalues>
                         raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
                     }
                 }
@@ -299,7 +299,7 @@ void InterCopyContext::copy_func() const
 // #################################################################################################
 
 // Push a looked-up native/LuaJIT function.
-void InterCopyContext::lookup_native_func() const
+void InterCopyContext::lookupNativeFunction() const
 {
     // get the name of the function we want to send
     std::string_view const _fqn{ findLookupName() };
@@ -368,7 +368,7 @@ void InterCopyContext::lookup_native_func() const
 
 // Check if we've already copied the same function from 'L1', and reuse the old copy.
 // Always pushes a function to 'L2'.
-void InterCopyContext::copy_cached_func() const
+void InterCopyContext::copyCachedFunction() const
 {
     FuncSubType const _funcSubType{ luaG_getfuncsubtype(L1, L1_i) };
     if (_funcSubType == FuncSubType::Bytecode) {
@@ -400,14 +400,14 @@ void InterCopyContext::copy_cached_func() const
             // via upvalues
             //
             // pushes a copy of the func, stores a reference in the cache
-            copy_func();                                                                           //                                                L2: ... {cache} ... function
+            copyFunction();                                                                        //                                                L2: ... {cache} ... function
         } else { // found function in the cache
             lua_remove(L2, -2);                                                                    //                                                L2: ... {cache} ... function
         }
         STACK_CHECK(L2, 1);
         LUA_ASSERT(L1, lua_isfunction(L2, -1));
     } else { // function is native/LuaJIT: no need to cache
-        lookup_native_func();                                                                      //                                                L2: ... {cache} ... function
+        lookupNativeFunction();                                                                    //                                                L2: ... {cache} ... function
         // if the function was in fact a lookup sentinel, we can either get a function or a table here
         LUA_ASSERT(L1, lua_isfunction(L2, -1) || lua_istable(L2, -1));
     }
@@ -416,7 +416,7 @@ void InterCopyContext::copy_cached_func() const
 // #################################################################################################
 
 // Push a looked-up table, or nothing if we found nothing
-[[nodiscard]] bool InterCopyContext::lookup_table() const
+[[nodiscard]] bool InterCopyContext::lookupTable() const
 {
     // get the name of the table we want to send
     std::string_view const _fqn{ findLookupName() };
@@ -474,14 +474,14 @@ void InterCopyContext::copy_cached_func() const
 
 // #################################################################################################
 
-void InterCopyContext::inter_copy_keyvaluepair() const
+void InterCopyContext::interCopyKeyValuePair() const
 {
     SourceIndex const _val_i{ lua_gettop(L1) };
     SourceIndex const _key_i{ _val_i - 1 };
 
     // For the key, only basic key types are copied over. others ignored
     InterCopyContext _c{ U, L2, L1, L2_cache_i, _key_i, VT::KEY, mode, name };
-    if (!_c.inter_copy_one()) {
+    if (_c.interCopyOne() != InterCopyResult::Success) {
         return;
         // we could raise an error instead of ignoring the table entry, like so:
         // raise_luaL_error(L1, "Unable to copy %s key '%s' because of value is of type '%s'", (vt == VT::NORMAL) ? "table" : "metatable", name, luaL_typename(L1, key_i));
@@ -518,16 +518,16 @@ void InterCopyContext::inter_copy_keyvaluepair() const
             sprintf(_valPath, "%s[%s]", name, key ? "true" : "false");
         }
     }
+
     _c.L1_i = SourceIndex{ _val_i };
     // Contents of metatables are copied with cache checking. important to detect loops.
     _c.vt = VT::NORMAL;
     _c.name = _valPath ? _valPath : name;
-    if (_c.inter_copy_one()) {
-        LUA_ASSERT(L1, lua_istable(L2, -3));
-        lua_rawset(L2, -3); // add to table (pops key & val)
-    } else {
+    if (_c.interCopyOne() != InterCopyResult::Success) {
         raise_luaL_error(getErrL(), "Unable to copy %s entry '%s' because of value is of type '%s'", (vt == VT::NORMAL) ? "table" : "metatable", _valPath, luaL_typename(L1, _val_i));
     }
+    LUA_ASSERT(L1, lua_istable(L2, -3));
+    lua_rawset(L2, -3); // add to table (pops key & val)
 }
 
 // #################################################################################################
@@ -602,7 +602,7 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::push_cached_metatable() const
+[[nodiscard]] bool InterCopyContext::pushCachedMetatable() const
 {
     STACK_CHECK_START_REL(L1, 0);
     if (!lua_getmetatable(L1, L1_i)) {                                                             // L1: ... mt
@@ -623,8 +623,8 @@ LuaType InterCopyContext::processConversion() const
 
     if (lua_isnil(L2, -1)) { // L2 did not know the metatable
         lua_pop(L2, 1);                                                                            //                                                L2: _R[kMtIdRegKey]
-        InterCopyContext const c{ U, L2, L1, L2_cache_i, SourceIndex{ lua_gettop(L1) }, VT::METATABLE, mode, name };
-        if (!c.inter_copy_one()) {                                                                 //                                                L2: _R[kMtIdRegKey] mt?
+        InterCopyContext const _c{ U, L2, L1, L2_cache_i, SourceIndex{ lua_gettop(L1) }, VT::METATABLE, mode, name };
+        if (_c.interCopyOne() != InterCopyResult::Success) {                                       //                                                L2: _R[kMtIdRegKey] mt?
             raise_luaL_error(getErrL(), "Error copying a metatable");
         }
 
@@ -654,7 +654,7 @@ LuaType InterCopyContext::processConversion() const
 // local functions to point to the same table, also in the target.
 // Always pushes a table to 'L2'.
 // Returns true if the table was cached (no need to fill it!); false if it's a virgin.
-[[nodiscard]] bool InterCopyContext::push_cached_table() const
+[[nodiscard]] bool InterCopyContext::pushCachedTable() const
 {
     void const* const _p{ lua_topointer(L1, L1_i) };
 
@@ -730,22 +730,22 @@ LuaType InterCopyContext::processConversion() const
         void* const _clone{ lua_newuserdatauv(L2, userdata_size, _nuv) };                          //                                                L2: ... u
         // copy the metatable in the target state, and give it to the clone we put there
         InterCopyContext _c{ U, L2, L1, L2_cache_i, SourceIndex{ _mt }, VT::NORMAL, mode, name };
-        if (_c.inter_copy_one()) {                                                                 //                                                L2: ... u mt|sentinel
-            if (LookupMode::ToKeeper == mode) {                                                    //                                                L2: ... u sentinel
-                LUA_ASSERT(L1, lua_tocfunction(L2, -1) == table_lookup_sentinel);
-                // we want to create a new closure with a 'clone sentinel' function, where the upvalues are the userdata and the metatable fqn
-                lua_getupvalue(L2, -1, 1);                                                         //                                                L2: ... u sentinel fqn
-                lua_remove(L2, -2);                                                                //                                                L2: ... u fqn
-                lua_insert(L2, -2);                                                                //                                                L2: ... fqn u
-                lua_pushcclosure(L2, userdata_clone_sentinel, 2);                                  //                                                L2: ... userdata_clone_sentinel
-            } else { // from keeper or direct                                                      //                                                L2: ... u mt
-                LUA_ASSERT(L1, lua_istable(L2, -1));
-                lua_setmetatable(L2, -2);                                                          //                                                L2: ... u
-            }
-            STACK_CHECK(L2, 1);
-        } else {
+        if (_c.interCopyOne() != InterCopyResult::Success) {                                       //                                                L2: ... u mt|sentinel
             raise_luaL_error(getErrL(), "Error copying a metatable");
         }
+
+        if (LookupMode::ToKeeper == mode) {                                                        //                                                L2: ... u sentinel
+            LUA_ASSERT(L1, lua_tocfunction(L2, -1) == table_lookup_sentinel);
+            // we want to create a new closure with a 'clone sentinel' function, where the upvalues are the userdata and the metatable fqn
+            lua_getupvalue(L2, -1, 1);                                                             //                                                L2: ... u sentinel fqn
+            lua_remove(L2, -2);                                                                    //                                                L2: ... u fqn
+            lua_insert(L2, -2);                                                                    //                                                L2: ... fqn u
+            lua_pushcclosure(L2, userdata_clone_sentinel, 2);                                      //                                                L2: ... userdata_clone_sentinel
+        } else { // from keeper or direct                                                          //                                                L2: ... u mt
+            LUA_ASSERT(L1, lua_istable(L2, -1));
+            lua_setmetatable(L2, -2);                                                              //                                                L2: ... u
+        }
+        STACK_CHECK(L2, 1);
         // first, add the entry in the cache (at this point it is either the actual userdata or the keeper sentinel
         lua_pushlightuserdata(L2, _source);                                                        //                                                L2: ... u source
         lua_pushvalue(L2, -2);                                                                     //                                                L2: ... u source u
@@ -758,7 +758,7 @@ LuaType InterCopyContext::processConversion() const
         int _uvi{ _nuv };
         while (_uvi > 0) {
             _c.L1_i = SourceIndex{ luaG_absindex(L1, -1) };
-            if (!_c.inter_copy_one()) {                                                            //                                                L2: ... u uv
+            if (_c.interCopyOne() != InterCopyResult::Success) {                                   //                                                L2: ... u uv
                 raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
             }
             lua_pop(L1, 1);                                                                        // L1: ... mt __lanesclone [uv]*
@@ -816,7 +816,7 @@ LuaType InterCopyContext::processConversion() const
         int _uvi{ _nuv };
         while (_uvi) {
             _c.L1_i = SourceIndex{ luaG_absindex(L1, -1) };
-            if (!_c.inter_copy_one()) {                                                            // L1: ... deep ... [uv]*                           L2: deep uv
+            if (_c.interCopyOne() != InterCopyResult::Success) {                                   // L1: ... deep ... [uv]*                           L2: deep uv
                 raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
             }
             lua_pop(L1, 1);                                                                        // L1: ... deep ... [uv]*
@@ -834,7 +834,7 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::inter_copy_boolean() const
+[[nodiscard]] bool InterCopyContext::interCopyBoolean() const
 {
     int const _v{ lua_toboolean(L1, L1_i) };
     DEBUGSPEW_CODE(DebugSpew(nullptr) << (_v ? "true" : "false") << std::endl);
@@ -844,7 +844,7 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::inter_copy_function() const
+[[nodiscard]] bool InterCopyContext::interCopyFunction() const
 {
     if (vt == VT::KEY) {
         return false;
@@ -871,8 +871,8 @@ LuaType InterCopyContext::processConversion() const
         lua_pop(L2, 1);                                                                            //                                                L2: ...
 
         // userdata_clone_sentinel has 2 upvalues: the fqn of its metatable, and the userdata itself
-        bool const found{ lookup_table() };                                                        //                                                L2: ... mt?
-        if (!found) {
+        bool const _found{ lookupTable() };                                                        //                                                L2: ... mt?
+        if (!_found) {
             STACK_CHECK(L2, 0);
             return false;
         }
@@ -896,11 +896,11 @@ LuaType InterCopyContext::processConversion() const
             lua_pushvalue(L2, -2);                                                                 //                                                L2: ... mt u mt
             lua_setmetatable(L2, -2);                                                              //                                                L2: ... mt u
             // transfer and assign uservalues
-            InterCopyContext c{ *this };
+            InterCopyContext _c{ *this };
             int _uvi{ _nuv };
             while (_uvi > 0) {
-                c.L1_i = SourceIndex{ luaG_absindex(L1, -1) };
-                if (!c.inter_copy_one()) {                                                         //                                                L2: ... mt u uv
+                _c.L1_i = SourceIndex{ luaG_absindex(L1, -1) };
+                if (_c.interCopyOne() != InterCopyResult::Success) {                               //                                                L2: ... mt u uv
                     raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
                 }
                 lua_pop(L1, 1);                                                                    // L1: ... u [uv]*
@@ -926,7 +926,7 @@ LuaType InterCopyContext::processConversion() const
     } else { // regular function
         DEBUGSPEW_CODE(DebugSpew(U) << "FUNCTION " << name << std::endl);
         DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
-        copy_cached_func();                                                                        //                                                L2: ... f
+        copyCachedFunction();                                                                      //                                                L2: ... f
     }
     STACK_CHECK(L2, 1);
     STACK_CHECK(L1, 0);
@@ -935,7 +935,7 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::inter_copy_lightuserdata() const
+[[nodiscard]] bool InterCopyContext::interCopyLightuserdata() const
 {
     void* const _p{ lua_touserdata(L1, L1_i) };
     // recognize and print known UniqueKey names here
@@ -966,7 +966,7 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::inter_copy_nil() const
+[[nodiscard]] bool InterCopyContext::interCopyNil() const
 {
     if (vt == VT::KEY) {
         return false;
@@ -982,7 +982,7 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::inter_copy_number() const
+[[nodiscard]] bool InterCopyContext::interCopyNumber() const
 {
     // LNUM patch support (keeping integer accuracy)
 #if defined LUA_LNUM || LUA_VERSION_NUM >= 503
@@ -1002,7 +1002,7 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::inter_copy_string() const
+[[nodiscard]] bool InterCopyContext::interCopyString() const
 {
     std::string_view const _s{ luaG_tostring(L1, L1_i) };
     DEBUGSPEW_CODE(DebugSpew(nullptr) << "'" << _s << "'" << std::endl);
@@ -1012,7 +1012,7 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::inter_copy_table() const
+[[nodiscard]] bool InterCopyContext::interCopyTable() const
 {
     if (vt == VT::KEY) {
         return false;
@@ -1026,7 +1026,7 @@ LuaType InterCopyContext::processConversion() const
      * First, let's try to see if this table is special (aka is it some table that we registered in our lookup databases during module registration?)
      * Note that this table CAN be a module table, but we just didn't register it, in which case we'll send it through the table cloning mechanism
      */
-    if (lookup_table()) {
+    if (lookupTable()) {
         LUA_ASSERT(L1, lua_istable(L2, -1) || (lua_tocfunction(L2, -1) == table_lookup_sentinel)); // from lookup data. can also be table_lookup_sentinel if this is a table we know
         return true;
     }
@@ -1040,7 +1040,7 @@ LuaType InterCopyContext::processConversion() const
      * Note: Even metatables need to go through this test; to detect
      *       loops such as those in required module tables (getmetatable(lanes).lanes == lanes)
      */
-    if (push_cached_table()) {
+    if (pushCachedTable()) {                                                                       //                                                L2: ... t
         LUA_ASSERT(L1, lua_istable(L2, -1)); // from cache
         return true;
     }
@@ -1052,14 +1052,14 @@ LuaType InterCopyContext::processConversion() const
     lua_pushnil(L1); // start iteration
     while (lua_next(L1, L1_i)) {
         // need a function to prevent overflowing the stack with verboseErrors-induced alloca()
-        inter_copy_keyvaluepair();
+        interCopyKeyValuePair();
         lua_pop(L1, 1); // pop value (next round)
     }
     STACK_CHECK(L1, 0);
     STACK_CHECK(L2, 1);
 
     // Metatables are expected to be immutable, and copied only once.
-    if (push_cached_metatable()) {                                                                 //                                                L2: ... t mt?
+    if (pushCachedMetatable()) {                                                                   //                                                L2: ... t mt?
         lua_setmetatable(L2, -2);                                                                  //                                                L2: ... t
     }
     STACK_CHECK(L2, 1);
@@ -1069,7 +1069,7 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::inter_copy_userdata() const
+[[nodiscard]] bool InterCopyContext::interCopyUserdata() const
 {
     STACK_CHECK_START_REL(L1, 0);
     STACK_CHECK_START_REL(L2, 0);
@@ -1134,14 +1134,14 @@ namespace {
  *
  * Returns true if value was pushed, false if its type is non-supported.
  */
-[[nodiscard]] bool InterCopyContext::inter_copy_one() const
+[[nodiscard]] InterCopyResult InterCopyContext::interCopyOne() const
 {
     static constexpr int kPODmask = (1 << LUA_TNIL) | (1 << LUA_TBOOLEAN) | (1 << LUA_TLIGHTUSERDATA) | (1 << LUA_TNUMBER) | (1 << LUA_TSTRING);
     STACK_GROW(L2, 1);
     STACK_CHECK_START_REL(L1, 0);
     STACK_CHECK_START_REL(L2, 0);
 
-    DEBUGSPEW_CODE(DebugSpew(U) << "inter_copy_one()" << std::endl);
+    DEBUGSPEW_CODE(DebugSpew(U) << "interCopyOne()" << std::endl);
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
 
     // replace the value at L1_i with the result of a conversion if required
@@ -1154,30 +1154,30 @@ namespace {
     switch (_val_type) {
     // Basic types allowed both as values, and as table keys
     case LuaType::BOOLEAN:
-        _ret = inter_copy_boolean();
+        _ret = interCopyBoolean();
         break;
     case LuaType::NUMBER:
-        _ret = inter_copy_number();
+        _ret = interCopyNumber();
         break;
     case LuaType::STRING:
-        _ret = inter_copy_string();
+        _ret = interCopyString();
         break;
     case LuaType::LIGHTUSERDATA:
-        _ret = inter_copy_lightuserdata();
+        _ret = interCopyLightuserdata();
         break;
 
     // The following types are not allowed as table keys
     case LuaType::USERDATA:
-        _ret = inter_copy_userdata();
+        _ret = interCopyUserdata();
         break;
     case LuaType::NIL:
-        _ret = inter_copy_nil();
+        _ret = interCopyNil();
         break;
     case LuaType::FUNCTION:
-        _ret = inter_copy_function();
+        _ret = interCopyFunction();
         break;
     case LuaType::TABLE:
-        _ret = inter_copy_table();
+        _ret = interCopyTable();
         break;
 
     // The following types cannot be copied
@@ -1191,7 +1191,7 @@ namespace {
 
     STACK_CHECK(L2, _ret ? 1 : 0);
     STACK_CHECK(L1, 0);
-    return _ret;
+    return _ret ? InterCopyResult::Success : InterCopyResult::Error;
 }
 
 // #################################################################################################
@@ -1200,9 +1200,9 @@ namespace {
 // returns InterCopyResult::Success if everything is fine
 // returns InterCopyResult::Error if pushed an error message in L1
 // else raise an error in whichever state is not a keeper
-[[nodiscard]] InterCopyResult InterCopyContext::inter_copy_package() const
+[[nodiscard]] InterCopyResult InterCopyContext::interCopyPackage() const
 {
-    DEBUGSPEW_CODE(DebugSpew(U) << "InterCopyContext::inter_copy_package()" << std::endl);
+    DEBUGSPEW_CODE(DebugSpew(U) << "InterCopyContext::interCopyPackage()" << std::endl);
 
     class OnExit
     {
@@ -1257,7 +1257,7 @@ namespace {
         } else {
             {
                 DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
-                _result = inter_move(1); // moves the entry to L2
+                _result = interMove(1); // moves the entry to L2
                 STACK_CHECK(L1, 0);
             }
             if (_result == InterCopyResult::Success) {
@@ -1281,11 +1281,11 @@ namespace {
 
 // Akin to 'lua_xmove' but copies values between _any_ Lua states.
 // NOTE: Both the states must be solely in the current OS thread's possession.
-[[nodiscard]] InterCopyResult InterCopyContext::inter_copy(int n_) const
+[[nodiscard]] InterCopyResult InterCopyContext::interCopy(int const n_) const
 {
     LUA_ASSERT(L1, vt == VT::NORMAL);
 
-    DEBUGSPEW_CODE(DebugSpew(U) << "InterCopyContext::inter_copy()" << std::endl);
+    DEBUGSPEW_CODE(DebugSpew(U) << "InterCopyContext::interCopy()" << std::endl);
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
 
     int const _top_L1{ lua_gettop(L1) };
@@ -1309,21 +1309,21 @@ namespace {
     char _tmpBuf[16];
     char const* const _pBuf{ U->verboseErrors ? _tmpBuf : "?" };
     InterCopyContext _c{ U, L2, L1, CacheIndex{ _top_L2 + 1 }, {}, VT::NORMAL, mode, _pBuf };
-    bool _copyok{ true };
+    InterCopyResult _copyok{ InterCopyResult::Success };
     STACK_CHECK_START_REL(L1, 0);
     for (int _i{ _top_L1 - n_ + 1 }, _j{ 1 }; _i <= _top_L1; ++_i, ++_j) {
         if (U->verboseErrors) {
             sprintf(_tmpBuf, "arg_%d", _j);
         }
         _c.L1_i = SourceIndex{ _i };
-        _copyok = _c.inter_copy_one();                                                             //                                                L2: ... cache {}n
-        if (!_copyok) {
+        _copyok = _c.interCopyOne();                                                               //                                                L2: ... cache {}n
+        if (_copyok != InterCopyResult::Success) {
             break;
         }
     }
     STACK_CHECK(L1, 0);
 
-    if (_copyok) {
+    if (_copyok == InterCopyResult::Success) {
         STACK_CHECK(L2, n_ + 1);
         // Remove the cache table. Persistent caching would cause i.e. multiple
         // messages passed in the same table to use the same table also in receiving end.
@@ -1339,9 +1339,9 @@ namespace {
 
 // #################################################################################################
 
-[[nodiscard]] InterCopyResult InterCopyContext::inter_move(int n_) const
+[[nodiscard]] InterCopyResult InterCopyContext::interMove(int const n_) const
 {
-    InterCopyResult const _ret{ inter_copy(n_) };
+    InterCopyResult const _ret{ interCopy(n_) };
     lua_pop(L1, n_);
     return _ret;
 }

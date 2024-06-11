@@ -44,36 +44,36 @@ class InterCopyContext
     lua_State* getErrL() const { return (mode == LookupMode::FromKeeper) ? L2 : L1; }
     [[nodiscard]] LuaType processConversion() const;
 
-    // for use in copy_cached_func
-    void copy_func() const;
-    void lookup_native_func() const;
+    // for use in copyCachedFunction
+    void copyFunction() const;
+    void lookupNativeFunction() const;
 
     // for use in inter_copy_function
-    void copy_cached_func() const;
-    [[nodiscard]] bool lookup_table() const;
+    void copyCachedFunction() const;
+    [[nodiscard]] bool lookupTable() const;
 
     // for use in inter_copy_table
-    void inter_copy_keyvaluepair() const;
-    [[nodiscard]] bool push_cached_metatable() const;
-    [[nodiscard]] bool push_cached_table() const;
+    void interCopyKeyValuePair() const;
+    [[nodiscard]] bool pushCachedMetatable() const;
+    [[nodiscard]] bool pushCachedTable() const;
 
     // for use in inter_copy_userdata
     [[nodiscard]] bool tryCopyClonable() const;
     [[nodiscard]] bool tryCopyDeep() const;
 
     // copying a single Lua stack item
-    [[nodiscard]] bool inter_copy_boolean() const;
-    [[nodiscard]] bool inter_copy_function() const;
-    [[nodiscard]] bool inter_copy_lightuserdata() const;
-    [[nodiscard]] bool inter_copy_nil() const;
-    [[nodiscard]] bool inter_copy_number() const;
-    [[nodiscard]] bool inter_copy_string() const;
-    [[nodiscard]] bool inter_copy_table() const;
-    [[nodiscard]] bool inter_copy_userdata() const;
+    [[nodiscard]] bool interCopyBoolean() const;
+    [[nodiscard]] bool interCopyFunction() const;
+    [[nodiscard]] bool interCopyLightuserdata() const;
+    [[nodiscard]] bool interCopyNil() const;
+    [[nodiscard]] bool interCopyNumber() const;
+    [[nodiscard]] bool interCopyString() const;
+    [[nodiscard]] bool interCopyTable() const;
+    [[nodiscard]] bool interCopyUserdata() const;
 
     public:
-    [[nodiscard]] bool inter_copy_one() const;
-    [[nodiscard]] InterCopyResult inter_copy_package() const;
-    [[nodiscard]] InterCopyResult inter_copy(int n_) const;
-    [[nodiscard]] InterCopyResult inter_move(int n_) const;
+    [[nodiscard]] InterCopyResult interCopy(int n_) const;
+    [[nodiscard]] InterCopyResult interCopyOne() const;
+    [[nodiscard]] InterCopyResult interCopyPackage() const;
+    [[nodiscard]] InterCopyResult interMove(int n_) const;
 };

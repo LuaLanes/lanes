@@ -1575,7 +1575,7 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 	// expects a C function on top of the source Lua stack
-	copy_func(lua_State *dest, lua_State* source)
+	copyFunction(lua_State *dest, lua_State* source)
 	{
 		// fetch function 'name' from source lookup database
 		char const* funcname = lookup_func_name(source, -1);

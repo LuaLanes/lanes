@@ -142,7 +142,7 @@ static LUAG_FUNC(thread_join)
             }
             if (
                 (_n > 0) &&
-                (InterCopyContext{ _lane->U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} }.inter_move(_n) != InterCopyResult::Success)
+                (InterCopyContext{ _lane->U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} }.interMove(_n) != InterCopyResult::Success)
             ) {                                                                                    // L_: lane results                                L2:
                 raise_luaL_error(L_, "tried to copy unsupported types");
             }
@@ -157,7 +157,7 @@ static LUAG_FUNC(thread_join)
             lua_pushnil(L_);                                                                       // L_: lane nil
             // even when _lane->errorTraceLevel != Minimal, if the error is not LUA_ERRRUN, the handler wasn't called, and we only have 1 error message on the stack ...
             InterCopyContext _c{ _lane->U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} };
-            if (_c.inter_move(_n) != InterCopyResult::Success) {                                   // L_: lane nil "err" [trace]                      L2:
+            if (_c.interMove(_n) != InterCopyResult::Success) {                                    // L_: lane nil "err" [trace]                      L2:
                 raise_luaL_error(L_, "tried to copy unsupported types: %s", lua_tostring(L_, -_n));
             }
             _ret = 1 + _n;
