@@ -758,7 +758,7 @@ local configure = function(settings_)
     -- Configure called so remove metatable from lanes
     lanesMeta.__metatable = nil -- unprotect the metatable
     setmetatable(lanes, nil) -- remove it
-    lanes.configure = nil -- no need to call configure() ever again
+    lanes.configure = function() return lanes end -- no need to configure anything again
 
     -- now we can configure Lanes core
     local settings = core.configure and core.configure(params_checker(settings_)) or core.settings

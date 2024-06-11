@@ -1,4 +1,4 @@
-local lanes = require 'lanes'.configure()
+local lanes = require "lanes"
 local q = lanes.linda()
 
 local pingpong = function(name, qr, qs, start)

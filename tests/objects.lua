@@ -5,7 +5,6 @@
 --
 
 local lanes = require "lanes"
-lanes.configure()
 
 local linda= lanes.linda()
 

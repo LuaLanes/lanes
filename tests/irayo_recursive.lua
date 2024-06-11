@@ -1,4 +1,4 @@
-local lanes = require "lanes".configure()
+local lanes = require "lanes"
 --
 -- Bugs filed by irayo Jul-2008
 --

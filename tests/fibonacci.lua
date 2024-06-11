@@ -12,7 +12,7 @@
 
 -- Need to say it's 'local' so it can be an upvalue
 --
-local lanes = require "lanes".configure()
+local lanes = require "lanes"
 
 local function WR(str)
     io.stderr:write( str.."\n" )

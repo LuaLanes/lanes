@@ -2,7 +2,6 @@
 -- Test from <ehynes at dharmagaia.com>
 --
 local lanes = require "lanes"
-lanes.configure()
 
 local SLEEP = function(...)
     local k, v = lanes.sleep(...)

@@ -7,7 +7,8 @@
 --      - ...
 --
 local config = { with_timers = false, strip_functions = false, internal_allocator = "libc"}
-local require_lanes_result_1, require_lanes_result_2 = require "lanes".configure(config)
+-- calling configure more than once should work (additional called are ignored)
+local require_lanes_result_1, require_lanes_result_2 = require "lanes".configure(config).configure()
 print("require_lanes_result:", require_lanes_result_1, require_lanes_result_2)
 local lanes = require_lanes_result_1
 
@@ -434,7 +435,7 @@ local function chunk2(linda)
     assert(config.strip_functions and info.short_src=="?" or string.match(info.short_src, "^.*basic.lua$"), "bad info.short_src")
     -- These vary so let's not be picky (they're there..)
     --
-    assert(info.linedefined == 419, "bad linedefined")   -- start of 'chunk2'
+    assert(info.linedefined == 420, "bad linedefined")   -- start of 'chunk2'
     assert(config.strip_functions and info.currentline==-1 or info.currentline > info.linedefined, "bad currentline")   -- line of 'debug.getinfo'
     assert(info.lastlinedefined > info.currentline, "bad lastlinedefined")   -- end of 'chunk2'
     local k,func= linda:receive("down")

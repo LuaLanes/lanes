@@ -3,7 +3,6 @@
 --
 
 local lanes = require "lanes"
-lanes.configure()
 
 local function ret(b)
     return b
