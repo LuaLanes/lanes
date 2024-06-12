@@ -94,7 +94,7 @@ static LUAG_FUNC(set_debug_threadname)
 // #################################################################################################
 
 //---
-// [...] | [nil, err_any, stack_tbl]= thread_join( lane_ud [, wait_secs=-1] )
+// [...] | [nil, err_any, stack_tbl]= lane:join([wait_secs])
 //
 //  timeout:   returns nil
 //  done:      returns return values (0..N)
@@ -114,7 +114,7 @@ static LUAG_FUNC(thread_join)
             raise_luaL_argerror(L_, 2, "duration cannot be < 0");
         }
 
-    } else if (!lua_isnoneornil(L_, 2)) { // alternate explicit "infinite timeout" by passing nil before the key
+    } else if (!lua_isnoneornil(L_, 2)) {
         raise_luaL_argerror(L_, 2, "incorrect duration type");
     }
 
@@ -179,7 +179,7 @@ static LUAG_FUNC(thread_join)
         LUA_ASSERT(L_, false);
         _ret = 0;
     }
-    _lane->close();
+    _lane->closeState();
     STACK_CHECK(L_, _ret);
     return _ret;
 }
@@ -707,7 +707,7 @@ static void lane_main(Lane* lane_)
         lane_->waiting_on = nullptr;  // just in case
         if (selfdestruct_remove(lane_)) { // check and remove (under lock!)
             // We're a free-running thread and no-one's there to clean us up.
-            lane_->close();
+            lane_->closeState();
             lane_->U->selfdestructMutex.lock();
             // done with lua_close(), terminal shutdown sequence may proceed
             lane_->U->selfdestructingCount.fetch_sub(1, std::memory_order_release);
@@ -793,7 +793,7 @@ static LUAG_FUNC(lane_gc)
         return 0;
     } else if (_lane->L) {
         // no longer accessing the Lua VM: we can close right now
-        _lane->close();
+        _lane->closeState();
         // just in case, but _lane will be freed soon so...
         _lane->debugName = std::string_view{ "<gc>" };
     }

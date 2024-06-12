@@ -129,7 +129,7 @@ class Lane
 
     CancelResult cancel(CancelOp op_, int hookCount_, std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_);
     void changeDebugName(int const nameIdx_);
-    void close() { lua_State* _L{ L }; L = nullptr; lua_close(_L); }
+    void closeState() { lua_State* _L{ L }; L = nullptr; lua_close(_L); }
     [[nodiscard]] std::string_view errorTraceLevelString() const;
     [[nodiscard]] int pushErrorHandler() const;
     [[nodiscard]] std::string_view pushErrorTraceLevel(lua_State* L_) const;

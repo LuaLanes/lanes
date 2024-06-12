@@ -16,7 +16,7 @@ inline void STACK_GROW(lua_State* L_, int n_)
 
 // #################################################################################################
 
-#define LUAG_FUNC(func_name) [[nodiscard]] int LG_##func_name(lua_State* const L_)
+#define LUAG_FUNC(func_name) int LG_##func_name(lua_State* const L_)
 
 // #################################################################################################
 
