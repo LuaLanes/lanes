@@ -105,26 +105,9 @@ std::string_view LindaFactory::moduleName() const
 
 DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* const L_) const
 {
-    std::string_view _linda_name{};
-    LindaGroup _linda_group{ 0 };
-    // should have a string and/or a number of the stack as parameters (name and group)
-    switch (lua_gettop(L_)) {
-    default: // 0
-        break;
-
-    case 1: // 1 parameter, either a name or a group
-        if (luaG_type(L_, -1) == LuaType::STRING) {
-            _linda_name = luaG_tostring(L_, -1);
-        } else {
-            _linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L_, -1)) };
-        }
-        break;
-
-    case 2: // 2 parameters, a name and group, in that order
-        _linda_name = luaG_tostring(L_, -2);
-        _linda_group = LindaGroup{ static_cast<int>(lua_tointeger(L_, -1)) };
-        break;
-    }
+    // we always expect name and group at the bottom of the stack (either can be nil). any extra stuff we ignore and keep unmodified
+    std::string_view _linda_name{ luaG_tostring(L_, 1) };
+    LindaGroup _linda_group{ static_cast<int>(lua_tointeger(L_, 2)) };
 
     // store in the linda the location of the script that created it
     if (_linda_name == "auto") {

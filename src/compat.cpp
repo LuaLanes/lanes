@@ -92,7 +92,7 @@ void* lua_newuserdatauv(lua_State* L_, size_t sz_, [[maybe_unused]] int nuvalue_
 // #################################################################################################
 
 // push on stack uservalue #n of full userdata at idx
-int lua_getiuservalue(lua_State* L_, int idx_, int n_)
+int lua_getiuservalue(lua_State* const L_, int const idx_, int const n_)
 {
     STACK_CHECK_START_REL(L_, 0);
     // full userdata can have only 1 uservalue before 5.4

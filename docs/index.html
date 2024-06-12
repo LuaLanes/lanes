@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 15-May-24, and applies to version <tt>4.0.0</tt>.
+				This document was revised on 12-Jun-24, and applies to version <tt>4.0.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -1196,13 +1196,16 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	h = lanes.linda([opt_name, [opt_group]])
+	h = lanes.linda([name],[group],[close_handler])
 </pre></td></tr></table>
 
 <p>
+	Arguments to <tt>lanes.linda()</tt>  can be provided in any order, as long as there is a single string, a single number, and a single callable value (all are optional).<br />
 	Converting the Linda to a string will yield the provided name prefixed by <tt>"Linda: "</tt>.<br />
 	If <tt>opt_name</tt> is omitted, it will evaluate to an hexadecimal number uniquely representing that Linda when the Linda is converted to a string. The value is the same as returned by <tt>linda:deep()</tt>.<br />
-	If <tt>opt_name</tt> is <tt>"auto"</tt>, Lanes will try to construct a name from the source location that called <tt>lanes.linda()</tt>. If that fails, the Linda name will be <tt>"&lt;unresolved&gt;"</tt>.
+	If <tt>opt_name</tt> is <tt>"auto"</tt>, Lanes will try to construct a name from the source location that called <tt>lanes.linda()</tt>. If that fails, the Linda name will be <tt>"&lt;unresolved&gt;"</tt>.<br />
+	If Lanes is configured with more than one Keeper state, <tt>group</tt> is mandatory.<br />
+	If the Linda is to-be-closed (Lua 5.4+), and a <tt>close_handler</tt> is provided, it will be called with all the provided arguments. For older Lua versions, its presence will cause an error.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>

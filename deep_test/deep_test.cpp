@@ -131,7 +131,8 @@ int luaD_new_deep(lua_State* L)
 {
     int const nuv{ static_cast<int>(luaL_optinteger(L, 1, 0)) };
     lua_settop(L, 0);
-    return MyDeepFactory::Instance.pushDeepUserdata(DestState{ L }, nuv);
+    MyDeepFactory::Instance.pushDeepUserdata(DestState{ L }, nuv);
+    return 1;
 }
 
 // #################################################################################################

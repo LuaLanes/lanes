@@ -295,7 +295,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
  *
  * Returns: 'proxy' userdata for accessing the deep data via 'DeepFactory::toDeep()'
  */
-int DeepFactory::pushDeepUserdata(DestState const L_, int const nuv_) const
+void DeepFactory::pushDeepUserdata(DestState const L_, int const nuv_) const
 {
     STACK_GROW(L_, 1);
     STACK_CHECK_START_REL(L_, 0);
@@ -322,7 +322,6 @@ int DeepFactory::pushDeepUserdata(DestState const L_, int const nuv_) const
 
     DeepFactory::PushDeepProxy(L_, _prelude, nuv_, LookupMode::LaneBody, L_);                      // proxy
     STACK_CHECK(L_, 1);
-    return 1;
 }
 
 // #################################################################################################

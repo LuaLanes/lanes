@@ -282,6 +282,33 @@ LUAG_FUNC(linda_cancel)
 
 // #################################################################################################
 
+#if LUA_VERSION_NUM >= 504
+// linda:__close(err|nil)
+static LUAG_FUNC(linda_close)
+{
+    [[maybe_unused]] Linda* const _linda{ ToLinda<false>(L_, 1) };                                 // L_: linda err|nil
+
+    // do we have a uservalue? it contains a callback
+    switch (lua_getiuservalue(L_, 1, 1)) {
+    case LUA_TTABLE: // callable table
+    case LUA_TUSERDATA: // callable userdata
+    case LUA_TFUNCTION:                                                                            // L_: linda err|nil on_close()
+        lua_insert(L_, 1);                                                                         // L_: on_close() linda err|nil
+        lua_call(L_, lua_gettop(L_) - 1, 0);                                                       // L_:
+        return 0;
+
+    case LUA_TNONE:
+    case LUA_TNIL:
+        return 0;
+
+    default:
+        raise_luaL_error(L_, "Invalid __close handler");
+    }
+}
+#endif // LUA_VERSION_NUM >= 504
+
+// #################################################################################################
+
 /*
  * string = linda:__concat( a, b)
  *
@@ -811,6 +838,9 @@ LUAG_FUNC(linda_towatch)
 namespace {
     namespace local {
         static luaL_Reg const sLindaMT[] = {
+#if LUA_VERSION_NUM >= 504
+            { "__close", LG_linda_close },
+#endif // LUA_VERSION_NUM >= 504
             { "__concat", LG_linda_concat },
             { "__tostring", LG_linda_tostring },
 #if HAVE_DECODA_SUPPORT()
@@ -837,31 +867,88 @@ namespace {
 // #################################################################################################
 
 /*
- * ud = lanes.linda( [name[,group]])
+ * ud = lanes.linda( [name[,group[,close_handler]]])
  *
  * returns a linda object, or raises an error if creation failed
  */
 LUAG_FUNC(linda)
 {
+    static constexpr int kLastArg{ LUA_VERSION_NUM >= 504 ? 3 : 2};
     int const _top{ lua_gettop(L_) };
+    luaL_argcheck(L_, _top <= kLastArg, _top, "too many arguments");
+    int _closeHandlerIdx{};
+    int _nameIdx{};
     int _groupIdx{};
-    luaL_argcheck(L_, _top <= 2, _top, "too many arguments");
-    if (_top == 1) {
-        LuaType const _t{ luaG_type(L_, 1) };
-        int const _nameIdx{ (_t == LuaType::STRING) ? 1 : 0 };
-        _groupIdx = (_t == LuaType::NUMBER) ? 1 : 0;
-        luaL_argcheck(L_, _nameIdx || _groupIdx, 1, "wrong parameter (should be a string or a number)");
-    } else if (_top == 2) {
-        luaL_checktype(L_, 1, LUA_TSTRING);
-        luaL_checktype(L_, 2, LUA_TNUMBER);
-        _groupIdx = 2;
+    for (int const _i : std::ranges::iota_view{ 1, _top + 1 }) {
+        switch (luaG_type(L_, _i)) {
+#if LUA_VERSION_NUM >= 504 // to-be-closed support starts with Lua 5.4
+        case LuaType::FUNCTION:
+            luaL_argcheck(L_, _closeHandlerIdx == 0, _i, "More than one __close handler");
+            _closeHandlerIdx = _i;
+            break;
+
+        case LuaType::USERDATA:
+        case LuaType::TABLE:
+            luaL_argcheck(L_, _closeHandlerIdx == 0, _i, "More than one __close handler");
+            luaL_argcheck(L_, luaL_getmetafield(L_, _i, "__call") != 0, _i, "__close handler is not callable");
+            lua_pop(L_, 1); // luaL_getmetafield() pushed the field, we need to pop it
+            _closeHandlerIdx = _i;
+            break;
+#endif // LUA_VERSION_NUM >= 504
+
+        case LuaType::STRING:
+            luaL_argcheck(L_, _nameIdx == 0, _i, "More than one name");
+            _nameIdx = _i;
+            break;
+
+        case LuaType::NUMBER:
+            luaL_argcheck(L_, _groupIdx == 0, _i, "More than one group");
+            _groupIdx = _i;
+            break;
+
+        default:
+            luaL_argcheck(L_, false, _i, "Bad argument type (should be a string, a number, or a callable type)");
+        }
     }
+ 
     int const _nbKeepers{ Universe::Get(L_)->keepers.getNbKeepers() };
     if (!_groupIdx) {
-        luaL_argcheck(L_, _nbKeepers < 2, 0, "there are multiple keepers, you must specify a group");
+        luaL_argcheck(L_, _nbKeepers < 2, 0, "Group is mandatory in multiple Keeper scenarios");
     } else {
         int const _group{ static_cast<int>(lua_tointeger(L_, _groupIdx)) };
-        luaL_argcheck(L_, _group >= 0 && _group < _nbKeepers, _groupIdx, "group out of range");
+        luaL_argcheck(L_, _group >= 0 && _group < _nbKeepers, _groupIdx, "Group out of range");
     }
-    return LindaFactory::Instance.pushDeepUserdata(DestState{ L_ }, 0);
+
+    // done with argument checking, let's proceed
+    if constexpr (LUA_VERSION_NUM >= 504) {
+        // make sure we have kMaxArgs arguments on the stack for processing, with name, group, and handler, in that order
+        lua_settop(L_, kLastArg);                                                                  // L_: a b c
+        // If either index is 0, lua_settop() adjusted the stack with a nil in slot kLastArg
+        lua_pushvalue(L_, _closeHandlerIdx ? _closeHandlerIdx : kLastArg);                         // L_: a b c close_handler
+        lua_pushvalue(L_, _groupIdx ? _groupIdx : kLastArg);                                       // L_: a b c close_handler group
+        lua_pushvalue(L_, _nameIdx ? _nameIdx : kLastArg);                                         // L_: a b c close_handler group name
+        lua_replace(L_, 1);                                                                        // L_: name b c close_handler group
+        lua_replace(L_, 2);                                                                        // L_: name group c close_handler
+        lua_replace(L_, 3);                                                                        // L_: name group close_handler
+
+        // if we have a __close handler, we need a uservalue slot to store it
+        int const _nuv{ _closeHandlerIdx ? 1 : 0 };
+        LindaFactory::Instance.pushDeepUserdata(DestState{ L_ }, _nuv);                            // L_: name group close_handler linda
+        if (_closeHandlerIdx != 0) {
+            lua_replace(L_, 2);                                                                    // L_: name linda close_handler
+            lua_setiuservalue(L_, 2, 1);                                                           // L_: name linda
+        }
+        // depending on whether we have a handler or not, the stack is not in the same state at this point
+        // just make sure we have our Linda at the top
+        LUA_ASSERT(L_, ToLinda<true>(L_, -1));
+        return 1;
+    } else { // no to-be-closed support
+        // ensure we have name, group in that order on the stack
+        if (_nameIdx > _groupIdx) {
+            lua_insert(L_, 1);                                                                     // L_: name group
+        }
+        LindaFactory::Instance.pushDeepUserdata(DestState{ L_ }, 0);                               // L_: name group linda
+        return 1;
+    }
+
 }

@@ -25,6 +25,7 @@ CHANGE 2: BGe 11-Jun-24
             - providing "auto" as name when constructing a Linda cause Lanes to provide a name built from the source location of the construction.
             - specifying a group to lanes.linda() is mandatory when Lanes is configured with user Keepers.
             - linda:deep() result no longer contains the raw C pointer of the Linda object.
+            - Lindas have a __close metamethod that calls any provided suitable handler at Linda creation.
         - Lane generator settings:
             - error_trace_level added. Replaces the global verbose_errors setting.
             - name added. Can be used to set the name early (before the lane body calls set_debug_threadname()).
