@@ -123,26 +123,32 @@ KeyUD* KeyUD::GetPtr(KeeperState const K_, int idx_)
 // #################################################################################################
 
 // in: fifo
-// out: ...|nothing
-// pops the fifo, push as much data as is available (up to the specified count) without consuming it
+// out: bool ...
+// pops the fifo, push bool + as much data as is available (up to the specified count) without consuming it
+// bool is true if the requested count was served, else false
 void KeyUD::peek(KeeperState const K_, int const count_)
 {
-    LUA_ASSERT(K_, KeyUD::GetPtr(K_, -1) == this);
+    STACK_CHECK_START_ABS(K_, 1);
+    LUA_ASSERT(K_, KeyUD::GetPtr(K_, -1) == this);                                                 // K_: KeyUD
     if (count <= 0) { // no data is available
         lua_pop(K_, 1);                                                                            // K_:
+        lua_pushinteger(K_, 0);                                                                    // K_: 0
         return;
     }
 
-    // read <count_> value off the fifo
+    // read <count_> value off the fifo, if possible
     prepareAccess(K_, -1);                                                                         // K_: fifo
-    int const _at{ lua_gettop(K_) };
     int const _count{ std::min(count_, count) };
+    lua_pushinteger(K_, _count);                                                                   // K_: fifo _count
+    lua_insert(K_, 1);                                                                             // K_: _count fifo
+    STACK_CHECK(K_, 2);
     STACK_GROW(K_, _count);
     for (int const _i : std::ranges::iota_view{ 1, _count }) { // push val2 to valN
-        lua_rawgeti(K_, 1, first + _i);                                                            // K_: fifo val2..N
+        lua_rawgeti(K_, 2, first + _i);                                                            // K_: _count fifo val2..N
     }
-    lua_rawgeti(K_, 1, first); // push val1                                                        // K_: fifo val2..N val1
-    lua_replace(K_, _at); // replace fifo by val1 to get the output properly ordered               // K_: val1..N
+    lua_rawgeti(K_, 2, first); // push val1                                                        // K_: _count fifo val2..N val1
+    lua_replace(K_, 2); // replace fifo by val1 to get the output properly ordered                 // K_: _count val1..N
+    STACK_CHECK(K_, 1 + _count);
 }
 
 // #################################################################################################
@@ -418,7 +424,7 @@ int keepercall_destruct(lua_State* const L_)
 // #################################################################################################
 
 // in: linda_ud key [count]
-// out: at most <count> values
+// out: bool + at most <count> values
 int keepercall_get(lua_State* const L_)
 {
     KeeperState const _K{ L_ };
@@ -433,11 +439,13 @@ int keepercall_get(lua_State* const L_)
     lua_remove(_K, 1);                                                                             // _K: KeyUD
     KeyUD* const _key{ KeyUD::GetPtr(_K, -1) };
     if (_key != nullptr) {
-        _key->peek(_K, _count);                                                                    // _K: val...
+        _key->peek(_K, _count);                                                                    // _K: N val...
     } else {
         // no fifo was ever registered for this key, or it is empty
         lua_pop(_K, 1);                                                                            // _K:
+        lua_pushinteger(_K, 0);                                                                    // _K: 0
     }
+    LUA_ASSERT(_K, lua_isnumber(_K, 1));
     return lua_gettop(_K);
 }
 
@@ -462,13 +470,10 @@ int keepercall_limit(lua_State* const L_)
     }
     // remove any clutter on the stack
     lua_settop(_K, 0);                                                                             // _K:
-    if (_key->changeLimit(_limit)) {
-        // return true if we decide that blocked threads waiting to write on that key should be awakened
-        // this is the case if we detect the key was full but it is no longer the case
-        lua_pushboolean(_K, 1);                                                                    // _K: true
-    }
-    // return 0 or 1 value
-    return lua_gettop(_K);
+    // return true if we decide that blocked threads waiting to write on that key should be awakened
+    // this is the case if we detect the key was full but it is no longer the case
+    lua_pushboolean(_K, _key->changeLimit(_limit) ? 1 : 0);                                        // _K: bool
+    return 1;
 }
 
 // #################################################################################################
@@ -570,7 +575,7 @@ int keepercall_send(lua_State* const L_)
 // #################################################################################################
 
 // in: linda key [val...]
-// out: true if the linda was full but it's no longer the case, else nothing
+// out: true if the linda was full but it's no longer the case, else false
 int keepercall_set(lua_State* const L_)
 {
     KeeperState const _K{ L_ };
@@ -593,7 +598,7 @@ int keepercall_set(lua_State* const L_)
                 lua_pushnil(_K);                                                                   // _K: KeysDB key nil
                 lua_rawset(_K, -3);                                                                // _K: KeysDB
             } else {
-                lua_remove(_K, -2);                                                                // _K: KeysDB KeyUD
+                lua_remove(_K, -2); // KeyUD::reset expects KeyUD at the top                       // _K: KeysDB KeyUD
                 // we create room if the KeyUD was full but it is no longer the case
                 _should_wake_writers = _key->reset(_K);
             }
@@ -619,7 +624,9 @@ int keepercall_set(lua_State* const L_)
         lua_replace(_K, -2 - _count);                                                              // _K: KeysDB KeyUD val...
         [[maybe_unused]] bool const _pushed{ _key->push(_K, _count) };                             // _K: KeysDB
     }
-    return _should_wake_writers ? (lua_pushboolean(_K, 1), 1) : 0;
+    // stack isn't the same here depending on what we did before, but that's not a problem
+    lua_pushboolean(_K, _should_wake_writers ? 1 : 0);                                             // _K: ... bool
+    return 1;
 }
 
 // #################################################################################################

@@ -38,7 +38,8 @@ if not next(which_tests) or which_tests.genlock then
 
 	-- check that cancelled lindas give cancel_error as they should
 	linda:cancel()
-	assert( linda:get( "empty") == lanes.cancel_error)
+	local _status, _err = linda:get( "empty")
+	assert(_status == nil and _err == lanes.cancel_error)
 	assert( lanes.genlock( linda, "any", 1) == lanes.cancel_error)
 	assert( lanes.genatomic( linda, "any") == lanes.cancel_error)
 
@@ -102,14 +103,14 @@ local laneBody = function( mode_, payload_)
 			io.stdout:write( "			lane busy waiting ... ")
 			for i = 1, payload_ do
 				-- force a non-jitable call
-				local a = linda:get( "val")
+				local _, a = linda:get( "val")
 				a = a * 2
 			end
 			print( "again?")
 		elseif mode_ == "busy" then
 			-- busy wait mode in pure Lua code
 			io.stdout:write( "			lane busy waiting ... ")
-			local a =  linda:get( "val")
+			local _, a = linda:get( "val")
 			for i = 1, payload_ do
 				a = a * 2
 				a = math.sin( a) * math.sin( a) + math.cos( a) * math.cos( a) -- aka 1

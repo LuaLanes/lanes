@@ -252,21 +252,21 @@ assert(type(linda) == "userdata" and tostring(linda) == "Linda: communications")
 
 WR "test linda:get/set..."
 linda:set("<->", "x", "y", "z")
-local x,y,z = linda:get("<->", 1)
-assert(x == "x" and y == nil and z == nil)
-local x,y,z = linda:get("<->", 2)
-assert(x == "x" and y == "y" and z == nil)
-local x,y,z = linda:get("<->", 3)
-assert(x == "x" and y == "y" and z == "z")
-local x,y,z,w = linda:get("<->", 4)
-assert(x == "x" and y == "y" and z == "z" and w == nil)
+local b,x,y,z = linda:get("<->", 1)
+assert(b == 1 and x == "x" and y == nil and z == nil)
+local b,x,y,z = linda:get("<->", 2)
+assert(b == 2 and x == "x" and y == "y" and z == nil)
+local b,x,y,z = linda:get("<->", 3)
+assert(b == 3 and x == "x" and y == "y" and z == "z")
+local b,x,y,z,w = linda:get("<->", 4)
+assert(b == 3 and x == "x" and y == "y" and z == "z" and w == nil)
 local k, x = linda:receive("<->")
 assert(k == "<->" and x == "x")
 local k,y,z = linda:receive(linda.batched, "<->", 2)
 assert(k == "<->" and y == "y" and z == "z")
 linda:set("<->")
-local x,y,z,w = linda:get("<->", 4)
-assert(x == nil and y == nil and z == nil and w == nil)
+local b,x,y,z,w = linda:get("<->", 4)
+assert(b == 0 and x == nil and y == nil and z == nil and w == nil)
 WR "ok\n"
 
 local function PEEK(...) return linda:get("<-", ...) end
@@ -282,7 +282,7 @@ SEND(setmetatable({"should be ignored"},{__lanesconvert=lanes.null})); WR("main 
 for i=1,40 do
     WR "."
     SLEEP(0.0001)
-    assert(PEEK() == nil)    -- nothing coming in, yet
+    assert(PEEK() == 0)    -- nothing coming in, yet
 end
 SEND(nil);  WR("\nmain ", "nil sent\n")
 
@@ -306,7 +306,7 @@ assert(null==nil)
 local out_t = RECEIVE();   WR(type(out_t).." received\n")
 assert(tables_match(out_t, {'a','b','c',d=10}))
 
-assert(PEEK() == nil)
+assert(PEEK() == 0)
 SEND(4)
 
 local complex_table = RECEIVE(); WR(type(complex_table).." received\n")

@@ -11,7 +11,8 @@ if true then
 	print "#### coro set"
 	local coro = coroutine.create(function() end)
 	print(pcall(linda.set, linda, 'test', coro))
-	assert(linda:get("test") == nil)
+	local _count, _val = linda:get("test")
+	assert(_count == 0 and _val == nil)
 	print "OK"
 end
 
@@ -19,7 +20,8 @@ if true then
 	print "\n#### reserved sentinels"
 	print(pcall(linda.set, linda, lanes.cancel_error))
 	print(pcall(linda.set, linda, linda.batched))
-	assert(linda:get("test") == nil)
+	local _count, _val = linda:get("test")
+	assert(_count == 0 and _val == nil)
 	print "OK"
 end
 
@@ -33,7 +35,8 @@ if true then
 	print(pcall(linda.set, linda, 'test', true, nil, fun))
 	-- read back the contents
 	local k,b,n,f = linda:receive(linda.batched, 'test', 3)
-	assert(linda:get("test") == nil)
+	local _count, _val = linda:get("test")
+	assert(_count == 0 and _val == nil)
 	-- check they are ok
 	print(k, b, n)
 	f()
@@ -70,7 +73,8 @@ if true then
 	print "\n#### coro send"
 	local coro = coroutine.create(function() end)
 	print(pcall(linda.send, linda, 'test', coro))
-	assert(linda:get("test") == nil)
+	local _count, _val = linda:get("test")
+	assert(_count == 0 and _val == nil)
 	print "OK"
 end
 

@@ -69,9 +69,10 @@ do
 
     do
 
-        local l_out <close> = l:get("trip")
+        local _, l_out <close> = l:get("trip")
     end
-    assert(l_in:get("closed") == true)
+    local _count, _closed = l_in:get("closed")
+    assert(_count == 1 and _closed == true)
 end
 
 -- #################################################################################################
@@ -100,7 +101,7 @@ do
     local lane_body = function(l_arg_)
         WR "In lane body"
         -- linda obtained through a linda
-        local l_out <close> = l:get("trip")
+        local _count, l_out <close> = l:get("trip")
         -- linda from arguments
         local l_arg <close> = l_arg_
         return true
@@ -108,7 +109,8 @@ do
 
     local close_handler_f = function(linda_, err_)
         WR("f closing ", linda_)
-        linda_:set("closed", (linda_:get("closed") or 0) + 1)
+        local _count, _closed = linda_:get("closed")
+        linda_:set("closed", (_closed or 0) + 1)
     end
     local l_in = lanes.linda("voyager", close_handler_f)
     l:set("trip", l_in)
@@ -116,7 +118,8 @@ do
     do
     lanes.gen("*", lane_body)(l_in):join()
     end
-    assert(l_in:get("closed") == 2)
+    local _count, _closed = l_in:get("closed")
+    assert(_count == 1 and _closed == 2)
 end
 
 WR "================================================================================================"

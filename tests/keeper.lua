@@ -108,8 +108,9 @@ if true then
 
     local function keeper(linda)
         local mt= {
-            __index= function( _, key )
-                return linda:get( key )
+            __index= function(_, key)
+                local _count, _val = linda:get(key)
+                return _val
             end,
             __newindex= function( _, key, val ) 
                 linda:set( key, val )

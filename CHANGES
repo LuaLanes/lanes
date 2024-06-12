@@ -18,13 +18,14 @@ CHANGE 2: BGe 11-Jun-24
             - new function lanes.finally(). Installs a function that gets called at Lanes shutdown.
             - lanes have a __close metamethod that calls join().
             - lanes can no longer be "killed" by hard-stopping their thread without any resource cleanup (see lane:cancel()).
-            - lane:join(), linda:receive(), linda:send() return nil, error in case of problem.
+            - lane:join() returns nil, error in case of problem.
             - lane function body must return a non-nil first value on success if lane is waited upon with lane:join().
             - lanes.sleep() accept a new argument "indefinitely" to block forever (until hard cancellation is received).
         - Lindas:
             - providing "auto" as name when constructing a Linda cause Lanes to provide a name built from the source location of the construction.
             - specifying a group to lanes.linda() is mandatory when Lanes is configured with user Keepers.
             - linda:deep() result no longer contains the raw C pointer of the Linda object.
+            - linda :receive(), :send(), :get(), :set(), :limit() return nil, error in case of problem. Returned values in case of success change too.
             - Lindas have a __close metamethod that calls any provided suitable handler at Linda creation.
         - Lane generator settings:
             - error_trace_level added. Replaces the global verbose_errors setting.

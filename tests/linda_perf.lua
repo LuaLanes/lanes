@@ -18,22 +18,22 @@ local finalizer = function(err, stk)
 end
 
 -- #################################################################################################
-if false then
+if true then
 	do
 		print "############################################ tests get/set"
 		-- linda:get throughput
-		local l = lanes.linda("get/set")
+		local l = lanes.linda("get/set", 1)
 		local batch = {}
 		for i = 1,1000 do
 			table.insert(batch, i)
 		end
 		for _,size in ipairs{1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987 } do
 			l:set("<->", table_unpack(batch))
-			local count = math.floor(20000000/size)
+			local count = math.floor(20000/math.sqrt(size))
 			print("START", "get("..size..") " .. count, " times")
 			local t1 = lanes.now_secs()
-			for i = 1, 2000000/math.sqrt(size) do
-				l:get("<->", size)
+			for i = 1, count do
+				assert (l:get("<->", size) == size)
 			end
 			print("DURATION = " .. lanes.now_secs() - t1 .. "\n")
 		end

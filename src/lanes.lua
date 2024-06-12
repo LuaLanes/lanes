@@ -400,7 +400,8 @@ local configure_timers = function()
 
     -- Timer lane; initialize only on the first 'require "lanes"' instance (which naturally has 'table' always declared)
     local first_time_key = "first time"
-    local first_time = timerLinda:get(first_time_key) == nil
+    local _, _first_time_val = timerLinda:get(first_time_key)
+    local first_time = (_first_time_val == nil)
     timerLinda:set(first_time_key, true)
     if first_time then
 
@@ -490,8 +491,8 @@ local configure_timers = function()
                     --
                     local t2 = t1[key_]
                     if not t2 then
-                        t2= {}
-                        t1[key_]= t2
+                        t2 = {}
+                        t1[key_] = t2
                     end
 
                     t2[1] = wakeup_at_
@@ -507,10 +508,10 @@ local configure_timers = function()
                 local now = now_secs()
                 local next_wakeup
 
-                for linda_deep,t1 in pairs(collection) do
-                    for key,t2 in pairs(t1) do
+                for linda_deep, t1 in pairs(collection) do
+                    for key, t2 in pairs(t1) do
                         --
-                        if key==linda_deep then
+                        if key == linda_deep then
                             -- no 'continue' in Lua :/
                         else
                             -- 't2': { wakeup_at_secs [,period_secs] }
@@ -519,10 +520,10 @@ local configure_timers = function()
                             local period= t2[2]     -- may be 'nil'
 
                             if wakeup_at <= now then
-                                local linda= t1[linda_deep]
+                                local linda = t1[linda_deep]
                                 assert(linda)
 
-                                linda:set(key, now )
+                                linda:set(key, now)
 
                                 -- 'pairs()' allows the values to be modified (and even
                                 -- removed) as far as keys are not touched
@@ -530,13 +531,13 @@ local configure_timers = function()
                                 if not period then
                                     -- one-time timer; gone
                                     --
-                                    t1[key]= nil
-                                    wakeup_at= nil   -- no 'continue' in Lua :/
+                                    t1[key] = nil
+                                    wakeup_at = nil   -- no 'continue' in Lua :/
                                 else
                                     -- repeating timer; find next wakeup (may jump multiple repeats)
                                     --
                                     repeat
-                                            wakeup_at= wakeup_at+period
+                                        wakeup_at= wakeup_at+period
                                     until wakeup_at > now
 
                                     t2[1]= wakeup_at
@@ -544,7 +545,7 @@ local configure_timers = function()
                             end
 
                             if wakeup_at and ((not next_wakeup) or (wakeup_at < next_wakeup)) then
-                                next_wakeup= wakeup_at
+                                next_wakeup = wakeup_at
                             end
                         end
                     end -- t2 loop
@@ -675,7 +676,12 @@ local cancel_error
 local genlock = function(linda_, key_, N)
     -- clear existing data and set the limit
     N = N or 1
-    if linda_:set(key_) == cancel_error or linda_:limit(key_, N) == cancel_error then
+    local _status, _err = linda_:set(key_)
+    if _err == cancel_error then
+        return cancel_error
+    end
+    local _status, _err = linda_:limit(key_, N)
+    if _err == cancel_error then
         return cancel_error
     end
 
@@ -723,7 +729,12 @@ end -- genlock
 --
 local genatomic = function(linda_, key_, initial_val_)
     -- clears existing data (also queue). the slot may contain the stored value, and an additional boolean value
-    if linda_:limit(key_, 2) == cancel_error or linda_:set(key_, initial_val_ or 0.0) == cancel_error then
+    local _status, _err = linda_:limit(key_, 2)
+    if _err == cancel_error then
+        return cancel_error
+    end
+    local _status, _err = linda_:set(key_, initial_val_ or 0.0)
+    if _err == cancel_error then
         return cancel_error
     end
 
@@ -734,7 +745,7 @@ local genatomic = function(linda_, key_, initial_val_)
         if _err == cancel_error then
             return cancel_error
         end
-        local val = linda_:get(key_)
+        local _, val = linda_:get(key_)
         if val ~= cancel_error then
             val = val + (diff_ or 1.0)
             -- set() releases the lock by emptying queue

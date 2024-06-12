@@ -1209,13 +1209,14 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	true|(nil,[lanes.cancel_error|"timeout"]) = h:limit(key, n_uint)
+	bool|(nil,[lanes.cancel_error|"timeout"]) = h:limit(key, n_uint)
 </pre></td></tr></table>
 
 <p>
 	By default, queue sizes are unlimited but limits can be enforced using the <tt>limit()</tt> method. This can be useful to balance execution speeds in a producer/consumer scenario. <tt>nil</tt> removes the limit.<br />
 	A limit of 0 is allowed to block everything.<br />
-	If the key was full but the limit change added some room, <tt>limit()</tt> returns <tt>true</tt> and the Linda is signalled so that <tt>send()</tt>-blocked threads are awakened.<br />
+	If the key was full but the limit change added some room, <tt>limit()</tt> returns <tt>true</tt> and the Linda is signalled so that <tt>send()</tt>-blocked threads are awakened, else the return value is <tt>false</tt>.<br />
+	Or <tt>nil, lanes.cancel_error</tt> in case of cancellation, of course.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
@@ -1276,15 +1277,19 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	true|lanes.cancel_error = linda_h:set(key [, val [, ...]])
+	true|nil,lanes.cancel_error = linda_h:set(key [, val [, ...]])
 
-	[[val [, ...]]|lanes.cancel_error] = linda_h:get(key [, count = 1])
+	[number,[val [, ...]]|nil,lanes.cancel_error] = linda_h:get(key [, count = 1])
 </pre></td></tr></table>
 
 <p>
 	The table access methods are for accessing a slot without queuing or consuming. They can be used for making shared tables of storage among the lanes.<br />
 	Writing to a slot never blocks because it ignores the limit. It overwrites existing value and clears any possible queued entries.<br />
-	Reading doesn't block either because <tt>get()</tt> returns whatever is available (which can be nothing), up to the specified count.<br />
+	Reading doesn't block either because <tt>get()</tt> returns:
+	<ul>
+		<li><tt>nil, lanes.cancel_error</tt> in case of cancellation.</li>
+		<li><tt>number, val...</tt> where number is the actual count of items obtained from the linda (can be 0).</li>
+	</ul>
 	Table access and <tt>send()</tt>/<tt>receive()</tt> can be used together; reading a slot essentially peeks the next outcoming value of a queue.
 </p>
 

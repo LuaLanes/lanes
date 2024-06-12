@@ -393,7 +393,7 @@ LUAG_FUNC(linda_dump)
 // #################################################################################################
 
 /*
- * [val [, ...]] = linda_get( linda_ud, key_num|str|bool|lightuserdata [, count = 1])
+ * count, [val [, ...]]|nil,cancel_error = linda:get(key_num|str|bool|lightuserdata [, count = 1])
  *
  * Get one or more values from Linda.
  */
@@ -412,9 +412,10 @@ LUAG_FUNC(linda_get)
             Keeper* const _keeper{ _linda->whichKeeper() };
             _pushed = keeper_call(_keeper->K, KEEPER_API(get), L_, _linda, 2);
         } else { // linda is cancelled
-            // do nothing and return lanes.cancel_error
+            // do nothing and return nil,lanes.cancel_error
+            lua_pushnil(L_);
             kCancelError.pushKey(L_);
-            _pushed.emplace(1);
+            _pushed.emplace(2);
         }
         // an error can be raised if we attempt to read an unregistered function
         return OptionalValue(_pushed, L_, "tried to copy unsupported types");
@@ -425,7 +426,7 @@ LUAG_FUNC(linda_get)
 // #################################################################################################
 
 /*
- * [true] = linda_limit( linda_ud, key_num|str|bool|lightuserdata, [int])
+ * [bool]|nil,cancel_error = linda:limit(key_num|str|bool|lightuserdata, [int])
  *
  * Set limit to 1 Linda keys.
  * Optionally wake threads waiting to write on the linda, in case the limit enables them to do so
@@ -450,15 +451,15 @@ LUAG_FUNC(linda_limit)
         if (_linda->cancelRequest == CancelRequest::None) {
             Keeper* const _keeper{ _linda->whichKeeper() };
             _pushed = keeper_call(_keeper->K, KEEPER_API(limit), L_, _linda, 2);
-            LUA_ASSERT(L_, _pushed.has_value() && (_pushed.value() == 0 || _pushed.value() == 1)); // no error, optional boolean value saying if we should wake blocked writer threads
-            if (_pushed.value() == 1) {
-                LUA_ASSERT(L_, luaG_type(L_, -1) == LuaType::BOOLEAN && lua_toboolean(L_, -1) == 1);
+            LUA_ASSERT(L_, _pushed.has_value() && (_pushed.value() == 1) && luaG_type(L_, -1) == LuaType::BOOLEAN); // no error, boolean value saying if we should wake blocked writer threads
+            if (lua_toboolean(L_, -1)) {
                 _linda->readHappened.notify_all(); // To be done from within the 'K' locking area
             }
         } else { // linda is cancelled
-            // do nothing and return lanes.cancel_error
+            // do nothing and return nil,lanes.cancel_error
+            lua_pushnil(L_);
             kCancelError.pushKey(L_);
-            _pushed.emplace(1);
+            _pushed.emplace(2);
         }
         // propagate pushed boolean if any
         return _pushed.value();
@@ -470,14 +471,13 @@ LUAG_FUNC(linda_limit)
 
 /*
  * 2 modes of operation
- * [val, key]= linda_receive( linda_ud, [timeout_secs_num=nil], key_num|str|bool|lightuserdata [, ...] )
+ * [val, key]= linda:receive([timeout_secs_num=nil], key_num|str|bool|lightuserdata [, ...] )
  * Consumes a single value from the Linda, in any key.
  * Returns: received value (which is consumed from the slot), and the key which had it
 
  * [val1, ... valCOUNT]= linda_receive( linda_ud, [timeout_secs_num=-1], linda.batched, key_num|str|bool|lightuserdata, min_COUNT[, max_COUNT])
  * Consumes between min_COUNT and max_COUNT values from the linda, from a single key.
  * returns the actual consumed values, or nil if there weren't enough values to consume
- *
  */
 LUAG_FUNC(linda_receive)
 {
@@ -763,7 +763,7 @@ LUAG_FUNC(linda_send)
 // #################################################################################################
 
 /*
- * [true|lanes.cancel_error] = linda_set( linda_ud, key_num|str|bool|lightuserdata [, value [, ...]])
+ * [true|nil,lanes.cancel_error] = linda:set(key_num|str|bool|lightuserdata [, value [, ...]])
  *
  * Set one or more value to Linda. Ignores limits.
  *
@@ -773,7 +773,7 @@ LUAG_FUNC(linda_set)
 {
     auto set = [](lua_State* L_) {
         Linda* const _linda{ ToLinda<false>(L_, 1) };
-        bool const _has_value{ lua_gettop(L_) > 2 };
+        bool const _has_data{ lua_gettop(L_) > 2 };
         // make sure the key is of a valid type (throws an error if not the case)
         check_key_types(L_, 2, 2);
 
@@ -782,22 +782,22 @@ LUAG_FUNC(linda_set)
         if (_linda->cancelRequest == CancelRequest::None) {
             _pushed = keeper_call(_keeper->K, KEEPER_API(set), L_, _linda, 2);
             if (_pushed.has_value()) { // no error?
-                LUA_ASSERT(L_, _pushed.value() == 0 || _pushed.value() == 1);
+                LUA_ASSERT(L_, _pushed.value() == 1 && luaG_type(L_, -1) == LuaType::BOOLEAN);
 
-                if (_has_value) {
+                if (_has_data) {
                     // we put some data in the slot, tell readers that they should wake
                     _linda->writeHappened.notify_all(); // To be done from within the 'K' locking area
                 }
-                if (_pushed.value() == 1) {
+                if (lua_toboolean(L_, -1)) {
                     // the key was full, but it is no longer the case, tell writers they should wake
-                    LUA_ASSERT(L_, luaG_type(L_, -1) == LuaType::BOOLEAN && lua_toboolean(L_, -1) == 1);
                     _linda->readHappened.notify_all(); // To be done from within the 'K' locking area
                 }
             }
         } else { // linda is cancelled
-            // do nothing and return lanes.cancel_error
+            // do nothing and return nil,lanes.cancel_error
+            lua_pushnil(L_);
             kCancelError.pushKey(L_);
-            _pushed.emplace(1);
+            _pushed.emplace(2);
         }
 
         // must trigger any error after keeper state has been released

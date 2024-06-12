@@ -94,8 +94,11 @@ lanes.timer( linda, T2, 0 )
 linda:receive( 0, T1 )    -- clear out; there could be one tick left
 linda:receive( 0, T2 )
 
-assert( linda:get(T1) == nil )
-assert( linda:get(T2) == nil )
+local _count, _val = linda:get(T1)
+assert(_count == 0 and _val == nil)
+
+local _count, _val = linda:get(T2)
+assert(_count == 0 and _val == nil)
 
 PRINT "...making sure no ticks are coming..."
 
