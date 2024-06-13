@@ -166,7 +166,7 @@ struct Wrap
 // #################################################################################################
 
 template <int VERSION>
-struct Wrap<VERSION, typename std::enable_if<VERSION == 503>::type>
+struct Wrap<VERSION, typename std::enable_if_t<VERSION == 503>>
 {
     static inline int lua_dump(lua_State* L_, lua_Writer writer_, void* data_, int strip_)
     {
@@ -200,7 +200,7 @@ struct Wrap<VERSION, typename std::enable_if<VERSION == 503>::type>
 // #################################################################################################
 
 template <int VERSION>
-struct Wrap<VERSION, typename std::enable_if<VERSION == 502>::type>
+struct Wrap<VERSION, typename std::enable_if_t<VERSION == 502>>
 {
     static inline int lua_dump(lua_State* const L_, lua_Writer const writer_, void* const data_, [[maybe_unused]] int const strip_)
     {
@@ -235,7 +235,7 @@ struct Wrap<VERSION, typename std::enable_if<VERSION == 502>::type>
 // #################################################################################################
 
 template <int VERSION>
-struct Wrap<VERSION, typename std::enable_if<VERSION == 501>::type>
+struct Wrap<VERSION, typename std::enable_if_t<VERSION == 501>>
 {
     static inline int lua_dump(lua_State* const L_, lua_Writer const writer_, void* const data_, [[maybe_unused]] int const strip_)
     {

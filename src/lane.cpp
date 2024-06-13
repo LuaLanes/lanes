@@ -671,17 +671,23 @@ static void PrepareLaneHelpers(Lane* lane_)
 
 // #################################################################################################
 
-static void lane_main(Lane* lane_)
+static void lane_main(Lane* const lane_)
 {
-    lua_State* const _L{ lane_->L };
     // wait until the launching thread has finished preparing L
+#ifndef __PROSPERO__
     lane_->ready.wait();
+#else // __PROSPERO__
+    while (!lane_->ready._My_flag) {
+        std::this_thread::yield();
+    }
+#endif // __PROSPERO__
+
+    lua_State* const _L{ lane_->L };
     LuaError _rc{ LuaError::ERRRUN };
     if (lane_->status == Lane::Pending) { // nothing wrong happened during preparation, we can work
         // At this point, the lane function and arguments are on the stack, possibly preceded by the error handler
         int const _errorHandlerCount{ lane_->errorTraceLevel == Lane::Minimal ? 0 : 1};
         int const _nargs{ lua_gettop(_L) - 1 - _errorHandlerCount };
-        DEBUGSPEW_CODE(Universe* _U = Universe::Get(_L));
         lane_->status = Lane::Running; // Pending -> Running
 
         PrepareLaneHelpers(lane_);
@@ -695,11 +701,11 @@ static void lane_main(Lane* lane_)
         // in case of error and if it exists, fetch stack trace from registry and push it
         push_stack_trace(_L, lane_->errorTraceLevel, _rc, 1);                                      // L: retvals|error [trace]
 
-        DEBUGSPEW_CODE(DebugSpew(_U) << "Lane " << _L << " body: " << GetErrcodeName(_rc) << " (" << (kCancelError.equals(_L, 1) ? "cancelled" : luaG_typename(_L, 1)) << ")" << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(lane_->U) << "Lane " << _L << " body: " << GetErrcodeName(_rc) << " (" << (kCancelError.equals(_L, 1) ? "cancelled" : luaG_typename(_L, 1)) << ")" << std::endl);
         //  Call finalizers, if the script has set them up.
         //
         LuaError const _rc2{ run_finalizers(_L, lane_->errorTraceLevel, _rc) };
-        DEBUGSPEW_CODE(DebugSpew(_U) << "Lane " << _L << " finalizer: " << GetErrcodeName(_rc2) << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(lane_->U) << "Lane " << _L << " finalizer: " << GetErrcodeName(_rc2) << std::endl);
         if (_rc2 != LuaError::OK) { // Error within a finalizer!
             // the finalizer generated an error, and left its own error message [and stack trace] on the stack
             _rc = _rc2; // we're overruling the earlier script error or normal return
@@ -716,21 +722,16 @@ static void lane_main(Lane* lane_)
             // we destroy our jthread member from inside the thread body, so we have to detach so that we don't try to join, as this doesn't seem a good idea
             lane_->thread.detach();
             delete lane_;
-            lane_ = nullptr;
+            return;
         }
     }
-    if (lane_) {
-        // leave results (1..top) or error message + stack trace (1..2) on the stack - master will copy them
 
-        Lane::Status const _st{ (_rc == LuaError::OK) ? Lane::Done : kCancelError.equals(_L, 1) ? Lane::Cancelled : Lane::Error };
-
-        {
-            // 'doneMutex' protects the -> Done|Error|Cancelled state change
-            std::lock_guard _guard{ lane_->doneMutex };
-            lane_->status = _st;
-            lane_->doneCondVar.notify_one(); // wake up master (while 'lane_->doneMutex' is on)
-        }
-    }
+    // leave results (1..top) or error message + stack trace (1..2) on the stack - master will copy them
+    Lane::Status const _st{ (_rc == LuaError::OK) ? Lane::Done : kCancelError.equals(_L, 1) ? Lane::Cancelled : Lane::Error };
+    // 'doneMutex' protects the -> Done|Error|Cancelled state change
+    std::lock_guard _guard{ lane_->doneMutex };
+    lane_->status = _st;
+    lane_->doneCondVar.notify_one(); // wake up master (while 'lane_->doneMutex' is on)
 }
 
 // #################################################################################################

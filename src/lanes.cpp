@@ -308,7 +308,11 @@ LUAG_FUNC(lane_new)
                     lane->status = Lane::Running;
                 }
                 // unblock the thread so that it can terminate gracefully
+#ifndef __PROSPERO__
                 lane->ready.count_down();
+#else // __PROSPERO__
+                lane->ready.test_and_set();
+#endif // __PROSPERO__
             }
         }
 
@@ -366,7 +370,12 @@ LUAG_FUNC(lane_new)
         void success()
         {
             prepareUserData();
+            // unblock the thread so that it can terminate gracefully
+#ifndef __PROSPERO__
             lane->ready.count_down();
+#else // __PROSPERO__
+            lane->ready.test_and_set();
+#endif // __PROSPERO__
             lane = nullptr;
         }
     } _onExit{ L_, _lane};

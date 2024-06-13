@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug 5.1|Prospero">
+      <Configuration>Debug 5.1</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug 5.1|Win32">
       <Configuration>Debug 5.1</Configuration>
       <Platform>Win32</Platform>
@@ -8,6 +12,10 @@
     <ProjectConfiguration Include="Debug 5.1|x64">
       <Configuration>Debug 5.1</Configuration>
       <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug 5.2|Prospero">
+      <Configuration>Debug 5.2</Configuration>
+      <Platform>Prospero</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Debug 5.2|Win32">
       <Configuration>Debug 5.2</Configuration>
@@ -17,9 +25,17 @@
       <Configuration>Debug 5.2</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug 5.3|Prospero">
+      <Configuration>Debug 5.3</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug 5.3|Win32">
       <Configuration>Debug 5.3</Configuration>
       <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug 5.4|Prospero">
+      <Configuration>Debug 5.4</Configuration>
+      <Platform>Prospero</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Debug 5.4|Win32">
       <Configuration>Debug 5.4</Configuration>
@@ -29,6 +45,10 @@
       <Configuration>Debug 5.4</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug LuaJIT 2.0.5|Prospero">
+      <Configuration>Debug LuaJIT 2.0.5</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug LuaJIT 2.0.5|Win32">
       <Configuration>Debug LuaJIT 2.0.5</Configuration>
       <Platform>Win32</Platform>
@@ -36,6 +56,10 @@
     <ProjectConfiguration Include="Debug LuaJIT 2.0.5|x64">
       <Configuration>Debug LuaJIT 2.0.5</Configuration>
       <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug LuaJIT 2.1.0-beta3|Prospero">
+      <Configuration>Debug LuaJIT 2.1.0-beta3</Configuration>
+      <Platform>Prospero</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Debug LuaJIT 2.1.0-beta3|Win32">
       <Configuration>Debug LuaJIT 2.1.0-beta3</Configuration>
@@ -45,6 +69,10 @@
       <Configuration>Debug LuaJIT 2.1.0-beta3</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug MoonJIT|Prospero">
+      <Configuration>Debug MoonJIT</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug MoonJIT|Win32">
       <Configuration>Debug MoonJIT</Configuration>
       <Platform>Win32</Platform>
@@ -52,6 +80,10 @@
     <ProjectConfiguration Include="Debug MoonJIT|x64">
       <Configuration>Debug MoonJIT</Configuration>
       <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release 5.3|Prospero">
+      <Configuration>Release 5.3</Configuration>
+      <Platform>Prospero</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release 5.3|Win32">
       <Configuration>Release 5.3</Configuration>
@@ -64,6 +96,10 @@
     <ProjectConfiguration Include="Release 5.3|x64">
       <Configuration>Release 5.3</Configuration>
       <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release 5.4|Prospero">
+      <Configuration>Release 5.4</Configuration>
+      <Platform>Prospero</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release 5.4|Win32">
       <Configuration>Release 5.4</Configuration>
@@ -192,6 +228,33 @@
     <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT 2.1.0-beta3|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT 2.0.5|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">

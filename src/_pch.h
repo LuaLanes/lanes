@@ -6,15 +6,18 @@
 #include <bit>
 #include <cassert>
 #include <chrono>
+#include <compare>
 #include <condition_variable>
 #include <functional>
 #include <iostream>
+#ifndef __PROSPERO__
 #include <latch>
+#endif // __PROSPERO__
 #include <mutex>
 #include <optional>
 #include <ranges>
 #include <source_location>
-#include <stop_token>
+//#include <stop_token>
 #include <string_view>
 #include <thread>
 #include <tuple>

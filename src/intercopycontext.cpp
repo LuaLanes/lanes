@@ -101,7 +101,7 @@ THE SOFTWARE.
         lua_rawget(L1, -2);                                                                        // L1: ... v ... {} "f.q.n"
     }
     std::string_view _fqn{ luaG_tostring(L1, -1) };
-    DEBUGSPEW_CODE(DebugSpew(Universe::Get(L1)) << "function [C] " << _fqn << std::endl);
+    DEBUGSPEW_CODE(DebugSpew(U) << "function [C] " << _fqn << std::endl);
     // popping doesn't invalidate the pointer since this is an interned string gotten from the lookup database
     lua_pop(L1, (mode == LookupMode::FromKeeper) ? 1 : 2);                                         // L1: ... v ...
     STACK_CHECK(L1, 0);

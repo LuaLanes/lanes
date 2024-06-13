@@ -69,8 +69,12 @@ class Lane
 
     // the thread
     std::jthread thread;
+#ifndef __PROSPERO__
     // a latch to wait for the lua_State to be ready
     std::latch ready{ 1 };
+#else // __PROSPERO__
+    std::atomic_flag ready{};
+#endif // __PROSPERO__
     // to wait for stop requests through thread's stop_source
     std::mutex doneMutex;
     std::condition_variable doneCondVar; // use condition_variable_any if waiting for a stop_token
