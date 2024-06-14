@@ -74,7 +74,9 @@ local performTest = function( obj_)
 	l:set( "key", obj_, t)
 	-- when obj_ is a deep userdata, out is the same userdata as obj_ (not another one pointing on the same deep memory block) because of an internal cache table [deep*] -> proxy)
 	-- when obj_ is a clonable userdata, we get a different clone everytime we cross a linda or lane barrier
-	printDeep( "out of linda:", l:get( "key", 2))
+	local _n, _val1, _val2 = l:get( "key", 2)
+	assert(_n == (_val2 and 2 or 1))
+	printDeep( "out of linda:", _val1, _val2)
 
 	-- send the object in a lane through parameter passing, the lane body returns it as return value, read the contents
 	local g = lanes.gen(
@@ -88,7 +90,9 @@ local performTest = function( obj_)
 			-- read contents inside lane: obj_ and t by upvalue
 			printDeep( "in lane, as upvalues:", obj_, t)
 			-- read contents inside lane: in linda
-			printDeep( "in lane, from linda:", l:get("key", 2))
+			local _n, _val1, _val2 = l:get( "key", 2)
+			assert(_n == (_val2 and 2 or 1))
+			printDeep( "in lane, from linda:", _val1, _val2)
 			return arg_, t_
 		end
 	)
