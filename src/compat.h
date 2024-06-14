@@ -349,7 +349,7 @@ template <typename T>
 }
 
 template<typename ...EXTRA>
-[[nodiscard]] inline std::string_view luaG_pushstring(lua_State* const L_, std::string_view const& str_, EXTRA&&... extra_)
+inline std::string_view luaG_pushstring(lua_State* const L_, std::string_view const& str_, EXTRA&&... extra_)
 {
     if constexpr (sizeof...(EXTRA) == 0) {
         if constexpr (LUA_VERSION_NUM == 501) {

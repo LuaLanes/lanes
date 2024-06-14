@@ -91,7 +91,7 @@ THE SOFTWARE.
             if (lua_getmetatable(L_, -1)) {                                                        // L_: o "r" {c} {fqn} ... {?} k {} {mt}
                 if (lua_istable(L_, -1)) {
                     ++depth_;
-                    lua_pushliteral(L_, "__metatable");                                            // L_: o "r" {c} {fqn} ... {?} k {} {mt} "__metatable"
+                    luaG_pushstring(L_, "__metatable");                                            // L_: o "r" {c} {fqn} ... {?} k {} {mt} "__metatable"
                     lua_rawseti(L_, kFQN, depth_);                                                 // L_: o "r" {c} {fqn} ... {?} k {} {mt}
                     shortest_ = DiscoverObjectNameRecur(L_, shortest_, depth_);
                     lua_pushnil(L_);                                                               // L_: o "r" {c} {fqn} ... {?} k {} {mt} nil
@@ -113,7 +113,7 @@ THE SOFTWARE.
             if (lua_getmetatable(L_, -1)) {                                                        // L_: o "r" {c} {fqn} ... {?} k U {mt}
                 if (lua_istable(L_, -1)) {
                     ++depth_;
-                    lua_pushliteral(L_, "__metatable");                                            // L_: o "r" {c} {fqn} ... {?} k U {mt} "__metatable"
+                    luaG_pushstring(L_, "__metatable");                                            // L_: o "r" {c} {fqn} ... {?} k U {mt} "__metatable"
                     lua_rawseti(L_, kFQN, depth_);                                                 // L_: o "r" {c} {fqn} ... {?} k U {mt}
                     shortest_ = DiscoverObjectNameRecur(L_, shortest_, depth_);
                     lua_pushnil(L_);                                                               // L_: o "r" {c} {fqn} ... {?} k U {mt} nil
@@ -129,7 +129,7 @@ THE SOFTWARE.
                 while (lua_getiuservalue(L_, -1, _uvi) != LUA_TNONE) {                             // L_: o "r" {c} {fqn} ... {?} k U {u}
                     if (lua_istable(L_, -1)) { // if it is a table, look inside
                         ++depth_;
-                        lua_pushliteral(L_, "uservalue");                                          // L_: o "r" {c} {fqn} ... {?} k v {u} "uservalue"
+                        luaG_pushstring(L_, "uservalue");                                          // L_: o "r" {c} {fqn} ... {?} k v {u} "uservalue"
                         lua_rawseti(L_, kFQN, depth_);                                             // L_: o "r" {c} {fqn} ... {?} k v {u}
                         shortest_ = DiscoverObjectNameRecur(L_, shortest_, depth_);
                         lua_pushnil(L_);                                                           // L_: o "r" {c} {fqn} ... {?} k v {u} nil
@@ -188,14 +188,14 @@ LUAG_FUNC(nameof)
     // push a table whose contents are strings that, when concatenated, produce unique name
     lua_newtable(L_);                                                                              // L_: o nil {c} {fqn}
     // {fqn}[1] = "_G"
-    lua_pushliteral(L_, LUA_GNAME);                                                                // L_: o nil {c} {fqn} "_G"
+    luaG_pushstring(L_, LUA_GNAME);                                                                // L_: o nil {c} {fqn} "_G"
     lua_rawseti(L_, -2, 1);                                                                        // L_: o nil {c} {fqn}
     // this is where we start the search
     luaG_pushglobaltable(L_);                                                                      // L_: o nil {c} {fqn} _G
     std::ignore = DiscoverObjectNameRecur(L_, std::numeric_limits<int>::max(), 1);
     if (lua_isnil(L_, 2)) { // try again with registry, just in case...
         lua_pop(L_, 1);                                                                            // L_: o nil {c} {fqn}
-        lua_pushliteral(L_, "_R");                                                                 // L_: o nil {c} {fqn} "_R"
+        luaG_pushstring(L_, "_R");                                                                 // L_: o nil {c} {fqn} "_R"
         lua_rawseti(L_, -2, 1);                                                                    // L_: o nil {c} {fqn}
         lua_pushvalue(L_, LUA_REGISTRYINDEX);                                                      // L_: o nil {c} {fqn} _R
         std::ignore = DiscoverObjectNameRecur(L_, std::numeric_limits<int>::max(), 1);

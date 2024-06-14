@@ -131,7 +131,7 @@ Universe::Universe()
 
     // Initialize 'timerLinda'; a common Linda object shared by all states
     lua_pushcfunction(L_, LG_linda);                                                               // L_: settings lanes.linda
-    std::ignore = luaG_pushstring(L_, "lanes-timer");                                              // L_: settings lanes.linda "lanes-timer"
+    luaG_pushstring(L_, "lanes-timer");                                                            // L_: settings lanes.linda "lanes-timer"
     lua_pushinteger(L_, 0);                                                                        // L_: settings lanes.linda "lanes-timer" 0
     lua_call(L_, 2, 1);                                                                            // L_: settings linda
     STACK_CHECK(L_, 1);

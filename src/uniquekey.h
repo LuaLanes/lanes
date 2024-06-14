@@ -105,16 +105,16 @@ class RegistryUniqueKey
         return false;
     }
     // ---------------------------------------------------------------------------------------------
-    void getSubTableMode(lua_State* const L_, char const* const mode_) const
+    void getSubTableMode(lua_State* const L_, std::string_view const& mode_) const
     {
         STACK_CHECK_START_REL(L_, 0);
         if (!getSubTable(L_, 0, 0)) {                                                              // L_: {}
             // Set its metatable if requested
-            if (mode_) {
+            if (!mode_.empty()) {
                 STACK_GROW(L_, 3);
                 lua_createtable(L_, 0, 1);                                                         // L_: {} mt
-                lua_pushliteral(L_, "__mode");                                                     // L_: {} mt "__mode"
-                lua_pushstring(L_, mode_);                                                         // L_: {} mt "__mode" mode
+                luaG_pushstring(L_, "__mode");                                                     // L_: {} mt "__mode"
+                luaG_pushstring(L_, mode_);                                                        // L_: {} mt "__mode" mode
                 lua_rawset(L_, -3);                                                                // L_: {} mt
                 lua_setmetatable(L_, -2);                                                          // L_: {}
             }

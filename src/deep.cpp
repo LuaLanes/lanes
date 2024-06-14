@@ -237,7 +237,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
                 raise_luaL_error(errL_, "lanes receiving deep userdata should register the 'package' library");
             }
 
-            std::ignore = luaG_pushstring(L_, _modname);                                           // L_: DPC proxy metatable require() "module"
+            luaG_pushstring(L_, _modname);                                                         // L_: DPC proxy metatable require() "module"
             if (luaG_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE) != LuaType::TABLE) {        // L_: DPC proxy metatable require() "module" _R._LOADED
                 // no L.registry._LOADED; can this ever happen?
                 lua_pop(L_, 6);                                                                    // L_:

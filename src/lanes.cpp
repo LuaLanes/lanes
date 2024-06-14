@@ -179,7 +179,7 @@ LUAG_FUNC(sleep)
     else {
         lua_pushnumber(L_, lua_tonumber(L_, 1));                                                   // L_: duration? receive() timerLinda duration
     }
-    std::ignore = luaG_pushstring(L_, "ac100de1-a696-4619-b2f0-a26de9d58ab8");                     // L_: duration? receive() timerLinda duration key
+    luaG_pushstring(L_, "ac100de1-a696-4619-b2f0-a26de9d58ab8");                                   // L_: duration? receive() timerLinda duration key
     STACK_CHECK(L_, 3); // 3 arguments ready
     lua_call(L_, 3, LUA_MULTRET); // timerLinda:receive(duration,key)                              // L_: duration? result...
     return lua_gettop(L_) - 1;
@@ -352,12 +352,12 @@ LUAG_FUNC(lane_new)
             if (!_debugName.empty())
             {
                 if (_debugName != "auto") {
-                    std::ignore = luaG_pushstring(_L2, _debugName);                                // L: ... lane                                    L2: "<name>"
+                    luaG_pushstring(_L2, _debugName);                                              // L: ... lane                                    L2: "<name>"
                 } else {
                     lua_Debug _ar;
                     lua_pushvalue(L, 1);                                                           // L: ... lane func
                     lua_getinfo(L, ">S", &_ar);                                                    // L: ... lane
-                    std::ignore = luaG_pushstring(_L2, "%s:%d", _ar.short_src, _ar.linedefined);   // L: ... lane                                    L2: "<name>"
+                    luaG_pushstring(_L2, "%s:%d", _ar.short_src, _ar.linedefined);                 // L: ... lane                                    L2: "<name>"
                 }
                 lane->changeDebugName(-1);
                 lua_pop(_L2, 1);                                                                   // L: ... lane                                    L2:
@@ -440,7 +440,7 @@ LUAG_FUNC(lane_new)
                     lua_pop(_L2, 1);                                                               // L_: [fixed] args... n "modname"                L2:
                     raise_luaL_error(L_, "cannot pre-require modules without loading 'package' library first");
                 } else {
-                    std::ignore = luaG_pushstring(_L2, _name);                                     // L_: [fixed] args... n "modname"                L2: require() name
+                    luaG_pushstring(_L2, _name);                                                   // L_: [fixed] args... n "modname"                L2: require() name
                     LuaError const _rc{ lua_pcall(_L2, 1, 1, 0) };                                 // L_: [fixed] args... n "modname"                L2: ret/errcode
                     if (_rc != LuaError::OK) {
                         // propagate error to main state if any
@@ -674,7 +674,7 @@ LUAG_FUNC(configure)
 
     if (_U == nullptr) {
         // store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...
-        kLaneNameRegKey.setValue(L_, [](lua_State* L_) { std::ignore = luaG_pushstring(L_, "main"); });
+        kLaneNameRegKey.setValue(L_, [](lua_State* L_) { luaG_pushstring(L_, "main"); });
 
         // create the universe
         _U = Universe::Create(L_);                                                                 // L_: settings universe
@@ -714,7 +714,7 @@ LUAG_FUNC(configure)
     lua_pushcclosure(L_, LG_require, 1);                                                           // L_: settings M lanes.require
     lua_setfield(L_, -2, "require");                                                               // L_: settings M
 
-    std::ignore = luaG_pushstring(
+    luaG_pushstring(
         L_,
         "%d.%d.%d",
         LANES_VERSION_MAJOR,

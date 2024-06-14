@@ -48,7 +48,7 @@ static LUAG_FUNC(get_debug_threadname)
 {
     Lane* const _lane{ ToLane(L_, 1) };
     luaL_argcheck(L_, lua_gettop(L_) == 1, 2, "too many arguments");
-    std::ignore = luaG_pushstring(L_, _lane->debugName);
+    luaG_pushstring(L_, _lane->debugName);
     return 1;
 }
 
@@ -123,7 +123,7 @@ static LUAG_FUNC(thread_join)
     lua_State* const _L2{ _lane->L };
     if (!_done || !_L2) {
         lua_pushnil(L_);                                                                           // L_: lane nil
-        lua_pushliteral(L_, "timeout");                                                            // L_: lane nil "timeout"
+        luaG_pushstring(L_, "timeout");                                                            // L_: lane nil "timeout"
         return 2;
     }
 
@@ -218,7 +218,7 @@ static int thread_index_number(lua_State* L_)
         lua_pushboolean(L_, 1);                                                                    // L_: lane n {uv} 0 true
         lua_rawset(L_, kUsr);                                                                      // L_: lane n {uv}
         // tell join() that we are called from __index, to avoid raising an error if the first returned value is not nil
-        std::ignore = luaG_pushstring(L_, "[]");                                                   // L_: lane n {uv} "[]"
+        luaG_pushstring(L_, "[]");                                                                 // L_: lane n {uv} "[]"
         // wait until thread has completed, transfer everything from the lane's stack to our side
         lua_pushcclosure(L_, LG_thread_join, 1);                                                   // L_: lane n {uv} join
         lua_pushvalue(L_, kSelf);                                                                  // L_: lane n {uv} join lane
@@ -227,7 +227,7 @@ static int thread_index_number(lua_State* L_)
         default:
             // this is an internal error, we probably never get here
             lua_settop(L_, 0);                                                                     // L_:
-            lua_pushliteral(L_, "Unexpected status: ");                                            // L_: "Unexpected status: "
+            luaG_pushstring(L_, "Unexpected status: ");                                            // L_: "Unexpected status: "
             std::ignore = _lane->pushThreadStatus(L_);                                             // L_: "Unexpected status: " "<status>"
             lua_concat(L_, 2);                                                                     // L_: "Unexpected status: <status>"
             raise_lua_error(L_);
@@ -353,7 +353,7 @@ static LUAG_FUNC(thread_index)
     default: // unknown key
         lua_getmetatable(L_, kSelf);                                                               // L_: mt
         std::ignore = luaG_getfield(L_, -1, "cached_error");                                       // L_: mt error
-        lua_pushliteral(L_, "Unknown key: ");                                                      // L_: mt error "Unknown key: "
+        luaG_pushstring(L_, "Unknown key: ");                                                      // L_: mt error "Unknown key: "
         lua_pushvalue(L_, kKey);                                                                   // L_: mt error "Unknown key: " k
         lua_concat(L_, 2);                                                                         // L_: mt error "Unknown key: <k>"
         lua_call(L_, 1, 0); // error( "Unknown key: " .. key) -> doesn't return                    // L_: mt
@@ -474,9 +474,9 @@ static constexpr RegistryUniqueKey kStackTraceRegKey{ 0x3F327747CACAA904ull };
             lua_pushstring(L_, _ar.what);                                                          // L_: some_error {} {} what
             lua_setfield(L_, -2, "what");                                                          // L_: some_error {} {}
         } else if (_ar.currentline > 0) {
-            std::ignore = luaG_pushstring(L_, "%s:%d", _ar.short_src, _ar.currentline);            // L_: some_error {} "blah:blah"
+            luaG_pushstring(L_, "%s:%d", _ar.short_src, _ar.currentline);                          // L_: some_error {} "blah:blah"
         } else {
-            std::ignore = luaG_pushstring(L_, "%s:?", _ar.short_src);                              // L_: some_error {} "blah"
+            luaG_pushstring(L_, "%s:?", _ar.short_src);                                            // L_: some_error {} "blah"
         }
         lua_rawseti(L_, -2, static_cast<lua_Integer>(_n));                                         // L_: some_error {}
     }
@@ -745,7 +745,7 @@ static LUAG_FUNC(lane_close)
     lua_settop(L_, 1);                                                                             // L_: lane
 
     // no error if the lane body doesn't return a non-nil first value
-    std::ignore = luaG_pushstring(L_, "close");                                                    // L_: lane "close"
+    luaG_pushstring(L_, "close");                                                                  // L_: lane "close"
     lua_pushcclosure(L_, LG_thread_join, 1);                                                       // L_: lane join()
     lua_insert(L_, 1);                                                                             // L_: join() lane
     lua_call(L_, 1, LUA_MULTRET);                                                                  // L_: join() results
@@ -777,7 +777,7 @@ static LUAG_FUNC(lane_gc)
     lua_rawget(L_, -2);                                                                            // L_: ud uservalue gc_cb|nil
     if (!lua_isnil(L_, -1)) {
         lua_remove(L_, -2);                                                                        // L_: ud gc_cb|nil
-        std::ignore = luaG_pushstring(L_, _lane->debugName);                                       // L_: ud gc_cb name
+        luaG_pushstring(L_, _lane->debugName);                                                     // L_: ud gc_cb name
         _have_gc_cb = true;
     } else {
         lua_pop(L_, 2);                                                                            // L_: ud
@@ -789,7 +789,7 @@ static LUAG_FUNC(lane_gc)
         selfdestruct_add(_lane);
         assert(_lane->selfdestruct_next);
         if (_have_gc_cb) {
-            lua_pushliteral(L_, "selfdestruct");                                                   // L_: ud gc_cb name status
+            luaG_pushstring(L_, "selfdestruct");                                                   // L_: ud gc_cb name status
             lua_call(L_, 2, 0);                                                                    // L_: ud
         }
         return 0;
@@ -805,7 +805,7 @@ static LUAG_FUNC(lane_gc)
 
     // do this after lane cleanup in case the callback triggers an error
     if (_have_gc_cb) {
-        lua_pushliteral(L_, "closed");                                                             // L_: ud gc_cb name status
+        luaG_pushstring(L_, "closed");                                                             // L_: ud gc_cb name status
         lua_call(L_, 2, 0);                                                                        // L_: ud
     }
     return 0;
@@ -979,7 +979,7 @@ void Lane::PushMetatable(lua_State* L_)
         lua_getglobal(L_, "tostring");                                                             // L_: mt kCachedTostring tostring()
         lua_rawset(L_, -3);                                                                        // L_: mt
         // hide the actual metatable from getmetatable()
-        lua_pushliteral(L_, kLaneMetatableName);                                                   // L_: mt "Lane"
+        luaG_pushstring(L_, kLaneMetatableName);                                                   // L_: mt "Lane"
         lua_setfield(L_, -2, "__metatable");                                                       // L_: mt
     }
     STACK_CHECK(L_, 1);

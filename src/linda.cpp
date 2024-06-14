@@ -81,13 +81,13 @@ template <bool OPT>
 {
     Linda* const _linda{ ToLinda<OPT>(L_, idx_) };
     if (_linda != nullptr) {
-        std::ignore = luaG_pushstring(L_, "Linda: ");
+        luaG_pushstring(L_, "Linda: ");
         std::string_view const _lindaName{ _linda->getName() };
         if (!_lindaName.empty()) {
-            std::ignore = luaG_pushstring(L_, _lindaName);
+            luaG_pushstring(L_, _lindaName);
         } else {
             // obfuscate the pointer so that we can't read the value with our eyes out of a script
-            std::ignore = luaG_pushstring(L_, "%p", _linda->obfuscated());
+            luaG_pushstring(L_, "%p", _linda->obfuscated());
         }
         lua_concat(L_, 2);
         return 1;
@@ -599,7 +599,7 @@ LUAG_FUNC(linda_receive)
                 if (_nbPushed == 0) {
                     // not enough data in the linda slot to fulfill the request, return nil, "timeout"
                     lua_pushnil(L_);
-                    std::ignore = luaG_pushstring(L_, "timeout");
+                    luaG_pushstring(L_, "timeout");
                     return 2;
                 }
                 return _nbPushed;
@@ -752,7 +752,7 @@ LUAG_FUNC(linda_send)
             } else {
                 // not enough room in the Linda slot to fulfill the request, return nil, "timeout"
                 lua_pushnil(L_);
-                std::ignore = luaG_pushstring(L_, "timeout");
+                luaG_pushstring(L_, "timeout");
                 return 2;
             }
         }

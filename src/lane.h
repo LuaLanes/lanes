@@ -34,7 +34,7 @@ static constexpr RegistryUniqueKey kLaneNameRegKey{ 0xA194E2645C57F6DDull };
 // The chain is ended by '(Lane*)(-1)', not nullptr: 'selfdestructFirst -> ... -> ... -> (-1)'
 #define SELFDESTRUCT_END ((Lane*) (-1))
 
-// must be a #define instead of a constexpr to work with lua_pushliteral (until I templatize it)
+// must be a #define instead of a constexpr to benefit from compile-time string concatenation
 #define kLaneMetatableName "Lane"
 #define kLanesLibName "lanes"
 #define kLanesCoreLibName kLanesLibName ".core"

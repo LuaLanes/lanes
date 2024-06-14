@@ -183,7 +183,7 @@ namespace state {
         STACK_CHECK(L_, 1);
         // capture error and raise it in caller state
         std::string_view const _stateType{ mode_ == LookupMode::LaneBody ? "lane" : "keeper" };
-        std::ignore = luaG_pushstring(L_, _stateType);                                             // L_: on_state_create() "<type>"
+        luaG_pushstring(L_, _stateType);                                                           // L_: on_state_create() "<type>"
         if (lua_pcall(L_, 1, 0, 0) != LUA_OK) {
             raise_luaL_error(from_, "%s failed: \"%s\"", kOnStateCreate.data(), lua_isstring(L_, -1) ? luaG_tostring(L_, -1).data() : luaG_typename(L_, -1).data());
         }
@@ -364,13 +364,13 @@ namespace state {
             kLookupRegKey.pushValue(_L);                                                           // L: {}
             lua_pushnil(_L);                                                                       // L: {} nil
             while (lua_next(_L, -2)) {                                                             // L: {} k v
-                std::ignore = luaG_pushstring(_L, "[");                                            // L: {} k v "["
+                luaG_pushstring(_L, "[");                                                          // L: {} k v "["
 
                 lua_getglobal(_L, "tostring");                                                     // L: {} k v "[" tostring
                 lua_pushvalue(_L, -4);                                                             // L: {} k v "[" tostring k
                 lua_call(_L, 1, 1);                                                                // L: {} k v "[" 'k'
 
-                std::ignore = luaG_pushstring(_L, "] = ");                                         // L: {} k v "[" 'k' "] = "
+                luaG_pushstring(_L, "] = ");                                                       // L: {} k v "[" 'k' "] = "
 
                 lua_getglobal(_L, "tostring");                                                     // L: {} k v "[" 'k' "] = " tostring
                 lua_pushvalue(_L, -5);                                                             // L: {} k v "[" 'k' "] = " tostring v

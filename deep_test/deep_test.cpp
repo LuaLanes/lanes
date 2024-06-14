@@ -58,7 +58,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 {
     MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, 1)) };
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
-    std::ignore = luaG_pushstring(L, "%p:deep(%d)", _self, _self->val);
+    luaG_pushstring(L, "%p:deep(%d)", _self, _self->val);
     _self->inUse.fetch_sub(1, std::memory_order_seq_cst);
     return 1;
 }
@@ -179,7 +179,7 @@ struct MyClonableUserdata
 [[nodiscard]] static int clonable_tostring(lua_State* L)
 {
     MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
-    std::ignore = luaG_pushstring(L, "%p:clonable(%d)", lua_topointer(L, 1), self->val);
+    luaG_pushstring(L, "%p:clonable(%d)", lua_topointer(L, 1), self->val);
     return 1;
 }
 

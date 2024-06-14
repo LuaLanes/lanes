@@ -310,7 +310,7 @@ void InterCopyContext::lookupNativeFunction() const
 
     case LookupMode::ToKeeper:
         // push a sentinel closure that holds the lookup name as upvalue
-        std::ignore = luaG_pushstring(L2, _fqn);                                                   // L1: ... f ...                                  L2: "f.q.n"
+        luaG_pushstring(L2, _fqn);                                                                 // L1: ... f ...                                  L2: "f.q.n"
         lua_pushcclosure(L2, func_lookup_sentinel, 1);                                             // L1: ... f ...                                  L2: f
         break;
 
@@ -319,7 +319,7 @@ void InterCopyContext::lookupNativeFunction() const
         kLookupRegKey.pushValue(L2);                                                               // L1: ... f ...                                  L2: {}
         STACK_CHECK(L2, 1);
         LUA_ASSERT(L1, lua_istable(L2, -1));
-        std::ignore = luaG_pushstring(L2, _fqn);                                                   // L1: ... f ...                                  L2: {} "f.q.n"
+        luaG_pushstring(L2, _fqn);                                                                 // L1: ... f ...                                  L2: {} "f.q.n"
         lua_rawget(L2, -2);                                                                        // L1: ... f ...                                  L2: {} f
         // nil means we don't know how to transfer stuff: user should do something
         // anything other than function or table should not happen!
@@ -430,7 +430,7 @@ void InterCopyContext::copyCachedFunction() const
 
     case LookupMode::ToKeeper:
         // push a sentinel closure that holds the lookup name as upvalue
-        std::ignore = luaG_pushstring(L2, _fqn);                                                   // L1: ... t ...                                  L2: "f.q.n"
+        luaG_pushstring(L2, _fqn);                                                                 // L1: ... t ...                                  L2: "f.q.n"
         lua_pushcclosure(L2, table_lookup_sentinel, 1);                                            // L1: ... t ...                                  L2: f
         break;
 
@@ -439,7 +439,7 @@ void InterCopyContext::copyCachedFunction() const
         kLookupRegKey.pushValue(L2);                                                               // L1: ... t ...                                  L2: {}
         STACK_CHECK(L2, 1);
         LUA_ASSERT(L1, lua_istable(L2, -1));
-        std::ignore = luaG_pushstring(L2, _fqn);                                                   //                                                L2: {} "f.q.n"
+        luaG_pushstring(L2, _fqn);                                                                 //                                                L2: {} "f.q.n"
         lua_rawget(L2, -2);                                                                        //                                                L2: {} t
         // we accept destination lookup failures in the case of transfering the Lanes body function (this will result in the source table being cloned instead)
         // but not when we extract something out of a keeper, as there is nothing to clone!
@@ -582,7 +582,7 @@ LuaType InterCopyContext::processConversion() const
 
     case LuaType::FUNCTION:
         lua_pushvalue(L1, L1_i);                                                                   // L1: ... mt kConvertField val
-        std::ignore = luaG_pushstring(L1, mode == LookupMode::ToKeeper ? "keeper" : "regular");    // L1: ... mt kConvertField val string
+        luaG_pushstring(L1, mode == LookupMode::ToKeeper ? "keeper" : "regular");                  // L1: ... mt kConvertField val string
         lua_call(L1, 2, 1); // val:kConvertField(str) -> result                                    // L1: ... mt kConvertField converted
         lua_replace(L1, L1_i);                                                                     // L1: ... mt
         lua_pop(L1, 1);                                                                            // L1: ... mt
@@ -1003,7 +1003,7 @@ LuaType InterCopyContext::processConversion() const
 {
     std::string_view const _s{ luaG_tostring(L1, L1_i) };
     DEBUGSPEW_CODE(DebugSpew(nullptr) << "'" << _s << "'" << std::endl);
-    std::ignore = luaG_pushstring(L2, _s);
+    luaG_pushstring(L2, _s);
     return true;
 }
 

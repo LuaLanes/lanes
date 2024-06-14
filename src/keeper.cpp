@@ -838,7 +838,7 @@ void Keepers::initialize(Universe& U_, lua_State* L_, int const nbKeepers_, int 
         keeper_.K = _K;
 
         // Give a name to the state
-        std::ignore = luaG_pushstring(_K, "Keeper #%d", i_ + 1);                                   // L_: settings                                   _K: "Keeper #n"
+        luaG_pushstring(_K, "Keeper #%d", i_ + 1);                                                 // L_: settings                                   _K: "Keeper #n"
         if constexpr (HAVE_DECODA_SUPPORT()) {
             lua_pushvalue(_K, -1);                                                                 //                                                _K: "Keeper #n" Keeper #n"
             lua_setglobal(_K, "decoda_name");                                                      // L_: settings                                   _K: "Keeper #n"

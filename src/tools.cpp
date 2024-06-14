@@ -323,9 +323,9 @@ namespace tools {
                 _name = "nullptr";
             }
             lua_pushvalue(L_, _in_base);                                                           // L_: {} f
-            std::ignore = luaG_pushstring(L_, _name);                                              // L_: {} f name_
+            luaG_pushstring(L_, _name);                                                            // L_: {} f name_
             lua_rawset(L_, -3);                                                                    // L_: {}
-            std::ignore = luaG_pushstring(L_, _name);                                              // L_: {} name_
+            luaG_pushstring(L_, _name);                                                            // L_: {} name_
             lua_pushvalue(L_, _in_base);                                                           // L_: {} name_ f
             lua_rawset(L_, -3);                                                                    // L_: {}
             lua_pop(L_, 1);                                                                        // L_:
@@ -334,7 +334,7 @@ namespace tools {
             int _startDepth{ 0 };
             if (!_name.empty()) {
                 STACK_CHECK(L_, 2);
-                std::ignore = luaG_pushstring(L_, _name);                                          // L_: {} {fqn} "name"
+                luaG_pushstring(L_, _name);                                                        // L_: {} {fqn} "name"
                 // generate a name, and if we already had one name, keep whichever is the shorter
                 lua_pushvalue(L_, _in_base);                                                       // L_: {} {fqn} "name" t
                 update_lookup_entry(L_, _dbIdx, _startDepth);                                      // L_: {} {fqn} "name"

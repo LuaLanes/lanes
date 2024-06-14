@@ -49,7 +49,7 @@ void LindaFactory::createMetatable(lua_State* L_) const
     lua_setfield(L_, -2, "__index");
 
     // protect metatable from external access
-    lua_pushliteral(L_, kLindaMetatableName);
+    luaG_pushstring(L_, kLindaMetatableName);
     lua_setfield(L_, -2, "__metatable");
 
     // the linda functions
