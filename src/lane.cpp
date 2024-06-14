@@ -228,7 +228,7 @@ static int thread_index_number(lua_State* L_)
             // this is an internal error, we probably never get here
             lua_settop(L_, 0);                                                                     // L_:
             luaG_pushstring(L_, "Unexpected status: ");                                            // L_: "Unexpected status: "
-            std::ignore = _lane->pushThreadStatus(L_);                                             // L_: "Unexpected status: " "<status>"
+            _lane->pushStatusString(L_);                                                           // L_: "Unexpected status: " "<status>"
             lua_concat(L_, 2);                                                                     // L_: "Unexpected status: <status>"
             raise_lua_error(L_);
 
@@ -315,7 +315,7 @@ static int thread_index_string(lua_State* L_)
     std::string_view const _keystr{ luaG_tostring(L_, kKey) };
     lua_settop(L_, 2); // keep only our original arguments on the stack
     if (_keystr == "status") {
-        std::ignore = _lane->pushThreadStatus(L_);                                                 // L_: lane "key" "<status>"
+        _lane->pushStatusString(L_);                                                               // L_: lane "key" "<status>"
         return 1;
     }
     if (_keystr == "error_trace_level") {
@@ -1008,12 +1008,12 @@ void Lane::PushMetatable(lua_State* L_)
 
 // #################################################################################################
 
-[[nodiscard]] std::string_view Lane::pushThreadStatus(lua_State* L_) const
+void Lane::pushStatusString(lua_State* L_) const
 {
     std::string_view const _str{ threadStatusString() };
     LUA_ASSERT(L_, !_str.empty());
 
-    return luaG_pushstring(L_, _str);
+    luaG_pushstring(L_, _str);
 }
 
 // #################################################################################################

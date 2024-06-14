@@ -138,7 +138,7 @@ class Lane
     [[nodiscard]] int pushErrorHandler() const;
     [[nodiscard]] std::string_view pushErrorTraceLevel(lua_State* L_) const;
     static void PushMetatable(lua_State* L_);
-    [[nodiscard]] std::string_view pushThreadStatus(lua_State* L_) const;
+    void pushStatusString(lua_State* L_) const;
     void securizeDebugName(lua_State* L_);
     void startThread(int priority_);
     [[nodiscard]] std::string_view threadStatusString() const;

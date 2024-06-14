@@ -96,7 +96,7 @@ void LaneTracker::tracking_add(Lane* lane_)
             lua_createtable(L_, 0, 2);                                                             // L_: {} {}
             luaG_pushstring(L_, _lane->debugName);                                                 // L_: {} {} "name"
             lua_setfield(L_, -2, "name");                                                          // L_: {} {}
-            std::ignore = _lane->pushThreadStatus(L_);                                             // L_: {} {} "status"
+            _lane->pushStatusString(L_);                                                           // L_: {} {} "<status>"
             lua_setfield(L_, -2, "status");                                                        // L_: {} {}
             lua_rawseti(L_, -2, ++_index);                                                         // L_: {}
             _lane = _lane->tracking_next;
