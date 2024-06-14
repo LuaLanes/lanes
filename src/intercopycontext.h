@@ -35,7 +35,7 @@ class InterCopyContext
     SourceIndex L1_i; // that one can change when we reuse the context
     VT vt; // that one can change when we reuse the context
     LookupMode const mode;
-    char const* name; // that one can change when we reuse the context
+    std::string_view name; // that one can change when we reuse the context
 
     private:
     [[nodiscard]] std::string_view findLookupName() const;

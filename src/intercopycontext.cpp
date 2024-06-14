@@ -262,13 +262,14 @@ void InterCopyContext::copyFunction() const
             InterCopyContext _c{ U, L2, L1, L2_cache_i, {}, VT::NORMAL, mode, {} };
             // if we encounter an upvalue equal to the global table in the source, bind it to the destination's global table
             luaG_pushglobaltable(L1);                                                              // L1: ... _G
-            for (_n = 0; (_c.name = lua_getupvalue(L1, L1_i, 1 + _n)) != nullptr; ++_n) {          // L1: ... _G up[n]
+            for (char const* _upname{}; (_upname = lua_getupvalue(L1, L1_i, 1 + _n)); ++_n) {      // L1: ... _G up[n]
                 DEBUGSPEW_CODE(DebugSpew(U) << "UPNAME[" << _n << "]: " << _c.name << " -> ");
                 if (lua_rawequal(L1, -1, -2)) { // is the upvalue equal to the global table?
                     DEBUGSPEW_CODE(DebugSpew(nullptr) << "pushing destination global scope" << std::endl);
                     luaG_pushglobaltable(L2);                                                      //                                                L2: ... {cache} ... function <upvalues>
                 } else {
                     DEBUGSPEW_CODE(DebugSpew(nullptr) << "copying value" << std::endl);
+                    _c.name = _upname;
                     _c.L1_i = SourceIndex{ lua_gettop(L1) };
                     if (_c.interCopyOne() != InterCopyResult::Success) {                           //                                                L2: ... {cache} ... function <upvalues>
                         raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
@@ -489,29 +490,29 @@ void InterCopyContext::interCopyKeyValuePair() const
         // for debug purposes, let's try to build a useful name
         if (luaG_type(L1, _key_i) == LuaType::STRING) {
             std::string_view const _key{ luaG_tostring(L1, _key_i) };
-            size_t const _bufLen{ strlen(name) + _key.size() + 2 }; // +2 for separator dot and terminating 0
+            size_t const _bufLen{ name.size() + _key.size() + 2 }; // +2 for separator dot and terminating 0
             _valPath = static_cast<char*>(alloca(_bufLen));
-            sprintf(_valPath, "%s." STRINGVIEW_FMT, name, (int) _key.size(), _key.data());
+            sprintf(_valPath, "%s." STRINGVIEW_FMT, name.data(), (int) _key.size(), _key.data());
         }
 #if defined LUA_LNUM || LUA_VERSION_NUM >= 503
         else if (lua_isinteger(L1, _key_i)) {
             lua_Integer const key{ lua_tointeger(L1, _key_i) };
-            _valPath = (char*) alloca(strlen(name) + 32 + 3); // +3 for [] and terminating 0
-            sprintf(_valPath, "%s[" LUA_INTEGER_FMT "]", name, key);
+            _valPath = (char*) alloca(name.size() + 32 + 3); // +3 for [] and terminating 0
+            sprintf(_valPath, "%s[" LUA_INTEGER_FMT "]", name.data(), key);
         }
 #endif // defined LUA_LNUM || LUA_VERSION_NUM >= 503
         else if (luaG_type(L1, _key_i) == LuaType::NUMBER) {
             lua_Number const key{ lua_tonumber(L1, _key_i) };
-            _valPath = (char*) alloca(strlen(name) + 32 + 3); // +3 for [] and terminating 0
-            sprintf(_valPath, "%s[" LUA_NUMBER_FMT "]", name, key);
+            _valPath = (char*) alloca(name.size() + 32 + 3); // +3 for [] and terminating 0
+            sprintf(_valPath, "%s[" LUA_NUMBER_FMT "]", name.data(), key);
         } else if (luaG_type(L1, _key_i) == LuaType::LIGHTUSERDATA) {
             void* const key{ lua_touserdata(L1, _key_i) };
-            _valPath = (char*) alloca(strlen(name) + 16 + 5); // +5 for [U:] and terminating 0
-            sprintf(_valPath, "%s[U:%p]", name, key);
+            _valPath = (char*) alloca(name.size() + 16 + 5); // +5 for [U:] and terminating 0
+            sprintf(_valPath, "%s[U:%p]", name.data(), key);
         } else if (luaG_type(L1, _key_i) == LuaType::BOOLEAN) {
             int const key{ lua_toboolean(L1, _key_i) };
-            _valPath = (char*) alloca(strlen(name) + 8); // +8 for [], 'false' and terminating 0
-            sprintf(_valPath, "%s[%s]", name, key ? "true" : "false");
+            _valPath = (char*) alloca(name.size() + 8); // +8 for [], 'false' and terminating 0
+            sprintf(_valPath, "%s[%s]", name.data(), key ? "true" : "false");
         }
     }
 
@@ -1301,14 +1302,14 @@ namespace {
     int const _top_L2{ lua_gettop(L2) };                                                           //                                                L2: ...
     lua_newtable(L2);                                                                              //                                                L2: ... cache
 
-    char _tmpBuf[16];
-    char const* const _pBuf{ U->verboseErrors ? _tmpBuf : "?" };
-    InterCopyContext _c{ U, L2, L1, CacheIndex{ _top_L2 + 1 }, {}, VT::NORMAL, mode, _pBuf };
+    InterCopyContext _c{ U, L2, L1, CacheIndex{ _top_L2 + 1 }, {}, VT::NORMAL, mode, "?" };
     InterCopyResult _copyok{ InterCopyResult::Success };
     STACK_CHECK_START_REL(L1, 0);
     for (int _i{ _top_L1 - n_ + 1 }, _j{ 1 }; _i <= _top_L1; ++_i, ++_j) {
+        char _tmpBuf[16];
         if (U->verboseErrors) {
             sprintf(_tmpBuf, "arg_%d", _j);
+            _c.name = _tmpBuf;
         }
         _c.L1_i = SourceIndex{ _i };
         _copyok = _c.interCopyOne();                                                               //                                                L2: ... cache {}n
