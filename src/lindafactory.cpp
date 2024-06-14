@@ -35,8 +35,7 @@ THE SOFTWARE.
 
 #include "linda.h"
 
-// must be a #define instead of a constexpr to work with lua_pushliteral (until I templatize it)
-#define kLindaMetatableName "Linda"
+static constexpr std::string_view kLindaMetatableName{ "Linda" };
 
 // #################################################################################################
 

@@ -65,15 +65,15 @@ static constexpr int kWriterReturnCode{ 666 };
  * +-----------------+-------------------+------------+----------+
  */
 
-[[nodiscard]] FuncSubType luaG_getfuncsubtype(lua_State* L_, int _i)
+FuncSubType luaG_getfuncsubtype(lua_State* const L_, int const i_)
 {
-    if (lua_tocfunction(L_, _i)) { // nullptr for LuaJIT-fast && bytecode functions
+    if (lua_tocfunction(L_, i_)) { // nullptr for LuaJIT-fast && bytecode functions
         return FuncSubType::Native;
     }
     {
         int _mustpush{ 0 };
-        if (luaG_absindex(L_, _i) != lua_gettop(L_)) {
-            lua_pushvalue(L_, _i);
+        if (luaG_absindex(L_, i_) != lua_gettop(L_)) {
+            lua_pushvalue(L_, i_);
             _mustpush = 1;
         }
         // the provided writer fails with code kWriterReturnCode
@@ -93,11 +93,11 @@ static constexpr int kWriterReturnCode{ 666 };
 namespace tools {
 
     // inspired from tconcat() in ltablib.c
-    [[nodiscard]] std::string_view PushFQN(lua_State* L_, int t_, int last_)
+    std::string_view PushFQN(lua_State* const L_, int const t_, int const last_)
     {
-        luaL_Buffer _b;
         STACK_CHECK_START_REL(L_, 0);
         // Lua 5.4 pushes &b as light userdata on the stack. be aware of it...
+        luaL_Buffer _b;
         luaL_buffinit(L_, &_b);                                                                    // L_: ... {} ... &b?
         int _i{ 1 };
         for (; _i < last_; ++_i) {

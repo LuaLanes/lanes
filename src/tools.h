@@ -18,7 +18,7 @@ enum class FuncSubType
     FastJIT
 };
 
-[[nodiscard]] FuncSubType luaG_getfuncsubtype(lua_State* L_, int _i);
+[[nodiscard]] FuncSubType luaG_getfuncsubtype(lua_State* L_, int i_);
 
 // #################################################################################################
 

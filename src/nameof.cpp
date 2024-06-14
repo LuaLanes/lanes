@@ -206,4 +206,3 @@ LUAG_FUNC(nameof)
     lua_replace(L_, -3);                                                                           // L_: "type" "result"
     return 2;
 }
-

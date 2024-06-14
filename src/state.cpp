@@ -50,7 +50,7 @@ namespace {
     // #############################################################################################
     // #############################################################################################
 
-    [[nodiscard]] static int require_lanes_core(lua_State* L_)
+    [[nodiscard]] static int require_lanes_core(lua_State* const L_)
     {
         // leaves a copy of 'lanes.core' module table on the stack
         luaL_requiref(L_, kLanesCoreLibName, luaopen_lanes_core, 0);
@@ -95,7 +95,7 @@ namespace {
 
     // #############################################################################################
 
-    static void Open1Lib(lua_State* L_, std::string_view const& name_)
+    static void Open1Lib(lua_State* const L_, std::string_view const& name_)
     {
         for (luaL_Reg const& _entry : local::sLibs) {
             if (name_ == _entry.name) {
@@ -123,7 +123,7 @@ namespace {
     // #############################################################################################
 
     // just like lua_xmove, args are (from, to)
-    static void CopyOneTimeSettings(Universe* U_, SourceState L1_, DestState L2_)
+    static void CopyOneTimeSettings(Universe* const U_, SourceState const L1_, DestState const L2_)
     {
         DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U_ });
 
@@ -157,7 +157,7 @@ namespace state {
     // #############################################################################################
     // #############################################################################################
 
-    void CallOnStateCreate(Universe* U_, lua_State* L_, lua_State* from_, LookupMode mode_)
+    void CallOnStateCreate(Universe* const U_, lua_State* const L_, lua_State* const from_, LookupMode const mode_)
     {
         if (U_->onStateCreateFunc == nullptr) {
             return;
@@ -195,7 +195,7 @@ namespace state {
 
     // #############################################################################################
 
-    lua_State* CreateState([[maybe_unused]] Universe* U_, lua_State* from_)
+    lua_State* CreateState([[maybe_unused]] Universe* const U_, lua_State* const from_)
     {
         lua_State* const _L {
             std::invoke(
@@ -228,7 +228,7 @@ namespace state {
 
     // #############################################################################################
 
-    void InitializeOnStateCreate(Universe* U_, lua_State* L_)
+    void InitializeOnStateCreate(Universe* const U_, lua_State* const L_)
     {
         STACK_CHECK_START_REL(L_, 1);                                                              // L_: settings
         if (luaG_getfield(L_, -1, kOnStateCreate) != LuaType::NIL) {                               // L_: settings on_state_create|nil
@@ -266,7 +266,7 @@ namespace state {
      * Base ("unpack", "print" etc.) is always added, unless 'libs' is nullptr.
      *
      */
-    lua_State* NewLaneState(Universe* U_, SourceState from_, std::optional<std::string_view> const& libs_)
+    lua_State* NewLaneState(Universe* const U_, SourceState const from_, std::optional<std::string_view> const& libs_)
     {
         DestState const _L{ CreateState(U_, from_) };
 
