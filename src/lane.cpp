@@ -352,10 +352,20 @@ static LUAG_FUNC(thread_index)
 
     default: // unknown key
         lua_getmetatable(L_, kSelf);                                                               // L_: mt
-        std::ignore = luaG_getfield(L_, -1, "cached_error");                                       // L_: mt error
-        luaG_pushstring(L_, "Unknown key: ");                                                      // L_: mt error "Unknown key: "
-        lua_pushvalue(L_, kKey);                                                                   // L_: mt error "Unknown key: " k
-        lua_concat(L_, 2);                                                                         // L_: mt error "Unknown key: <k>"
+        kCachedError.pushKey(L_);                                                                  // L_: mt kCachedError
+        lua_rawget(L_, -2);                                                                        // L_: mt error()
+        if (luaG_type(L_, -1) != LuaType::FUNCTION) {
+            raise_luaL_error(L_, "INTERNAL ERROR: cached error() is a %s, not a function", luaG_typename(L_, -1).data());
+        }
+        luaG_pushstring(L_, "Unknown key: ");                                                      // L_: mt error() "Unknown key: "
+        kCachedTostring.pushKey(L_);                                                               // L_: mt error() "Unknown key: " kCachedTostring
+        lua_rawget(L_, -4);                                                                        // L_: mt error() "Unknown key: " tostring()
+        if (luaG_type(L_, -1) != LuaType::FUNCTION) {
+            raise_luaL_error(L_, "INTERNAL ERROR: cached tostring() is a %s, not a function", luaG_typename(L_, -1).data());
+        }
+        lua_pushvalue(L_, kKey);                                                                   // L_: mt error() "Unknown key: " tostring() k
+        lua_call(L_, 1, 1);                                                                        // L_: mt error() "Unknown key: " "k"
+        lua_concat(L_, 2);                                                                         // L_: mt error() "Unknown key: <k>"
         lua_call(L_, 1, 0); // error( "Unknown key: " .. key) -> doesn't return                    // L_: mt
         raise_luaL_error(L_, "%s[%s]: should not get here!", _lane->debugName.data(), luaG_typename(L_, kKey).data());
     }
@@ -965,7 +975,7 @@ namespace {
     } // namespace local
 } // namespace
 
-  // contains keys: { __gc, __index, cached_error, cached_tostring, cancel, join, get_debug_threadname }
+  // contains keys: { __close, __gc, __index, kCachedError, kCachedTostring, cancel, get_debug_threadname, join }
 void Lane::PushMetatable(lua_State* L_)
 {
     STACK_CHECK_START_REL(L_, 0);

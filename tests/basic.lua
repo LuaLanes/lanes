@@ -92,6 +92,8 @@ local task_launch= lanes_gen("", { globals={hey=true}, gc_cb = gc_cb}, task)
 -- 'task_launch' is a factory of multithreaded tasks, we can launch several:
 
 local lane1= task_launch(100,200,3)
+assert.fails(function() print(lane1[lane1]) end) -- indexing the lane with anything other than a string or a number should fail
+
 local lane2= task_launch(200,300,4)
 
 -- At this stage, states may be "pending", "running" or "done"
@@ -435,7 +437,7 @@ local function chunk2(linda)
     assert(config.strip_functions and info.short_src=="?" or string.match(info.short_src, "^.*basic.lua$"), "bad info.short_src")
     -- These vary so let's not be picky (they're there..)
     --
-    assert(info.linedefined == 420, "bad linedefined")   -- start of 'chunk2'
+    assert(info.linedefined == 422, "bad linedefined")   -- start of 'chunk2'
     assert(config.strip_functions and info.currentline==-1 or info.currentline > info.linedefined, "bad currentline")   -- line of 'debug.getinfo'
     assert(info.lastlinedefined > info.currentline, "bad lastlinedefined")   -- end of 'chunk2'
     local k,func= linda:receive("down")
