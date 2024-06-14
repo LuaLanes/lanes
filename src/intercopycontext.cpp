@@ -106,17 +106,16 @@ THE SOFTWARE.
     lua_pop(L1, (mode == LookupMode::FromKeeper) ? 1 : 2);                                         // L1: ... v ...
     STACK_CHECK(L1, 0);
     if (_fqn.empty() && !lua_istable(L1, L1_i)) { // raise an error if we try to send an unknown function (but not for tables)
-        _fqn = std::string_view{}; // just in case
         // try to discover the name of the function we want to send
         kLaneNameRegKey.pushValue(L1);                                                             // L1: ... v ... lane_name
-        char const* _from{ lua_tostring(L1, -1) };
+        std::string_view const _from{ luaG_tostring(L1, -1) };
         lua_pushcfunction(L1, LG_nameof);                                                          // L1: ... v ... lane_name LG_nameof
         lua_pushvalue(L1, L1_i);                                                                   // L1: ... v ... lane_name LG_nameof t
         lua_call(L1, 1, 2);                                                                        // L1: ... v ... lane_name "type" "name"|nil
-        char const* _typewhat{ (luaG_type(L1, -2) == LuaType::STRING) ? lua_tostring(L1, -2) : luaL_typename(L1, -2) };
+        std::string_view const _typewhat{ (luaG_type(L1, -2) == LuaType::STRING) ? luaG_tostring(L1, -2) : luaG_typename(L1, -2) };
         // second return value can be nil if the table was not found
         // probable reason: the function was removed from the source Lua state before Lanes was required.
-        char const *_what, *_gotchaA, *_gotchaB;
+        std::string_view _what, _gotchaA, _gotchaB;
         if (lua_isnil(L1, -1)) {
             _gotchaA = " referenced by";
             _gotchaB = "\n(did you remove it from the source Lua state before requiring Lanes?)";
@@ -124,9 +123,9 @@ THE SOFTWARE.
         } else {
             _gotchaA = "";
             _gotchaB = "";
-            _what = (luaG_type(L1, -1) == LuaType::STRING) ? lua_tostring(L1, -1) : luaL_typename(L1, -1);
+            _what = (luaG_type(L1, -1) == LuaType::STRING) ? luaG_tostring(L1, -1) : luaG_typename(L1, -1);
         }
-        raise_luaL_error(L1, "%s%s '%s' not found in %s origin transfer database.%s", _typewhat, _gotchaA, _what, _from ? _from : "main", _gotchaB);
+        raise_luaL_error(L1, "%s%s '%s' not found in %s origin transfer database.%s", _typewhat.data(), _gotchaA.data(), _what.data(), _from.empty() ? "main" : _from.data(), _gotchaB.data());
     }
     STACK_CHECK(L1, 0);
     return _fqn;
@@ -283,12 +282,9 @@ void InterCopyContext::copyFunction() const
 
         // Set upvalues (originally set to 'nil' by 'lua_load')
         for (int const _func_index{ lua_gettop(L2) - _n }; _n > 0; --_n) {
-            [[maybe_unused]] char const* _upname{ lua_setupvalue(L2, _func_index, _n) };           //                                                L2: ... {cache} ... function
-            //
-            // "assigns the value at the top of the stack to the upvalue and returns its name.
-            // It also pops the value from the stack."
-
-            LUA_ASSERT(L1, _upname); // not having enough slots?
+            // assign upvalue, popping it from the stack
+            [[maybe_unused]] std::string_view const _upname{ lua_setupvalue(L2, _func_index, _n) };//                                                L2: ... {cache} ... function
+            LUA_ASSERT(L1, !_upname.empty()); // not having enough slots?
         }
         // once all upvalues have been set we are left
         // with the function at the top of the stack                                               //                                                L2: ... {cache} ... function
@@ -328,19 +324,19 @@ void InterCopyContext::lookupNativeFunction() const
         // anything other than function or table should not happen!
         if (!lua_isfunction(L2, -1) && !lua_istable(L2, -1)) {
             kLaneNameRegKey.pushValue(L1);                                                         // L1: ... f ... lane_name
-            char const* const _from{ lua_tostring(L1, -1) };
+            std::string_view const _from{ luaG_tostring(L1, -1) };
             lua_pop(L1, 1);                                                                        // L1: ... f ...
             kLaneNameRegKey.pushValue(L2);                                                         // L1: ... f ...                                  L2: {} f lane_name
-            char const* const _to{ lua_tostring(L2, -1) };
+            std::string_view const _to{ luaG_tostring(L2, -1) };
             lua_pop(L2, 1);                                                                        //                                                L2: {} f
             // when mode_ == LookupMode::FromKeeper, L is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
             raise_luaL_error(
                 getErrL(),
                 "%s%s: function '%s' not found in %s destination transfer database.",
                 lua_isnil(L2, -1) ? "" : "INTERNAL ERROR IN ",
-                _from ? _from : "main",
+                _from.empty() ? "main" : _from.data(),
                 _fqn.data(),
-                _to ? _to : "main");
+                _to.empty() ? "main" : _to.data());
             return;
         }
         lua_remove(L2, -2);                                                                        // L2: f
@@ -452,18 +448,18 @@ void InterCopyContext::copyCachedFunction() const
             return false;
         } else if (!lua_istable(L2, -1)) { // this can happen if someone decides to replace same already registered item (for a example a standard lib function) with a table
             kLaneNameRegKey.pushValue(L1);                                                         // L1: ... t ... lane_name
-            char const* _from{ lua_tostring(L1, -1) };
+            std::string_view const _from{ luaG_tostring(L1, -1) };
             lua_pop(L1, 1);                                                                        // L1: ... t ...
             kLaneNameRegKey.pushValue(L2);                                                         // L1: ... t ...                                  L2: {} t lane_name
-            char const* _to{ lua_tostring(L2, -1) };
+            std::string_view const _to{ luaG_tostring(L2, -1) };
             lua_pop(L2, 1);                                                                        // L1: ... t ...                                  L2: {} t
             raise_luaL_error(
                 getErrL(),
                 "%s: source table '%s' found as %s in %s destination transfer database.",
-                _from ? _from : "main",
-                _fqn,
+                _from.empty() ? "main" : _from.data(),
+                _fqn.data(),
                 luaG_typename(L2, -1).data(),
-                _to ? _to : "main");
+                _to.empty() ? "main" : _to.data());
         }
         lua_remove(L2, -2);                                                                        // L1: ... t ...                                  L2: t
         break;
@@ -1260,7 +1256,7 @@ namespace {
                 STACK_CHECK(L1, 0);
             }
             if (_result == InterCopyResult::Success) {
-                lua_setfield(L2, -2, _entry.data()); // set package[entry]
+                luaG_setfield(L2, -2, _entry); // set package[entry]
             } else {
                 std::string_view const _msg{ luaG_pushstring(L1, "failed to copy package.%s", _entry.data()) };
                 // raise the error when copying from lane to lane, else just leave it on the stack to be raised later

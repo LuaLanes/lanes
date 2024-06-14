@@ -42,7 +42,7 @@ THE SOFTWARE.
 
 // #################################################################################################
 
-static constexpr char const* kOnStateCreate{ "on_state_create" }; // update lanes.lua if the name changes!
+static constexpr std::string_view kOnStateCreate{ "on_state_create" }; // update lanes.lua if the name changes!
 
 // #################################################################################################
 // #################################################################################################
@@ -185,7 +185,7 @@ namespace state {
         std::string_view const _stateType{ mode_ == LookupMode::LaneBody ? "lane" : "keeper" };
         std::ignore = luaG_pushstring(L_, _stateType);                                             // L_: on_state_create() "<type>"
         if (lua_pcall(L_, 1, 0, 0) != LUA_OK) {
-            raise_luaL_error(from_, "%s failed: \"%s\"", kOnStateCreate, lua_isstring(L_, -1) ? lua_tostring(L_, -1) : luaG_typename(L_, -1).data());
+            raise_luaL_error(from_, "%s failed: \"%s\"", kOnStateCreate.data(), lua_isstring(L_, -1) ? luaG_tostring(L_, -1).data() : luaG_typename(L_, -1).data());
         }
         STACK_CHECK(L_, 0);
     }
@@ -235,12 +235,12 @@ namespace state {
                 // make sure the function doesn't have upvalues
                 char const* _upname{ lua_getupvalue(L_, -1, 1) };                                  // L_: settings on_state_create upval?
                 if (_upname != nullptr) { // should be "" for C functions with upvalues if any
-                    raise_luaL_error(L_, "%s shouldn't have upvalues", kOnStateCreate);
+                    raise_luaL_error(L_, "%s shouldn't have upvalues", kOnStateCreate.data());
                 }
                 // remove this C function from the config table so that it doesn't cause problems
                 // when we transfer the config table in newly created Lua states
                 lua_pushnil(L_);                                                                   // L_: settings on_state_create nil
-                lua_setfield(L_, -3, kOnStateCreate);                                              // L_: settings on_state_create
+                luaG_setfield(L_, -3, kOnStateCreate);                                             // L_: settings on_state_create
             } else {
                 // optim: store marker saying we have such a function in the config table
                 U_->onStateCreateFunc = reinterpret_cast<lua_CFunction>(InitializeOnStateCreate);

@@ -162,7 +162,7 @@ std::string_view Linda::getName() const
     }
     if (std::holds_alternative<EmbeddedName>(nameVariant)) {
         char const* const _name{ std::get<EmbeddedName>(nameVariant).data() };
-        return std::string_view{ _name, strlen(_name) };
+        return std::string_view{ _name };
     }
     return std::string_view{};
 }
@@ -385,7 +385,7 @@ LUAG_FUNC(linda_dump)
 {
     auto _dump = [](lua_State* L_) {
         Linda* const _linda{ ToLinda<false>(L_, 1) };
-        return keeper_push_linda_storage(*_linda, DestState{ L_ });
+        return Keeper::PushLindaStorage(*_linda, DestState{ L_ });
     };
     return Linda::ProtectedCall(L_, _dump);
 }
@@ -777,9 +777,9 @@ LUAG_FUNC(linda_set)
         // make sure the key is of a valid type (throws an error if not the case)
         check_key_types(L_, 2, 2);
 
-        Keeper* const _keeper{ _linda->whichKeeper() };
         KeeperCallResult _pushed;
         if (_linda->cancelRequest == CancelRequest::None) {
+            Keeper* const _keeper{ _linda->whichKeeper() };
             _pushed = keeper_call(_keeper->K, KEEPER_API(set), L_, _linda, 2);
             if (_pushed.has_value()) { // no error?
                 LUA_ASSERT(L_, _pushed.value() == 1 && luaG_type(L_, -1) == LuaType::BOOLEAN);
@@ -823,7 +823,7 @@ LUAG_FUNC(linda_tostring)
 LUAG_FUNC(linda_towatch)
 {
     Linda* const _linda{ ToLinda<false>(L_, 1) };
-    int _pushed{ keeper_push_linda_storage(*_linda, DestState{ L_ }) };
+    int _pushed{ Keeper::PushLindaStorage(*_linda, DestState{ L_ }) };
     if (_pushed == 0) {
         // if the linda is empty, don't return nil
         _pushed = LindaToString<false>(L_, 1);

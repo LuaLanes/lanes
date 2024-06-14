@@ -28,6 +28,8 @@ struct Keeper
     Keeper(Keeper const&&) = delete;
     Keeper& operator=(Keeper const&) = delete;
     Keeper& operator=(Keeper const&&) = delete;
+
+    [[nodiscard]] static int PushLindaStorage(Linda& linda_, DestState L_);
 };
 
 // #################################################################################################
@@ -68,8 +70,6 @@ struct Keepers
 
 // xxh64 of string "kNilSentinel" generated at https://www.pelock.com/products/hash-calculator
 static constexpr UniqueKey kNilSentinel{ 0xC457D4EDDB05B5E4ull, "lanes.null" };
-
-[[nodiscard]] int keeper_push_linda_storage(Linda& linda_, DestState L_);
 
 using keeper_api_t = lua_CFunction;
 #define KEEPER_API(_op) keepercall_##_op

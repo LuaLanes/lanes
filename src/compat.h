@@ -261,6 +261,14 @@ inline void luaG_pushglobaltable(lua_State* const L_)
 
 // #################################################################################################
 
+inline void luaG_setfield(lua_State* const L_, int const idx_, char const* k_) = delete;
+inline void luaG_setfield(lua_State* const L_, int const idx_, std::string_view const& k_)
+{
+    lua_setfield(L_, idx_, k_.data());
+}
+
+// #################################################################################################
+
 inline void luaG_setmetatable(lua_State* const L_, std::string_view const& tname_)
 {
     // fake externs to make clang happy...
