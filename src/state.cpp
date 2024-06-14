@@ -167,7 +167,7 @@ namespace state {
         DEBUGSPEW_CODE(DebugSpew(U_) << "calling on_state_create()" << std::endl);
         if (U_->onStateCreateFunc != reinterpret_cast<lua_CFunction>(InitializeOnStateCreate)) {
             // C function: recreate a closure in the new state, bypassing the lookup scheme
-            lua_pushcfunction(L_, U_->onStateCreateFunc); // on_state_create()
+            lua_pushcfunction(L_, U_->onStateCreateFunc);                                          // on_state_create()
         } else { // Lua function located in the config table, copied when we opened "lanes.core"
             if (mode_ != LookupMode::LaneBody) {
                 // if attempting to call in a keeper state, do nothing because the function doesn't exist there
@@ -177,7 +177,10 @@ namespace state {
             }
             kConfigRegKey.pushValue(L_);                                                           // L_: {}
             STACK_CHECK(L_, 1);
-            std::ignore = luaG_getfield(L_, -1, kOnStateCreate);                                   // L_: {} on_state_create()
+            LuaType const _funcType{ luaG_getfield(L_, -1, kOnStateCreate) };                      // L_: {} on_state_create()
+            if (_funcType != LuaType::FUNCTION) {
+                raise_luaL_error(L_, "INTERNAL ERROR: %s is a %s, not a function", kOnStateCreate.data(), luaG_typename(L_, _funcType).data());
+            }
             lua_remove(L_, -2);                                                                    // L_: on_state_create()
         }
         STACK_CHECK(L_, 1);

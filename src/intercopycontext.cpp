@@ -913,7 +913,10 @@ LuaType InterCopyContext::processConversion() const
         // perform the custom cloning part
         lua_insert(L2, -2);                                                                        //                                                L2: ... u mt
         // __lanesclone should always exist because we wouldn't be restoring data from a userdata_clone_sentinel closure to begin with
-        std::ignore = luaG_getfield(L2, -1, "__lanesclone");                                       //                                                L2: ... u mt __lanesclone
+        LuaType const _funcType{ luaG_getfield(L2, -1, "__lanesclone") };                          //                                                L2: ... u mt __lanesclone
+        if (_funcType != LuaType::FUNCTION) {
+            raise_luaL_error(getErrL(), "INTERNAL ERROR: __lanesclone is a %s, not a function", luaG_typename(L2, _funcType).data());
+        }
         lua_remove(L2, -2);                                                                        //                                                L2: ... u __lanesclone
         lua_pushlightuserdata(L2, _clone);                                                         //                                                L2: ... u __lanesclone clone
         lua_pushlightuserdata(L2, _source);                                                        //                                                L2: ... u __lanesclone clone source

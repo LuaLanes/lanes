@@ -176,17 +176,17 @@ LUAG_FUNC(thread_cancel)
     STACK_CHECK_START_REL(L_, 0);
     switch (_lane->cancel(_op, _hook_count, _until, _wake_lane)) {
     default: // should never happen unless we added a case and forgot to handle it
-        LUA_ASSERT(L_, false);
+        raise_luaL_error(L_, "should not get here!");
         break;
 
     case CancelResult::Timeout:
-        lua_pushboolean(L_, 0); // false
-        lua_pushstring(L_, "timeout"); // false "timeout"
+        lua_pushboolean(L_, 0);                                                                    // false
+        lua_pushstring(L_, "timeout");                                                             // false "timeout"
         break;
 
     case CancelResult::Cancelled:
-        lua_pushboolean(L_, 1); // true
-        std::ignore = _lane->pushThreadStatus(L_); // true status
+        lua_pushboolean(L_, 1);                                                                    // true
+        std::ignore = _lane->pushThreadStatus(L_);                                                 // true "<status>"
         break;
     }
     STACK_CHECK(L_, 2);
