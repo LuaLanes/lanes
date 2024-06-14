@@ -61,7 +61,7 @@ static constexpr int kWriterReturnCode{ 666 };
  * +-----------------+-------------------+------------+----------+
  * | lua_tocfunction |      nullptr      |            |  nullptr |
  * +-----------------+-------------------+------------+----------+
- * | lua_dump        | kWriterReturnCode |  1         |  1       |
+ * | luaG_dump       | kWriterReturnCode |  1         |  1       |
  * +-----------------+-------------------+------------+----------+
  */
 
@@ -77,7 +77,7 @@ static constexpr int kWriterReturnCode{ 666 };
             _mustpush = 1;
         }
         // the provided writer fails with code kWriterReturnCode
-        // therefore, anytime we get kWriterReturnCode, this means that lua_dump() attempted a dump
+        // therefore, anytime we get kWriterReturnCode, this means that luaG_dump() attempted a dump
         // all other cases mean this is either a C or LuaJIT-fast function
         int const _dumpres{ luaG_dump(L_, dummy_writer, nullptr, 0) };
         lua_pop(L_, _mustpush);

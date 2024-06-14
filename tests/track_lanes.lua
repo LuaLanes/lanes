@@ -22,6 +22,11 @@ local track = function( title_, expected_count_)
 end
 
 local sleeper = function( name_, seconds_)
+    -- no set_finalizer in main thread
+    if set_finalizer
+    then
+        set_finalizer(function() print("Finalizing '" .. name_ .. "'") end)
+    end
     -- print( "entering '" .. name_ .. "'")
     local lanes = require "lanes"
     -- no set_debug_threadname in main thread
@@ -30,7 +35,7 @@ local sleeper = function( name_, seconds_)
         -- print( "set_debug_threadname('" .. name_ .. "')")
         set_debug_threadname( name_)
     end
-    -- suspend the lane for the specified duration with a failed linda read
+    -- suspend the lane for the specified duration
     lanes.sleep(seconds_)
     -- print( "exiting '" .. name_ .. "'")
 end
@@ -85,4 +90,9 @@ local threads = track( "============= AFTER COLLECTGARBAGE", 2)
 --     two_seconds #2                     forever
 assert(threads[1].status == 'waiting' and threads[2].status == 'waiting')
 
-print "done"
+-- wait a bit more for ephemeral2 to exit, so that we get to have a free-running lane terminate itself before shutdown
+SLEEP(3)
+
+print "============= AFTER WAITING"
+-- this is printed after Universe shutdown terminates the only remaining lane, 'forever'
+lanes.finally(function() print "TEST OK" end)

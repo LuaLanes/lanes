@@ -183,7 +183,7 @@ void InterCopyContext::copyFunction() const
     STACK_GROW(L1, 2);
     STACK_CHECK_START_REL(L1, 0);
 
-    // 'lua_dump()' needs the function at top of stack
+    // 'luaG_dump()' needs the function at top of stack
     // if already on top of the stack, no need to push again
     bool const _needToPush{ L1_i != lua_gettop(L1) };
     if (_needToPush) {
@@ -1136,7 +1136,6 @@ namespace {
  */
 [[nodiscard]] InterCopyResult InterCopyContext::interCopyOne() const
 {
-    static constexpr int kPODmask = (1 << LUA_TNIL) | (1 << LUA_TBOOLEAN) | (1 << LUA_TLIGHTUSERDATA) | (1 << LUA_TNUMBER) | (1 << LUA_TSTRING);
     STACK_GROW(L2, 1);
     STACK_CHECK_START_REL(L1, 0);
     STACK_CHECK_START_REL(L2, 0);

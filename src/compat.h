@@ -128,150 +128,11 @@ inline LuaType luaG_type(lua_State* const L_, int const idx_)
     return static_cast<LuaType>(lua_type(L_, idx_));
 }
 
-// -------------------------------------------------------------------------------------------------
-
-// Default matches Lua 5.4 as of now
-template <int VERSION, typename SPECIALIZE = void>
-struct Wrap
-{
-    static inline int lua_dump(lua_State* const L_, lua_Writer const writer_, void* const data_, int const strip_)
-    {
-        return ::lua_dump(L_, writer_, data_, strip_);
-    }
-
-    static inline LuaType lua_getfield(lua_State* L_, int idx_, std::string_view const& k_)
-    {
-        // starting with Lua 5.3, lua_getfield returns the type of the pushed value
-        return static_cast<LuaType>(::lua_getfield(L_, idx_, k_.data()));
-    }
-
-    template <size_t N>
-    static inline void (luaL_newlib)(lua_State* const L_, luaL_Reg const (&funcs_)[N])
-    {
-        lua_createtable(L_, 0, N - 1);
-        ::luaL_setfuncs(L_, funcs_, 0);
-    }
-
-    static void luaL_setfuncs(lua_State* const L_, luaL_Reg const funcs_[], int nup_)
-    {
-        ::luaL_setfuncs(L_, funcs_, nup_);
-    }
-
-    static void luaL_setmetatable(lua_State* const L_, std::string_view const& tname_)
-    {
-        ::luaL_setmetatable(L_, tname_.data());
-    }
-};
-
 // #################################################################################################
-
-template <int VERSION>
-struct Wrap<VERSION, typename std::enable_if_t<VERSION == 503>>
-{
-    static inline int lua_dump(lua_State* L_, lua_Writer writer_, void* data_, int strip_)
-    {
-        return ::lua_dump(L_, writer_, data_, strip_);
-    }
-
-    static inline LuaType lua_getfield(lua_State* L_, int idx_, std::string_view const& k_)
-    {
-        // starting with Lua 5.3, lua_getfield returns the type of the pushed value
-        return static_cast<LuaType>(::lua_getfield(L_, idx_, k_.data()));
-    }
-
-    template <size_t N>
-    static inline void (luaL_newlib)(lua_State* const L_, luaL_Reg const (&funcs_)[N])
-    {
-        lua_createtable(L_, 0, N - 1);
-        ::luaL_setfuncs(L_, funcs_, 0);
-    }
-
-    static void luaL_setfuncs(lua_State* const L_, luaL_Reg const funcs_[], int const nup_)
-    {
-        ::luaL_setfuncs(L_, funcs_, nup_);
-    }
-
-    static void luaL_setmetatable(lua_State* const L_, std::string_view const& tname_)
-    {
-        ::luaL_setmetatable(L_, tname_.data());
-    }
-};
-
-// #################################################################################################
-
-template <int VERSION>
-struct Wrap<VERSION, typename std::enable_if_t<VERSION == 502>>
-{
-    static inline int lua_dump(lua_State* const L_, lua_Writer const writer_, void* const data_, [[maybe_unused]] int const strip_)
-    {
-        return ::lua_dump(L_, writer_, data_);
-    }
-
-    static inline LuaType lua_getfield(lua_State* L_, int idx_, std::string_view const& k_)
-    {
-        // before Lua 5.3, lua_getfield returns nothing
-        ::lua_getfield(L_, idx_, k_.data());
-        return luaG_type(L_, -1);
-    }
-
-    template <size_t N>
-    static inline void (luaL_newlib)(lua_State* const L_, luaL_Reg const (&funcs_)[N])
-    {
-        ::lua_createtable(L_, 0, N - 1);
-        ::luaL_setfuncs(L_, funcs_, 0);
-    }
-
-    static void luaL_setfuncs(lua_State* const L_, luaL_Reg const funcs_[], int const nup_)
-    {
-        ::luaL_setfuncs(L_, funcs_, nup_);
-    }
-
-    static void luaL_setmetatable(lua_State* const L_, std::string_view const& tname_)
-    {
-        ::luaL_setmetatable(L_, tname_.data());
-    }
-};
-
-// #################################################################################################
-
-template <int VERSION>
-struct Wrap<VERSION, typename std::enable_if_t<VERSION == 501>>
-{
-    static inline int lua_dump(lua_State* const L_, lua_Writer const writer_, void* const data_, [[maybe_unused]] int const strip_)
-    {
-        return ::lua_dump(L_, writer_, data_);
-    }
-
-    static inline LuaType lua_getfield(lua_State* L_, int idx_, std::string_view const& k_)
-    {
-        // before Lua 5.3, lua_getfield returns nothing
-        ::lua_getfield(L_, idx_, k_.data());
-        return luaG_type(L_, -1);
-    }
-
-    template<size_t N>
-    static inline void (luaL_newlib)(lua_State* const L_, luaL_Reg const (&funcs_)[N])
-    {
-        lua_createtable(L_, 0, N - 1);
-        ::luaL_register(L_, nullptr, funcs_);
-    }
-
-    static void luaL_setfuncs(lua_State* const L_, luaL_Reg const funcs_[], [[maybe_unused]] int const nup_)
-    {
-        ::luaL_register(L_, nullptr, funcs_);
-    }
-
-    static void luaL_setmetatable(lua_State* const L_, std::string_view const& tname_)
-    {
-        luaL_getmetatable(L_, tname_.data());
-        lua_setmetatable(L_, -2);
-    }
-};
-
 // #################################################################################################
 // All the compatibility wrappers we expose start with luaG_
-
-// -------------------------------------------------------------------------------------------------
+// #################################################################################################
+// #################################################################################################
 
 // use this in place of lua_absindex to save a function call
 inline int luaG_absindex(lua_State* L_, int idx_)
@@ -279,37 +140,107 @@ inline int luaG_absindex(lua_State* L_, int idx_)
     return (((idx_) >= 0 || (idx_) <= LUA_REGISTRYINDEX) ? (idx_) : lua_gettop(L_) + (idx_) + 1);
 }
 
-// -------------------------------------------------------------------------------------------------
+// #################################################################################################
 
-inline int luaG_dump(lua_State* L_, lua_Writer writer_, void* data_, int strip_)
+template <typename LUA_DUMP>
+concept RequiresOldLuaDump = requires(LUA_DUMP f_) { { f_(nullptr, nullptr, nullptr) } -> std::same_as<int>; };
+
+template <RequiresOldLuaDump LUA_DUMP>
+static inline int WrapLuaDump(LUA_DUMP f_, lua_State* const L_, lua_Writer const writer_, void* const data_, [[maybe_unused]] int const strip_)
 {
-    return Wrap<LUA_VERSION_NUM>::lua_dump(L_, writer_, data_, strip_);
+    return f_(L_, writer_, data_);
 }
 
 // -------------------------------------------------------------------------------------------------
+
+template <typename LUA_DUMP>
+concept RequiresNewLuaDump = requires(LUA_DUMP f_) { { f_(nullptr, nullptr, nullptr, 0) } -> std::same_as<int>; };
+
+template <RequiresNewLuaDump LUA_DUMP>
+static inline int WrapLuaDump(LUA_DUMP f_, lua_State* const L_, lua_Writer const writer_, void* const data_, int const strip_)
+{
+    return f_(L_, writer_, data_, strip_);
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static inline int luaG_dump(lua_State* const L_, lua_Writer const writer_, void* const data_, int const strip_)
+{
+    return WrapLuaDump(lua_dump, L_, writer_, data_, strip_);
+}
+
+// #################################################################################################
 
 int luaG_getalluservalues(lua_State* L_, int idx_);
 
-// -------------------------------------------------------------------------------------------------
+// #################################################################################################
 
-[[nodiscard]] inline LuaType luaG_getfield(lua_State* L_, int idx_, std::string_view const& k_)
+template <typename LUA_GETFIELD>
+concept RequiresOldLuaGetfield = requires(LUA_GETFIELD f_)
 {
-    return Wrap<LUA_VERSION_NUM>::lua_getfield(L_, idx_, k_);
+    {
+        f_(nullptr, 0, nullptr)
+    } -> std::same_as<void>;
+};
+
+template <RequiresOldLuaGetfield LUA_GETFIELD>
+static inline int WrapLuaGetField(LUA_GETFIELD f_, lua_State* const L_, int const idx_, char const* const name_)
+{
+    f_(L_, idx_, name_);
+    return lua_type(L_, -1);
 }
 
 // -------------------------------------------------------------------------------------------------
+
+template <typename LUA_GETFIELD>
+concept RequiresNewLuaGetfield = requires(LUA_GETFIELD f_)
+{
+    {
+        f_(nullptr, 0, nullptr)
+    } -> std::same_as<int>;
+};
+
+template <RequiresNewLuaGetfield LUA_GETFIELD>
+static inline int WrapLuaGetField(LUA_GETFIELD f_, lua_State* const L_, int const idx_, char const* const name_)
+{
+    return f_(L_, idx_, name_);
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static inline LuaType luaG_getfield(lua_State* const L_, int const idx_, std::string_view const& name_)
+{
+    return static_cast<LuaType>(WrapLuaGetField(lua_getfield, L_, idx_, name_.data()));
+}
+
+// #################################################################################################
 
 LuaType luaG_getmodule(lua_State* L_, std::string_view const& name_);
 
-// -------------------------------------------------------------------------------------------------
+// #################################################################################################
 
-template<size_t N>
-inline void luaG_newlib(lua_State* const L_, luaL_Reg const (&funcs_)[N])
+inline void luaG_registerlibfuncs(lua_State* L_, luaL_Reg const* funcs_)
 {
-    (Wrap<LUA_VERSION_NUM>::luaL_newlib)(L_, funcs_);
+    // fake externs to make clang happy...
+    extern void luaL_register(lua_State*, char const*, luaL_Reg const*); // Lua 5.1
+    extern void luaL_setfuncs(lua_State* const L_, luaL_Reg const funcs_[], int nup_); // Lua 5.2+
+    if constexpr (LUA_VERSION_NUM == 501) {
+        luaL_register(L_, nullptr, funcs_);
+    } else {
+        luaL_setfuncs(L_, funcs_, 0);
+    }
 }
 
-// -------------------------------------------------------------------------------------------------
+// #################################################################################################
+
+template <size_t N>
+static inline void luaG_newlib(lua_State* const L_, luaL_Reg const (&funcs_)[N])
+{
+    lua_createtable(L_, 0, N - 1);
+    luaG_registerlibfuncs(L_, funcs_);
+}
+
+// #################################################################################################
 
 template <typename T>
 [[nodiscard]] T* luaG_newuserdatauv(lua_State* L_, int nuvalue_)
@@ -317,7 +248,7 @@ template <typename T>
     return static_cast<T*>(lua_newuserdatauv(L_, sizeof(T), nuvalue_));
 }
 
-// -------------------------------------------------------------------------------------------------
+// #################################################################################################
 
 inline void luaG_pushglobaltable(lua_State* const L_)
 {
@@ -328,21 +259,21 @@ inline void luaG_pushglobaltable(lua_State* const L_)
 #endif // LUA_GLOBALSINDEX
 }
 
-// -------------------------------------------------------------------------------------------------
-
-inline void luaG_registerlibfuncs(lua_State* L_, luaL_Reg const funcs_[])
-{
-    Wrap<LUA_VERSION_NUM>::luaL_setfuncs(L_, funcs_, 0);
-}
-
-// -------------------------------------------------------------------------------------------------
+// #################################################################################################
 
 inline void luaG_setmetatable(lua_State* const L_, std::string_view const& tname_)
 {
-    return Wrap<LUA_VERSION_NUM>::luaL_setmetatable(L_, tname_);
+    // fake externs to make clang happy...
+    extern void luaL_setmetatable(lua_State* const L_, char const* const tname_); // Lua 5.2+
+    if constexpr (LUA_VERSION_NUM == 501) {
+        luaL_setmetatable(L_, tname_.data());
+    } else {
+        luaL_getmetatable(L_, tname_.data());
+        lua_setmetatable(L_, -2);
+    }
 }
 
-// -------------------------------------------------------------------------------------------------
+// #################################################################################################
 
 // a small helper to extract a full userdata pointer from the stack in a safe way
 template <typename T>

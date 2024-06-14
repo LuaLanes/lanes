@@ -7,6 +7,7 @@
 #include <cassert>
 #include <chrono>
 #include <compare>
+#include <concepts>
 #include <condition_variable>
 #include <functional>
 #include <iostream>

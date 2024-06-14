@@ -44,7 +44,7 @@ struct Keepers
     // can't use std::vector<Keeper> because Keeper contains a mutex, so we need a raw memory buffer
     struct KV
     {
-        std::unique_ptr<Keeper[], DeleteKV> keepers{};
+        std::unique_ptr<Keeper[], DeleteKV> keepers;
         size_t nbKeepers{};
     };
     std::variant<std::monostate, Keeper, KV> keeper_array;

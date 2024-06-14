@@ -131,11 +131,11 @@ void THREAD_SET_PRIORITY(int prio_, [[maybe_unused]] bool sudo_)
 
 // #################################################################################################
 
-void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_, [[maybe_unused]] bool sudo_)
+void THREAD_SET_PRIORITY(std::thread& thread_, int prio_, [[maybe_unused]] bool sudo_)
 {
     // prio range [-3,+3] was checked by the caller
     if (!SetThreadPriority(thread_.native_handle(), gs_prio_remap[prio_ + 3])) {
-        FAIL("JTHREAD_SET_PRIORITY", GetLastError());
+        FAIL("THREAD_SET_PRIORITY", GetLastError());
     }
 }
 
@@ -349,14 +349,6 @@ static int const gs_prio_remap[] = {
 #endif // _PRIO_0
 };
 
-[[nodiscard]] static int select_prio(int prio /* -3..+3 */)
-{
-    if (prio == kThreadPrioDefault)
-        prio = 0;
-    // prio range [-3,+3] was checked by the caller
-    return gs_prio_remap[prio + 3];
-}
-
 void THREAD_SET_PRIORITY(int prio_, [[maybe_unused]] bool sudo_)
 {
 #ifdef PLATFORM_LINUX
@@ -372,7 +364,7 @@ void THREAD_SET_PRIORITY(int prio_, [[maybe_unused]] bool sudo_)
 
 // #################################################################################################
 
-void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_, [[maybe_unused]] bool sudo_)
+void THREAD_SET_PRIORITY(std::thread& thread_, int prio_, [[maybe_unused]] bool sudo_)
 {
 #ifdef PLATFORM_LINUX
     if (!sudo_) // only root-privileged process can change priorities
@@ -386,6 +378,15 @@ void JTHREAD_SET_PRIORITY(std::jthread& thread_, int prio_, [[maybe_unused]] boo
 }
 
 // #################################################################################################
+
+#ifdef __PROSPERO__
+
+void THREAD_SET_AFFINITY(unsigned int aff_)
+{
+    scePthreadSetaffinity(scePthreadSelf(), aff_);
+}
+
+#else // __PROSPERO__
 
 void THREAD_SET_AFFINITY(unsigned int aff_)
 {
@@ -416,7 +417,18 @@ void THREAD_SET_AFFINITY(unsigned int aff_)
 #endif
 }
 
+#endif // __PROSPERO__
+
 // #################################################################################################
+
+#ifdef __PROSPERO__
+
+void THREAD_SETNAME(std::string_view const& name_)
+{
+    scePthreadRename(scePthreadSelf(), name_.data());
+}
+
+#else // __PROSPERO__
 
 void THREAD_SETNAME(std::string_view const& name_)
 {
@@ -441,6 +453,8 @@ void THREAD_SETNAME(std::string_view const& name_)
     abort();
 #endif
 }
+
+#endif // __PROSPERO__
 
 #endif // THREADAPI == THREADAPI_PTHREAD
 // #################################################################################################

@@ -31,7 +31,7 @@ CHANGE 2: BGe 11-Jun-24
             - error_trace_level added. Replaces the global verbose_errors setting.
             - name added. Can be used to set the name early (before the lane body calls set_debug_threadname()).
    * Internal changes
-       - Lanes is implemented in C++20: jthread, condition_variable, mutex, string_view, variant, and more!
+       - Lanes is implemented in C++20: thread, condition_variable, mutex, string_view, variant, and more!
        - Almost all platform-specific code is gone (only a small bit for thread priority and affinity remains).
        - Decoda support inactive by default.
        - Deep userdata interface fully revamped to C++20 too.

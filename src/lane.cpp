@@ -677,7 +677,7 @@ static void lane_main(Lane* const lane_)
 #ifndef __PROSPERO__
     lane_->ready.wait();
 #else // __PROSPERO__
-    while (!lane_->ready._My_flag) {
+    while (!lane_->ready.test()) {
         std::this_thread::yield();
     }
 #endif // __PROSPERO__
@@ -719,7 +719,8 @@ static void lane_main(Lane* const lane_)
             lane_->U->selfdestructingCount.fetch_sub(1, std::memory_order_release);
             lane_->U->selfdestructMutex.unlock();
 
-            // we destroy our jthread member from inside the thread body, so we have to detach so that we don't try to join, as this doesn't seem a good idea
+            // we destroy ourselves, therefore our thread member too, from inside the thread body
+            // detach so that we don't try to join, as this doesn't seem a good idea
             lane_->thread.detach();
             delete lane_;
             return;
@@ -828,6 +829,11 @@ Lane::Lane(Universe* U_, lua_State* L_, ErrorTraceLevel errorTraceLevel_)
 
 Lane::~Lane()
 {
+    // not necessary when using a jthread
+    if (thread.joinable()) {
+        thread.join();
+    }
+    // no longer tracked
     std::ignore = U->tracker.tracking_remove(this);
 }
 
@@ -1032,9 +1038,9 @@ void Lane::securizeDebugName(lua_State* L_)
 
 void Lane::startThread(int priority_)
 {
-    thread = std::jthread([this]() { lane_main(this); });
+    thread = std::thread([this]() { lane_main(this); });
     if (priority_ != kThreadPrioDefault) {
-        JTHREAD_SET_PRIORITY(thread, priority_, U->sudo);
+        THREAD_SET_PRIORITY(thread, priority_, U->sudo);
     }
 }
 

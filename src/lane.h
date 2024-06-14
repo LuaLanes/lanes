@@ -68,7 +68,7 @@ class Lane
     using enum ErrorTraceLevel;
 
     // the thread
-    std::jthread thread;
+    std::thread thread; // use jthread if we ever need a stop_source
 #ifndef __PROSPERO__
     // a latch to wait for the lua_State to be ready
     std::latch ready{ 1 };
