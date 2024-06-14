@@ -576,8 +576,8 @@ int keepercall_set(lua_State* const L_)
  * Call a function ('func_name') in the keeper state, and pass on the returned
  * values to 'L'.
  *
- * 'linda':          deep Linda pointer (used only as a unique table key, first parameter)
- * 'starting_index': first of the rest of parameters (none if 0)
+ * 'linda':          deep Linda pointer (used only as a unique table key, first argument)
+ * 'starting_index': first of the rest of arguments (none if 0)
  *
  * Returns: number of return values (pushed to 'L'), unset in case of error
  */

@@ -158,12 +158,12 @@ local params_checker = function(settings_)
     -- make a copy of the table to leave the provided one unchanged, *and* to help ensure it won't change behind our back
     local settings = {}
     if type(settings_) ~= "table" then
-        error "Bad parameter #1 to lanes.configure(), should be a table"
+        error "Bad argument #1 to lanes.configure(), should be a table"
     end
     -- any setting unknown to Lanes raises an error
     for setting, _ in pairs(settings_) do
         if not param_checkers[setting] then
-        error("Unknown parameter '" .. setting .. "' in configure options")
+        error("Unknown argument '" .. setting .. "' in configure options")
         end
     end
     -- any setting not present in the provided parameters takes the default value
@@ -176,7 +176,7 @@ local params_checker = function(settings_)
             param = default_params[key]
         end
         if not checker(param) then
-            error("Bad parameter " .. key .. ": " .. tostring(param), 2)
+            error("Bad argument " .. key .. ": " .. tostring(param), 2)
         end
         settings[key] = param
     end
@@ -291,7 +291,7 @@ local opt_validators =
 --
 --        ... (more options may be introduced later) ...
 --
--- Calling with a function parameter ('lane_func') ends the string/table
+-- Calling with a function argument ('lane_func') ends the string/table
 -- modifiers, and prepares a lane generator.
 
 -- receives a sequence of strings and tables, plus a function
@@ -306,7 +306,7 @@ local gen = function(...)
 
     -- we need at least a function
     if n == 0 then
-        error("No parameters!", 2)
+        error("No arguments!", 2)
     end
 
     -- all arguments but the last must be nil, strings, or tables
@@ -322,7 +322,7 @@ local gen = function(...)
         elseif v == nil then
             -- skip
         else
-            error("Bad parameter " .. i .. ": " .. tv .. " " .. string_format("%q", tostring(v)), 2)
+            error("Bad argument " .. i .. ": " .. tv .. " " .. string_format("%q", tostring(v)), 2)
         end
     end
 
@@ -330,7 +330,7 @@ local gen = function(...)
     local func = select(n, ...)
     local functype = type(func)
     if functype ~= "function" and functype ~= "string" then
-        error("Last parameter not function or string: " .. functype .. " " .. string_format("%q", tostring(func)), 2)
+        error("Last argument not function or string: " .. functype .. " " .. string_format("%q", tostring(func)), 2)
     end
 
     -- check that the caller only provides reserved library names, and those only once

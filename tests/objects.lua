@@ -68,7 +68,7 @@ local mt_a= getmetatable(a)
 local mt_b= getmetatable(b)
 assert(mt_a and mt_a==mt_b )
 
-local h= start_lane(a)  -- 1st object as parameter
+local h= start_lane(a)  -- 1st object as argument
 
 linda:send("", b )    -- 2nd object via Linda
 

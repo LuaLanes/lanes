@@ -14,7 +14,7 @@ static constexpr RegistryUniqueKey kExtendedStackTraceRegKey{ 0x38147AD48FB426E2
  * of functions that Lanes will call after the executing 'pcall' has ended.
  *
  * We're NOT using the GC system for finalizer mainly because providing the
- * error (and maybe stack trace) parameters to the finalizer functions would
+ * error (and maybe stack trace) arguments to the finalizer functions would
  * anyways complicate that approach.
  */
 // xxh64 of string "kFinalizerRegKey" generated at https://www.pelock.com/products/hash-calculator

@@ -34,10 +34,10 @@ end
 local L1= lanes.gen( "io", lane1 )()
     -- ...running
 
--- Getting the tables as parameters should also keep the linkage
+-- Getting the tables as arguments should also keep the linkage
 --
 local function lane2( aa, bb )
-    WR( "Via parameters:", same(aa,bb[1]), same(aa[1],bb) )
+    WR( "Via arguments:", same(aa,bb[1]), same(aa[1],bb) )
     assert( aa[1]==bb )
     assert( bb[1]==aa )
     return true

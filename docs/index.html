@@ -1137,7 +1137,7 @@
 <p>
 	Communications between lanes is completely detached from the lane handles themselves. By itself, a lane can only provide return values once it is finished, or throw an error.
 	Needs to communicate during runtime are handled by <a href="http://en.wikipedia.org/wiki/Linda_%28coordination_language%29" target="_blank">Linda objects</a>, which are
-	<a href="#deep_userdata">deep userdata</a> instances. They can be provided to a lane as startup parameters, upvalues or in some other Linda's message.
+	<a href="#deep_userdata">deep userdata</a> instances. They can be provided to a lane as startup arguments, upvalues or in some other Linda's message.
 </p>
 
 <p>
@@ -1175,7 +1175,7 @@
 
 	<ul>
 		<li>Keys can be of boolean, number, string or light userdata type. Tables and functions can't be keys because their identity isn't preserved when transfered from one Lua state to another.</li>
-		<li>values can be any type supported by inter-state copying (same <a href="#limitations">limits</a> as for function parameters and upvalues).</li>
+		<li>values can be any type supported by inter-state copying (same <a href="#limitations">limits</a> as for function arguments and upvalues).</li>
 		<li>consuming method is <tt>:receive</tt> (not in).</li>
 		<li>non-consuming method is <tt>:get</tt> (not rd).</li>
 		<li>two producer-side methods: <tt>:send</tt> and <tt>:set</tt> (not out).</li>
@@ -1539,7 +1539,7 @@ On the other side, you need to use a common Linda for waiting for multiple keys.
 <h3>Limitations on data passing</h3>
 
 <p>
-	Data passed between lanes (either as starting parameters, return values, upvalues or via Lindas) must conform to the following:
+	Data passed between lanes (either as starting arguments, return values, upvalues or via Lindas) must conform to the following:
 	<ul>
 		<li>Coroutines cannot be passed. A coroutine's Lua state is tied to the Lua state that created it, and there is no way the mixed C/Lua stack of a coroutine can be transfered from one Lua state to another.</li>
 		<li>Lane handles cannot be passed between lanes.</li>
@@ -1685,7 +1685,7 @@ static int clonable_lanesclone(lua_State* L)
 		return 0;
 
 		default:
-		std::ignore = luaL_error(L, "Lanes called clonable_lanesclone with unexpected parameters");
+		std::ignore = luaL_error(L, "Lanes called clonable_lanesclone with unexpected arguments");
 	}
 	return 0;
 }
@@ -1800,7 +1800,7 @@ static MyDeepFactory g_MyDeepFactory;
 <h3>Beware with print and file output</h3>
 
 <p>
-	In multithreaded scenarios, giving multiple parameters to <tt>print()</tt> or <tt>file:write()</tt> may cause them to be overlapped in the output, something like this:
+	In multithreaded scenarios, giving multiple arguments to <tt>print()</tt> or <tt>file:write()</tt> may cause them to be overlapped in the output, something like this:
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 	A:  print(1, 2, 3, 4 )
@@ -1821,7 +1821,7 @@ static MyDeepFactory g_MyDeepFactory;
 
 <p>
 	<ul>
-		<li>Data passing (parameters, upvalues, <a href="#lindas">Linda</a> messages) is generally fast, doing two binary state-to-state copies (from source state to hidden state, hidden state to target state). Remember that not only the function you specify but also its upvalues, their upvalues, etc. etc. will get copied.</li>
+		<li>Data passing (arguments, upvalues, <a href="#lindas">Linda</a> messages) is generally fast, doing two binary state-to-state copies (from source state to hidden state, hidden state to target state). Remember that not only the function you specify but also its upvalues, their upvalues, etc. etc. will get copied.</li>
 		<li>Lane startup is fast (1000's of lanes a second), depending on the number of standard libraries initialized. Initializing all standard libraries is about 3-4 times slower than having no standard libraries at all. If you throw in a lot of lanes per second, make sure you give them minimal necessary set of libraries.</li>
 		<li>Waiting Lindas are woken up (and execute some hidden Lua code) each time <u>any</u> key in the <a href="#lindas">Lindas</a> they are waiting for are changed. This may give essential slow-down (not measured, just a gut feeling) if a lot of <a href="#lindas">Linda</a> keys are used. Using separate <a href="#lindas">Lindas</a> for logically separate issues will help (which is good practice anyhow).</li>
 		<li><a href="#lindas">Linda</a> objects are light. The memory footprint is two OS-level signalling objects (<tt>HANDLE</tt> or <tt>pthread_cond_t</tt>) for each, plus one C pointer for the proxies per each Lua state using the <a href="#lindas">Linda</a>. Barely nothing.</li>

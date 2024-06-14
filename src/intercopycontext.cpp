@@ -193,7 +193,7 @@ void InterCopyContext::copyFunction() const
     // "value returned is the error code returned by the last call
     // to the writer" (and we only return 0)
     // not sure this could ever fail but for memory shortage reasons
-    // last parameter is Lua 5.4-specific (no stripping)
+    // last argument is Lua 5.4-specific (no stripping)
     luaL_Buffer B{};
     if (luaG_dump(L1, buf_writer, &B, U->stripFunctions) != 0) {
         raise_luaL_error(getErrL(), "internal error: function dump failed.");
@@ -482,7 +482,7 @@ void InterCopyContext::interCopyKeyValuePair() const
         return;
         // we could raise an error instead of ignoring the table entry, like so:
         // raise_luaL_error(L1, "Unable to copy %s key '%s' because of value is of type '%s'", (vt == VT::NORMAL) ? "table" : "metatable", name, luaL_typename(L1, key_i));
-        // maybe offer this possibility as a global configuration option, or a linda setting, or as a parameter of the call causing the transfer?
+        // maybe offer this possibility as a global configuration option, or a linda setting, or as a argument of the call causing the transfer?
     }
 
     char* _valPath{ nullptr };

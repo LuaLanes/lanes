@@ -215,7 +215,7 @@ REM ---
 REM NOTE: 'timeit' is a funny thing; it does _not_ work with quoted
 REM long paths, but it _does_ work without the quotes. I have no idea,
 REM how it knows the spaces in paths apart from spaces in between
-REM parameters.
+REM arguments.
 
 :LAUNCHTEST
 timeit %LUA_EXE% tests\launchtest.lua %2 %3 %4

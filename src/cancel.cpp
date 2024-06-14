@@ -168,7 +168,7 @@ LUAG_FUNC(thread_cancel)
     bool _wake_lane{ _op != CancelOp::Soft };
     if (lua_gettop(L_) >= 2) {
         if (!lua_isboolean(L_, 2)) {
-            raise_luaL_error(L_, "wake_lindas parameter is not a boolean");
+            raise_luaL_error(L_, "wake_lindas argument is not a boolean");
         }
         _wake_lane = lua_toboolean(L_, 2);
         lua_remove(L_, 2); // argument is processed, remove it

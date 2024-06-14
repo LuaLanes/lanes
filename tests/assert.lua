@@ -6,7 +6,7 @@
 --
 -- This module allows shorthand use s.a. 'assert.table()' for asserting 
 -- variable types, and is also being used by Lua-super constraints system
--- for testing function parameter & return types.
+-- for testing function argument & return types.
 --
 -- All in all, a worthy module and could be part of Lua future versions.
 --
@@ -182,7 +182,7 @@ assert=
         return v
     end,
 
-    -- Range assertion, with extra parameters per instance
+    -- Range assertion, with extra arguments per instance
     -- 
     -- Note: values may be of _any_ type that can do >=, <= comparisons.
     --
@@ -240,7 +240,7 @@ assert=
             end
         end
         
-        _assert( type(tbl)=="table", "Wrong parameter to assert['{}']" )
+        _assert( type(tbl)=="table", "Wrong argument to assert['{}']" )
 
         return function( v, msg, lev )
             lev= (lev or 1)+1

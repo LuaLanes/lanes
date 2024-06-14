@@ -44,7 +44,7 @@ end
 
 -- 
 -- This is called at the end of the lane; whether succesful or not.
--- Gets the 'error()' parameter as parameter ('nil' if normal return).
+-- Gets the 'error()' argument as argument ('nil' if normal return).
 --
 cleanup = function(err)
     io.stderr:write "------------------------ In Worker Finalizer -----------------------\n"

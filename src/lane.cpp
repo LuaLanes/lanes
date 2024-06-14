@@ -539,7 +539,7 @@ static void push_stack_trace(lua_State* L_, Lane::ErrorTraceLevel errorTraceLeve
 
 // #################################################################################################
 //---
-// Run finalizers - if any - with the given parameters
+// Run finalizers - if any - with the given arguments
 //
 // If 'rc' is nonzero, error message and stack index (the latter only when errorTraceLevel_ == 1) are available as:
 //      [-1]: stack trace (table)

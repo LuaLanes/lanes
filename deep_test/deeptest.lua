@@ -78,7 +78,7 @@ local performTest = function( obj_)
 	assert(_n == (_val2 and 2 or 1))
 	printDeep( "out of linda:", _val1, _val2)
 
-	-- send the object in a lane through parameter passing, the lane body returns it as return value, read the contents
+	-- send the object in a lane through argument passing, the lane body returns it as return value, read the contents
 	local g = lanes.gen(
 		"package"
 		, {

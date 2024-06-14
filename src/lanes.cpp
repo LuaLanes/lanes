@@ -217,7 +217,7 @@ LUAG_FUNC(register)
 {
     std::string_view const _name{ luaG_checkstring(L_, 1) };
     LuaType const _mod_type{ luaG_type(L_, 2) };
-    // ignore extra parameters, just in case
+    // ignore extra arguments, just in case
     lua_settop(L_, 2);
     luaL_argcheck(L_, (_mod_type == LuaType::TABLE) || (_mod_type == LuaType::FUNCTION), 2, "unexpected module type");
     DEBUGSPEW_CODE(Universe* _U = Universe::Get(L_));

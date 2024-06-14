@@ -208,7 +208,7 @@ struct MyClonableUserdata
         return 0;
 
     default:
-        raise_luaL_error(L, "Lanes called clonable_lanesclone with unexpected parameters");
+        raise_luaL_error(L, "Lanes called clonable_lanesclone with unexpected arguments");
     }
     return 0;
 }
