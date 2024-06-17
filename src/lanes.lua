@@ -109,7 +109,7 @@ local default_params =
 
 local boolean_param_checker = function(val_)
     -- non-'boolean-false' should be 'boolean-true' or nil
-    return val_ and (val_ == true) or true
+    return (not val_) or (val_ == true)
 end
 
 local param_checkers =
