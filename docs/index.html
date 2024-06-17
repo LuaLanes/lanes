@@ -278,55 +278,6 @@
 			<th style="width:15%">value</th>
 			<th style="width:70%">definition</th>
 		</tr>
-		<tr valign=top>
-			<td id="nb_user_keepers">
-				<code>.nb_user_keepers</code>
-			</td>
-			<td>integer in [0,100]</td>
-			<td>
-				Controls the number of "user" <a href="#keepers">Keeper state</a> used internally by <a href="#lindas">Linda</a>) objects to transfer data between lanes. Default is <tt>0</tt>.<br />
-				Lanes always creates at least one keeper state (of group <tt>0</tt> for the internal timer <a href="#lindas">Linda</a>. If <tt>nb_user_keepers</tt> is <tt>0</tt>, the other lindas you create will share this keeper by necessity.<br />
-				If there is more than one <a href="#keepers">Keeper state</a> (in total), <a href="#lindas">Linda</a> creation must specify the group it belongs to.
-			</td>
-		</tr>
-
-		<tr valign=top>
-			<td id="keepers_gc_threshold">
-				<code>.keepers_gc_threshold</code>
-			</td>
-			<td>integer</td>
-			<td>
-				If &lt;0, GC runs automatically. This is the default.<br />
-				If 0, GC runs after *every* <a href="#keepers">Keeper</a> operation.<br />
-				If &gt;0, <a href="#keepers">Keeper states</a> run GC manually with <tt>lua_gc(LUA_GCCOLLECT)</tt> whenever memory usage reported by <tt>lua_gc(LUA_GCCOUNT)</tt> reaches this threshold. Check is made after every operation (see <a href="#lindas">below</a>). If memory usage remains above threshold after the GC cycle, an error is raised.
-			</td>
-		</tr>
-
-		<tr valign=top>
-			<td id="with_timers">
-				<code>.with_timers</code>
-			</td>
-			<td>
-				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
-			</td>
-			<td>
-				If equal to <tt>false</tt> or <tt>nil</tt>, Lanes doesn't start the timer service, and the associated API will be absent from the interface (see below).
-				Default is <tt>false</tt>.
-			</td>
-		</tr>
-
-		<tr valign=top>
-			<td id="verbose_errors">
-				<code>.verbose_errors</code>
-			</td>
-			<td>
-				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
-			</td>
-			<td>
-				If equal to <tt>true</tt>, Lanes will collect more information when transfering stuff across Lua states to help identify errors (with a cost).
-				Default is <tt>false</tt>.
-			</td>
-		</tr>
 
 		<tr valign=top>
 			<td id="allocator">
@@ -367,15 +318,27 @@
 		</tr>
 
 		<tr valign=top>
-			<td id="track_lanes">
-				<code>.track_lanes</code>
+			<td id="keepers_gc_threshold">
+				<code>.keepers_gc_threshold</code>
 			</td>
+			<td>integer</td>
 			<td>
-				<tt>nil</tt>/<tt>false</tt>/anything
+				If &lt;0, GC runs automatically. This is the default.<br />
+				If 0, GC runs after *every* <a href="#keepers">Keeper</a> operation.<br />
+				If &gt;0, <a href="#keepers">Keeper states</a> run GC manually with <tt>lua_gc(LUA_GCCOLLECT)</tt> whenever memory usage reported by <tt>lua_gc(LUA_GCCOUNT)</tt> reaches this threshold.
+				Check is made after every operation (see <a href="#lindas">below</a>). If memory usage remains above threshold after the GC cycle, an error is raised.
 			</td>
+		</tr>
+
+		<tr valign=top>
+			<td id="nb_user_keepers">
+				<code>.nb_user_keepers</code>
+			</td>
+			<td>integer in [0,100]</td>
 			<td>
-				Any non-<tt>nil|false</tt> value instructs Lanes keeps track of all lanes, so that <a href="#tracking"><tt>lanes.threads()</tt></a> can list them. If <tt>false</tt>, <tt>lanes.threads()</tt> will raise an error when called.
-				Default is <tt>false</tt>.
+				Controls the number of "user" <a href="#keepers">Keeper state</a> used internally by <a href="#lindas">Linda</a>) objects to transfer data between lanes. Default is <tt>0</tt>.<br />
+				Lanes always creates at least one keeper state (of group <tt>0</tt> for the internal timer <a href="#lindas">Linda</a>. If <tt>nb_user_keepers</tt> is <tt>0</tt>, the other lindas you create will share this keeper by necessity.<br />
+				If there is more than one <a href="#keepers">Keeper state</a> (in total), <a href="#lindas">Linda</a> creation must specify the group it belongs to.
 			</td>
 		</tr>
 
@@ -401,17 +364,6 @@
 		</tr>
 
 		<tr valign=top>
-			<td id="shutdown_timeout">
-				<code>.shutdown_timeout</code>
-			</td>
-			<td>
-				number >= 0
-			</td>
-			<td>
-				Sets the duration in seconds Lanes will wait for graceful termination of running lanes at application shutdown. Default is <tt>0.25</tt>.
-			</td>
-		</tr>
-		<tr valign=top>
 			<td id="shutdown_mode">
 				<code>.shutdown_mode</code>
 			</td>
@@ -422,6 +374,19 @@
 				Select the cancellation mode used at Lanes shutdown to request free running lane termination. See <a href="#cancelling">lane cancellation</a>. Default is <tt>"hard"</tt>.
 			</td>
 		</tr>
+
+		<tr valign=top>
+			<td id="shutdown_timeout">
+				<code>.shutdown_timeout</code>
+			</td>
+			<td>
+				number >= 0
+			</td>
+			<td>
+				Sets the duration in seconds Lanes will wait for graceful termination of running lanes at application shutdown. Default is <tt>0.25</tt>.
+			</td>
+		</tr>
+
 		<tr valign=top>
 			<td id="strip_functions">
 				<code>.strip_functions</code>
@@ -431,6 +396,44 @@
 			</td>
 			<td>
 				Controls function bytecode stripping when dumping them for lane transfer. Choose between faster copies or more debug info. Default is <tt>true</tt>.
+			</td>
+		</tr>
+		<tr valign=top>
+			<td id="track_lanes">
+				<code>.track_lanes</code>
+			</td>
+			<td>
+				<tt>nil</tt>/<tt>false</tt>/anything
+			</td>
+			<td>
+				Any non-<tt>nil|false</tt> value instructs Lanes keeps track of all lanes, so that <a href="#tracking"><tt>lanes.threads()</tt></a> can list them. If <tt>false</tt>, <tt>lanes.threads()</tt> will raise an error when called.
+				Default is <tt>false</tt>.
+			</td>
+		</tr>
+
+		<tr valign=top>
+			<td id="verbose_errors">
+				<code>.verbose_errors</code>
+			</td>
+			<td>
+				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
+			</td>
+			<td>
+				If equal to <tt>true</tt>, Lanes will collect more information when transfering stuff across Lua states to help identify errors (with a cost).
+				Default is <tt>false</tt>.
+			</td>
+		</tr>
+
+		<tr valign=top>
+			<td id="with_timers">
+				<code>.with_timers</code>
+			</td>
+			<td>
+				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
+			</td>
+			<td>
+				If equal to <tt>false</tt> or <tt>nil</tt>, Lanes doesn't start the timer service, and the associated API will be absent from the interface (see below).
+				Default is <tt>false</tt>.
 			</td>
 		</tr>
 	</table>
