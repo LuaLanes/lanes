@@ -108,7 +108,7 @@ local default_params =
 -- #################################################################################################
 
 local boolean_param_checker = function(val_)
-    -- non-'boolean-false' should be 'boolean-true' or nil
+    -- non-'boolean-false|nil' should be 'boolean-true'
     return (not val_) or (val_ == true)
 end
 
@@ -116,7 +116,7 @@ local param_checkers =
 {
     allocator = function(val_)
         -- can be nil, "protected", or a function
-        return val_ and (type(val_) == "function" or val_ == "protected") or true
+        return (val_ == nil) or (type(val_) == "function" or val_ == "protected")
     end,
     internal_allocator = function(val_)
         -- can be "libc" or "allocator"
@@ -128,11 +128,11 @@ local param_checkers =
     end,
     nb_user_keepers = function(val_)
         -- nb_user_keepers should be a number in [0,100] (so that nobody tries to run OOM by specifying a huge amount)
-        return type(val_) == "number" and val_ >= 0 and val_ <= 100
+        return (type(val_) == "number") and (val_ >= 0) and (val_ <= 100)
     end,
     on_state_create = function(val_)
         -- on_state_create may be nil or a function
-        return val_ and type(val_) == "function" or true
+        return (val_ == nil) or (type(val_) == "function")
     end,
     shutdown_mode = function(val_)
         local valid_hooks = { soft = true, hard = true, call = true, ret = true, line = true, count = true }

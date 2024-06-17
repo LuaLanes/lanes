@@ -293,7 +293,7 @@
 				<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 					<tr>
 						<td>
-							<pre>	struct { lua_Alloc allocF; void* allocUD; }</pre>
+							<pre>	struct { uintptr_t version { AllocatorDefinition::kAllocatorVersion }; lua_Alloc allocF; void* allocUD; }</pre>
 						</td>
 					</tr>
 				</table>

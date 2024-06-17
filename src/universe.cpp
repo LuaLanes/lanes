@@ -176,9 +176,23 @@ Universe::Universe()
 // Do I need to disable this when compiling for LuaJIT to prevent issues?
 void Universe::initializeAllocatorFunction(lua_State* const L_)
 {
+    // start by just grabbing whatever allocator was provided to lua_newstate
+    protectedAllocator.initFrom(L_);
     STACK_CHECK_START_REL(L_, 1);                                                                  // L_: settings
-    if (luaG_getfield(L_, -1, "allocator") != LuaType::NIL) {                                      // L_: settings allocator|nil|"protected"
-        // store C function pointer in an internal variable
+    switch (luaG_getfield(L_, -1, "allocator")) {                                                  // L_: settings allocator|nil|"protected"
+    case LuaType::NIL:
+        // nothing else to do
+        break;
+
+    case LuaType::STRING:
+        LUA_ASSERT(L_, luaG_tostring(L_, -1) == "protected");
+        // set the original allocator to call from inside protection by the mutex
+        protectedAllocator.installIn(L_);
+        // before a state is created, this function will be called to obtain the allocator
+        provideAllocator = luaG_provide_protected_allocator;
+        break;
+
+    case LuaType::FUNCTION:
         provideAllocator = lua_tocfunction(L_, -1);                                                // L_: settings allocator
         if (provideAllocator != nullptr) {
             // make sure the function doesn't have upvalues
@@ -190,17 +204,13 @@ void Universe::initializeAllocatorFunction(lua_State* const L_)
             // when we transfer the config table in newly created Lua states
             lua_pushnil(L_);                                                                       // L_: settings allocator nil
             lua_setfield(L_, -3, "allocator");                                                     // L_: settings allocator
-        } else if (luaG_type(L_, -1) == LuaType::STRING) { // should be "protected"
-            LUA_ASSERT(L_, strcmp(lua_tostring(L_, -1), "protected") == 0);
-            // set the original allocator to call from inside protection by the mutex
-            protectedAllocator.initFrom(L_);
-            protectedAllocator.installIn(L_);
-            // before a state is created, this function will be called to obtain the allocator
-            provideAllocator = luaG_provide_protected_allocator;
+        } else {
+            raise_luaL_error(L_, "Bad config.allocator, must be a C function");
         }
-    } else {
-        // just grab whatever allocator was provided to lua_newstate
-        protectedAllocator.initFrom(L_);
+        break;
+
+    default: // should be filtered out in lanes.lua
+        raise_luaL_error(L_, "Bad config.allocator type %s", luaG_typename(L_, -1).data());
     }
     lua_pop(L_, 1); // L_: settings
     STACK_CHECK(L_, 1);
@@ -208,7 +218,7 @@ void Universe::initializeAllocatorFunction(lua_State* const L_)
     std::ignore = luaG_getfield(L_, -1, "internal_allocator");                                     // L_: settings "libc"|"allocator"
     std::string_view const _allocator{ luaG_tostring(L_, -1) };
     if (_allocator == "libc") {
-        internalAllocator = AllocatorDefinition{ libc_lua_Alloc, nullptr };
+        internalAllocator = AllocatorDefinition{ AllocatorDefinition::kAllocatorVersion, libc_lua_Alloc, nullptr };
     } else if (provideAllocator == luaG_provide_protected_allocator) {
         // user wants mutex protection on the state's allocator. Use protection for our own allocations too, just in case.
         internalAllocator = protectedAllocator.makeDefinition();

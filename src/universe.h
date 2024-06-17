@@ -18,6 +18,9 @@ class Lane;
 class AllocatorDefinition
 {
     public:
+    // xxh64 of string "kAllocatorVersion_1" generated at https://www.pelock.com/products/hash-calculator
+    static constexpr uintptr_t kAllocatorVersion{ static_cast<uintptr_t>(0xCF9D321B0DFB5715ull) };
+    uintptr_t version{ kAllocatorVersion };
     lua_Alloc allocF{ nullptr };
     void* allocUD{ nullptr };
 
@@ -27,8 +30,9 @@ class AllocatorDefinition
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete([[maybe_unused]] void* p_, [[maybe_unused]] lua_State* L_) { LUA_ASSERT(L_, !"should never be called"); }
 
-    AllocatorDefinition(lua_Alloc allocF_, void* allocUD_) noexcept
-    : allocF{ allocF_ }
+    AllocatorDefinition(uintptr_t const version_, lua_Alloc const allocF_, void* const allocUD_) noexcept
+    : version{ version_ }
+    , allocF{ allocF_ }
     , allocUD{ allocUD_ }
     {
     }
@@ -77,7 +81,7 @@ class ProtectedAllocator
 
     AllocatorDefinition makeDefinition()
     {
-        return AllocatorDefinition{ protected_lua_Alloc, this };
+        return AllocatorDefinition{ version, protected_lua_Alloc, this };
     }
 
     void installIn(lua_State* L_)

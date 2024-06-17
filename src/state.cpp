@@ -208,6 +208,9 @@ namespace state {
                             lua_pushcclosure(from, U->provideAllocator, 0);
                             lua_call(from, 0, 1);
                             AllocatorDefinition* const _def{ luaG_tofulluserdata<AllocatorDefinition>(from, -1) };
+                            if (!_def || _def->version != AllocatorDefinition::kAllocatorVersion) {
+                                raise_luaL_error(from, "Bad config.allocator function, must provide a valid AllocatorDefinition");
+                            }
                             lua_State* const _L{ lua_newstate(_def->allocF, _def->allocUD) };
                             lua_pop(from, 1);
                             return _L;
