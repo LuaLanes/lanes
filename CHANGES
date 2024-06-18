@@ -1,16 +1,18 @@
 CHANGES:
 
 CHANGE 2: BGe 11-Jun-24
-   * Lanes API changes
-       - Version is now 4.0.0
-       - Lanes configuration settings:
-           - demote_full_userdata removed. Use __lanesconvert instead.
-           - keepers_gc_threshold added. Controls when GC runs inside keepers.
-           - nb_keepers changed to nb_user_keepers. limited to 100 keepers on top of the internal keeper used by the timer Linda.
-           - shutdown_mode added. Controls how free running lanes are signalled at Lanes shutdown.
-           - strip_functions added. Only useful for Lua 5.3+.
-           - verbose_errors removed. Use lane error_trace_level instead.
-           - with_timers is false by default.
+    * Lanes API changes
+        - Version is now 4.0.0
+        - Lanes configuration settings:
+            - Boolean parameters only accept boolean values.
+            - allocator provider function is called with a string hint to distinguish lane and keeper states.
+            - demote_full_userdata removed. Use __lanesconvert instead.
+            - keepers_gc_threshold added. Controls when GC runs inside keepers.
+            - nb_keepers changed to nb_user_keepers. limited to 100 keepers on top of the internal keeper used by the timer Linda.
+            - shutdown_mode added. Controls how free running lanes are signalled at Lanes shutdown.
+            - strip_functions added. Only useful for Lua 5.3+.
+            - verbose_errors removed. Use lane error_trace_level instead.
+            - with_timers is false by default.
         - Full userdata conversion:
             - __lanesignore removed. Use __lanesconvert instead.
             - __lanesconvert added.
@@ -26,17 +28,17 @@ CHANGE 2: BGe 11-Jun-24
             - specifying a group to lanes.linda() is mandatory when Lanes is configured with user Keepers.
             - linda:deep() result no longer contains the raw C pointer of the Linda object.
             - linda :receive(), :send(), :get(), :set(), :limit() return nil, error in case of problem. Returned values in case of success change too.
-            - Lindas have a __close metamethod that calls any provided suitable handler at Linda creation.
+            - Lindas have a __close metamethod that calls any suitable handler that was provided at Linda creation.
         - Lane generator settings:
             - error_trace_level added. Replaces the global verbose_errors setting.
             - name added. Can be used to set the name early (before the lane body calls set_debug_threadname()).
-   * Internal changes
-       - Lanes is implemented in C++20: thread, condition_variable, mutex, string_view, variant, and more!
-       - Almost all platform-specific code is gone (only a small bit for thread priority and affinity remains).
-       - Decoda support inactive by default.
-       - Deep userdata interface fully revamped to C++20 too.
+    * Internal changes
+        - Lanes is implemented in C++20: thread, condition_variable, mutex, string_view, variant, and more!
+        - Almost all platform-specific code is gone (only a small bit for thread priority and affinity remains).
+        - Decoda support inactive by default.
+        - Deep userdata interface fully revamped to C++20 too.
 
 CHANGE 1: BGe 9-Apr-24
-   * reset changelog, next entry will list API changes since last C-implementation.
+    * reset changelog, next entry will list API changes since last C-implementation.
 
 (end)
