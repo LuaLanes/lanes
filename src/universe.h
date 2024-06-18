@@ -135,6 +135,7 @@ class Universe
     [[nodiscard]] static inline Universe* Get(lua_State* L_);
     void initializeAllocatorFunction(lua_State* L_);
     static int InitializeFinalizer(lua_State* L_);
+    lanes::AllocatorDefinition resolveAllocator(lua_State* const L_, std::string_view const& hint_) const;
     static inline void Store(lua_State* L_, Universe* U_);
     void terminateFreeRunningLanes(lua_State* L_, lua_Duration shutdownTimeout_, CancelOp op_);
 };

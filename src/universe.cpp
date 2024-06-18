@@ -176,7 +176,7 @@ Universe::Universe()
 // Do I need to disable this when compiling for LuaJIT to prevent issues?
 void Universe::initializeAllocatorFunction(lua_State* const L_)
 {
-    // start by just grabbing whatever allocator was provided to lua_newstate
+    // start by just grabbing whatever allocator was provided to the master state
     protectedAllocator.initFrom(L_);
     STACK_CHECK_START_REL(L_, 1);                                                                  // L_: settings
     switch (luaG_getfield(L_, -1, "allocator")) {                                                  // L_: settings allocator|nil|"protected"
@@ -212,19 +212,17 @@ void Universe::initializeAllocatorFunction(lua_State* const L_)
     default: // should be filtered out in lanes.lua
         raise_luaL_error(L_, "Bad config.allocator type %s", luaG_typename(L_, -1).data());
     }
-    lua_pop(L_, 1); // L_: settings
+    lua_pop(L_, 1);                                                                                // L_: settings
     STACK_CHECK(L_, 1);
 
     std::ignore = luaG_getfield(L_, -1, "internal_allocator");                                     // L_: settings "libc"|"allocator"
+    LUA_ASSERT(L_, lua_isstring(L_, -1)); // should be the case due to lanes.lua parameter validation
     std::string_view const _allocator{ luaG_tostring(L_, -1) };
     if (_allocator == "libc") {
         internalAllocator = lanes::AllocatorDefinition{ lanes::AllocatorDefinition::kAllocatorVersion, libc_lua_Alloc, nullptr };
-    } else if (provideAllocator == luaG_provide_protected_allocator) {
-        // user wants mutex protection on the state's allocator. Use protection for our own allocations too, just in case.
-        internalAllocator = protectedAllocator.makeDefinition();
     } else {
-        // no protection required, just use whatever we have as-is.
-        internalAllocator = protectedAllocator;
+        // use whatever the provider provides
+        internalAllocator = resolveAllocator(L_, "internal");
     }
     lua_pop(L_, 1);                                                                                // L_: settings
     STACK_CHECK(L_, 1);
@@ -250,6 +248,29 @@ int Universe::InitializeFinalizer(lua_State* const L_)
     kFinalizerRegKey.setValue(L_, [](lua_State* L_) { lua_insert(L_, -2); });                      // L_:
     // no need to adjust the stack, Lua does this for us
     return 0;
+}
+
+// #################################################################################################
+
+lanes::AllocatorDefinition Universe::resolveAllocator(lua_State* const L_, std::string_view const& hint_) const
+{
+    lanes::AllocatorDefinition _ret{ protectedAllocator };
+    if (provideAllocator == nullptr) {
+        return _ret;
+    }
+
+    STACK_CHECK_START_REL(L_, 0); // here, we have a function we can call to obtain an allocator
+    lua_pushcclosure(L_, provideAllocator, 0);                                                     // L_: provideAllocator()
+    luaG_pushstring(L_, hint_);                                                                    // L_: provideAllocator() "<hint>"
+    lua_call(L_, 1, 1);                                                                            // L_: result
+    lanes::AllocatorDefinition* const _def{ luaG_tofulluserdata<lanes::AllocatorDefinition>(L_, -1) };
+    if (!_def || _def->version != lanes::AllocatorDefinition::kAllocatorVersion) {
+        raise_luaL_error(L_, "Bad config.allocator function, must provide a valid AllocatorDefinition");
+    }
+    _ret = *_def;
+    lua_pop(L_, 1);                                                                                // L_:
+    STACK_CHECK(L_, 0);
+    return _ret;
 }
 
 // #################################################################################################

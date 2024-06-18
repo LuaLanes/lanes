@@ -204,23 +204,8 @@ namespace state {
                         // for some reason, LuaJIT 64 bits does not support creating a state with lua_newstate...
                         return luaL_newstate();
                     } else {
-                        if (U->provideAllocator != nullptr) { // we have a function we can call to obtain an allocator
-                            STACK_CHECK_START_REL(from, 0);
-                            lua_pushcclosure(from, U->provideAllocator, 0);                        // L: provideAllocator()
-                            luaG_pushstring(from, hint);                                           // L: provideAllocator() "<hint>"
-                            lua_call(from, 1, 1);                                                  // L: result
-                            lanes::AllocatorDefinition* const _def{ luaG_tofulluserdata<lanes::AllocatorDefinition>(from, -1) };
-                            if (!_def || _def->version != lanes::AllocatorDefinition::kAllocatorVersion) {
-                                raise_luaL_error(from, "Bad config.allocator function, must provide a valid AllocatorDefinition");
-                            }
-                            lua_State* const _L{ lua_newstate(_def->allocF, _def->allocUD) };
-                            lua_pop(from, 1);                                                      // L:
-                            STACK_CHECK(from, 0);
-                            return _L;
-                        } else {
-                            // reuse the allocator provided when the master state was created
-                            return lua_newstate(U->protectedAllocator.allocF, U->protectedAllocator.allocUD);
-                        }
+                        lanes::AllocatorDefinition const _def{ U->resolveAllocator(from, hint) };
+                        return lua_newstate(_def.allocF, _def.allocUD);
                     }
                 }
             )

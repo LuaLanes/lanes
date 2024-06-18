@@ -289,7 +289,7 @@
 			<td>
 				If <tt>nil</tt>, Lua states are created with <tt>lua_newstate()</tt> and reuse the allocator from the master state.<br />
 				If <tt>"protected"</tt>, The default allocator obtained from <tt>lua_getallocf()</tt> in the master state is wrapped inside a critical section and used in all newly created states.<br />
-				If a <tt>function</tt>, this function is called prior to creating the state, with a single string argument, either <tt>"keeper"</tt> or <tt>"lane"</tt>. It should return a full userdata created as follows:
+				If a <tt>function</tt>, this function is called prior to creating the state, with a single string argument, either <tt>"internal"</tt>, <tt>"keeper"</tt> or <tt>"lane"</tt>. It should return a full userdata created as follows:
 				<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 					<tr>
 						<td>

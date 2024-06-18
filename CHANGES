@@ -5,7 +5,7 @@ CHANGE 2: BGe 11-Jun-24
         - Version is now 4.0.0
         - Lanes configuration settings:
             - Boolean parameters only accept boolean values.
-            - allocator provider function is called with a string hint to distinguish lane and keeper states.
+            - allocator provider function is called with a string hint to distinguish internal allocations, lane and keeper states.
             - demote_full_userdata removed. Use __lanesconvert instead.
             - keepers_gc_threshold added. Controls when GC runs inside keepers.
             - nb_keepers changed to nb_user_keepers. limited to 100 keepers on top of the internal keeper used by the timer Linda.
