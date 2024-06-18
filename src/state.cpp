@@ -209,8 +209,8 @@ namespace state {
                             lua_pushcclosure(from, U->provideAllocator, 0);                        // L: provideAllocator()
                             luaG_pushstring(from, hint);                                           // L: provideAllocator() "<hint>"
                             lua_call(from, 1, 1);                                                  // L: result
-                            AllocatorDefinition* const _def{ luaG_tofulluserdata<AllocatorDefinition>(from, -1) };
-                            if (!_def || _def->version != AllocatorDefinition::kAllocatorVersion) {
+                            lanes::AllocatorDefinition* const _def{ luaG_tofulluserdata<lanes::AllocatorDefinition>(from, -1) };
+                            if (!_def || _def->version != lanes::AllocatorDefinition::kAllocatorVersion) {
                                 raise_luaL_error(from, "Bad config.allocator function, must provide a valid AllocatorDefinition");
                             }
                             lua_State* const _L{ lua_newstate(_def->allocF, _def->allocUD) };

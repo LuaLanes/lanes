@@ -26,6 +26,7 @@
 // static function variable: prefix s, followed by an uppercase letter
 // function local variable: prefix _, followed by an uppercase letter
 // named lambda capture: no prefix, start with a lowercase letter
+// stuff for external consumption in a 'lanes' namespace
 
 #if (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
 #ifdef __cplusplus

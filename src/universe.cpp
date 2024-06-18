@@ -166,7 +166,7 @@ Universe::Universe()
 {
     Universe* const _U{ Universe::Get(L_) };
     // push a new full userdata on the stack, giving access to the universe's protected allocator
-    [[maybe_unused]] AllocatorDefinition* const _def{ new (L_) AllocatorDefinition{ _U->protectedAllocator.makeDefinition() } };
+    [[maybe_unused]] lanes::AllocatorDefinition* const _def{ new (L_) lanes::AllocatorDefinition{ _U->protectedAllocator.makeDefinition() } };
     return 1;
 }
 
@@ -218,7 +218,7 @@ void Universe::initializeAllocatorFunction(lua_State* const L_)
     std::ignore = luaG_getfield(L_, -1, "internal_allocator");                                     // L_: settings "libc"|"allocator"
     std::string_view const _allocator{ luaG_tostring(L_, -1) };
     if (_allocator == "libc") {
-        internalAllocator = AllocatorDefinition{ AllocatorDefinition::kAllocatorVersion, libc_lua_Alloc, nullptr };
+        internalAllocator = lanes::AllocatorDefinition{ lanes::AllocatorDefinition::kAllocatorVersion, libc_lua_Alloc, nullptr };
     } else if (provideAllocator == luaG_provide_protected_allocator) {
         // user wants mutex protection on the state's allocator. Use protection for our own allocations too, just in case.
         internalAllocator = protectedAllocator.makeDefinition();

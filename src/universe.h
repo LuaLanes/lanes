@@ -17,7 +17,7 @@ class Lane;
 
 // mutex-protected allocator for use with Lua states that share a non-threadsafe allocator
 class ProtectedAllocator
-: public AllocatorDefinition
+: public lanes::AllocatorDefinition
 {
     private:
     std::mutex mutex;
@@ -90,7 +90,7 @@ class Universe
     // contains a mutex and the original allocator definition
     ProtectedAllocator protectedAllocator;
 
-    AllocatorDefinition internalAllocator;
+    lanes::AllocatorDefinition internalAllocator;
 
     Keepers keepers;
 
