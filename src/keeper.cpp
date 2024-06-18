@@ -830,7 +830,7 @@ void Keepers::initialize(Universe& U_, lua_State* L_, int const nbKeepers_, int 
     auto _initOneKeeper = [U = &U_, L = L_, gc_threshold = gc_threshold](Keeper& keeper_, int const i_) {
         STACK_CHECK_START_REL(L, 0);
         // note that we will leak K if we raise an error later
-        KeeperState const _K{ state::CreateState(U, L) };                                          // L_: settings                                   _K:
+        KeeperState const _K{ state::CreateState(U, L, "keeper") };                                // L_: settings                                   _K:
         if (_K == nullptr) {
             raise_luaL_error(L, "out of memory while creating keeper states");
         }

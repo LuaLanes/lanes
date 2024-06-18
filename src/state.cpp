@@ -195,24 +195,27 @@ namespace state {
 
     // #############################################################################################
 
-    lua_State* CreateState([[maybe_unused]] Universe* const U_, lua_State* const from_)
+    lua_State* CreateState([[maybe_unused]] Universe* const U_, lua_State* const from_, std::string_view const& hint_)
     {
         lua_State* const _L {
             std::invoke(
-                [U = U_, from = from_]() {
+                [U = U_, from = from_, &hint = hint_]() {
                     if constexpr (LUAJIT_FLAVOR() == 64) {
                         // for some reason, LuaJIT 64 bits does not support creating a state with lua_newstate...
                         return luaL_newstate();
                     } else {
                         if (U->provideAllocator != nullptr) { // we have a function we can call to obtain an allocator
-                            lua_pushcclosure(from, U->provideAllocator, 0);
-                            lua_call(from, 0, 1);
+                            STACK_CHECK_START_REL(from, 0);
+                            lua_pushcclosure(from, U->provideAllocator, 0);                        // L: provideAllocator()
+                            luaG_pushstring(from, hint);                                           // L: provideAllocator() "<hint>"
+                            lua_call(from, 1, 1);                                                  // L: result
                             AllocatorDefinition* const _def{ luaG_tofulluserdata<AllocatorDefinition>(from, -1) };
                             if (!_def || _def->version != AllocatorDefinition::kAllocatorVersion) {
                                 raise_luaL_error(from, "Bad config.allocator function, must provide a valid AllocatorDefinition");
                             }
                             lua_State* const _L{ lua_newstate(_def->allocF, _def->allocUD) };
-                            lua_pop(from, 1);
+                            lua_pop(from, 1);                                                      // L:
+                            STACK_CHECK(from, 0);
                             return _L;
                         } else {
                             // reuse the allocator provided when the master state was created
@@ -271,7 +274,7 @@ namespace state {
      */
     lua_State* NewLaneState(Universe* const U_, SourceState const from_, std::optional<std::string_view> const& libs_)
     {
-        DestState const _L{ CreateState(U_, from_) };
+        DestState const _L{ CreateState(U_, from_, "lane") };
 
         STACK_GROW(_L, 2);
         STACK_CHECK_START_ABS(_L, 0);

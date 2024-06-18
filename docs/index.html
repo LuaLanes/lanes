@@ -289,7 +289,7 @@
 			<td>
 				If <tt>nil</tt>, Lua states are created with <tt>lua_newstate()</tt> and reuse the allocator from the master state.<br />
 				If <tt>"protected"</tt>, The default allocator obtained from <tt>lua_getallocf()</tt> in the master state is wrapped inside a critical section and used in all newly created states.<br />
-				If a <tt>function</tt>, this function is called prior to creating the state. It should return a full userdata containing the following structure:
+				If a <tt>function</tt>, this function is called prior to creating the state, with a single string argument, either <tt>"keeper"</tt> or <tt>"lane"</tt>. It should return a full userdata containing the following structure:
 				<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 					<tr>
 						<td>
@@ -347,7 +347,7 @@
 				<code>.on_state_create</code>
 			</td>
 			<td>
-				function/<tt>nil</tt>
+				<tt>nil</tt>/function
 			</td>
 			<td>
 				If provided, will be called in every created Lua state right after initializing the base libraries, with a single string argument, either <tt>"lane"</tt> or <tt>"keeper"</tt>.<br />
@@ -392,7 +392,7 @@
 				<code>.strip_functions</code>
 			</td>
 			<td>
-				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
+				<tt>nil</tt>/<tt>boolean</tt>
 			</td>
 			<td>
 				Controls function bytecode stripping when dumping them for lane transfer. Choose between faster copies or more debug info. Default is <tt>true</tt>.
@@ -403,7 +403,7 @@
 				<code>.track_lanes</code>
 			</td>
 			<td>
-				<tt>nil</tt>/<tt>false</tt>/anything
+				<tt>nil</tt>/<tt>boolean</tt>
 			</td>
 			<td>
 				Any non-<tt>nil|false</tt> value instructs Lanes keeps track of all lanes, so that <a href="#tracking"><tt>lanes.threads()</tt></a> can list them. If <tt>false</tt>, <tt>lanes.threads()</tt> will raise an error when called.
@@ -416,7 +416,7 @@
 				<code>.verbose_errors</code>
 			</td>
 			<td>
-				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
+				<tt>nil</tt>/<tt>boolean</tt>
 			</td>
 			<td>
 				If equal to <tt>true</tt>, Lanes will collect more information when transfering stuff across Lua states to help identify errors (with a cost).
@@ -429,7 +429,7 @@
 				<code>.with_timers</code>
 			</td>
 			<td>
-				<tt>nil</tt>/<tt>false</tt>/<tt>true</tt>
+				<tt>nil</tt>/<tt>boolean</tt>
 			</td>
 			<td>
 				If equal to <tt>false</tt> or <tt>nil</tt>, Lanes doesn't start the timer service, and the associated API will be absent from the interface (see below).
@@ -440,11 +440,11 @@
 </p>
 
 <p>
-	Once Lanes is configured, one should register with Lanes the modules exporting functions that will be transferred either during lane generation or through <a href="#lindas">lindas</a>.
+	Once Lanes is configured, one should register with Lanes the modules exporting functions that will be transferred either during lane generation or through <a href="#lindas">Lindas</a>.
 	<br />
 	Use <tt>lanes.require()</tt> for this purpose. This will call the original <tt>require()</tt>, then add the result to the lookup databases.
 	<br />
-	It is also possible to register a given module with <tt>lanes.register()</tt>. This function will raise an error if the registered module is not a function or table.
+	It is also possible to register a given module <i>a posteriori</i> with <tt>lanes.register()</tt>. This function will raise an error if the registered module is not a function or table.
 </p>
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%">
