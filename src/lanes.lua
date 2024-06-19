@@ -109,39 +109,72 @@ local default_params =
 
 local boolean_param_checker = function(val_)
     -- non-'boolean-false|nil' should be 'boolean-true'
-    return (not val_) or (val_ == true)
+    if (not val_) or (val_ == true) then
+        return true
+    end
+    return nil, "not a boolean"
 end
 
 local param_checkers =
 {
     allocator = function(val_)
         -- can be nil, "protected", or a function
-        return (val_ == nil) or (type(val_) == "function" or val_ == "protected")
+        if val_ ~= nil and val_ ~= "protected" and type(val_) ~= "function" then
+            return nil, "unknown value"
+        end
+        return true
     end,
     internal_allocator = function(val_)
         -- can be "libc" or "allocator"
-        return val_ == "libc" or val_ == "allocator"
+        if type(val_) ~= "string" then
+            return nil, "not a string"
+        end
+        if val_ ~= "libc" and val_ ~= "allocator" then
+            return nil, "unknown value"
+        end
+        return true
     end,
     keepers_gc_threshold = function(val_)
         -- keepers_gc_threshold should be a number
-        return type(val_) == "number"
+        if type(val_) ~= "number" then
+            return nil, "not a number"
+        end
+        return true
     end,
     nb_user_keepers = function(val_)
         -- nb_user_keepers should be a number in [0,100] (so that nobody tries to run OOM by specifying a huge amount)
-        return (type(val_) == "number") and (val_ >= 0) and (val_ <= 100)
+        if type(val_) ~= "number" then
+            return nil, "not a number"
+        end
+        if val_ < 0 or val_ > 100 then
+            return nil, "value out of range"
+        end
+        return true
     end,
     on_state_create = function(val_)
         -- on_state_create may be nil or a function
-        return (val_ == nil) or (type(val_) == "function")
+        if val_ ~= nil and type(val_) ~= "function" then
+            return nil, "not a function"
+        end
+        return true
     end,
     shutdown_mode = function(val_)
         local valid_hooks = { soft = true, hard = true, call = true, ret = true, line = true, count = true }
         -- shutdown_mode should be a known hook mask
-        return valid_hooks[val_]
+        if not valid_hooks[val_] then
+            return nil, "unknown value"
+        end
+        return true
     end,
     shutdown_timeout = function(val_)
-        -- shutdown_timeout should be a number >= 0
-        return type(val_) == "number" and val_ >= 0
+        -- shutdown_timeout should be a number in [0,3600]
+        if type(val_) ~= "number" then
+            return nil, "not a number"
+        end
+        if val_ < 0 or val_ > 3600 then
+            return nil, "value out of range"
+        end
+        return true
     end,
     strip_functions = boolean_param_checker,
     track_lanes = boolean_param_checker,
@@ -175,8 +208,9 @@ local params_checker = function(settings_)
         else
             param = default_params[key]
         end
-        if not checker(param) then
-            error("Bad argument " .. key .. ": " .. tostring(param), 2)
+        local _result, _msg = checker(param)
+        if not _result then
+            error("Bad argument " .. key .. ": " .. tostring(param) .. (_msg and " (" .. _msg .. ")" or ""), 2)
         end
         settings[key] = param
     end
