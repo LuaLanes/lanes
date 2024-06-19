@@ -1,6 +1,3 @@
-
-local register_func = true
-
 local RequireAModuleThatExportsGlobalFunctions = function(type_)
 	-- grab some module that exports C functions, this is good enough for our purpose
 	local lfs = require "lfs"
@@ -8,14 +5,12 @@ local RequireAModuleThatExportsGlobalFunctions = function(type_)
 	GlobalFunc = lfs.attributes
 	-- we need to register it so that it is transferable
 	local lanes = require "lanes"
-	if register_func then
-		lanes.register( "GlobalFunc", GlobalFunc)
-	end
+	lanes.register( "GlobalFunc", GlobalFunc)
 	print(type_, "RequireAModuleThatExportsGlobalFunctions done:", lanes.nameof(GlobalFunc))
 end
 
 
-local lanes = require "lanes".configure{ with_timers = false, on_state_create = RequireAModuleThatExportsGlobalFunctions}
+local lanes = require "lanes".configure{on_state_create = RequireAModuleThatExportsGlobalFunctions}
 
 -- load some module that adds C functions to the global space
 RequireAModuleThatExportsGlobalFunctions("main")

@@ -300,14 +300,24 @@ int Universe::InitializeFinalizer(lua_State* const L_)
 
 void Universe::initializeOnStateCreate(lua_State* const L_)
 {
-    STACK_CHECK_START_REL(L_, 1);                                                                  // L_: settings
+    STACK_CHECK_START_REL(L_, 0);                                                                  // L_: settings
     if (luaG_getfield(L_, -1, kOnStateCreate) != LuaType::NIL) {                                   // L_: settings on_state_create|nil
         LUA_ASSERT(L_, luaG_type(L_, -1) == LuaType::FUNCTION); // ensured by lanes.lua parameter validation
-        // make sure the function doesn't have upvalues
-        char const* _upname{ lua_getupvalue(L_, -1, 1) };                                          // L_: settings on_state_create upval?
-        if (_upname != nullptr) { // should be "" for C functions with upvalues if any
-            raise_luaL_error(L_, "%s with upvalues are forbidden", kOnStateCreate.data());
+        // make sure the function doesn't have upvalues other than _G
+        int _uvi{ 1 };
+        for (
+            char const* _upname{ lua_getupvalue(L_, -1, _uvi) };
+            _upname;
+            _upname = lua_getupvalue(L_, -1, ++_uvi)                                               // L_: settings on_state_create upvalue
+        ) {
+            // starting with Lua 5.2, functions have _ENV as their first upvalue. This is ok, it is mapped correctly
+            luaG_pushglobaltable(L_);                                                              // L_: settings on_state_create upvalue _G
+            if (!lua_rawequal(L_, -1, -2)) {
+                raise_luaL_error(L_, "%s with upvalues are forbidden", kOnStateCreate.data());
+            }
+            lua_pop(L_, 2);                                                                        // L_: settings on_state_create
         }
+        STACK_CHECK(L_, 1); // make sure no garbage remains on the stack after upvalue check       // L_: settings on_state_create
         // store C function pointer in an internal variable
         lua_CFunction const _func{ lua_tocfunction(L_, -1) };                                      // L_: settings on_state_create
         if (_func) {
@@ -317,14 +327,14 @@ void Universe::initializeOnStateCreate(lua_State* const L_)
             lua_pushnil(L_);                                                                       // L_: settings on_state_create nil
             luaG_setfield(L_, -3, kOnStateCreate);                                                 // L_: settings on_state_create
         } else {
-            // the function is still in the config table
+            // the function is still in the config table. we indicate this with the uintptr_t alternative (actual value is irrelevant)
             onStateCreateFunc.emplace<uintptr_t>(std::bit_cast<uintptr_t>(kOnStateCreate.data()));
         }
     } else {
         LUA_ASSERT(L_, std::holds_alternative<std::nullptr_t>(onStateCreateFunc));
     };
     lua_pop(L_, 1);                                                                                // L_: settings
-    STACK_CHECK(L_, 1);
+    STACK_CHECK(L_, 0);
 }
 
 // #################################################################################################
