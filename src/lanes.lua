@@ -184,37 +184,37 @@ local param_checkers =
 
 -- #################################################################################################
 
-local params_checker = function(settings_)
-    if not settings_ then
+local params_checker = function(user_settings_)
+    if not user_settings_ then
         return default_params
     end
     -- make a copy of the table to leave the provided one unchanged, *and* to help ensure it won't change behind our back
-    local settings = {}
-    if type(settings_) ~= "table" then
+    local _compound_settings = {}
+    if type(user_settings_) ~= "table" then
         error "Bad argument #1 to lanes.configure(), should be a table"
     end
     -- any setting unknown to Lanes raises an error
-    for setting, _ in pairs(settings_) do
-        if not param_checkers[setting] then
-        error("Unknown argument '" .. setting .. "' in configure options")
+    for _setting, _ in pairs(user_settings_) do
+        if not param_checkers[_setting] then
+        error("Unknown parameter '" .. _setting .. "' in configure options")
         end
     end
     -- any setting not present in the provided parameters takes the default value
-    for key, checker in pairs(param_checkers) do
-        local my_param = settings_[key]
+    for _key, _checker in pairs(param_checkers) do
+        local my_param = user_settings_[_key]
         local param
         if my_param ~= nil then
             param = my_param
         else
-            param = default_params[key]
+            param = default_params[_key]
         end
-        local _result, _msg = checker(param)
+        local _result, _msg = _checker(param)
         if not _result then
-            error("Bad argument " .. key .. ": " .. tostring(param) .. (_msg and " (" .. _msg .. ")" or ""), 2)
+            error("Bad parameter " .. _key .. ": " .. tostring(param) .. (_msg and " (" .. _msg .. ")" or ""), 2)
         end
-        settings[key] = param
+        _compound_settings[_key] = param
     end
-    return settings
+    return _compound_settings
 end
 
 -- #################################################################################################
