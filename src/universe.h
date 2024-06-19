@@ -84,7 +84,7 @@ class Universe
     lua_CFunction provideAllocator{ nullptr };
 
     // after a state is created, this function will be called right after the bases libraries are loaded
-    lua_CFunction onStateCreateFunc{ nullptr };
+    std::variant<std::nullptr_t, uintptr_t, lua_CFunction> onStateCreateFunc;
 
     // if allocator="protected" is found in the configuration settings, a wrapper allocator will protect all allocator calls with a mutex
     // contains a mutex and the original allocator definition
@@ -131,10 +131,12 @@ class Universe
     Universe& operator=(Universe const&) = delete;
     Universe& operator=(Universe&&) = delete;
 
+    void callOnStateCreate(lua_State* const L_, lua_State* const from_, LookupMode const mode_);
     [[nodiscard]] static Universe* Create(lua_State* L_);
     [[nodiscard]] static inline Universe* Get(lua_State* L_);
     void initializeAllocatorFunction(lua_State* L_);
     static int InitializeFinalizer(lua_State* L_);
+    void initializeOnStateCreate(lua_State* const L_);
     lanes::AllocatorDefinition resolveAllocator(lua_State* const L_, std::string_view const& hint_) const;
     static inline void Store(lua_State* L_, Universe* U_);
     void terminateFreeRunningLanes(lua_State* L_, lua_Duration shutdownTimeout_, CancelOp op_);

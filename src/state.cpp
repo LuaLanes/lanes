@@ -41,10 +41,6 @@ THE SOFTWARE.
 #include "universe.h"
 
 // #################################################################################################
-
-static constexpr std::string_view kOnStateCreate{ "on_state_create" }; // update lanes.lua if the name changes!
-
-// #################################################################################################
 // #################################################################################################
 namespace {
     // #############################################################################################
@@ -157,42 +153,6 @@ namespace state {
     // #############################################################################################
     // #############################################################################################
 
-    void CallOnStateCreate(Universe* const U_, lua_State* const L_, lua_State* const from_, LookupMode const mode_)
-    {
-        if (U_->onStateCreateFunc == nullptr) {
-            return;
-        }
-
-        STACK_CHECK_START_REL(L_, 0);
-        DEBUGSPEW_CODE(DebugSpew(U_) << "calling on_state_create()" << std::endl);
-        if (U_->onStateCreateFunc != reinterpret_cast<lua_CFunction>(InitializeOnStateCreate)) {
-            // C function: recreate a closure in the new state, bypassing the lookup scheme
-            lua_pushcfunction(L_, U_->onStateCreateFunc);                                          // on_state_create()
-        } else { // Lua function located in the config table, copied when we opened "lanes.core"
-            if (mode_ != LookupMode::LaneBody) {
-                // if attempting to call in a keeper state, do nothing because the function doesn't exist there
-                // this doesn't count as an error though
-                STACK_CHECK(L_, 0);
-                return;
-            }
-            kConfigRegKey.pushValue(L_);                                                           // L_: {}
-            STACK_CHECK(L_, 1);
-            LuaType const _funcType{ luaG_getfield(L_, -1, kOnStateCreate) };                      // L_: {} on_state_create()
-            if (_funcType != LuaType::FUNCTION) {
-                raise_luaL_error(L_, "INTERNAL ERROR: %s is a %s, not a function", kOnStateCreate.data(), luaG_typename(L_, _funcType).data());
-            }
-            lua_remove(L_, -2);                                                                    // L_: on_state_create()
-        }
-        STACK_CHECK(L_, 1);
-        // capture error and raise it in caller state
-        std::string_view const _stateType{ mode_ == LookupMode::LaneBody ? "lane" : "keeper" };
-        luaG_pushstring(L_, _stateType);                                                           // L_: on_state_create() "<type>"
-        if (lua_pcall(L_, 1, 0, 0) != LUA_OK) {
-            raise_luaL_error(from_, "%s failed: \"%s\"", kOnStateCreate.data(), lua_isstring(L_, -1) ? luaG_tostring(L_, -1).data() : luaG_typename(L_, -1).data());
-        }
-        STACK_CHECK(L_, 0);
-    }
-
     // #############################################################################################
 
     lua_State* CreateState([[maybe_unused]] Universe* const U_, lua_State* const from_, std::string_view const& hint_)
@@ -215,33 +175,6 @@ namespace state {
             raise_luaL_error(from_, "luaG_newstate() failed while creating state; out of memory");
         }
         return _L;
-    }
-
-    // #############################################################################################
-
-    void InitializeOnStateCreate(Universe* const U_, lua_State* const L_)
-    {
-        STACK_CHECK_START_REL(L_, 1);                                                              // L_: settings
-        if (luaG_getfield(L_, -1, kOnStateCreate) != LuaType::NIL) {                               // L_: settings on_state_create|nil
-            // store C function pointer in an internal variable
-            U_->onStateCreateFunc = lua_tocfunction(L_, -1);                                       // L_: settings on_state_create
-            if (U_->onStateCreateFunc != nullptr) {
-                // make sure the function doesn't have upvalues
-                char const* _upname{ lua_getupvalue(L_, -1, 1) };                                  // L_: settings on_state_create upval?
-                if (_upname != nullptr) { // should be "" for C functions with upvalues if any
-                    raise_luaL_error(L_, "%s shouldn't have upvalues", kOnStateCreate.data());
-                }
-                // remove this C function from the config table so that it doesn't cause problems
-                // when we transfer the config table in newly created Lua states
-                lua_pushnil(L_);                                                                   // L_: settings on_state_create nil
-                luaG_setfield(L_, -3, kOnStateCreate);                                             // L_: settings on_state_create
-            } else {
-                // optim: store marker saying we have such a function in the config table
-                U_->onStateCreateFunc = reinterpret_cast<lua_CFunction>(InitializeOnStateCreate);
-            }
-        }
-        lua_pop(L_, 1);                                                                            // L_: settings
-        STACK_CHECK(L_, 1);
     }
 
     // #############################################################################################
@@ -274,7 +207,7 @@ namespace state {
         STACK_CHECK(_L, 0);
 
         // neither libs (not even 'base') nor special init func: we are done
-        if (!libs_.has_value() && U_->onStateCreateFunc == nullptr) {
+        if (!libs_.has_value() && std::holds_alternative<std::nullptr_t>(U_->onStateCreateFunc)) {
             DEBUGSPEW_CODE(DebugSpew(U_) << "luaG_newstate(nullptr)" << std::endl);
             return _L;
         }
@@ -342,7 +275,7 @@ namespace state {
 
         // call this after the base libraries are loaded and GC is restarted
         // will raise an error in from_ in case of problem
-        CallOnStateCreate(U_, _L, from_, LookupMode::LaneBody);
+        U_->callOnStateCreate(_L, from_, LookupMode::LaneBody);
 
         STACK_CHECK(_L, 0);
         // after all this, register everything we find in our name<->function database

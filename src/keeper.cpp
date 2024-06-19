@@ -876,7 +876,7 @@ void Keepers::initialize(Universe& U_, lua_State* L_, int const nbKeepers_, int 
         // attempt to call on_state_create(), if we have one and it is a C function
         // (only support a C function because we can't transfer executable Lua code in keepers)
         // will raise an error in L_ in case of problem
-        state::CallOnStateCreate(U, _K, L, LookupMode::ToKeeper);
+        U->callOnStateCreate(_K, L, LookupMode::ToKeeper);
 
         // _R[kLindasRegKey] = {}
         kLindasRegKey.setValue(_K, [](lua_State* L_) { lua_newtable(L_); });
