@@ -48,6 +48,7 @@ static constexpr RegistryUniqueKey kLookupCacheRegKey{ 0x9BF75F84E54B691Bull };
 static constexpr int kWriterReturnCode{ 666 };
 [[nodiscard]] static int dummy_writer([[maybe_unused]] lua_State* L_, [[maybe_unused]] void const* p_, [[maybe_unused]] size_t sz_, [[maybe_unused]] void* ud_)
 {
+    // always fail with this code
     return kWriterReturnCode;
 }
 
@@ -70,21 +71,19 @@ FuncSubType luaG_getfuncsubtype(lua_State* const L_, int const i_)
     if (lua_tocfunction(L_, i_)) { // nullptr for LuaJIT-fast && bytecode functions
         return FuncSubType::Native;
     }
-    {
-        int _mustpush{ 0 };
-        if (luaG_absindex(L_, i_) != lua_gettop(L_)) {
-            lua_pushvalue(L_, i_);
-            _mustpush = 1;
-        }
-        // the provided writer fails with code kWriterReturnCode
-        // therefore, anytime we get kWriterReturnCode, this means that luaG_dump() attempted a dump
-        // all other cases mean this is either a C or LuaJIT-fast function
-        int const _dumpres{ luaG_dump(L_, dummy_writer, nullptr, 0) };
-        lua_pop(L_, _mustpush);
-        if (_dumpres == kWriterReturnCode) {
-            return FuncSubType::Bytecode;
-        }
+
+    // luaG_dump expects the function at the top of the stack
+    int const _popCount{ (luaG_absindex(L_, i_) == lua_gettop(L_)) ? 0 : (lua_pushvalue(L_, i_), 1) };
+    // here we either have a Lua bytecode or a LuaJIT-compiled function
+    int const _dumpres{ luaG_dump(L_, dummy_writer, nullptr, 0) };
+    if (_popCount > 0) {
+        lua_pop(L_, _popCount);
     }
+    if (_dumpres == kWriterReturnCode) {
+        // anytime we get kWriterReturnCode, this means that luaG_dump() attempted a dump
+        return FuncSubType::Bytecode;
+    }
+    // we didn't try to dump, therefore this is a LuaJIT-fast function
     return FuncSubType::FastJIT;
 }
 
