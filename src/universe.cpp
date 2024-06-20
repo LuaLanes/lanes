@@ -303,24 +303,14 @@ void Universe::initializeOnStateCreate(lua_State* const L_)
     STACK_CHECK_START_REL(L_, 0);                                                                  // L_: settings
     if (luaG_getfield(L_, -1, kOnStateCreate) != LuaType::NIL) {                                   // L_: settings on_state_create|nil
         LUA_ASSERT(L_, luaG_type(L_, -1) == LuaType::FUNCTION); // ensured by lanes.lua parameter validation
-        // make sure the function doesn't have upvalues other than _G
-        int _uvi{ 1 };
-        for (
-            char const* _upname{ lua_getupvalue(L_, -1, _uvi) };
-            _upname;
-            _upname = lua_getupvalue(L_, -1, ++_uvi)                                               // L_: settings on_state_create upvalue
-        ) {
-            // starting with Lua 5.2, functions have _ENV as their first upvalue. This is ok, it is mapped correctly
-            luaG_pushglobaltable(L_);                                                              // L_: settings on_state_create upvalue _G
-            if (!lua_rawequal(L_, -1, -2)) {
-                raise_luaL_error(L_, "%s with upvalues are forbidden", kOnStateCreate.data());
-            }
-            lua_pop(L_, 2);                                                                        // L_: settings on_state_create
-        }
-        STACK_CHECK(L_, 1); // make sure no garbage remains on the stack after upvalue check       // L_: settings on_state_create
         // store C function pointer in an internal variable
         lua_CFunction const _func{ lua_tocfunction(L_, -1) };                                      // L_: settings on_state_create
         if (_func) {
+            // make sure the function doesn't have upvalues
+            char const* _upname{ lua_getupvalue(L_, -1, 1) };                                      // L_: settings on_state_create upval?
+            if (_upname != nullptr) { // should be "" for C functions with upvalues if any
+                raise_luaL_error(L_, "%s shouldn't have upvalues", kOnStateCreate.data());
+            }
             onStateCreateFunc.emplace<lua_CFunction>(_func);
             // remove this C function from the config table so that it doesn't cause problems
             // when we transfer the config table in newly created Lua states
