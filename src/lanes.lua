@@ -194,9 +194,9 @@ local params_checker = function(user_settings_)
         error "Bad argument #1 to lanes.configure(), should be a table"
     end
     -- any setting unknown to Lanes raises an error
-    for _setting, _ in pairs(user_settings_) do
+    for _setting, _value in pairs(user_settings_) do
         if not param_checkers[_setting] then
-        error("Unknown parameter '" .. _setting .. "' in configure options")
+        error("Unknown setting [" .. tostring(_setting) .. "] = " .. tostring(_value))
         end
     end
     -- any setting not present in the provided parameters takes the default value
