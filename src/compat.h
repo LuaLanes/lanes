@@ -328,7 +328,7 @@ template <typename T>
 {
     size_t _len{ 0 };
     char const* _str{ lua_tolstring(L_, idx_, &_len) };
-    return std::string_view{ _str, _len };
+    return _str ? std::string_view{ _str, _len } : "<not a string>";
 }
 
 [[nodiscard]] inline std::string_view luaG_checkstring(lua_State* const L_, int const idx_)
