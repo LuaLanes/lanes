@@ -105,7 +105,7 @@ std::string_view LindaFactory::moduleName() const
 DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* const L_) const
 {
     // we always expect name and group at the bottom of the stack (either can be nil). any extra stuff we ignore and keep unmodified
-    std::string_view _linda_name{ lua_isnil(L_, 1) ? "" : luaG_tostring(L_, 1) };
+    std::string_view _linda_name{ luaG_tostring(L_, 1) };
     LindaGroup _linda_group{ static_cast<int>(lua_tointeger(L_, 2)) };
 
     // store in the linda the location of the script that created it

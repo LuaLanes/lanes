@@ -1326,7 +1326,7 @@ namespace {
         STACK_CHECK(L2, n_ + 1);
         // Remove the cache table. Persistent caching would cause i.e. multiple
         // messages passed in the same table to use the same table also in receiving end.
-        lua_remove(L2, _top_L2 + 1);                                                               //                                                L2: ... {}n
+        lua_remove(L2, _c.L2_cache_i);                                                             //                                                L2: ... {}n
         return InterCopyResult::Success;
     }
 
