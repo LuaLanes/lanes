@@ -46,11 +46,18 @@ namespace {
 
     static void CheckKeyTypes(lua_State* const L_, int const start_, int const end_)
     {
+        STACK_CHECK_START_REL(L_, 0);
         for (int const _i : std::ranges::iota_view{ start_, end_ + 1 }) {
             switch (LuaType const _t{ luaG_type(L_, _i) }) {
             case LuaType::BOOLEAN:
             case LuaType::NUMBER:
             case LuaType::STRING:
+                break;
+
+            case LuaType::USERDATA:
+                if (!DeepFactory::IsDeepUserdata(L_, _i)) {
+                    raise_luaL_error(L_, "argument #%d: can't use non-deep userdata as a key", _i);
+                }
                 break;
 
             case LuaType::LIGHTUSERDATA:
@@ -69,6 +76,7 @@ namespace {
                 raise_luaL_error(L_, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", _i);
             }
         }
+        STACK_CHECK(L_, 0);
     }
 
     // #############################################################################################

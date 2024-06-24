@@ -1183,7 +1183,7 @@
 	Characteristics of the Lanes implementation of Lindas are:
 
 	<ul>
-		<li>Keys can be of boolean, number, string or light userdata type. Tables and functions can't be keys because their identity isn't preserved when transfered from one Lua state to another.</li>
+		<li>Keys can be of boolean, number, string, light userdata, and deep userdata type. Tables and functions can't be keys because their identity isn't preserved when transfered from one Lua state to another.</li>
 		<li>values can be any type supported by inter-state copying (same <a href="#limitations">limits</a> as for function arguments and upvalues).</li>
 		<li>consuming method is <tt>:receive</tt> (not in).</li>
 		<li>non-consuming method is <tt>:get</tt> (not rd).</li>

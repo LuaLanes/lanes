@@ -30,6 +30,7 @@ CHANGE 2: BGe 11-Jun-24
             - linda :receive(), :send(), :get(), :set(), :limit() return nil, error in case of problem. Returned values in case of success change too.
             - Lindas have a __close metamethod that calls any suitable handler that was provided at Linda creation.
             - linda:dump outputs <key>.limit as 'unlimited' instead of -1 for unlimited keys.
+            - deep userdata are an acceptable key to send data into (for example, another linda).
         - Lane generator settings:
             - error_trace_level added. Replaces the global verbose_errors setting.
             - name added. Can be used to set the name early (before the lane body calls set_debug_threadname()).

@@ -130,8 +130,15 @@ void DeepFactory::DeleteDeepObject(lua_State* const L_, DeepPrelude* const o_)
 
 // #################################################################################################
 
+bool DeepFactory::IsDeepUserdata(lua_State* const L_, int const idx_)
+{
+    return LookupFactory(L_, idx_, LookupMode::LaneBody) != nullptr;
+}
+
+// #################################################################################################
+
 // Return the registered factory for 'index' (deep userdata proxy),  or nullptr if 'index' is not a deep userdata proxy.
-[[nodiscard]] DeepFactory* DeepFactory::LookupFactory(lua_State* const L_, int const index_, LookupMode const mode_)
+DeepFactory* DeepFactory::LookupFactory(lua_State* const L_, int const index_, LookupMode const mode_)
 {
     // when looking inside a keeper, we are 100% sure the object is a deep userdata
     if (mode_ == LookupMode::FromKeeper) {
