@@ -711,7 +711,11 @@ int Keeper::PushLindaStorage(Linda& linda_, DestState const L_)
         STACK_CHECK(L_, 5);
         lua_setfield(L_, -3, "count");                                                             // _K: KeysDB key                                     L_: out key keyout fifo
         // keyout.limit
-        lua_pushinteger(L_, _key->limit);                                                          // _K: KeysDB key                                     L_: out key keyout fifo limit
+        if (_key->limit >= 0) {
+            lua_pushinteger(L_, _key->limit);                                                      // _K: KeysDB key                                     L_: out key keyout fifo limit
+        } else {
+            luaG_pushstring(L_, "unlimited");                                                      // _K: KeysDB key                                     L_: out key keyout fifo limit
+        }
         STACK_CHECK(L_, 5);
         lua_setfield(L_, -3, "limit");                                                             // _K: KeysDB key                                     L_: out key keyout fifo
         // keyout.fifo
