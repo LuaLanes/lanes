@@ -1329,7 +1329,17 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	[table] = linda_h:dump()
+	linda_h:dump() ->
+	{
+		[&lt;key&gt;] =
+		{
+			first = &lt;n&gt;
+			count = &lt;n&gt;
+			limit = &lt;n&gt;|'unlimited'
+			fifo = { &lt;array of values&gt; }
+		}
+		...
+	} 
 </pre></td></tr></table>
 
 <p>

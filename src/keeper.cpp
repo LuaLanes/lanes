@@ -656,6 +656,16 @@ void Keeper::operator delete[](void* p_, Universe* U_)
 // #################################################################################################
 
 // only used by linda:dump() and linda:__towatch() for debugging purposes
+// table is populated as follows:
+// {
+//     [<key>] = {
+//         first = <n>,
+//         count = <n>,
+//         limit = <n> | 'unlimited',
+//         fifo = { <array of values> }
+//     }
+//     ...
+// }
 int Keeper::PushLindaStorage(Linda& linda_, DestState const L_)
 {
     Keeper* const _keeper{ linda_.whichKeeper() };
