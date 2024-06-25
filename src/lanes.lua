@@ -53,6 +53,7 @@ local assert = assert(assert)
 local error = assert(error)
 local pairs = assert(pairs)
 local string = assert(string, "'string' library not available")
+local string_find = assert(string.find)
 local string_gmatch = assert(string.gmatch)
 local string_format = assert(string.format)
 local select = assert(select)
@@ -370,6 +371,9 @@ local gen = function(...)
     -- check that the caller only provides reserved library names, and those only once
     -- "*" is a special case that doesn't require individual checking
     if libs and libs ~= "*" then
+        if string_find(libs, "*", 2, true) then
+            error "Libs specification '*' must be used alone"
+        end
         local found = {}
         for s in string_gmatch(libs, "[%a%d.]+") do
             if not valid_libs[s] then
@@ -377,7 +381,7 @@ local gen = function(...)
             else
                 found[s] = (found[s] or 0) + 1
                 if found[s] > 1 then
-                    error("libs specification contains '" .. s .. "' more than once", 2)
+                    error("Libs specification contains '" .. s .. "' more than once", 2)
                 end
             end
         end
