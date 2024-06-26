@@ -23,6 +23,7 @@ CHANGE 2: BGe 11-Jun-24
             - lane:join() returns nil, error in case of problem.
             - lane function body must return a non-nil first value on success if lane is waited upon with lane:join().
             - lanes.sleep() accept a new argument "indefinitely" to block forever (until hard cancellation is received).
+            - lanes.gen() is stricter wrt base libraries (can raise an error if it doesn't exist in the Lua flavor it's built against).
         - Lindas:
             - providing "auto" as name when constructing a Linda cause Lanes to provide a name built from the source location of the construction.
             - specifying a group to lanes.linda() is mandatory when Lanes is configured with user Keepers.

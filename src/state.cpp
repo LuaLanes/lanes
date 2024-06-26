@@ -57,32 +57,37 @@ namespace {
 
     namespace local {
         static luaL_Reg const sLibs[] = {
-            { "base", nullptr }, // ignore "base" (already acquired it)
+            { "base", nullptr }, // ignore "base" is always valid, but opened separately
+
+#if LUA_VERSION_NUM == 502 || LUA_VERSION_NUM == 503
+            { LUA_BITLIBNAME, luaopen_bit32 }, // active in Lua 5.2, replaced with an error-throwing loader in Lua 5.3, gone after.
+#endif // LUA_VERSION_NUM == 502 || LUA_VERSION_NUM == 503
+
 #if LUA_VERSION_NUM >= 502
-#ifdef luaopen_bit32
-            { LUA_BITLIBNAME, luaopen_bit32 },
-#endif
             { LUA_COLIBNAME, luaopen_coroutine }, // Lua 5.2: coroutine is no longer a part of base!
-#else // LUA_VERSION_NUM
-            { LUA_COLIBNAME, nullptr }, // Lua 5.1: part of base package
 #endif // LUA_VERSION_NUM
+
             { LUA_DBLIBNAME, luaopen_debug },
+
 #ifndef PLATFORM_XBOX // no os/io libs on xbox
             { LUA_IOLIBNAME, luaopen_io },
             { LUA_OSLIBNAME, luaopen_os },
 #endif // PLATFORM_XBOX
+
             { LUA_LOADLIBNAME, luaopen_package },
             { LUA_MATHLIBNAME, luaopen_math },
             { LUA_STRLIBNAME, luaopen_string },
             { LUA_TABLIBNAME, luaopen_table },
+
 #if LUA_VERSION_NUM >= 503
             { LUA_UTF8LIBNAME, luaopen_utf8 },
-#endif
+#endif // LUA_VERSION_NUM >= 503
+
 #if LUAJIT_FLAVOR() != 0 // building against LuaJIT headers, add some LuaJIT-specific libs
             { LUA_BITLIBNAME, luaopen_bit },
             { LUA_FFILIBNAME, luaopen_ffi },
             { LUA_JITLIBNAME, luaopen_jit },
-#endif // LUAJIT_FLAVOR()
+#endif // LUAJIT_FLAVOR() != 0
 
             { kLanesCoreLibName, require_lanes_core } // So that we can open it like any base library (possible since we have access to the init function)
         };
@@ -309,6 +314,21 @@ namespace state {
 
         STACK_CHECK(_L, 0);
         return _L;
+    }
+
+    // #############################################################################################
+
+    // for internal use only: tell lanes.lua which base libraries are actually supported internally
+    LUAG_FUNC(supported_libs)
+    {
+        STACK_CHECK_START_REL(L_, 0);
+        lua_newtable(L_);                                                                          // L_: out
+        for (luaL_Reg const& _entry : local::sLibs) {
+            lua_pushboolean(L_, 1);                                                                // L_: out true
+            luaG_setfield(L_, -2, std::string_view{ _entry.name }); // out[name] = true            // L_: out
+        }
+        STACK_CHECK(L_, 1);
+        return 1;
     }
 
     // #############################################################################################

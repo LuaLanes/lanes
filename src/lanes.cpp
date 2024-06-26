@@ -636,6 +636,7 @@ namespace {
             { "set_thread_priority", LG_set_thread_priority },
             { "set_thread_affinity", LG_set_thread_affinity },
             { "sleep", LG_sleep },
+            { "supported_libs", state::LG_supported_libs },
             { "wakeup_conv", LG_wakeup_conv },
             { nullptr, nullptr }
         };

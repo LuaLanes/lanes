@@ -222,23 +222,25 @@ end
 
 local valid_libs =
 {
-    ["package"] = true,
-    ["table"] = true,
-    ["io"] = true,
-    ["os"] = true,
-    ["string"] = true,
-    ["math"] = true,
-    ["debug"] = true,
-    ["bit32"] = true, -- Lua 5.2 only, ignored silently under 5.1
-    ["utf8"] = true, -- Lua 5.3 only, ignored silently under 5.1 and 5.2
-    ["bit"] = true, -- LuaJIT only, ignored silently under PUC-Lua
-    ["jit"] = true, -- LuaJIT only, ignored silently under PUC-Lua
-    ["ffi"] = true, -- LuaJIT only, ignored silently under PUC-Lua
-    --
     ["base"] = true,
-    ["coroutine"] = true, -- part of "base" in Lua 5.1
+    ["bit"] = true,
+    ["bit32"] = true,
+    ["coroutine"] = true,
+    ["debug"] = true,
+    ["ffi"] = true,
+    ["io"] = true,
+    ["jit"] = true,
+    ["math"] = true,
+    ["os"] = true,
+    ["package"] = true,
+    ["string"] = true,
+    ["table"] = true,
+    ["utf8"] = true,
+    --
     ["lanes.core"] = true
 }
+-- same structure, but contains only the libraries that the current Lua flavor actually supports
+local supported_libs
 
 -- #################################################################################################
 
@@ -375,14 +377,17 @@ local gen = function(...)
             error "Libs specification '*' must be used alone"
         end
         local found = {}
-        for s in string_gmatch(libs, "[%a%d.]+") do
+        -- accept lib identifiers followed by an optional question mark
+        for s, question in string_gmatch(libs, "([%a%d.]+)(%??)") do
             if not valid_libs[s] then
-                error("Bad library name: " .. s, 2)
-            else
-                found[s] = (found[s] or 0) + 1
-                if found[s] > 1 then
-                    error("Libs specification contains '" .. s .. "' more than once", 2)
-                end
+                error("Bad library name: " .. string_format("%q", tostring(s)), 2)
+            end
+            if question == '' and not supported_libs[s] then
+                error("Unsupported library: " .. string_format("%q", tostring(s)), 2)
+            end
+            found[s] = (found[s] or 0) + 1
+            if found[s] > 1 then
+                error("Libs specification contains " .. string_format("%q", tostring(s)) .. " more than once", 2)
             end
         end
     end
@@ -810,6 +815,11 @@ local configure = function(settings_)
     lanes.configure = function() return lanes end -- no need to configure anything again
 
     -- now we can configure Lanes core
+
+
+
+
+
     local settings = core.configure and core.configure(params_checker(settings_)) or core.settings
 
     --
@@ -825,6 +835,7 @@ local configure = function(settings_)
     -- avoid pulling the whole core module as upvalue when cancel_error is enough
     -- these are locals declared above, that we need to set prior to calling configure_timers()
     cancel_error = assert(core.cancel_error)
+    supported_libs = assert(core.supported_libs())
     timerLinda = assert(core.timerLinda)
 
     if settings.with_timers then

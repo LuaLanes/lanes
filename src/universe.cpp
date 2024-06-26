@@ -111,7 +111,7 @@ void Universe::callOnStateCreate(lua_State* const L_, lua_State* const from_, Lo
     std::string_view const _stateType{ mode_ == LookupMode::LaneBody ? "lane" : "keeper" };
     luaG_pushstring(L_, _stateType);                                                               // L_: on_state_create() "<type>"
     if (lua_pcall(L_, 1, 0, 0) != LUA_OK) {
-        raise_luaL_error(from_, "%s failed: \"%s\"", kOnStateCreate.data(), lua_isstring(L_, -1) ? luaG_tostring(L_, -1).data() : luaG_typename(L_, -1).data());
+        raise_luaL_error(from_, "%s failed in %s: \"%s\"", kOnStateCreate.data(), _stateType.data(), lua_isstring(L_, -1) ? luaG_tostring(L_, -1).data() : luaG_typename(L_, -1).data());
     }
     STACK_CHECK(L_, 0);
 }

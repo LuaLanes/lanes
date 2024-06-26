@@ -1185,13 +1185,17 @@
 	<ul>
 		<li>Keys can be of boolean, number, string, light userdata, and deep userdata type. Tables and functions can't be keys because their identity isn't preserved when transfered from one Lua state to another.</li>
 		<li>values can be any type supported by inter-state copying (same <a href="#limitations">limits</a> as for function arguments and upvalues).</li>
-		<li>consuming method is <tt>:receive</tt> (not in).</li>
-		<li>non-consuming method is <tt>:get</tt> (not rd).</li>
-		<li>two producer-side methods: <tt>:send</tt> and <tt>:set</tt> (not out).</li>
+		<li>
+			Registered functions transiting into a Keeper state are converted to a special dummy function that holds its actual identity. On transit out, the identity is used to find the real function in the destination.
+			For that reason, it is not possible to run user code inside a Keeper state. The only exception is <a href="#on_state_create"><tt>on_state_create</tt></a>, which is handled in a special way.
+		</li>
+		<li>Consuming method is <tt>:receive</tt> (not in).</li>
+		<li>Non-consuming method is <tt>:get</tt> (not rd).</li>
+		<li>Two producer-side methods: <tt>:send</tt> and <tt>:set</tt> (not out).</li>
 		<li><tt>send</tt> allows for sending multiple values -atomically- to a given key.</li>
 		<li><tt>receive</tt> can wait for multiple keys at once.</li>
 		<li><tt>receive</tt> has a batched mode to consume more than one value from a single key, as in <tt>linda:receive(1.0, linda.batched, "key", 3, 6).</tt></li>
-		<li>individual keys' queue length can be limited, balancing speed differences in a producer/consumer scenario (making <tt>:send</tt> wait).</li>
+		<li>Individual keys' queue length can be limited, balancing speed differences in a producer/consumer scenario (making <tt>:send</tt> wait).</li>
 		<li><tt>tostring(linda)</tt> returns a string of the form <tt>"Linda: &lt;opt_name&gt;"</tt></li>
 		<li>
 			Several Linda objects may share the same <a href="#keepers">Keeper state</a>. In case there is more than one user <a href="#keepers">Keeper state</a>, assignation must be controlled with the Linda's group (an integer in <tt>[0,nb_user_keepers]</tt>).
@@ -1375,7 +1379,7 @@
 	Whenever Lua code reads from or writes to a Linda, the mutex is acquired. If Linda limits don't block the operation, it is fulfilled, then the mutex is released.<br />
 	If the Linda has to block, the mutex is released and the OS thread sleeps, waiting for a Linda operation to be signalled. When an operation occurs on the same Linda, possibly fufilling the condition, or a timeout expires, the thread wakes up.<br />
 	If the thread is woken but the condition is not yet fulfilled, it goes back to sleep, until the timeout expires.<br />
-	When a lane is cancelled, the signal it is waiting on (if any) is signalled. In that case, the Linda operation will return <tt>lanes.cancel_error</tt>.
+	When a lane is cancelled, the signal it is waiting on (if any) is signalled. In that case, the Linda operation will return <tt>lanes.cancel_error</tt>.<br />
 </p>
 
 <p>

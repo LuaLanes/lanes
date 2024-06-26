@@ -363,7 +363,7 @@ local stdlib_naming_tests =
     -- { "coroutine", dump_g},
     -- { "io", dump_g},
     -- { "bit32", dump_g},
-    { "coroutine", coro_f},
+    { "coroutine?", coro_f}, -- in Lua 5.1, the coroutine base library doesn't exist (coroutine table is created when 'base' is opened)
     { "*", io_os_f},
     { "io,os", io_os_f},
     { "io+os", io_os_f},
