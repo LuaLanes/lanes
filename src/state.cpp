@@ -46,15 +46,6 @@ namespace {
     // #############################################################################################
     // #############################################################################################
 
-    [[nodiscard]] static int require_lanes_core(lua_State* const L_)
-    {
-        // leaves a copy of 'lanes.core' module table on the stack
-        luaL_requiref(L_, kLanesCoreLibName, luaopen_lanes_core, 0);
-        return 1;
-    }
-
-    // #############################################################################################
-
     namespace local {
         static luaL_Reg const sLibs[] = {
             { "base", nullptr }, // ignore "base" is always valid, but opened separately
@@ -89,7 +80,7 @@ namespace {
             { LUA_JITLIBNAME, luaopen_jit },
 #endif // LUAJIT_FLAVOR() != 0
 
-            { kLanesCoreLibName, require_lanes_core } // So that we can open it like any base library (possible since we have access to the init function)
+            { kLanesCoreLibName, luaopen_lanes_core } // So that we can open it like any base library (possible since we have access to the init function)
         };
 
     } // namespace local
@@ -108,10 +99,10 @@ namespace {
                 DEBUGSPEW_CODE(DebugSpew(Universe::Get(L_)) << "opening '" << _name << "' library" << std::endl);
                 STACK_CHECK_START_REL(L_, 0);
                 // open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
-                bool const isLanesCore{ _libfunc == require_lanes_core }; // don't want to create a global for "lanes.core"
-                luaL_requiref(L_, _name.data(), _libfunc, !isLanesCore);                           // L_: {lib}
+                bool const _isLanesCore{ _libfunc == luaopen_lanes_core }; // don't want to create a global for "lanes.core"
+                luaL_requiref(L_, _name.data(), _libfunc, !_isLanesCore);                          // L_: {lib}
                 // lanes.core doesn't declare a global, so scan it here and now
-                if (isLanesCore) {
+                if (_isLanesCore) {
                     tools::PopulateFuncLookupTable(L_, -1, _name);
                 }
                 lua_pop(L_, 1);                                                                    // L_:
