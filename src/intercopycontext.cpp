@@ -330,7 +330,6 @@ void InterCopyContext::lookupNativeFunction() const
             kLaneNameRegKey.pushValue(L2);                                                         // L1: ... f ...                                  L2: {} f lane_name
             std::string_view const _to{ luaG_tostring(L2, -1) };
             lua_pop(L2, 1);                                                                        //                                                L2: {} f
-            // when mode_ == LookupMode::FromKeeper, L is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
             raise_luaL_error(
                 getErrL(),
                 "%s%s: function '%s' not found in %s destination transfer database.",
@@ -342,21 +341,6 @@ void InterCopyContext::lookupNativeFunction() const
         }
         lua_remove(L2, -2);                                                                        // L2: f
         break;
-
-        /* keep it in case I need it someday, who knows...
-        case LookupMode::RawFunctions:
-        {
-            int n;
-            char const* upname;
-            lua_CFunction f = lua_tocfunction( L, i);
-            // copy upvalues
-            for (n = 0; (upname = lua_getupvalue( L, i, 1 + n)) != nullptr; ++ n) {
-                luaG_inter_move( U, L, L2, 1, mode_);                                                  //                                                L2: [up[,up ...]]
-            }
-            lua_pushcclosure( L2, f, n);                                                               //                                                L2:
-        }
-        break;
-        */
     }
     STACK_CHECK(L2, 1);
 }
