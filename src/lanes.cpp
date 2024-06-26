@@ -828,13 +828,13 @@ LANES_API int luaopen_lanes_core(lua_State* L_)
     STACK_CHECK_START_REL(L_, 0);
 
     // Prevent PUC-Lua/LuaJIT mismatch. Hopefully this works for MoonJIT too
-#if LUAJIT_FLAVOR() == 0
-    if (luaG_getmodule(L_, LUA_JITLIBNAME) != LuaType::NIL)
-        raise_luaL_error(L_, "Lanes is built for PUC-Lua, don't run from LuaJIT");
-#else
-    if (luaG_getmodule(L_, LUA_JITLIBNAME) == LuaType::NIL)
-        raise_luaL_error(L_, "Lanes is built for LuaJIT, don't run from PUC-Lua");
-#endif
+    if constexpr (LUAJIT_FLAVOR() == 0) {
+        if (luaG_getmodule(L_, LUA_JITLIBNAME) != LuaType::NIL)
+            raise_luaL_error(L_, "Lanes is built for PUC-Lua, don't run from LuaJIT");
+    } else {
+        if (luaG_getmodule(L_, LUA_JITLIBNAME) == LuaType::NIL)
+            raise_luaL_error(L_, "Lanes is built for LuaJIT, don't run from PUC-Lua");
+    }
     lua_pop(L_, 1);                                                                                // L_:
     STACK_CHECK(L_, 0);
 
