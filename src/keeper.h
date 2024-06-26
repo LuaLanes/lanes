@@ -8,6 +8,7 @@ enum class LookupMode;
 class Universe;
 
 using KeeperState = Unique<lua_State*>;
+using LindaLimit = Unique<int>;
 
 // #################################################################################################
 

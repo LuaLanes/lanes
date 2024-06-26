@@ -32,6 +32,7 @@ class Unique
     T val;
 
     public:
+    using type = T;
     Unique() = default;
     operator T() const { return val; }
     explicit Unique(T b_)
@@ -45,6 +46,7 @@ class Unique<T, lambda, std::enable_if_t<!std::is_scalar_v<T>>>
 : public T
 {
     public:
+    using type = T;
     using T::T;
     explicit Unique(T const& b_)
     : T{ b_ }

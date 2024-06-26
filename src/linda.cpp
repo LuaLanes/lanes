@@ -452,21 +452,23 @@ LUAG_FUNC(linda_get)
 
 /*
  * [bool]|nil,cancel_error = linda:limit(key_num|str|bool|lightuserdata, [int])
+ * "unlimited"|number = linda:limit(key)
  *
- * Set limit to 1 Linda keys.
+ * Read or set limit to 1 Linda keys.
  * Optionally wake threads waiting to write on the linda, in case the limit enables them to do so
- * Limit can be 0 to completely block everything, nil to reset
+ * Limit can be 0 to completely block everything, "unlimited" to reset
  */
 LUAG_FUNC(linda_limit)
 {
     static constexpr lua_CFunction _limit{
         +[](lua_State* const L_) {
             Linda* const _linda{ ToLinda<false>(L_, 1) };
-            // make sure we got 3 arguments: the linda, a key and a limit
+            // make sure we got 2 or 3 arguments: the linda, a key and optionally a limit
             int const _nargs{ lua_gettop(L_) };
             luaL_argcheck(L_, _nargs == 2 || _nargs == 3, 2, "wrong number of arguments");
-            // make sure we got a numeric limit
-            lua_Integer const _val{ luaL_optinteger(L_, 3, 0) };
+            // make sure we got a numeric limit, or "unlimited", (or nothing)
+            bool const _unlimited{ luaG_tostring(L_, 3) == "unlimited" };
+            LindaLimit const _val{ _unlimited ? std::numeric_limits<LindaLimit::type>::max() : LindaLimit{ static_cast<LindaLimit::type>(luaL_optinteger(L_, 3, 0)) } };
             if (_val < 0) {
                 raise_luaL_argerror(L_, 3, "limit must be >= 0");
             }
@@ -476,10 +478,21 @@ LUAG_FUNC(linda_limit)
             KeeperCallResult _pushed;
             if (_linda->cancelRequest == CancelRequest::None) {
                 Keeper* const _keeper{ _linda->whichKeeper() };
+                if (_unlimited) {
+                    LUA_ASSERT(L_, lua_gettop(L_) == 3 && luaG_tostring(L_, 3) == "unlimited");
+                    // inside the Keeper, unlimited is signified with a -1 limit (can't use nil because of nil kNilSentinel conversions!)
+                    lua_pop(L_, 1);                                                                // L_: linda key
+                    lua_pushinteger(L_, -1);                                                       // L_: linda key nil
+                }
                 _pushed = keeper_call(_keeper->K, KEEPER_API(limit), L_, _linda, 2);
-                LUA_ASSERT(L_, _pushed.has_value() && (_pushed.value() == 1) && luaG_type(L_, -1) == LuaType::BOOLEAN); // no error, boolean value saying if we should wake blocked writer threads
-                if (lua_toboolean(L_, -1)) {
-                    _linda->readHappened.notify_all(); // To be done from within the 'K' locking area
+                LUA_ASSERT(L_, _pushed.has_value() && (_pushed.value() == 1));
+                if (_nargs == 3) { // 3 args: setting the limit
+                    LUA_ASSERT(L_, luaG_type(L_, -1) == LuaType::BOOLEAN); // changing the limit: no error, boolean value saying if we should wake blocked writer threads
+                    if (lua_toboolean(L_, -1)) {
+                        _linda->readHappened.notify_all(); // To be done from within the 'K' locking area
+                    }
+                } else { // 2 args: reading the limit
+                    LUA_ASSERT(L_, luaG_type(L_, -1) == LuaType::NUMBER || luaG_tostring(L_, -1) == "unlimited"); // reading the limit: a number >=0 or "unlimited"
                 }
             } else { // linda is cancelled
                 // do nothing and return nil,lanes.cancel_error

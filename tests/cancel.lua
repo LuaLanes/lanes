@@ -50,9 +50,9 @@ if not next(which_tests) or which_tests.genlock then
 
 	-- reset the linda so that the other tests work
 	linda:cancel("none")
-	linda:limit("lock")
+	linda:limit("lock", "unlimited")
 	linda:set("lock")
-	linda:limit("atomic")
+	linda:limit("atomic", "unlimited")
 	linda:set("atomic")
 
 	print "test OK"

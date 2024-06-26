@@ -1222,14 +1222,16 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	bool|(nil,[lanes.cancel_error|"timeout"]) = h:limit(key, n_uint)
+	bool|(nil,[lanes.cancel_error|"timeout"]) = h:limit(key, &lt;limit&gt;)
+	&gt;limit&lt; = h:limit(key)
 </pre></td></tr></table>
 
 <p>
-	By default, queue sizes are unlimited but limits can be enforced using the <tt>limit()</tt> method. This can be useful to balance execution speeds in a producer/consumer scenario. <tt>nil</tt> removes the limit.<br />
-	A limit of 0 is allowed to block everything.<br />
-	If the key was full but the limit change added some room, <tt>limit()</tt> returns <tt>true</tt> and the Linda is signalled so that <tt>send()</tt>-blocked threads are awakened, else the return value is <tt>false</tt>.<br />
-	Or <tt>nil, lanes.cancel_error</tt> in case of cancellation, of course.
+	By default, queue sizes are unlimited but limits can be enforced using the <tt>limit()</tt> method. This can be useful to balance execution speeds in a producer/consumer scenario.<br />
+	A limit of 0 is allowed to block everything. <tt>"unlimited"</tt> removes the limit.<br />
+	If the key was full but the limit change added some room, <tt>limit()</tt> returns <tt>true</tt> and the Linda is signalled so that <tt>send()</tt>-blocked threads are awakened, else the return value is <tt>false</tt>.
+	If no limit is provided, <tt>limit()</tt> returns a single value, the current limit for the specified key.<br />
+	Whether reading or writing, if the Linda is cancelled, <tt>limit()</tt> returns <tt>nil, lanes.cancel_error</tt>.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>

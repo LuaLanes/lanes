@@ -29,6 +29,7 @@ CHANGE 2: BGe 11-Jun-24
             - specifying a group to lanes.linda() is mandatory when Lanes is configured with user Keepers.
             - linda:deep() result no longer contains the raw C pointer of the Linda object.
             - linda :receive(), :send(), :get(), :set(), :limit() return nil, error in case of problem. Returned values in case of success change too.
+            - linda:limit() can be used to read the value if no new limit is provided.
             - Lindas have a __close metamethod that calls any suitable handler that was provided at Linda creation.
             - linda:dump outputs <key>.limit as 'unlimited' instead of -1 for unlimited keys.
             - deep userdata are an acceptable key to send data into (for example, another linda).

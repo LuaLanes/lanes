@@ -68,7 +68,7 @@ class KeyUD
     public:
     int first{ 1 };
     int count{ 0 };
-    int limit{ -1 };
+    LindaLimit limit{ -1 };
 
     // a fifo full userdata has one uservalue, the table that holds the actual fifo contents
     [[nodiscard]] static void* operator new([[maybe_unused]] size_t size_, KeeperState L_) noexcept { return luaG_newuserdatauv<KeyUD>(L_, 1); }
@@ -76,19 +76,19 @@ class KeyUD
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete([[maybe_unused]] void* p_, [[maybe_unused]] KeeperState L_) { LUA_ASSERT(L_, !"should never be called"); }
 
-    [[nodiscard]] bool changeLimit(int limit_);
+    [[nodiscard]] bool changeLimit(LindaLimit limit_);
     [[nodiscard]] static KeyUD* Create(KeeperState K_);
     [[nodiscard]] static KeyUD* GetPtr(KeeperState K_, int idx_);
     void peek(KeeperState K_, int count_) const; // keepercall_get
     [[nodiscard]] int pop(KeeperState K_, int minCount_, int maxCount_); // keepercall_receive[_batched]
     void prepareAccess(KeeperState K_, int idx_) const;
-    [[nodiscard]] bool push(KeeperState K_, int count_); // keepercall_send
+    [[nodiscard]] bool push(KeeperState K_, int count_, bool enforceLimit_); // keepercall_send and keepercall_set
     [[nodiscard]] bool reset(KeeperState K_);
 };
 
 // #################################################################################################
 
-bool KeyUD::changeLimit(int const limit_)
+bool KeyUD::changeLimit(LindaLimit const limit_)
 {
     bool const _newSlackAvailable{
         ((limit >= 0) && (count >= limit)) // then: the key was full if limited and count exceeded the previous limit
@@ -209,11 +209,11 @@ void KeyUD::prepareAccess(KeeperState const K_, int const idx_) const
 
 // in: expect this val... on top of the stack
 // out: nothing, removes all pushed values from the stack
-bool KeyUD::push(KeeperState const K_, int const count_)
+bool KeyUD::push(KeeperState const K_, int const count_, bool const enforceLimit_)
 {
     int const _fifoIdx{ luaG_absindex(K_, -1 - count_) };
     LUA_ASSERT(K_, KeyUD::GetPtr(K_, _fifoIdx) == this);                                           // K_: this val...
-    if (limit >= 0 && count + count_ > limit) { // not enough room
+    if (enforceLimit_ && (limit >= 0) && (count + count_ > limit)) { // not enough room
         return false;
     }
 
@@ -239,7 +239,8 @@ bool KeyUD::reset(KeeperState const K_)
     STACK_CHECK_START_REL(K_, 0);
     bool const _wasFull{ (limit > 0) && (count >= limit) };
     // empty the KeyUD: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
-    lua_newtable(K_);                                                                              // K_: KeysDB key val... KeyUD {}
+    // if we have an actual limit, use it to preconfigure the table
+    lua_createtable(K_, (limit <= 0) ? 0 : limit, 0);                                              // K_: KeysDB key val... KeyUD {}
     lua_setiuservalue(K_, -2, kContentsTableIndex);                                                // K_: KeysDB key val... KeyUD
     first = 1;
     count = 0;
@@ -397,23 +398,34 @@ int keepercall_get(lua_State* const L_)
 int keepercall_limit(lua_State* const L_)
 {
     KeeperState const _K{ L_ };
-    int const _limit{ static_cast<int>(luaL_optinteger(_K, 3, -1)) }; // -1 if we read nil because the argument is absent
+    // no limit to set, means we read and return the current limit instead
+    bool const _reading{ lua_gettop(_K) == 2 };
+    LindaLimit const _limit{ static_cast<LindaLimit::type>(luaL_optinteger(_K, 3, -1)) }; // -1 if we read nil because the argument is absent
     lua_settop(_K, 2);                                                                             // _K: linda key
     PushKeysDB(_K, 1);                                                                             // _K: linda key KeysDB
     lua_replace(_K, 1);                                                                            // _K: KeysDB key
     lua_pushvalue(_K, -1);                                                                         // _K: KeysDB key key
     lua_rawget(_K, -3);                                                                            // _K: KeysDB key KeyUD|nil
     KeyUD* _key{ KeyUD::GetPtr(_K, -1) };
-    if (_key == nullptr) {                                                                         // _K: KeysDB key nil
-        lua_pop(_K, 1);                                                                            // _K: KeysDB key
-        _key = KeyUD::Create(_K);                                                                  // _K: KeysDB key KeyUD
-        lua_rawset(_K, -3);                                                                        // _K: KeysDB
+    if (_reading) {
+        if (_key && _key->limit >= 0) {
+            lua_pushinteger(_K, _key->limit);                                                      // _K: KeysDB key KeyUD limit
+        } else { // if the key doesn't exist, it is unlimited by default
+            luaG_pushstring(_K, "unlimited");                                                      // _K: KeysDB key KeyUD "unlimited"
+        }
+        // return a single value: the limit of the key
+    } else {
+        if (_key == nullptr) {                                                                     // _K: KeysDB key nil
+            lua_pop(_K, 1);                                                                        // _K: KeysDB key
+            _key = KeyUD::Create(_K);                                                              // _K: KeysDB key KeyUD
+            lua_rawset(_K, -3);                                                                    // _K: KeysDB
+        }
+        // remove any clutter on the stack
+        lua_settop(_K, 0);                                                                         // _K:
+        // return true if we decide that blocked threads waiting to write on that key should be awakened
+        // this is the case if we detect the key was full but it is no longer the case
+        lua_pushboolean(_K, _key->changeLimit(_limit) ? 1 : 0);                                    // _K: bool
     }
-    // remove any clutter on the stack
-    lua_settop(_K, 0);                                                                             // _K:
-    // return true if we decide that blocked threads waiting to write on that key should be awakened
-    // this is the case if we detect the key was full but it is no longer the case
-    lua_pushboolean(_K, _key->changeLimit(_limit) ? 1 : 0);                                        // _K: bool
     return 1;
 }
 
@@ -502,7 +514,7 @@ int keepercall_send(lua_State* const L_)
     lua_pop(_K, 1);                                                                                // _K: linda KeyUD val...
     STACK_CHECK(_K, 0);
     KeyUD* const _key{ KeyUD::GetPtr(_K, 2) };
-    if (_key && _key->push(_K, _n)) { // not enough room?
+    if (_key && _key->push(_K, _n, true)) { // not enough room?
         lua_settop(_K, 0);                                                                         // _K:
         lua_pushboolean(_K, 1);                                                                    // _K: true
     } else {
@@ -527,8 +539,7 @@ int keepercall_set(lua_State* const L_)
     PushKeysDB(_K, 1);                                                                             // _K: linda key val... KeysDB
     lua_replace(_K, 1);                                                                            // _K: KeysDB key val...
 
-    // make sure we have a value on the stack
-    if (lua_gettop(_K) == 2) {                                                                     // _K: KeysDB key
+    if (lua_gettop(_K) == 2) { // no value to set                                                  // _K: KeysDB key
         lua_pushvalue(_K, -1);                                                                     // _K: KeysDB key key
         lua_rawget(_K, 1);                                                                         // _K: KeysDB key KeyUD|nil
         // empty the KeyUD for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
@@ -563,7 +574,7 @@ int keepercall_set(lua_State* const L_)
         }
         // replace the key with the KeyUD in the stack
         lua_replace(_K, -2 - _count);                                                              // _K: KeysDB KeyUD val...
-        [[maybe_unused]] bool const _pushed{ _key->push(_K, _count) };                             // _K: KeysDB
+        [[maybe_unused]] bool const _pushed{ _key->push(_K, _count, false) };                      // _K: KeysDB
     }
     // stack isn't the same here depending on what we did before, but that's not a problem
     lua_pushboolean(_K, _should_wake_writers ? 1 : 0);                                             // _K: ... bool
