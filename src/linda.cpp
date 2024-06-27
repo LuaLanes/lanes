@@ -477,22 +477,24 @@ LUAG_FUNC(linda_limit)
 
             KeeperCallResult _pushed;
             if (_linda->cancelRequest == CancelRequest::None) {
-                Keeper* const _keeper{ _linda->whichKeeper() };
                 if (_unlimited) {
                     LUA_ASSERT(L_, lua_gettop(L_) == 3 && luaG_tostring(L_, 3) == "unlimited");
                     // inside the Keeper, unlimited is signified with a -1 limit (can't use nil because of nil kNilSentinel conversions!)
                     lua_pop(L_, 1);                                                                // L_: linda key
                     lua_pushinteger(L_, -1);                                                       // L_: linda key nil
                 }
+                Keeper* const _keeper{ _linda->whichKeeper() };
                 _pushed = keeper_call(_keeper->K, KEEPER_API(limit), L_, _linda, 2);
-                LUA_ASSERT(L_, _pushed.has_value() && (_pushed.value() == 1));
+                LUA_ASSERT(L_, _pushed.has_value() && (_pushed.value() == 2) && luaG_type(L_, -1) == LuaType::STRING);
                 if (_nargs == 3) { // 3 args: setting the limit
-                    LUA_ASSERT(L_, luaG_type(L_, -1) == LuaType::BOOLEAN); // changing the limit: no error, boolean value saying if we should wake blocked writer threads
-                    if (lua_toboolean(L_, -1)) {
+                    // changing the limit: no error, boolean value saying if we should wake blocked writer threads
+                    LUA_ASSERT(L_, luaG_type(L_, -2) == LuaType::BOOLEAN);                         // L_: bool string
+                    if (lua_toboolean(L_, -2)) {
                         _linda->readHappened.notify_all(); // To be done from within the 'K' locking area
                     }
                 } else { // 2 args: reading the limit
-                    LUA_ASSERT(L_, luaG_type(L_, -1) == LuaType::NUMBER || luaG_tostring(L_, -1) == "unlimited"); // reading the limit: a number >=0 or "unlimited"
+                    // reading the limit: a number >=0 or "unlimited"
+                    LUA_ASSERT(L_, luaG_type(L_, -2) == LuaType::NUMBER || luaG_tostring(L_, -2) == "unlimited");
                 }
             } else { // linda is cancelled
                 // do nothing and return nil,lanes.cancel_error
@@ -500,7 +502,7 @@ LUAG_FUNC(linda_limit)
                 kCancelError.pushKey(L_);
                 _pushed.emplace(2);
             }
-            // propagate pushed boolean if any
+            // propagate returned values
             return _pushed.value();
         }
     };
@@ -807,7 +809,7 @@ LUAG_FUNC(linda_send)
 // #################################################################################################
 
 /*
- * [true|nil,lanes.cancel_error] = linda:set(key_num|str|bool|lightuserdata [, value [, ...]])
+ * (boolean,string)|(nil,lanes.cancel_error) = linda:set(key_num|str|bool|lightuserdata [, value [, ...]])
  *
  * Set one or more value to Linda. Ignores limits.
  *
@@ -827,13 +829,13 @@ LUAG_FUNC(linda_set)
                 Keeper* const _keeper{ _linda->whichKeeper() };
                 _pushed = keeper_call(_keeper->K, KEEPER_API(set), L_, _linda, 2);
                 if (_pushed.has_value()) { // no error?
-                    LUA_ASSERT(L_, _pushed.value() == 1 && luaG_type(L_, -1) == LuaType::BOOLEAN);
+                    LUA_ASSERT(L_, _pushed.value() == 2 && luaG_type(L_, -1) == LuaType::STRING && luaG_type(L_, -2) == LuaType::BOOLEAN);
 
                     if (_has_data) {
                         // we put some data in the slot, tell readers that they should wake
                         _linda->writeHappened.notify_all(); // To be done from within the 'K' locking area
                     }
-                    if (lua_toboolean(L_, -1)) {
+                    if (lua_toboolean(L_, -2)) {
                         // the key was full, but it is no longer the case, tell writers they should wake
                         _linda->readHappened.notify_all(); // To be done from within the 'K' locking area
                     }

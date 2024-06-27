@@ -435,7 +435,7 @@ static constexpr RegistryUniqueKey kStackTraceRegKey{ 0x3F327747CACAA904ull };
 [[nodiscard]] static int lane_error(lua_State* L_)
 {
     // error message (any type)
-    STACK_CHECK_START_ABS(L_, 1); // L_: some_error
+    STACK_CHECK_START_ABS(L_, 1);                                                                  // L_: some_error
 
     // Don't do stack survey for cancelled lanes.
     //

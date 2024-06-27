@@ -792,7 +792,8 @@ local genatomic = function(linda_, key_, initial_val_)
         if val ~= cancel_error then
             val = val + (diff_ or 1.0)
             -- set() releases the lock by emptying queue
-            if linda_:set(key_, val) == cancel_error then
+            local _res, _err = linda_:set(key_, val)
+            if _err == cancel_error then
                 val = cancel_error
             end
         end

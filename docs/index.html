@@ -1222,15 +1222,16 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	bool|(nil,[lanes.cancel_error|"timeout"]) = h:limit(key, &lt;limit&gt;)
-	&gt;limit&lt; = h:limit(key)
+	bool,string|(nil,[lanes.cancel_error|"timeout"]) = h:limit(key, &lt;limit&gt;)
+	(number|string),string = h:limit(key)
 </pre></td></tr></table>
 
 <p>
 	By default, queue sizes are unlimited but limits can be enforced using the <tt>limit()</tt> method. This can be useful to balance execution speeds in a producer/consumer scenario.<br />
 	A limit of 0 is allowed to block everything. <tt>"unlimited"</tt> removes the limit.<br />
-	If the key was full but the limit change added some room, <tt>limit()</tt> returns <tt>true</tt> and the Linda is signalled so that <tt>send()</tt>-blocked threads are awakened, else the return value is <tt>false</tt>.
-	If no limit is provided, <tt>limit()</tt> returns a single value, the current limit for the specified key.<br />
+	If the key was full but the limit change added some room, <tt>limit()</tt> first return value is <tt>true</tt> and the Linda is signalled so that <tt>send()</tt>-blocked threads are awakened, else the return value is <tt>false</tt>.
+	If no limit is provided, <tt>limit()</tt> first return value is the current limit for the specified key.<br />
+	The second returned value is a string representing the fill status relatively to the key's current limit (one of <tt>"over"</tt>, <tt>"under"</tt>, <tt>"exact"</tt>).
 	Whether reading or writing, if the Linda is cancelled, <tt>limit()</tt> returns <tt>nil, lanes.cancel_error</tt>.
 </p>
 
@@ -1292,30 +1293,30 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	true|nil,lanes.cancel_error = linda_h:set(key [, val [, ...]])
+	(bool,string)|(nil,lanes.cancel_error) = linda_h:set(key [, val [, ...]])
 
-	[number,[val [, ...]]|nil,lanes.cancel_error] = linda_h:get(key [, count = 1])
+	(number,[val [, ...]])|(nil,lanes.cancel_error) = linda_h:get(key [, count = 1])
 </pre></td></tr></table>
 
 <p>
-	The table access methods are for accessing a slot without queuing or consuming. They can be used for making shared tables of storage among the lanes.<br />
-	Writing to a slot never blocks because it ignores the limit. It overwrites existing value and clears any possible queued entries.<br />
-	Reading doesn't block either because <tt>get()</tt> returns:
+	<tt>get()</tt>/<tt>set()</tt> and <tt>send()</tt>/<tt>receive()</tt> can be used together; reading a slot essentially peeks the next outcoming value of a queue.<br />
+	<tt>get()</tt>/<tt>set()</tt> are for accessing a key without queuing or consuming. They can be used for making shared tables of storage among the lanes.<br />
+	Writing to a key never blocks because it ignores the limit. It overwrites existing values and clears any possible queued entries.<br />
+</p>
+<p>
+	<tt>get()</tt> can read several values at once, and does not block. Return values ares:
 	<ul>
 		<li><tt>nil, lanes.cancel_error</tt> in case of cancellation.</li>
 		<li><tt>number, val...</tt> where number is the actual count of items obtained from the linda (can be 0).</li>
 	</ul>
-	Table access and <tt>send()</tt>/<tt>receive()</tt> can be used together; reading a slot essentially peeks the next outcoming value of a queue.
 </p>
-
 <p>
-	<tt>set()</tt> signals the Linda for write if a value is stored. If nothing special happens, <tt>set() </tt>returns nothing.<br />
-	If the key was full but the new data count of the key after <tt>set()</tt> is below its limit, <tt>set()</tt> returns <tt>true</tt> and the Linda is also signaled for read so that <tt>send()</tt>-blocked threads are awakened.
-</p>
-
-<p>
-	<tt>set()</tt> can write several values at the specified key, writing <tt>nil</tt> values is now possible, and clearing the contents at the specified key is done by not providing any value.<br />
-	Also, <tt>get()</tt> can read several values at once. If the key contains no data, <tt>get()</tt> returns no value. This can be used to separate the case when reading stored <tt>nil</tt> values.
+	<tt>set()</tt> can write several values at the specified key. Writing <tt>nil</tt> values is possible, and clearing the contents at the specified key is done by not providing any value.<br />
+	If <tt>set()</tt> actually stores data, the Linda is signalled for write, so that <tt>receive()</tt>-blocked Lanes are awakened.<br />
+	Clearing the contents of a non-existent key does not create it!<br />
+	If the key was full but the new data count of the key after <tt>set()</tt> is below its limit, <tt>set()</tt> first return value is <tt>true</tt> and the Linda is also signaled for read, so that <tt>send()</tt>-blocked Lanes are awakened.<br />
+	If the key was not already full, nothing additional happens, and <tt>set()</tt> first return value is <tt>false</tt>.<br />
+	The second return value is a string representing the fill status relatively to the key's current limit (one of <tt>"over"</tt>, <tt>"under"</tt>, <tt>"exact"</tt>).
 </p>
 
 <p>

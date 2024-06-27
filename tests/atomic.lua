@@ -9,6 +9,7 @@ local lanes = require "lanes"
 local linda= lanes.linda()
 local key= "$"
 
+-- TODO: test what happens when we cancel the linda
 local f= lanes.genatomic( linda, key, 5 )
 
 local v
