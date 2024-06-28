@@ -9,7 +9,6 @@ CHANGE 2: BGe 11-Jun-24
             - demote_full_userdata removed. Use __lanesconvert instead.
             - keepers_gc_threshold added. Controls when GC runs inside keepers.
             - nb_keepers changed to nb_user_keepers. limited to 100 keepers on top of the internal keeper used by the timer Linda.
-            - shutdown_mode added. Controls how free running lanes are signalled at Lanes shutdown.
             - strip_functions added. Only useful for Lua 5.3+.
             - verbose_errors removed. Use lane error_trace_level instead.
             - with_timers is false by default.
@@ -17,7 +16,8 @@ CHANGE 2: BGe 11-Jun-24
             - __lanesignore removed. Use __lanesconvert instead.
             - __lanesconvert added.
         - Lanes API and behavior:
-            - new function lanes.finally(). Installs a function that gets called at Lanes shutdown.
+            - new function lanes.finally(). Installs a function that gets called at Lanes shutdown after attempting to terminate all lanes.
+            - If some lanes still run at shutdown, Lanes with throw an exception (or freeze, this is to be decided).
             - lanes have a __close metamethod that calls join().
             - lanes can no longer be "killed" by hard-stopping their thread without any resource cleanup (see lane:cancel()).
             - lane:join() returns nil, error in case of problem.

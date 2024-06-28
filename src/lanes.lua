@@ -98,7 +98,6 @@ local default_params =
     keepers_gc_threshold = -1,
     nb_user_keepers = 0,
     on_state_create = nil,
-    shutdown_mode = "hard",
     shutdown_timeout = 0.25,
     strip_functions = true,
     track_lanes = false,
@@ -156,14 +155,6 @@ local param_checkers =
         -- on_state_create may be nil or a function
         if val_ ~= nil and type(val_) ~= "function" then
             return nil, "not a function"
-        end
-        return true
-    end,
-    shutdown_mode = function(val_)
-        local valid_hooks = { soft = true, hard = true, call = true, ret = true, line = true, count = true }
-        -- shutdown_mode should be a known hook mask
-        if not valid_hooks[val_] then
-            return nil, "unknown value"
         end
         return true
     end,

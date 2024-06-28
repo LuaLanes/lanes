@@ -95,6 +95,8 @@ CancelOp WhichCancelOp(std::string_view const& opString_)
         _op = CancelOp::MaskLine;
     } else if (opString_ == "count") {
         _op = CancelOp::MaskCount;
+    } else if (opString_ == "all") {
+        _op = CancelOp::MaskAll;
     }
     return _op;
 }

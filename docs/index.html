@@ -370,18 +370,6 @@
 		</tr>
 
 		<tr valign=top>
-			<td id="shutdown_mode">
-				<code>.shutdown_mode</code>
-			</td>
-			<td>
-				<tt>"hard"</tt>/<tt>"soft"</tt>/<tt>"call"</tt>/<tt>"ret"</tt>/<tt>"line"</tt>/<tt>"count"</tt>
-			</td>
-			<td>
-				Select the cancellation mode used at Lanes shutdown to request free running lane termination. See <a href="#cancelling">lane cancellation</a>. Default is <tt>"hard"</tt>.
-			</td>
-		</tr>
-
-		<tr valign=top>
 			<td id="shutdown_timeout">
 				<code>.shutdown_timeout</code>
 			</td>
@@ -389,7 +377,9 @@
 				number >= 0
 			</td>
 			<td>
-				Sets the duration in seconds Lanes will wait for graceful termination of running lanes at application shutdown. Default is <tt>0.25</tt>.
+				Sets the duration in seconds Lanes will wait for graceful termination of running lanes at application shutdown. Default is <tt>0.25</tt>.<br />
+				Lanes signals all lanes for cancellation with <tt>"soft"</tt>, <tt>"hard"</tt>, and <tt>"all"</tt> modes, in that order. Each attempt has <tt>shutdown_timeout</tt> seconds to succeed before the next one.<br />
+				Then there is a last chance at cleanup with <a href="#finally"><tt>lanes.finally()</tt></a>. If some lanes are still running after that point, shutdown will freeze the application forever. It is YOUR responsibility to cleanup properly after yourself.
 			</td>
 		</tr>
 
@@ -462,7 +452,7 @@
 	</tr>
 </table>
 
-<p>
+<p id="finally">
 	It is also possible to install a function that will be called when Lanes is shutdown (that is, when the first state that required Lanes is closed).
 </p>
 
@@ -479,7 +469,8 @@
 <p>
 	An error will be raised if you attempt to do this from inside a lane, or on bad arguments (non-function, or too many arguments).<br />
 	Only the last registered finalizer is kept. It can be cleared by passing <tt>nil</tt> or nothing.<br />
-	The installed function is called after all free-running lanes are terminated, but before lindas become unusable.<br />
+	The installed function is called after all free-running lanes got a chance to terminate (see<a href="#shutdown_timeout"><tt>shutdown_timeout</tt></a>), but before lindas become unusable.<br />
+	The finalizer receives a single argument, a <tt>bool</tt> indicating whether some Lanes are still running or not at that point. It is possible to inspect them with <a href="#tracking">tracking</a>.<br />
 	If an error occurs inside this finalizer, it is silently swallowed, since it happens only during state shutdown, and you can't do anything about it.
 </p>
 
@@ -1064,26 +1055,31 @@
 	<br />
 	<tt>cancel()</tt> sends a cancellation request to the lane.
 	<br />
-	First argument is a <tt>mode</tt> can be one of <tt>"hard"</tt>, <tt>"soft"</tt>, <tt>"call"</tt>, <tt>"ret"</tt>, <tt>"line"</tt>, <tt>"count"</tt>.
+	First argument is a <tt>mode</tt> can be one of:
+	<ul>
+		<li>
+			<tt>"soft"</tt>: Cancellation will only cause <tt>cancel_test()</tt> to return <tt>true</tt>, so that the lane can cleanup manually.
+		</li>
+		<li>
+			<tt>"hard"</tt>: waits for the request to be processed, or a timeout to occur. <a href="#lindas">Linda</a> operations detecting the cancellation request will raise a special cancellation error (meaning they won't return in that case).<br />
+			<tt>wake_lane</tt> defaults to <tt>true</tt>, and <tt>timeout</tt> defaults to 0 if not specified.
+		</li>
+		<li>
+			<tt>"call"</tt>, <tt>"ret"</tt>, <tt>"line"</tt>, <tt>"count"</tt>: Asynchronously install the corresponding hook, then behave as <tt>"hard"</tt>.
+		</li>
+		<li>
+			<tt>"all"</tt>: Installs all hooks in one shot, just to be sure.
+		</li>
+	</ul>
 	If <tt>mode</tt> is not specified, it defaults to <tt>"hard"</tt>.
 	If <tt>wake_lane</tt> is <tt>true</tt>, the lane is also signalled so that execution returns from any pending <a href="#lindas">Linda</a> operation. <a href="#lindas">Linda</a> operations detecting the cancellation request return <tt>lanes.cancel_error</tt>.
-</p>
-<p>
-	If <tt>mode</tt> is <tt>"soft"</tt>, cancellation will only cause <tt>cancel_test()</tt> to return <tt>true</tt>, so that the lane can cleanup manually.<br />
-</p>
-<p>
-	If <tt>mode</tt> is <tt>"hard"</tt>, waits for the request to be processed, or a timeout to occur. <a href="#lindas">Linda</a> operations detecting the cancellation request will raise a special cancellation error (meaning they won't return in that case).<br />
-	<tt>wake_lane</tt> defaults to <tt>true</tt>, and <tt>timeout</tt> defaults to 0 if not specified.
-</p>
-<p>
-	Other values of <tt>mode</tt> will asynchronously install the corresponding hook, then behave as <tt>"hard"</tt>.
 </p>
 <p>
 	Returns <tt>true, lane_h.status</tt> if lane was already done (in <tt>"done"</tt>, <tt>"error"</tt> or <tt>"cancelled"</tt> status), or the cancellation was fruitful within <tt>timeout_secs</tt> timeout period.<br />
 	Returns <tt>false, "timeout"</tt> otherwise.
 </p>
 <p>
-	If the lane is still running after the timeout expired, there is a chance lanes will raise an error at shutdown when failing to terminate all free-running lanes within the specified timeout.
+	If the lane is still running after the timeout expired, there is a chance lanes will freeze forever at shutdown when failing to terminate all free-running lanes within the specified timeout.
 </p>
 <p>
 	Cancellation is tested <u>before</u> going to sleep in <tt>receive()</tt> or <tt>send()</tt> calls and after executing <tt>cancelstep</tt> Lua statements. A pending <tt>receive()</tt>or <tt>send()</tt> call is awakened.

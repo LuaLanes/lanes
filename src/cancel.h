@@ -29,6 +29,7 @@ enum class CancelOp
     MaskRet = LUA_MASKRET,
     MaskLine = LUA_MASKLINE,
     MaskCount = LUA_MASKCOUNT,
+    MaskAll = LUA_MASKCALL | LUA_MASKRET | LUA_MASKLINE | LUA_MASKCOUNT
 };
 
 // xxh64 of string "kCancelError" generated at https://www.pelock.com/products/hash-calculator

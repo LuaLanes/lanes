@@ -147,8 +147,7 @@ void Universe::callOnStateCreate(lua_State* const L_, lua_State* const from_, Lo
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
     lua_createtable(L_, 0, 1);                                                                     // L_: settings universe {mt}
     std::ignore = luaG_getfield(L_, 1, "shutdown_timeout");                                        // L_: settings universe {mt} shutdown_timeout
-    std::ignore = luaG_getfield(L_, 1, "shutdown_mode");                                           // L_: settings universe {mt} shutdown_timeout shutdown_mode
-    lua_pushcclosure(L_, LG_universe_gc, 2);                                                       // L_: settings universe {mt} LG_universe_gc
+    lua_pushcclosure(L_, LG_universe_gc, 1);                                                       // L_: settings universe {mt} LG_universe_gc
     lua_setfield(L_, -2, "__gc");                                                                  // L_: settings universe {mt}
     lua_setmetatable(L_, -2);                                                                      // L_: settings universe
     lua_pop(L_, 1);                                                                                // L_: settings
@@ -352,7 +351,7 @@ lanes::AllocatorDefinition Universe::resolveAllocator(lua_State* const L_, std::
 
 // #################################################################################################
 
-void Universe::terminateFreeRunningLanes(lua_State* const L_, lua_Duration const shutdownTimeout_, CancelOp const op_)
+bool Universe::terminateFreeRunningLanes(lua_Duration const shutdownTimeout_, CancelOp const op_)
 {
     if (selfdestructFirst != SELFDESTRUCT_END) {
         // Signal _all_ still running threads to exit (including the timer thread)
@@ -404,15 +403,8 @@ void Universe::terminateFreeRunningLanes(lua_State* const L_, lua_Duration const
         }
     }
 
-    // If after all this, we still have some free-running lanes, it's an external user error, they should have stopped appropriately
-    {
-        std::lock_guard<std::mutex> _guard{ selfdestructMutex };
-        Lane* _lane{ selfdestructFirst };
-        if (_lane != SELFDESTRUCT_END) {
-            // this causes a leak because we don't call U's destructor (which could be bad if the still running lanes are accessing it)
-            raise_luaL_error(L_, "Zombie thread '%s' refuses to die!", _lane->debugName.data());
-        }
-    }
+    // are all lanes successfully terminated?
+    return selfdestructFirst == SELFDESTRUCT_END;
 }
 
 // #################################################################################################
@@ -421,15 +413,21 @@ void Universe::terminateFreeRunningLanes(lua_State* const L_, lua_Duration const
 LUAG_FUNC(universe_gc)
 {
     lua_Duration const _shutdown_timeout{ lua_tonumber(L_, lua_upvalueindex(1)) };
-    std::string_view const _op_string{ luaG_tostring(L_, lua_upvalueindex(2)) };
     STACK_CHECK_START_ABS(L_, 1);
     Universe* const _U{ luaG_tofulluserdata<Universe>(L_, 1) };                                    // L_: U
-    _U->terminateFreeRunningLanes(L_, _shutdown_timeout, WhichCancelOp(_op_string));
+
+    // attempt to terminate all lanes with increasingly stronger cancel methods
+    bool const _allLanesTerminated{ 
+        _U->terminateFreeRunningLanes(_shutdown_timeout, CancelOp::Soft)
+        || _U->terminateFreeRunningLanes(_shutdown_timeout, CancelOp::Hard)
+        || _U->terminateFreeRunningLanes(_shutdown_timeout, CancelOp::MaskAll)
+    };
 
     // invoke the function installed by lanes.finally()
     kFinalizerRegKey.pushValue(L_);                                                                // L_: U finalizer|nil
     if (!lua_isnil(L_, -1)) {
-        lua_pcall(L_, 0, 0, 0);                                                                    // L_: U
+        lua_pushboolean(L_, _allLanesTerminated);                                                  // L_: U finalizer bool
+        lua_pcall(L_, 1, 0, 0);                                                                    // L_: U
         // discard any error that might have occured
         lua_settop(L_, 1);
     } else {
@@ -437,6 +435,12 @@ LUAG_FUNC(universe_gc)
     }
     // in case of error, the message is pushed on the stack
     STACK_CHECK(L_, 1);
+
+    // if some lanes are still running here, we have no other choice than crashing and let the client figure out what's wrong
+    while (_U->selfdestructFirst != SELFDESTRUCT_END) {
+        throw std::logic_error{ "Some lanes are still running at shutdown" };
+        //std::this_thread::yield();
+    }
 
     // no need to mutex-protect this as all threads in the universe are gone at that point
     if (_U->timerLinda != nullptr) { // test in case some early internal error prevented Lanes from creating the deep timer
