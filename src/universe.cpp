@@ -427,22 +427,24 @@ LUAG_FUNC(universe_gc)
     kFinalizerRegKey.pushValue(L_);                                                                // L_: U finalizer|nil
     if (!lua_isnil(L_, -1)) {
         lua_pushboolean(L_, _allLanesTerminated);                                                  // L_: U finalizer bool
-        lua_pcall(L_, 1, 0, 0);                                                                    // L_: U
-        // discard any error that might have occured
-        lua_settop(L_, 1);
-    } else {
-        lua_pop(L_, 1);                                                                            // L_: U
+        // no protection. Lua rules for errors in finalizers apply normally
+        lua_call(L_, 1, 1);                                                                        // L_: U ret|error
     }
-    // in case of error, the message is pushed on the stack
-    STACK_CHECK(L_, 1);
+    STACK_CHECK(L_, 2);
 
-    // if some lanes are still running here, we have no other choice than crashing and let the client figure out what's wrong
+    // if some lanes are still running here, we have no other choice than crashing or freezing and let the client figure out what's wrong
+    bool const _throw{ luaG_tostring(L_, -1) == "throw" };
+    lua_pop(L_, 1);                                                                                // L_: U
+
     while (_U->selfdestructFirst != SELFDESTRUCT_END) {
-        throw std::logic_error{ "Some lanes are still running at shutdown" };
-        //std::this_thread::yield();
+        if (_throw) {
+            throw std::logic_error{ "Some lanes are still running at shutdown" };
+        } else {
+            std::this_thread::yield();
+        }
     }
 
-    // no need to mutex-protect this as all threads in the universe are gone at that point
+    // no need to mutex-protect this as all lanes in the universe are gone at that point
     if (_U->timerLinda != nullptr) { // test in case some early internal error prevented Lanes from creating the deep timer
         [[maybe_unused]] int const _prev_ref_count{ _U->timerLinda->refcount.fetch_sub(1, std::memory_order_relaxed) };
         LUA_ASSERT(L_, _prev_ref_count == 1); // this should be the last reference
