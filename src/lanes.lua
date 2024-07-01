@@ -284,46 +284,7 @@ local opt_validators =
 -- ##################################### lanes.gen() ###########################################
 -- #############################################################################################
 
--- lane_h[1..n]: lane results, same as via 'lane_h:join()'
--- lane_h[0]:    can be read to make sure a thread has finished (always gives 'true')
--- lane_h[-1]:   error message, without propagating the error
---
---      Reading a Lane result (or [0]) propagates a possible error in the lane
---      (and execution does not return). Cancelled lanes give 'nil' values.
---
--- lane_h.state: "pending"/"running"/"waiting"/"done"/"error"/"cancelled"
---
--- Note: Would be great to be able to have '__ipairs' metamethod, that gets
---      called by 'ipairs()' function to custom iterate objects. We'd use it
---      for making sure a lane has ended (results are available); not requiring
---      the user to precede a loop by explicit 'h[0]' or 'h:join()'.
---
---      Or, even better, 'ipairs()' should start valuing '__index' instead
---      of using raw reads that bypass it.
---
------
--- lanes.gen([libs_str|opt_tbl [, ...],] lane_func ) ([...]) -> h
---
--- 'libs': nil:     no libraries available (default)
---         "":      only base library ('assert', 'print', 'unpack' etc.)
---         "math,os": math + os + base libraries (named ones + base)
---         "*":     all standard libraries available
---
--- 'opt': .priority:  int (-3..+3) smaller is lower priority (0 = default)
---
---        .globals:  table of globals to set for a new thread (passed by value)
---
---        .required: table of packages to require
---
---        .gc_cb:    function called when the lane handle is collected
---
---        ... (more options may be introduced later) ...
---
--- Calling with a function argument ('lane_func') ends the string/table
--- modifiers, and prepares a lane generator.
-
--- receives a sequence of strings and tables, plus a function
-local gen = function(...)
+local process_gen_opt = function(...)
     -- aggregrate all strings together, separated by "," as well as tables
     -- the strings are a list of libraries to open
     -- the tables contain the lane options
@@ -392,14 +353,67 @@ local gen = function(...)
             opt[k] = validator(v)
         end
     end
+    return func, libs, opt
+end -- process_gen_opt
 
+-- lane_h[1..n]: lane results, same as via 'lane_h:join()'
+-- lane_h[0]:    can be read to make sure a thread has finished (always gives 'true')
+-- lane_h[-1]:   error message, without propagating the error
+--
+--      Reading a Lane result (or [0]) propagates a possible error in the lane
+--      (and execution does not return). Cancelled lanes give 'nil' values.
+--
+-- lane_h.state: "pending"/"running"/"waiting"/"done"/"error"/"cancelled"
+--
+-- Note: Would be great to be able to have '__ipairs' metamethod, that gets
+--      called by 'ipairs()' function to custom iterate objects. We'd use it
+--      for making sure a lane has ended (results are available); not requiring
+--      the user to precede a loop by explicit 'h[0]' or 'h:join()'.
+--
+--      Or, even better, 'ipairs()' should start valuing '__index' instead
+--      of using raw reads that bypass it.
+--
+-----
+-- lanes.gen([libs_str|opt_tbl [, ...],] lane_func ) ([...]) -> h
+--
+-- 'libs': nil:     no libraries available (default)
+--         "":      only base library ('assert', 'print', 'unpack' etc.)
+--         "math,os": math + os + base libraries (named ones + base)
+--         "*":     all standard libraries available
+--
+-- 'opt': .priority:  int (-3..+3) smaller is lower priority (0 = default)
+--
+--        .globals:  table of globals to set for a new thread (passed by value)
+--
+--        .required: table of packages to require
+--
+--        .gc_cb:    function called when the lane handle is collected
+--
+--        ... (more options may be introduced later) ...
+--
+-- Calling with a function argument ('lane_func') ends the string/table
+-- modifiers, and prepares a lane generator.
+
+-- receives a sequence of strings and tables, plus a function
+local gen = function(...)
+    local func, libs, opt = process_gen_opt(...)
     local core_lane_new = assert(core.lane_new)
     local priority, globals, package, required, gc_cb, name, error_trace_level = opt.priority, opt.globals, opt.package or package, opt.required, opt.gc_cb, opt.name, error_trace_levels[opt.error_trace_level]
     return function(...)
         -- must pass functions args last else they will be truncated to the first one
-        return core_lane_new(func, libs, priority, globals, package, required, gc_cb, name, error_trace_level, ...)
+        return core_lane_new(func, libs, priority, globals, package, required, gc_cb, name, error_trace_level, false, ...)
     end
 end -- gen()
+
+local coro = function(...)
+    local func, libs, opt = process_gen_opt(...)
+    local core_lane_new = assert(core.lane_new)
+    local priority, globals, package, required, gc_cb, name, error_trace_level = opt.priority, opt.globals, opt.package or package, opt.required, opt.gc_cb, opt.name, error_trace_levels[opt.error_trace_level]
+    return function(...)
+        -- must pass functions args last else they will be truncated to the first one
+        return core_lane_new(func, libs, priority, globals, package, required, gc_cb, name, error_trace_level, true, ...)
+    end
+end -- coro()
 
 -- #################################################################################################
 -- ####################################### Timers ##################################################
@@ -850,6 +864,7 @@ local configure = function(settings_)
     lanes.threads = core.threads or function() error "lane tracking is not available" end -- core.threads isn't registered if settings.track_lanes is false
 
     lanes.gen = gen
+    lanes.coro = coro
     lanes.genatomic = genatomic
     lanes.genlock = genlock
     lanes.timer = timer

@@ -242,6 +242,7 @@ LUAG_FUNC(register)
 //                   , [gc_cb_func]
 //                   , [name]
 //                   , error_trace_level
+//                   , as_coroutine
 //                  [, ... args ...])
 //
 // Upvalues: metatable to use for 'lane_ud'
@@ -257,7 +258,8 @@ LUAG_FUNC(lane_new)
     static constexpr int kGcCbIdx{ 7 };
     static constexpr int kNameIdx{ 8 };
     static constexpr int kErTlIdx{ 9 };
-    static constexpr int kFixedArgsIdx{ 9 };
+    static constexpr int kAsCoro{ 10 };
+    static constexpr int kFixedArgsIdx{ 10 };
 
     int const _nargs{ lua_gettop(L_) - kFixedArgsIdx };
     LUA_ASSERT(L_, _nargs >= 0);
