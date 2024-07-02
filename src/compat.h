@@ -233,6 +233,52 @@ inline void luaG_registerlibfuncs(lua_State* L_, luaL_Reg const* funcs_)
 
 // #################################################################################################
 
+template <typename LUA_RESUME>
+concept RequiresLuaResume51 = requires(LUA_RESUME f_) { { f_(nullptr, 0) } -> std::same_as<int>; };
+
+template <RequiresLuaResume51 LUA_RESUME>
+static inline int WrapLuaResume(LUA_RESUME const f_, lua_State* const L_, [[maybe_unused]] lua_State* const from_, int const nargs_, int* const nresults_)
+{
+    int const _resultsStart{ lua_gettop(L_) - nargs_ - 1 };
+    int const _rc{ f_(L_, nargs_) };
+    *nresults_ = lua_gettop(L_) - _resultsStart;
+    return _rc;
+}
+
+// -------------------------------------------------------------------------------------------------
+
+template <typename LUA_RESUME>
+concept RequiresLuaResume52 = requires(LUA_RESUME f_) { { f_(nullptr, nullptr, 0) } -> std::same_as<int>; };
+
+template <RequiresLuaResume52 LUA_RESUME>
+static inline int WrapLuaResume(LUA_RESUME const f_, lua_State* const L_, lua_State* const from_, int const nargs_, [[maybe_unused]] int* const nresults_)
+{
+    int const _resultsStart{ lua_gettop(L_) - nargs_ - 1 };
+    int const _rc{ f_(L_, from_, nargs_) };
+    *nresults_ = lua_gettop(L_) - _resultsStart;
+    return _rc;
+}
+
+// -------------------------------------------------------------------------------------------------
+
+template <typename LUA_RESUME>
+concept RequiresLuaResume54 = requires(LUA_RESUME f_) { { f_(nullptr, nullptr, 0, nullptr) } -> std::same_as<int>; };
+
+template <RequiresLuaResume54 LUA_RESUME>
+static inline int WrapLuaResume(LUA_RESUME const f_, lua_State* const L_, lua_State* const from_, int const nargs_, int* const nresults_)
+{
+    return f_(L_, from_, nargs_, nresults_);
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static inline LuaError luaG_resume(lua_State* const L_, lua_State* const from_, int const nargs_, int* const nresults_)
+{
+    return ToLuaError(WrapLuaResume(lua_resume, L_, from_, nargs_, nresults_));
+}
+
+// #################################################################################################
+
 template <size_t N>
 static inline void luaG_newlib(lua_State* const L_, luaL_Reg const (&funcs_)[N])
 {
