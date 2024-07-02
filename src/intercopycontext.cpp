@@ -1240,7 +1240,9 @@ namespace {
         } else {
             {
                 DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
-                _result = interMove(1); // moves the entry to L2
+                // to move, we need a context with L1_i set to 0
+                InterCopyContext _c{ U, L2, L1, L2_cache_i, {}, vt, mode, name };
+                _result = _c.interMove(1); // moves the entry to L2
                 STACK_CHECK(L1, 0);
             }
             if (_result == InterCopyResult::Success) {
@@ -1272,7 +1274,8 @@ namespace {
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
 
     int const _top_L1{ lua_gettop(L1) };
-    if (n_ > _top_L1) {
+    int const _available{ (L1_i != 0) ? (_top_L1 - L1_i + 1) : _top_L1 };
+    if (n_ > _available) {
         // requesting to copy more than is available?
         DEBUGSPEW_CODE(DebugSpew(U) << "nothing to copy" << std::endl);
         return InterCopyResult::NotEnoughValues;
@@ -1292,7 +1295,8 @@ namespace {
     InterCopyContext _c{ U, L2, L1, CacheIndex{ _top_L2 + 1 }, {}, VT::NORMAL, mode, "?" };
     InterCopyResult _copyok{ InterCopyResult::Success };
     STACK_CHECK_START_REL(L1, 0);
-    for (int _i{ _top_L1 - n_ + 1 }, _j{ 1 }; _i <= _top_L1; ++_i, ++_j) {
+    // if L1_i is specified, start here, else take the _n items off the top of the stack
+    for (int _i{ L1_i != 0 ? L1_i : (_top_L1 - n_ + 1) }, _j{ 1 }; _j <= n_; ++_i, ++_j) {
         char _tmpBuf[16];
         if (U->verboseErrors) {
             sprintf(_tmpBuf, "arg_%d", _j);
@@ -1324,6 +1328,7 @@ namespace {
 
 [[nodiscard]] InterCopyResult InterCopyContext::interMove(int const n_) const
 {
+    assert(L1_i == 0); // we can only move stuff off the top of the stack
     InterCopyResult const _ret{ interCopy(n_) };
     lua_pop(L1, n_);
     return _ret;
