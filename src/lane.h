@@ -167,9 +167,11 @@ class Lane
     [[nodiscard]] std::string_view pushErrorTraceLevel(lua_State* L_) const;
     static void PushMetatable(lua_State* L_);
     void pushStatusString(lua_State* L_) const;
+    void resetResultsStorage(lua_State* const L_, int gc_cb_idx_);
     void securizeDebugName(lua_State* L_);
     void startThread(int priority_);
     [[nodiscard]] std::string_view threadStatusString() const;
+    // wait until the lane stops working with its state (either Suspended or Done+)
     [[nodiscard]] bool waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_);
 };
 

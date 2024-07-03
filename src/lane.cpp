@@ -88,11 +88,11 @@ static LUAG_FUNC(lane_threadname)
     Lane* const _lane{ luaG_tolightuserdata<Lane>(L_, lua_upvalueindex(1)) };
     LUA_ASSERT(L_, L_ == _lane->L); // this function is exported in a lane's state, therefore it is callable only from inside the Lane's state
     if (lua_gettop(L_) == 1) {
-        lua_settop(L_, 1);
-        STACK_CHECK_START_REL(L_, 0);
-        _lane->changeDebugName(-1);
-        STACK_CHECK(L_, 0);
-        return 0;
+    lua_settop(L_, 1);
+    STACK_CHECK_START_REL(L_, 0);
+    _lane->changeDebugName(-1);
+    STACK_CHECK(L_, 0);
+    return 0;
     } else if (lua_gettop(L_) == 0) {
         luaG_pushstring(L_, _lane->getDebugName());
         return 1;
@@ -138,14 +138,15 @@ static LUAG_FUNC(thread_join)
     }
 
     STACK_CHECK_START_REL(L_, 0);                                                                  // L_: lane
-    // Thread is Done/Error/Cancelled; all ours now
+    // Thread is Suspended or Done/Error/Cancelled; the Lane thread isn't working with it, therefore we can.
 
     int _ret{ 0 };
     // debugName is a pointer to string possibly interned in the lane's state, that no longer exists when the state is closed
     // so store it in the userdata uservalue at a key that can't possibly collide
     _lane->securizeDebugName(L_);
     switch (_lane->status) {
-    case Lane::Done:
+    case Lane::Suspended: // got yielded values
+    case Lane::Done: // got regular return values
         {
             bool const _calledFromLua{ lua_toboolean(L_, lua_upvalueindex(1)) ? false : true }; // this upvalue doesn't exist when called from Lua
             int const _n{ lua_gettop(_L2) }; // whole L2 stack
@@ -189,7 +190,10 @@ static LUAG_FUNC(thread_join)
         LUA_ASSERT(L_, false);
         _ret = 0;
     }
-    _lane->closeState();
+    // if we are suspended, all we want to do is gather the current yielded values
+    if (_lane->status != Lane::Suspended) {
+        _lane->closeState();
+    }
     STACK_CHECK(L_, _ret);
     return _ret;
 }
@@ -220,8 +224,11 @@ LUAG_FUNC(thread_resume)
     }
     int const _nargs{ lua_gettop(L_) - 1 };
     int const _nresults{ lua_gettop(_L2) };
-    STACK_CHECK_START_ABS(L_, 1 + _nargs);                                                        // L_: self args...                               _L2: results...
+    STACK_CHECK_START_ABS(L_, 1 + _nargs);                                                         // L_: self args...                               _L2: results...
     STACK_CHECK_START_ABS(_L2, _nresults);
+
+    // clear any fetched returned values that we might have stored previously
+    _lane->resetResultsStorage(L_, 1);
 
     // to retrieve the yielded value of the coroutine on our stack
     InterCopyContext _cin{ _lane->U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} };
@@ -291,6 +298,7 @@ static int thread_index_number(lua_State* L_)
             lua_concat(L_, 2);                                                                     // L_: "Unexpected status: <status>"
             raise_lua_error(L_);
 
+        case Lane::Suspended: // got yielded values
         case Lane::Done: // got regular return values
             {
                 int const _nvalues{ lua_gettop(L_) - 3 };                                          // L_: lane n {uv} ...
@@ -980,7 +988,7 @@ CancelResult Lane::cancel(CancelOp const op_, int const hookCount_, std::chrono:
             _waiting_on->notify_all();
         }
     }
-
+    // wait until the lane stops working with its state (either Suspended or Done+)
     CancelResult result{ waitForCompletion(until_) ? CancelResult::Cancelled : CancelResult::Timeout };
     return result;
 }
@@ -998,6 +1006,7 @@ CancelResult Lane::cancel(CancelOp const op_, int const hookCount_, std::chrono:
         }
     }
 
+    // wait until the lane stops working with its state (either Suspended or Done+)
     return waitForCompletion(until_) ? CancelResult::Cancelled : CancelResult::Timeout;
 }
 
@@ -1013,7 +1022,7 @@ void Lane::changeDebugName(int const nameIdx_)
     // keep a direct pointer on the string
     {
         std::lock_guard<std::mutex> _guard{ debugNameMutex };
-        debugName = luaG_tostring(L, _nameIdx);
+    debugName = luaG_tostring(L, _nameIdx);
     }
     if constexpr (HAVE_DECODA_SUPPORT()) {
         // to see VM name in Decoda debugger Virtual Machine window
@@ -1120,6 +1129,34 @@ void Lane::pushStatusString(lua_State* L_) const
 
 // #################################################################################################
 
+// replace the current uservalue (a table holding the returned values of the lane body)
+// by a new empty one, but transfer the gc_cb that is stored in there so that it is not lost
+void Lane::resetResultsStorage(lua_State* const L_, int const self_idx_)
+{
+    STACK_GROW(L_, 4);
+    STACK_CHECK_START_REL(L_, 0);
+    int const _self_idx{ luaG_absindex(L_, self_idx_) };
+    LUA_ASSERT(L_, ToLane(L_, _self_idx) == this);                                                 // L_: ... self ...
+    // create the new table
+    lua_newtable(L_);                                                                              // L_: ... self ... {}
+    // get the current table
+    lua_getiuservalue(L_, _self_idx, 1);                                                           // L_: ... self ... {} {uv}
+    LUA_ASSERT(L_, lua_istable(L_, -1));
+    // read gc_cb from the current table
+    kLaneGC.pushKey(L_);                                                                           // L_: ... self ... {} {uv} kLaneGC
+    kLaneGC.pushKey(L_);                                                                           // L_: ... self ... {} {uv} kLaneGC kLaneGC
+    lua_rawget(L_, -3);                                                                            // L_: ... self ... {} {uv} kLaneGC gc_cb|nil
+    // store it in the new table
+    lua_rawset(L_, -4);                                                                            // L_: ... self ... {} {uv}
+    // we can forget the old table
+    lua_pop(L_, 1);                                                                                // L_: ... self ... {}
+    // and store the new one
+    lua_setiuservalue(L_, _self_idx, 1);                                                           // L_: ... self ...
+    STACK_CHECK(L_, 0);
+}
+
+// #################################################################################################
+
 // intern the debug name in the caller lua state so that the pointer remains valid after the lane's state is closed
 void Lane::securizeDebugName(lua_State* L_)
 {
@@ -1132,7 +1169,7 @@ void Lane::securizeDebugName(lua_State* L_)
     lua_newtable(L_);                                                                              // L_: lane ... {uv} {}
     {
         std::lock_guard<std::mutex> _guard{ debugNameMutex };
-        debugName = luaG_pushstring(L_, debugName);                                                // L_: lane ... {uv} {} name
+    debugName = luaG_pushstring(L_, debugName);                                                    // L_: lane ... {uv} {} name
     }
     lua_rawset(L_, -3);                                                                            // L_: lane ... {uv}
     lua_pop(L_, 1);                                                                                // L_: lane
@@ -1195,5 +1232,7 @@ bool Lane::waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> 
     std::unique_lock _guard{ doneMutex };
     // std::stop_token token{ thread.get_stop_token() };
     // return doneCondVar.wait_until(lock, token, secs_, [this](){ return status >= Lane::Done; });
-    return doneCondVar.wait_until(_guard, until_, [this]() { return status >= Lane::Done; });
+
+    // wait until the lane stops working with its state (either Suspended or Done+)
+    return doneCondVar.wait_until(_guard, until_, [this]() { return status == Lane::Suspended || status >= Lane::Done; });
 }

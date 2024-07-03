@@ -333,12 +333,11 @@ LUAG_FUNC(lane_new)
             *_ud = lane; // don't forget to store the pointer in the userdata!
 
             // Set metatable for the userdata
-            //
             lua_pushvalue(L, lua_upvalueindex(1));                                                 // L: ... lane mt
             lua_setmetatable(L, -2);                                                               // L: ... lane
             STACK_CHECK(L, 1);
 
-            // Create uservalue for the userdata
+            // Create uservalue for the userdata. There can be only one that must be a table, due to Lua 5.1 compatibility.
             // (this is where lane body return values will be stored when the handle is indexed by a numeric key)
             lua_newtable(L);                                                                       // L: ... lane {uv}
 
@@ -349,7 +348,8 @@ LUAG_FUNC(lane_new)
                 lua_pushvalue(L, _gc_cb_idx);                                                      // L: ... lane {uv} k gc_cb
                 lua_rawset(L, -3);                                                                 // L: ... lane {uv}
             }
-
+            STACK_CHECK(L, 2);
+            // store the uservalue in the Lane full userdata
             lua_setiuservalue(L, -2, 1);                                                           // L: ... lane
 
             lua_State* const _L2{ lane->L };
