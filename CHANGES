@@ -24,6 +24,7 @@ CHANGE 2: BGe 11-Jun-24
             - lane function body must return a non-nil first value on success if lane is waited upon with lane:join().
             - lanes.sleep() accept a new argument "indefinitely" to block forever (until hard cancellation is received).
             - lanes.gen() is stricter wrt base libraries (can raise an error if it doesn't exist in the Lua flavor it's built against).
+            - function set_debug_threadname() available inside a Lane is renamed lane_threadname(); can now both read and write the name.
         - Lindas:
             - providing "auto" as name when constructing a Linda cause Lanes to provide a name built from the source location of the construction.
             - specifying a group to lanes.linda() is mandatory when Lanes is configured with user Keepers.
@@ -35,7 +36,7 @@ CHANGE 2: BGe 11-Jun-24
             - deep userdata are an acceptable key to send data into (for example, another linda).
         - Lane generator settings:
             - error_trace_level added. Replaces the global verbose_errors setting.
-            - name added. Can be used to set the name early (before the lane body calls set_debug_threadname()).
+            - name added. Can be used to set the name early (before the lane body calls lane_threadname()).
     * Internal changes
         - Lanes is implemented in C++20: thread, condition_variable, mutex, string_view, variant, and more!
         - Almost all platform-specific code is gone (only a small bit for thread priority and affinity remains).

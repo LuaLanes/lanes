@@ -24,14 +24,14 @@ end
 local KNOWN= { [0]=0, 1,1,2,3,5,8,13,21,34,55,89,144 }
 
 -- dummy function so that we don't error when fib() is launched from the master state
-set_debug_threadname = function ( ...)
+lane_threadname = function ( ...)
 end
 
     --
 -- uint= fib( n_uint )
 --
 local function fib( n )
-    set_debug_threadname( "fib(" .. n .. ")")
+    lane_threadname( "fib(" .. n .. ")")
     local lanes = require"lanes"
     --
     local sum

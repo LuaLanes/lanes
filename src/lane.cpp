@@ -44,11 +44,12 @@ static constexpr UniqueKey kCachedTostring{ 0xAB5EA23BCEA0C35Cull };
 // #################################################################################################
 // #################################################################################################
 
+// lane:get_debug_threadname()
 static LUAG_FUNC(get_debug_threadname)
 {
     Lane* const _lane{ ToLane(L_, 1) };
     luaL_argcheck(L_, lua_gettop(L_) == 1, 2, "too many arguments");
-    luaG_pushstring(L_, _lane->debugName);
+    luaG_pushstring(L_, _lane->getDebugName());
     return 1;
 }
 
@@ -78,17 +79,26 @@ static LUAG_FUNC(set_finalizer)
 
 // #################################################################################################
 
+// serves both to read and write the name from the inside of the lane
 // upvalue #1 is the lane userdata
-static LUAG_FUNC(set_debug_threadname)
+// this function is exported in a lane's state, therefore it is callable only from inside the Lane's state
+static LUAG_FUNC(lane_threadname)
 {
     // C s_lane structure is a light userdata upvalue
     Lane* const _lane{ luaG_tolightuserdata<Lane>(L_, lua_upvalueindex(1)) };
     LUA_ASSERT(L_, L_ == _lane->L); // this function is exported in a lane's state, therefore it is callable only from inside the Lane's state
-    lua_settop(L_, 1);
-    STACK_CHECK_START_REL(L_, 0);
-    _lane->changeDebugName(-1);
-    STACK_CHECK(L_, 0);
-    return 0;
+    if (lua_gettop(L_) == 1) {
+        lua_settop(L_, 1);
+        STACK_CHECK_START_REL(L_, 0);
+        _lane->changeDebugName(-1);
+        STACK_CHECK(L_, 0);
+        return 0;
+    } else if (lua_gettop(L_) == 0) {
+        luaG_pushstring(L_, _lane->getDebugName());
+        return 1;
+    } else {
+        raise_luaL_error(L_, "Wrong number of arguments");
+    }
 }
 
 // #################################################################################################
@@ -339,7 +349,7 @@ static int thread_index_number(lua_State* L_)
             lua_replace(L_, -3);                                                                   // L_: lane n error() "error"
             lua_pushinteger(L_, 3);                                                                // L_: lane n error() "error" 3
             lua_call(L_, 2, 0); // error(tostring(errstring), 3) -> doesn't return                 // L_: lane n
-            raise_luaL_error(L_, "%s: should not get here!", _lane->debugName.data());
+            raise_luaL_error(L_, "%s: should not get here!", _lane->getDebugName().data());
         } else {
             lua_pop(L_, 1);                                                                        // L_: lane n {uv}
         }
@@ -416,7 +426,7 @@ static LUAG_FUNC(thread_index)
         lua_call(L_, 1, 1);                                                                        // L_: mt error() "Unknown key: " "k"
         lua_concat(L_, 2);                                                                         // L_: mt error() "Unknown key: <k>"
         lua_call(L_, 1, 0); // error( "Unknown key: " .. key) -> doesn't return                    // L_: mt
-        raise_luaL_error(L_, "%s[%s]: should not get here!", _lane->debugName.data(), luaG_typename(L_, kKey).data());
+        raise_luaL_error(L_, "%s[%s]: should not get here!", _lane->getDebugName().data(), luaG_typename(L_, kKey).data());
     }
 }
 
@@ -716,11 +726,11 @@ static void PrepareLaneHelpers(Lane* lane_)
     tools::PopulateFuncLookupTable(_L, -1, "set_finalizer");
     lua_setglobal(_L, "set_finalizer");
 
-    // Tie "set_debug_threadname()" to the state
+    // Tie "lane_threadname()" to the state
     // But don't register it in the lookup database because of the Lane pointer upvalue
     lua_pushlightuserdata(_L, lane_);
-    lua_pushcclosure(_L, LG_set_debug_threadname, 1);
-    lua_setglobal(_L, "set_debug_threadname");
+    lua_pushcclosure(_L, LG_lane_threadname, 1);
+    lua_setglobal(_L, "lane_threadname");
 
     // Tie "cancel_test()" to the state
     lua_pushcfunction(_L, LG_cancel_test);
@@ -860,7 +870,7 @@ static LUAG_FUNC(lane_gc)
     lua_rawget(L_, -2);                                                                            // L_: ud uservalue gc_cb|nil
     if (!lua_isnil(L_, -1)) {
         lua_remove(L_, -2);                                                                        // L_: ud gc_cb|nil
-        luaG_pushstring(L_, _lane->debugName);                                                     // L_: ud gc_cb name
+        luaG_pushstring(L_, _lane->getDebugName());                                                // L_: ud gc_cb name
         _have_gc_cb = true;
     } else {
         lua_pop(L_, 2);                                                                            // L_: ud
@@ -879,8 +889,6 @@ static LUAG_FUNC(lane_gc)
     } else if (_lane->L) {
         // no longer accessing the Lua VM: we can close right now
         _lane->closeState();
-        // just in case, but _lane will be freed soon so...
-        _lane->debugName = std::string_view{ "<gc>" };
     }
 
     // Clean up after a (finished) thread
@@ -1003,7 +1011,10 @@ void Lane::changeDebugName(int const nameIdx_)
     // store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...
     kLaneNameRegKey.setValue(L, [idx = _nameIdx](lua_State* L_) { lua_pushvalue(L_, idx); });      // L: ... "name" ...
     // keep a direct pointer on the string
-    debugName = luaG_tostring(L, _nameIdx);
+    {
+        std::lock_guard<std::mutex> _guard{ debugNameMutex };
+        debugName = luaG_tostring(L, _nameIdx);
+    }
     if constexpr (HAVE_DECODA_SUPPORT()) {
         // to see VM name in Decoda debugger Virtual Machine window
         lua_pushvalue(L, _nameIdx);                                                                // L: ... "name" ... "name"
@@ -1119,7 +1130,10 @@ void Lane::securizeDebugName(lua_State* L_)
     LUA_ASSERT(L_, lua_istable(L_, -1));
     // we don't care about the actual key, so long as it's unique and can't collide with anything.
     lua_newtable(L_);                                                                              // L_: lane ... {uv} {}
-    debugName = luaG_pushstring(L_, debugName);                                                    // L_: lane ... {uv} {} name
+    {
+        std::lock_guard<std::mutex> _guard{ debugNameMutex };
+        debugName = luaG_pushstring(L_, debugName);                                                // L_: lane ... {uv} {} name
+    }
     lua_rawset(L_, -3);                                                                            // L_: lane ... {uv}
     lua_pop(L_, 1);                                                                                // L_: lane
     STACK_CHECK(L_, 0);

@@ -75,7 +75,7 @@ end
 
 local laneBody = function( mode_, payload_)
 	local name = "laneBody("..tostring(mode_)..","..tostring(payload_)..")"
-	set_debug_threadname( name)
+	lane_threadname(name)
 
 	set_finalizer( function( err, stk)
 		if err == lanes.cancel_error then

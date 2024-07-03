@@ -89,7 +89,12 @@ class Lane
     // M: sub-thread OS thread
     // S: not used
 
+    private:
+
+    mutable std::mutex debugNameMutex;
     std::string_view debugName{ "<unnamed>" };
+
+    public:
 
     Universe* const U{};
     lua_State* S{}; // the master state of the lane
@@ -143,12 +148,21 @@ class Lane
     void changeDebugName(int const nameIdx_);
     void closeState()
     {
+        {
+            std::lock_guard<std::mutex> _guard{ debugNameMutex };
+            debugName = std::string_view{ "<gc>" };
+        }
         lua_State* _L{ S };
         S = nullptr;
         L = nullptr;
         lua_close(_L); // this collects our coroutine thread at the same time
     }
     [[nodiscard]] std::string_view errorTraceLevelString() const;
+    [[nodiscard]] std::string_view getDebugName() const
+    {
+        std::lock_guard<std::mutex> _guard{ debugNameMutex };
+        return debugName;
+    }
     [[nodiscard]] int pushErrorHandler() const;
     [[nodiscard]] std::string_view pushErrorTraceLevel(lua_State* L_) const;
     static void PushMetatable(lua_State* L_);

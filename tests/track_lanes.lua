@@ -29,11 +29,11 @@ local sleeper = function( name_, seconds_)
     end
     -- print( "entering '" .. name_ .. "'")
     local lanes = require "lanes"
-    -- no set_debug_threadname in main thread
-    if set_debug_threadname
+    -- no lane_threadname in main thread
+    if lane_threadname
     then
-        -- print( "set_debug_threadname('" .. name_ .. "')")
-        set_debug_threadname( name_)
+        -- print( "lane_threadname('" .. name_ .. "')")
+        lane_threadname( name_)
     end
     -- suspend the lane for the specified duration
     lanes.sleep(seconds_)

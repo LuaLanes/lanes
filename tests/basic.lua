@@ -76,7 +76,7 @@ end
 PRINT("\n\n", "---=== Tasking (basic) ===---", "\n\n")
 
 local function task(a, b, c)
-    set_debug_threadname("task("..a..","..b..","..c..")")
+    lane_threadname("task("..a..","..b..","..c..")")
     --error "111"     -- testing error messages
     assert(hey)
     local v=0
@@ -329,7 +329,7 @@ SLEEP(1)
 PRINT("\n\n", "---=== Stdlib naming ===---", "\n\n")
 
 local function dump_g(_x)
-    set_debug_threadname "dump_g"
+    lane_threadname "dump_g"
     assert(print)
     print("### dumping _G for '" .. _x .. "'")
     for k, v in pairs(_G) do
@@ -339,7 +339,7 @@ local function dump_g(_x)
 end
 
 local function io_os_f(_x)
-    set_debug_threadname "io_os_f"
+    lane_threadname "io_os_f"
     assert(print)
     print("### checking io and os libs existence for '" .. _x .. "'")
     assert(io)
@@ -348,7 +348,7 @@ local function io_os_f(_x)
 end
 
 local function coro_f(_x)
-    set_debug_threadname "coro_f"
+    lane_threadname "coro_f"
     assert(print)
     print("### checking coroutine lib existence for '" .. _x .. "'")
     assert(coroutine)
@@ -388,7 +388,7 @@ PRINT("\n\n", "---=== Comms criss cross ===---", "\n\n")
 --
 local tc= lanes_gen("io", {gc_cb = gc_cb},
   function(linda, ch_in, ch_out)
-        set_debug_threadname("criss cross " .. ch_in .. " -> " .. ch_out)
+        lane_threadname("criss cross " .. ch_in .. " -> " .. ch_out)
     local function STAGE(str)
         io.stderr:write(ch_in..": "..str.."\n")
         linda:send(nil, ch_out, str)
@@ -488,7 +488,7 @@ PRINT("\n\n", "---=== :join test ===---", "\n\n")
 
 local S= lanes_gen("table", {gc_cb = gc_cb},
   function(arg)
-        set_debug_threadname "join test lane"
+        lane_threadname "join test lane"
         set_finalizer(function() end)
     aux= {}
     for i, v in ipairs(arg) do

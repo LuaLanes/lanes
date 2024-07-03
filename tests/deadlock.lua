@@ -22,7 +22,7 @@ if do_extra_stuff then
 
     -- lane generator. don't initialize "io" base library so that it is not known in the lane
     local g = lanes.gen('base,table', function()
-        set_debug_threadname( "deadlock_lane")
+        lane_threadname( "deadlock_lane")
         -- wrapping inside pcall makes the Lanes module unaware that something went wrong
         print( "In lane 1:", table_unpack{ pcall( linda.receive, linda, 'tmp')})
         -- with the bug not fixed, and non-recursive mutexes, we can hang here
