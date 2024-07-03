@@ -17,6 +17,9 @@ static constexpr RegistryUniqueKey kExtendedStackTraceRegKey{ 0x38147AD48FB426E2
  * error (and maybe stack trace) arguments to the finalizer functions would
  * anyways complicate that approach.
  */
+// xxh64 of string "kCoroutineRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kCoroutineRegKey{ 0x72B049B0D130F009ull };
+
 // xxh64 of string "kFinalizerRegKey" generated at https://www.pelock.com/products/hash-calculator
 static constexpr RegistryUniqueKey kFinalizerRegKey{ 0xFE936BFAA718FEEAull };
 
@@ -45,13 +48,17 @@ class Lane
     public:
     /*
       Pending: The Lua VM hasn't done anything yet.
-      Running, Waiting: Thread is inside the Lua VM. If the thread is forcefully stopped, we can't lua_close() the Lua State.
+      Resuming: The user requested the lane to resume execution from Suspended state.
+      Suspended: returned from lua_resume, waiting for the client to request a lua_resume.
+      Running, Suspended, Waiting: Thread is inside the Lua VM.
       Done, Error, Cancelled: Thread execution is outside the Lua VM. It can be lua_close()d.
     */
     enum class Status
     {
         Pending,
         Running,
+        Suspended,
+        Resuming,
         Waiting,
         Done,
         Error,
@@ -84,8 +91,9 @@ class Lane
 
     std::string_view debugName{ "<unnamed>" };
 
-    Universe* const U;
-    lua_State* L;
+    Universe* const U{};
+    lua_State* S{}; // the master state of the lane
+    lua_State* L{}; // the state we run things in (either S or a lua_newthread() state if we run in coroutine mode)
     //
     // M: prepares the state, and reads results
     // S: while S is running, M must keep out of modifying the state
@@ -93,7 +101,7 @@ class Lane
     Status volatile status{ Pending };
     //
     // M: sets to Pending (before launching)
-    // S: updates -> Running/Waiting -> Done/Error/Cancelled
+    // S: updates -> Running/Waiting/Suspended -> Done/Error/Cancelled
 
     std::condition_variable* volatile waiting_on{ nullptr };
     //
@@ -121,7 +129,7 @@ class Lane
     // this one is for us, to make sure memory is freed by the correct allocator
     static void operator delete(void* p_) { static_cast<Lane*>(p_)->U->internalAllocator.free(p_, sizeof(Lane)); }
 
-    Lane(Universe* U_, lua_State* L_, ErrorTraceLevel errorTraceLevel_);
+    Lane(Universe* U_, lua_State* L_, ErrorTraceLevel errorTraceLevel_, bool asCoroutine_);
     ~Lane();
 
     private:
@@ -133,7 +141,13 @@ class Lane
 
     CancelResult cancel(CancelOp op_, int hookCount_, std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_);
     void changeDebugName(int const nameIdx_);
-    void closeState() { lua_State* _L{ L }; L = nullptr; lua_close(_L); }
+    void closeState()
+    {
+        lua_State* _L{ S };
+        S = nullptr;
+        L = nullptr;
+        lua_close(_L); // this collects our coroutine thread at the same time
+    }
     [[nodiscard]] std::string_view errorTraceLevelString() const;
     [[nodiscard]] int pushErrorHandler() const;
     [[nodiscard]] std::string_view pushErrorTraceLevel(lua_State* L_) const;

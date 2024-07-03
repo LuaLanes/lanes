@@ -268,11 +268,16 @@ LUAG_FUNC(lane_new)
     DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: setup" << std::endl);
 
     std::optional<std::string_view> _libs_str{ lua_isnil(L_, kLibsIdx) ? std::nullopt : std::make_optional(luaG_tostring(L_, kLibsIdx)) };
-    lua_State* const _L2{ state::NewLaneState(_U, SourceState{ L_ }, _libs_str) };                 // L_: [fixed] ...                                L2:
-    STACK_CHECK_START_REL(_L2, 0);
+    lua_State* const _S{ state::NewLaneState(_U, SourceState{ L_ }, _libs_str) };                 // L_: [fixed] ...                                L2:
+    STACK_CHECK_START_REL(_S, 0);
 
     // 'lane' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
-    Lane* const _lane{ new (_U) Lane{ _U, _L2, static_cast<Lane::ErrorTraceLevel>(lua_tointeger(L_, kErTlIdx)) } };
+    Lane::ErrorTraceLevel const _errorTraceLevel{ static_cast<Lane::ErrorTraceLevel>(lua_tointeger(L_, kErTlIdx)) };
+    bool const _asCoroutine{ lua_toboolean(L_, kAsCoro) ? true : false };
+    Lane* const _lane{ new (_U) Lane{ _U, _S, _errorTraceLevel, _asCoroutine } };
+    STACK_CHECK(_S, _asCoroutine ? 1 : 0); // the Lane's thread is on the Lane's state stack
+    lua_State* const _L2{ _lane->L };
+    STACK_CHECK_START_REL(_L2, 0);
     if (_lane == nullptr) {
         raise_luaL_error(L_, "could not create lane: out of memory");
     }
@@ -347,7 +352,7 @@ LUAG_FUNC(lane_new)
 
             lua_setiuservalue(L, -2, 1);                                                           // L: ... lane
 
-            lua_State* _L2{ lane->L };
+            lua_State* const _L2{ lane->L };
             STACK_CHECK_START_REL(_L2, 0);
             int const _name_idx{ lua_isnoneornil(L, kNameIdx) ? 0 : kNameIdx };
             std::string_view const _debugName{ (_name_idx > 0) ? luaG_tostring(L, _name_idx) : std::string_view{} };
@@ -357,7 +362,7 @@ LUAG_FUNC(lane_new)
                     luaG_pushstring(_L2, _debugName);                                              // L: ... lane                                    L2: "<name>"
                 } else {
                     lua_Debug _ar;
-                    lua_pushvalue(L, 1);                                                           // L: ... lane func
+                    lua_pushvalue(L, kFuncIdx);                                                    // L: ... lane func
                     lua_getinfo(L, ">S", &_ar);                                                    // L: ... lane
                     luaG_pushstring(_L2, "%s:%d", _ar.short_src, _ar.linedefined);                 // L: ... lane                                    L2: "<name>"
                 }
@@ -415,6 +420,8 @@ LUAG_FUNC(lane_new)
         [[maybe_unused]] InterCopyResult const _ret{ _c.interCopyPackage() };
         LUA_ASSERT(L_, _ret == InterCopyResult::Success); // either all went well, or we should not even get here
     }
+    STACK_CHECK(L_, 0);
+    STACK_CHECK(_L2, 0);
 
     // modules to require in the target lane *before* the function is transfered!
     int const _required_idx{ lua_isnoneornil(L_, kRequIdx) ? 0 : kRequIdx };
@@ -526,11 +533,20 @@ LUAG_FUNC(lane_new)
     }
     STACK_CHECK(L_, -_nargs);
     LUA_ASSERT(L_, lua_gettop(L_) == kFixedArgsIdx);
+    STACK_CHECK(_L2, _errorHandlerCount + 1 + _nargs);
 
     // Store 'lane' in the lane's registry, for 'cancel_test()' (we do cancel tests at pending send/receive).
     kLanePointerRegKey.setValue(
         _L2, [lane = _lane](lua_State* L_) { lua_pushlightuserdata(L_, lane); }                    // L_: [fixed]                                    L2: eh? func args...
     );
+    STACK_CHECK(_L2, _errorHandlerCount + 1 + _nargs);
+
+    // if in coroutine mode, the Lane's master state stack should contain the thread
+    if (_asCoroutine) {
+        LUA_ASSERT(L_, _S != _L2);
+        STACK_CHECK(_S, 1);
+    }
+    // and the thread's stack has whatever is needed to run
     STACK_CHECK(_L2, _errorHandlerCount + 1 + _nargs);
 
     STACK_CHECK_RESET_REL(L_, 0);
@@ -541,7 +557,7 @@ LUAG_FUNC(lane_new)
     return 1;
 }
 
-// ################################################################################################
+// #################################################################################################
 
 // threads() -> {}|nil
 // Return a list of all known lanes
