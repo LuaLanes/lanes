@@ -1,49 +1,54 @@
 CHANGES:
 
-CHANGE 2: BGe 11-Jun-24
-    * Lanes API changes
-        - Version is now 4.0.0
-        - Lanes configuration settings:
-            - Boolean parameters only accept boolean values.
-            - allocator provider function is called with a string hint to distinguish internal allocations, lane and keeper states.
-            - demote_full_userdata removed. Use __lanesconvert instead.
-            - keepers_gc_threshold added. Controls when GC runs inside keepers.
-            - nb_keepers changed to nb_user_keepers. limited to 100 keepers on top of the internal keeper used by the timer Linda.
-            - strip_functions added. Only useful for Lua 5.3+.
-            - verbose_errors removed. Use lane error_trace_level instead.
-            - with_timers is false by default.
-        - Full userdata conversion:
-            - __lanesignore removed. Use __lanesconvert instead.
-            - __lanesconvert added.
-        - Lanes API and behavior:
-            - new generator lanes.coro() to start a lane as a coroutine.
-            - new function lanes.finally(). Installs a function that gets called at Lanes shutdown after attempting to terminate all lanes.
-            - If some lanes still run at shutdown, Lanes with throw an exception (or freeze, this is to be decided).
-            - lanes have a __close metamethod that calls join().
-            - lanes can no longer be "killed" by hard-stopping their thread without any resource cleanup (see lane:cancel()).
-            - lane:join() returns nil, error in case of problem.
-            - lane:get_debug_threadname() renamed get_threadname().
-            - lane function body must return a non-nil first value on success if lane is waited upon with lane:join().
-            - lanes.sleep() accept a new argument "indefinitely" to block forever (until hard cancellation is received).
-            - lanes.gen() is stricter wrt base libraries (can raise an error if it doesn't exist in the Lua flavor it's built against).
-            - function set_debug_threadname() available inside a Lane is renamed lane_threadname(); can now both read and write the name.
-        - Lindas:
-            - providing "auto" as name when constructing a Linda cause Lanes to provide a name built from the source location of the construction.
-            - specifying a group to lanes.linda() is mandatory when Lanes is configured with user Keepers.
-            - linda:deep() result no longer contains the raw C pointer of the Linda object.
-            - linda :receive(), :send(), :get(), :set(), :limit() return nil, error in case of problem. Returned values in case of success change too.
-            - linda:limit() can be used to read the value if no new limit is provided.
-            - Lindas have a __close metamethod that calls any suitable handler that was provided at Linda creation.
-            - linda:dump outputs <key>.limit as 'unlimited' instead of -1 for unlimited keys.
-            - deep userdata are an acceptable key to send data into (for example, another linda).
-        - Lane generator settings:
-            - error_trace_level added. Replaces the global verbose_errors setting.
-            - name added. Can be used to set the name early (before the lane body calls lane_threadname()).
+CHANGE 2: BGe 04-Jul-24
     * Internal changes
-        - Lanes is implemented in C++20: thread, condition_variable, mutex, string_view, variant, and more!
+        - Lanes is implemented in C++20: thread, condition_variable, mutex, string_view, variant, lambdas, templates, and more!
         - Almost all platform-specific code is gone (only a small bit for thread priority and affinity remains).
         - Decoda support inactive by default.
         - Deep userdata interface fully revamped to C++20 too.
+    * Lanes API changes
+        - Version is now 4.0.0
+        - Lanes module:
+            - lanes.sleep() accepts a new argument "indefinitely" to block forever (until hard cancellation is received).
+            - function set_debug_threadname() available inside a Lane is renamed lane_threadname(); can now both read and write the name.
+            - new function lanes.finally(). Installs a function that gets called at Lanes shutdown after attempting to terminate all lanes.
+              If some lanes still run after the finalizer, Lanes with throw an exception or freeze, depending on its return value.
+            - Configuration settings:
+                - Boolean parameters only accept boolean values.
+                - allocator provider function is called with a string hint to distinguish internal allocations, lane and keeper states.
+                - demote_full_userdata removed. Use __lanesconvert instead (see below).
+                - keepers_gc_threshold added. Controls when GC runs inside keepers.
+                - nb_keepers changed to nb_user_keepers. limited to 100 keepers on top of the internal keeper used by the timer Linda.
+                - strip_functions added. Only useful for Lua 5.3+.
+                - verbose_errors removed. Use lane error_trace_level instead.
+                - with_timers is false by default.
+        - Lanes:
+            - Can no longer be "killed" by hard-stopping their thread without any resource cleanup (see lane:cancel()).
+            - lanes.gen() settings:
+                - stricter check of base libraries (can raise an error if it doesn't exist in the Lua flavor it's built against).
+                - error_trace_level added. Replaces the global verbose_errors setting.
+                - name added. Can be used to set the name early (before the lane body calls lane_threadname()).
+            - New generator lanes.coro() to start a lane as a coroutine.
+            - New __close metamethod that calls join().
+            - lane:join()
+                - Returns nil, error in case of problem.
+                - Forces lane function body must return a non-nil first value on success because of the above.
+            - lane:get_debug_threadname() renamed get_threadname().
+        - Lindas:
+            - lanes.linda()
+                - Arguments can be provided in any order.
+                - Accepts a callback to be invoked by __close (see below).
+                - Providing "auto" as name when constructing a Linda cause Lanes to provide a name built from the source location of the construction.
+                - Specifying a group to lanes.linda() is mandatory when Lanes is configured with user Keepers.
+            - linda:deep() result no longer contains the raw C pointer of the Linda object.
+            - linda :receive(), :send(), :get(), :set(), :limit() return nil, error in case of problem. Returned values in case of success change too.
+            - linda:limit() can be used to read the value if no new limit is provided.
+            - New __close metamethod that calls any suitable handler that was provided at Linda creation.
+            - linda:dump outputs <key>.limit as 'unlimited' instead of -1 for unlimited keys.
+            - Deep userdata are an acceptable key to send data into (for example, another linda).
+        - Full userdata conversion:
+            - __lanesconvert added.
+            - __lanesignore removed. Use __lanesconvert instead.
 
 CHANGE 1: BGe 9-Apr-24
     * reset changelog, next entry will list API changes since last C-implementation.
