@@ -16,11 +16,13 @@ CHANGE 2: BGe 11-Jun-24
             - __lanesignore removed. Use __lanesconvert instead.
             - __lanesconvert added.
         - Lanes API and behavior:
+            - new generator lanes.coro() to start a lane as a coroutine.
             - new function lanes.finally(). Installs a function that gets called at Lanes shutdown after attempting to terminate all lanes.
             - If some lanes still run at shutdown, Lanes with throw an exception (or freeze, this is to be decided).
             - lanes have a __close metamethod that calls join().
             - lanes can no longer be "killed" by hard-stopping their thread without any resource cleanup (see lane:cancel()).
             - lane:join() returns nil, error in case of problem.
+            - lane:get_debug_threadname() renamed get_threadname().
             - lane function body must return a non-nil first value on success if lane is waited upon with lane:join().
             - lanes.sleep() accept a new argument "indefinitely" to block forever (until hard cancellation is received).
             - lanes.gen() is stricter wrt base libraries (can raise an error if it doesn't exist in the Lua flavor it's built against).

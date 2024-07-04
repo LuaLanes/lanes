@@ -777,7 +777,7 @@
 	Change <tt>HAVE_DECODA_SUPPORT()</tt> in <tt>lanesconf.h</tt> to enable the Decoda support, that sets a special global variable <tt>decoda_name</tt> in the lane's state.<br />
 	The name is stored inside the Lua state registry so that it is available for error reporting. Changing <tt>decoda_name</tt> doesn't affect this hidden name or the OS thread name reported by MSVC.<br />
 	When Lanes is initialized by the first <a href="#initialization"><tt>lanes.configure()</tt></a> call, <tt>"main"</tt> is stored in the registry in the same fashion (but <tt>decoda_name</tt> and the OS thread name are left unchanged).<br />
-	The lane also has a method <tt>lane:get_debug_threadname()</tt> that gives access to that name from the caller side (returns <tt>"&lt;unnamed&gt;"</tt> if unset, <tt>"&lt;closed&gt;"</tt> if the internal Lua state is closed).<br />
+	The lane also has a method <tt>lane:get_threadname()</tt> that gives access to that name from the caller side (returns <tt>"&lt;unnamed&gt;"</tt> if unset, <tt>"&lt;closed&gt;"</tt> if the internal Lua state is closed).<br />
 	With Lua 5.4, Lanes have a <tt>__close</tt> metamethod, meaning they can be declared to-be-closed. <tt>__close</tt> calls <tt>lane:join(nil)</tt>.
 </p>
 
@@ -794,6 +794,32 @@
 	</table>
 </p>
 
+<h3 id="coroutines">Coroutine lanes</h3>
+
+<p>
+	It is possible to have the Lane body run inside the lane as a coroutine. For this, just use <tt>lanes.coro()</tt> instead of <tt>lanes.gen()</tt>.
+
+	<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%">
+		<tr>
+			<td>
+				<pre>	local lane_h = lanes.coro(...)(...)</pre>
+			</td>
+		</tr>
+	</table>
+
+	Coroutine lanes function mostly like regular coroutines. They can use <tt>coroutine.yield()</tt> normally, in which case the yielded values can be obtained with regular lane indexing (see <a href="#results">Results and errors</a>).<br />
+	A yielded coroutine Lane has a <tt>"suspended"</tt> status. It can be resumed with <tt>lane_h:resume(values...)</tt>.
+	<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%">
+		<tr>
+			<td>
+				<pre>	local yielded_values = lane_h:resume(reply_values...)</pre>
+			</td>
+		</tr>
+	</table>
+
+	The reply values are returned to the lane body at the <tt>coroutine.yield()</tt> point.<br />
+	If the yielded values were previously obtained by lane indexing, <tt>resume()</tt> returns <tt>nil</tt>.
+</p>
 <h3>Free running lanes</h3>
 
 <p>
@@ -873,7 +899,7 @@
 	</table>
 
 <p>
-	The current execution state of a lane can be read via its <tt>status</tt> member, providing one of these values: <sup>(<a href="#2">2</a>)</sup>
+	The current execution state of a lane can be read via its <tt>status</tt> member, providing one of these values:
 
 	<table style="width:100%">
 		<tr>
@@ -895,7 +921,31 @@
 			</td>
 			<td />
 			<td>
-				running, not suspended on a <a href="#lindas">Linda</a> call.
+				Running, not suspended on a <a href="#lindas">Linda</a> call, or yielded on a <tt>coroutine.yield()</tt> call.
+			</td>
+		</tr>
+		<tr>
+			<td />
+			<td>
+				<tt>
+					"suspended"
+				</tt>
+			</td>
+			<td />
+			<td>
+				Coroutine lane stopped at a <tt>coroutine.yield()</tt> point.
+			</td>
+		</tr>
+		<tr>
+			<td />
+			<td>
+				<tt>
+					"resuming"
+				</tt>
+			</td>
+			<td />
+			<td>
+				Parent state called <tt>lane_h:resume()</tt> on a suspended <a href="#coroutines">coroutine</a> lane, but the lane hasn't yet actually resumed execution.
 			</td>
 		</tr>
 		<tr>
@@ -905,7 +955,7 @@
 			</td>
 			<td />
 			<td>
-				waiting at a <a href="#lindas">Linda</a> <tt>:receive()</tt> or <tt>:send()</tt>
+				Waiting at a <a href="#lindas">Linda</a> <tt>:receive()</tt> or <tt>:send()</tt>
 			</td>
 		</tr>
 		<tr>
@@ -915,7 +965,7 @@
 			</td>
 			<td />
 			<td>
-				finished executing (results are ready)
+				Finished executing (results are ready)
 			</td>
 		</tr>
 		<tr>
@@ -925,7 +975,7 @@
 			</td>
 			<td />
 			<td>
-				met an error (reading results will propagate it)
+				Met an error (reading results will propagate it)
 			</td>
 		</tr>
 		<tr>
@@ -935,7 +985,7 @@
 			</td>
 			<td />
 			<td>
-				received <a href="#cancelling">cancellation</a> and finished itself.
+				Received <a href="#cancelling">cancellation</a> and finished itself.
 			</td>
 		</tr>
 	</table>
@@ -982,7 +1032,7 @@
 </pre></td></tr></table>
 
 <p>
-	Makes sure lane has finished, and gives its first (maybe only) return value. Other return values will be available in other <tt>lane_h</tt> indices.
+	Makes sure lane has finished or yielded, and gives its first (maybe only) return value. Other return values will be available in other <tt>lane_h</tt> indices.
 	<br />
 	If the lane ended in an error, it is propagated to master state at this place.
 </p>
@@ -992,7 +1042,7 @@
 </pre></td></tr></table>
 
 <p>
-	Waits until the lane finishes, or <tt>timeout</tt> seconds have passed (forever if <tt>nil</tt>).<br />
+	Waits until the lane finishes/yields, or <tt>timeout</tt> seconds have passed (forever if <tt>nil</tt>).<br />
 	Unlike in reading the results in table fashion, errors are not propagated.<br />
 	Possible return values are:
 	<ul>
@@ -1109,7 +1159,7 @@
 </p>
 
 <p>
-	Lanes registers a function <tt>set_finalizer</tt> in the lane's Lua state for doing this.
+	Lanes registers a function <tt>set_finalizer()</tt> in the lane's Lua state for doing this.
 	Any functions given to it will be called in the lane Lua state, just prior to closing it. It is possible to set more than one finalizer. They are not called in any particular order.
 </p>
 
