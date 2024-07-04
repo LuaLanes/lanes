@@ -158,12 +158,19 @@ class Lane
         lua_close(_L); // this collects our coroutine thread at the same time
     }
     [[nodiscard]] std::string_view errorTraceLevelString() const;
+    [[nodiscard]] int errorHandlerCount() const noexcept
+    {
+        // don't push a error handler when in coroutine mode, as the first lua_resume wants only the function and its arguments on the stack
+        return ((errorTraceLevel == Lane::Minimal) || isCoroutine()) ? 0 : 1; 
+    }
+    [[nodiscard]] bool isCoroutine() const noexcept { return S != L; }
     [[nodiscard]] std::string_view getDebugName() const
     {
         std::lock_guard<std::mutex> _guard{ debugNameMutex };
         return debugName;
     }
-    [[nodiscard]] int pushErrorHandler() const;
+    static int LuaErrorHandler(lua_State* L_);
+    [[nodiscard]] int pushErrorHandler() const noexcept { return (errorHandlerCount() == 0) ? 0 : (lua_pushcfunction(L, LuaErrorHandler), 1); }
     [[nodiscard]] std::string_view pushErrorTraceLevel(lua_State* L_) const;
     static void PushMetatable(lua_State* L_);
     void pushStatusString(lua_State* L_) const;
