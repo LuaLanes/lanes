@@ -813,8 +813,10 @@ static void lane_main(Lane* const lane_)
         push_stack_trace(_L, lane_->errorTraceLevel, _rc, 1);                                      // L: retvals|error [trace]
 
         DEBUGSPEW_CODE(DebugSpew(lane_->U) << "Lane " << _L << " body: " << GetErrcodeName(_rc) << " (" << (kCancelError.equals(_L, 1) ? "cancelled" : luaG_typename(_L, 1)) << ")" << std::endl);
-        //  Call finalizers, if the script has set them up.
-        LuaError const _rc2{ run_finalizers(_L, lane_->errorTraceLevel, _rc) };
+        // Call finalizers, if the script has set them up.
+        // If the lane is not a coroutine, there is only a regular state, so everything is the same whether we use S or L.
+        // If the lane is a coroutine, this has to be done from the master state (S), not the thread (L), because we can't lua_pcall in a thread state
+        LuaError const _rc2{ run_finalizers(lane_->S, lane_->errorTraceLevel, _rc) };
         DEBUGSPEW_CODE(DebugSpew(lane_->U) << "Lane " << _L << " finalizer: " << GetErrcodeName(_rc2) << std::endl);
         if (_rc2 != LuaError::OK) { // Error within a finalizer!
             // the finalizer generated an error, and left its own error message [and stack trace] on the stack

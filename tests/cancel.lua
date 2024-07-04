@@ -26,6 +26,9 @@ local linda = lanes.linda()
 -- a numeric value to read
 linda:set( "val", 33.0)
 
+-- so that we can easily swap between lanes.gen and lanes.coro, to try stuff
+local generator = lanes.coro
+
 -- ##################################################################################################
 
 if not next(which_tests) or which_tests.genlock then
@@ -149,7 +152,7 @@ end
 if not next(which_tests) or which_tests.linda then
 	remaining_tests.linda = nil
 	print "\n\n####################################################################\nbegin linda cancel test\n"
-	h = lanes.gen( "*", laneBody)( "receive", nil) -- start an infinite wait on the linda
+	h = generator( "*", laneBody)( "receive", nil) -- start an infinite wait on the linda
 
 	print "wait 1s"
 	SLEEP(1)
@@ -170,7 +173,7 @@ end
 if not next(which_tests) or which_tests.soft then
 	remaining_tests.soft = nil
 	print "\n\n####################################################################\nbegin soft cancel test\n"
-	h = lanes.gen( "*", protectedBody)( "receive") -- start an infinite wait on the linda
+	h = generator( "*", protectedBody)( "receive") -- start an infinite wait on the linda
 
 	print "wait 1s"
 	SLEEP(1)
@@ -194,7 +197,7 @@ end
 if not next(which_tests) or which_tests.hook then
 	remaining_tests.hook = nil
 	print "\n\n####################################################################\nbegin hook cancel test\n"
-	h = lanes.gen( "*", protectedBody)( "get", 300000)
+	h = generator( "*", protectedBody)( "get", 300000)
 	print "wait 2s"
 	SLEEP(2)
 
@@ -230,7 +233,7 @@ end
 if not next(which_tests) or which_tests.hard_unprotected then
 	remaining_tests.hard_unprotected = nil
 	print "\n\n####################################################################\nbegin hard cancel test with unprotected lane body\n"
-	h = lanes.gen( "*", laneBody)( "receive", nil)
+	h = generator( "*", laneBody)( "receive", nil)
 
 	-- wait 2s before cancelling the lane
 	print "wait 2s"
