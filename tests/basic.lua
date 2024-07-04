@@ -501,12 +501,12 @@ end)
 h= S { 12, 13, 14 }     -- execution starts, h[1..3] will get the return values
 -- wait a bit so that the lane has a chance to set its debug name
 SLEEP(0.5)
-print("joining with '" .. h:get_debug_threadname() .. "'")
+print("joining with '" .. h:get_threadname() .. "'")
 local a,b,c,d= h:join()
 if h.status == "error" then
-    print(h:get_debug_threadname(), "error: " , a, b, c, d)
+    print(h:get_threadname(), "error: " , a, b, c, d)
 else
-    print(h:get_debug_threadname(), a,b,c,d)
+    print(h:get_threadname(), a,b,c,d)
     assert(a==14)
     assert(b==13)
     assert(c==12)

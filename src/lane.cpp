@@ -44,8 +44,8 @@ static constexpr UniqueKey kCachedTostring{ 0xAB5EA23BCEA0C35Cull };
 // #################################################################################################
 // #################################################################################################
 
-// lane:get_debug_threadname()
-static LUAG_FUNC(get_debug_threadname)
+// lane:get_threadname()
+static LUAG_FUNC(get_threadname)
 {
     Lane* const _lane{ ToLane(L_, 1) };
     luaL_argcheck(L_, lua_gettop(L_) == 1, 2, "too many arguments");
@@ -1079,7 +1079,7 @@ namespace {
             { "__gc", LG_lane_gc },
             { "__index", LG_thread_index },
             { "cancel", LG_thread_cancel },
-            { "get_debug_threadname", LG_get_debug_threadname },
+            { "get_threadname", LG_get_threadname },
             { "join", LG_thread_join },
             { "resume", LG_thread_resume },
             { nullptr, nullptr }
@@ -1087,7 +1087,7 @@ namespace {
     } // namespace local
 } // namespace
 
-  // contains keys: { __close, __gc, __index, kCachedError, kCachedTostring, cancel, get_debug_threadname, join }
+  // contains keys: { __close, __gc, __index, kCachedError, kCachedTostring, cancel, get_threadname, join }
 void Lane::PushMetatable(lua_State* L_)
 {
     STACK_CHECK_START_REL(L_, 0);

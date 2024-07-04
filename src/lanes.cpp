@@ -723,7 +723,7 @@ LUAG_FUNC(configure)
     STACK_CHECK(L_, 2);
 
     // prepare the metatable for threads
-    // contains keys: { __gc, __index, cancel, join, get_debug_threadname }
+    // contains keys: { __gc, __index, cancel, join, get_threadname }
     Lane::PushMetatable(L_);                                                                       // L_: settings M {lane_mt}
     lua_pushcclosure(L_, LG_lane_new, 1);                                                          // L_: settings M lane_new
     lua_setfield(L_, -2, "lane_new");                                                              // L_: settings M
