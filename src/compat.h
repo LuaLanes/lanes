@@ -318,8 +318,8 @@ inline void luaG_setfield(lua_State* const L_, int const idx_, std::string_view 
 inline void luaG_setmetatable(lua_State* const L_, std::string_view const& tname_)
 {
     // fake externs to make clang happy...
-    extern void luaL_setmetatable(lua_State* const L_, char const* const tname_); // Lua 5.2+
-    if constexpr (LUA_VERSION_NUM == 501) {
+    if constexpr (LUA_VERSION_NUM > 501) {
+        extern void luaL_setmetatable(lua_State* const L_, char const* const tname_); // Lua 5.2+
         luaL_setmetatable(L_, tname_.data());
     } else {
         luaL_getmetatable(L_, tname_.data());
