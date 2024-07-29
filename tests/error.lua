@@ -95,12 +95,12 @@ local make_table_error_mt = function()
 end
 
 local lane_error_as_string = "'lane error as string'"
-local lane_error_as_table = setmetatable({}, make_table_error_mt())
+local lane_error_as_table = setmetatable({"lane error as table"}, make_table_error_mt())
 local lane_error_as_linda = lanes.linda("'lane error'")
 
-local finalizer_error_as_string = "'lane error as string'"
-local finalizer_error_as_table = setmetatable({}, make_table_error_mt())
-local finalizer_error_as_linda = lanes.linda("'lane error'")
+local finalizer_error_as_string = "'finalizer error as string'"
+local finalizer_error_as_table = setmetatable({"finalizer error as table"}, make_table_error_mt())
+local finalizer_error_as_linda = lanes.linda("'finalizer error'")
 
 local test_settings = {}
 local configure_tests = function()
@@ -150,6 +150,7 @@ local configure_tests = function()
             end
         end
     end
+    WR "Tests configured"
 end
 
 configure_tests()

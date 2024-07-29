@@ -72,7 +72,7 @@ local waitCancellation = function( h, expected_status)
 		until h.status ~= "running"
 	end
 	print( "lane status:", h.status)
-	assert( h.status == expected_status, h.status .. " ~= " .. expected_status)
+	assert( h.status == expected_status, "lane status " .. h.status .. " (actual) ~= " .. expected_status .. " (expected)")
 	print "test OK"
 end
 

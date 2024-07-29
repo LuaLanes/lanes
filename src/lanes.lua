@@ -357,8 +357,8 @@ local process_gen_opt = function(...)
 end -- process_gen_opt
 
 -- lane_h[1..n]: lane results, same as via 'lane_h:join()'
--- lane_h[0]:    can be read to make sure a thread has finished (always gives 'true')
--- lane_h[-1]:   error message, without propagating the error
+-- lane_h[0]:    can be read to make sure a thread has finished (gives the number of available results)
+-- lane_h[negative]:   error message, without propagating the error
 --
 --      Reading a Lane result (or [0]) propagates a possible error in the lane
 --      (and execution does not return). Cancelled lanes give 'nil' values.

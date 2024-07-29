@@ -237,11 +237,13 @@ template <typename LUA_RESUME>
 concept RequiresLuaResume51 = requires(LUA_RESUME f_) { { f_(nullptr, 0) } -> std::same_as<int>; };
 
 template <RequiresLuaResume51 LUA_RESUME>
-static inline int WrapLuaResume(LUA_RESUME const f_, lua_State* const L_, [[maybe_unused]] lua_State* const from_, int const nargs_, int* const nresults_)
+static inline int WrapLuaResume(LUA_RESUME const lua_resume_, lua_State* const L_, [[maybe_unused]] lua_State* const from_, int const nargs_, int* const nresults_)
 {
-    int const _resultsStart{ lua_gettop(L_) - nargs_ - 1 };
-    int const _rc{ f_(L_, nargs_) };
-    *nresults_ = lua_gettop(L_) - _resultsStart;
+    // lua_resume is supposed to be called from a "clean" stack:
+    // it should only contain the function and its initial arguments on first call, or the resume arguments on subsequent invocations
+    int const _rc{ lua_resume_(L_, nargs_) };
+    // after resuming, the stack should only contain the yielded values
+    *nresults_ = lua_gettop(L_);
     return _rc;
 }
 
@@ -251,11 +253,13 @@ template <typename LUA_RESUME>
 concept RequiresLuaResume52 = requires(LUA_RESUME f_) { { f_(nullptr, nullptr, 0) } -> std::same_as<int>; };
 
 template <RequiresLuaResume52 LUA_RESUME>
-static inline int WrapLuaResume(LUA_RESUME const f_, lua_State* const L_, lua_State* const from_, int const nargs_, [[maybe_unused]] int* const nresults_)
+static inline int WrapLuaResume(LUA_RESUME const lua_resume_, lua_State* const L_, lua_State* const from_, int const nargs_, [[maybe_unused]] int* const nresults_)
 {
-    int const _resultsStart{ lua_gettop(L_) - nargs_ - 1 };
-    int const _rc{ f_(L_, from_, nargs_) };
-    *nresults_ = lua_gettop(L_) - _resultsStart;
+    // lua_resume is supposed to be called from a "clean" stack:
+    // it should only contain the function and its initial arguments on first call, or the resume arguments on subsequent invocations
+    int const _rc{ lua_resume_(L_, from_, nargs_) };
+    // after resuming, the stack should only contain the yielded values
+    *nresults_ = lua_gettop(L_);
     return _rc;
 }
 
@@ -265,9 +269,10 @@ template <typename LUA_RESUME>
 concept RequiresLuaResume54 = requires(LUA_RESUME f_) { { f_(nullptr, nullptr, 0, nullptr) } -> std::same_as<int>; };
 
 template <RequiresLuaResume54 LUA_RESUME>
-static inline int WrapLuaResume(LUA_RESUME const f_, lua_State* const L_, lua_State* const from_, int const nargs_, int* const nresults_)
+static inline int WrapLuaResume(LUA_RESUME const lua_resume_, lua_State* const L_, lua_State* const from_, int const nargs_, int* const nresults_)
 {
-    return f_(L_, from_, nargs_, nresults_);
+    // starting with Lua 5.4, the stack can contain stuff below the actual yielded values, but lua_resume tells us the correct nresult
+    return lua_resume_(L_, from_, nargs_, nresults_);
 }
 
 // -------------------------------------------------------------------------------------------------

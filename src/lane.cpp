@@ -128,10 +128,10 @@ static LUAG_FUNC(thread_join)
         raise_luaL_argerror(L_, 2, "incorrect duration type");
     }
 
-    bool const _done{ !_lane->thread.joinable() || _lane->waitForCompletion(_until) };
     lua_settop(L_, 1);                                                                             // L_: lane
-    lua_State* const _L2{ _lane->L };
-    if (!_done || !_L2) {
+    bool const _done{ !_lane->thread.joinable() || _lane->waitForCompletion(_until) };
+
+    if (!_done) {
         lua_pushnil(L_);                                                                           // L_: lane nil
         luaG_pushstring(L_, "timeout");                                                            // L_: lane nil "timeout"
         return 2;
@@ -141,47 +141,48 @@ static LUAG_FUNC(thread_join)
     // Thread is Suspended or Done/Error/Cancelled; the Lane thread isn't working with it, therefore we can.
 
     int _ret{ 0 };
-    // debugName is a pointer to string possibly interned in the lane's state, that no longer exists when the state is closed
-    // so store it in the userdata uservalue at a key that can't possibly collide
-    _lane->securizeDebugName(L_);
+    int const _stored{ _lane->storeResults(L_) };
+    STACK_GROW(L_, std::max(3, _stored + 1));
     switch (_lane->status) {
     case Lane::Suspended: // got yielded values
     case Lane::Done: // got regular return values
         {
-            bool const _calledFromLua{ lua_toboolean(L_, lua_upvalueindex(1)) ? false : true }; // this upvalue doesn't exist when called from Lua
-            int const _n{ lua_gettop(_L2) }; // whole L2 stack
-            if (_calledFromLua && (_n == 0 || lua_isnil(_L2, 1))) {
-                raise_luaL_error(L_, "First return value must be non-nil when using join()");
+            if (_stored == 0) {
+                raise_luaL_error(L_, _lane->L ? "First return value must be non-nil when using join()" : "Can't join() more than once or after indexing");
             }
-            if (
-                (_n > 0) &&
-                (InterCopyContext{ _lane->U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} }.interMove(_n) != InterCopyResult::Success)
-            ) {                                                                                    // L_: lane results                                L2:
-                raise_luaL_error(L_, "tried to copy unsupported types");
+            lua_getiuservalue(L_, 1, 1);                                                           // L_: lane {uv}
+            for (int _i = 2; _i <= _stored; ++_i) {
+                lua_rawgeti(L_, 2, _i);                                                            // L_: lane {uv} results2...N
             }
-            _ret = _n;
+            lua_rawgeti(L_, 2, 1);                                                                 // L_: lane {uv} results2...N result1
+            lua_replace(L_, 2);                                                                    // L_: lane results
+            _ret = _stored;
         }
         break;
 
     case Lane::Error:
         {
-            int const _n{ lua_gettop(_L2) };                                                       // L_: lane                                        L2: "err" [trace]
-            STACK_GROW(L_, 3);
-            lua_pushnil(L_);                                                                       // L_: lane nil
-            // even when _lane->errorTraceLevel != Minimal, if the error is not LUA_ERRRUN, the handler wasn't called, and we only have 1 error message on the stack ...
-            InterCopyContext _c{ _lane->U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} };
-            if (_c.interMove(_n) != InterCopyResult::Success) {                                    // L_: lane nil "err" [trace]                      L2:
-                raise_luaL_error(L_, "tried to copy unsupported types: %s", lua_tostring(L_, -_n));
+            LUA_ASSERT(L_, _stored == 2 || _stored == 3);
+            lua_getiuservalue(L_, 1, 1);                                                           // L_: lane {uv}
+            lua_rawgeti(L_, 2, 2);                                                                 // L_: lane {uv} <error>
+            lua_rawgeti(L_, 2, 3);                                                                 // L_: lane {uv} <error> <trace>|nil
+            if (lua_isnil(L_, -1)) {
+                lua_replace(L_, 2);                                                                // L_: lane nil <error>
+            } else {
+                lua_rawgeti(L_, 2, 1);                                                             // L_: lane {uv} <error> <trace> nil
+                lua_replace(L_, 2);                                                                // L_: lane nil <error> <trace>
             }
-            _ret = 1 + _n;
+            _ret = lua_gettop(L_) - 1; // 2 or 3
         }
         break;
 
     case Lane::Cancelled:
-        // we should have a single value, kCancelError, in the stack of _L2
-        LUA_ASSERT(L_, lua_gettop(_L2) == 1 && kCancelError.equals(_L2, 1));
-        lua_pushnil(L_);                                                                           // L_: lane nil
-        kCancelError.pushKey(L_);                                                                  // L_: lane nil cancel_error
+        LUA_ASSERT(L_, _stored == 2);
+        lua_getiuservalue(L_, 1, 1);                                                              // L_: lane {uv}
+        lua_rawgeti(L_, 2, 2);                                                                    // L_: lane {uv} cancel_error
+        lua_rawgeti(L_, 2, 1);                                                                    // L_: lane {uv} cancel_error nil
+        lua_replace(L_, -3);                                                                      // L_: lane nil cancel_error
+        LUA_ASSERT(L_, lua_isnil(L_, -2) && kCancelError.equals(L_, -1));
         _ret = 2;
         break;
 
@@ -189,10 +190,6 @@ static LUAG_FUNC(thread_join)
         DEBUGSPEW_CODE(DebugSpew(nullptr) << "Unknown Lane status: " << static_cast<int>(_lane->status) << std::endl);
         LUA_ASSERT(L_, false);
         _ret = 0;
-    }
-    // if we are suspended, all we want to do is gather the current yielded values
-    if (_lane->status != Lane::Suspended) {
-        _lane->closeState();
     }
     STACK_CHECK(L_, _ret);
     return _ret;
@@ -258,111 +255,25 @@ LUAG_FUNC(thread_resume)
 static int thread_index_number(lua_State* L_)
 {
     static constexpr int kSelf{ 1 };
-    static constexpr int kKey{ 2 };
-    static constexpr int kUsr{ 3 };
 
     Lane* const _lane{ ToLane(L_, kSelf) };
     LUA_ASSERT(L_, lua_gettop(L_) == 2);                                                           // L_: lane n
+    int const _key{ static_cast<int>(lua_tointeger(L_, 2)) };
+    lua_pop(L_, 1);                                                                                // L_: lane
 
-    // first, check that we don't already have an environment that holds the requested value
-    // If key is found in the uservalue, return it
-    lua_getiuservalue(L_, kSelf, 1);                                                               // L_: lane n {uv}
-    lua_pushvalue(L_, kKey);                                                                       // L_: lane n {uv} n
-    lua_rawget(L_, kUsr);                                                                          // L_: lane n {uv} v|nil
-    if (!lua_isnil(L_, -1)) {
-        return 1;
+    std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
+    if (!_lane->waitForCompletion(_until)) {
+        raise_luaL_error(L_, "INTERNAL ERROR: Failed to join");
     }
-    lua_pop(L_, 1);                                                                                // L_: lane n {uv}
 
-    // check if we already fetched the values from the thread or not
-    lua_pushinteger(L_, 0);                                                                        // L_: lane n {uv} 0
-    lua_rawget(L_, kUsr);                                                                          // L_: lane n {uv} uv[0]|nil
-    bool const _fetched{ !lua_isnil(L_, -1) };
-    lua_pop(L_, 1);                                                                                // L_: lane n {uv}
-    if (!_fetched) {
-        lua_pushinteger(L_, 0);                                                                    // L_: lane n {uv} 0
-        lua_pushboolean(L_, 1);                                                                    // L_: lane n {uv} 0 true
-        lua_rawset(L_, kUsr);                                                                      // L_: lane n {uv}
-        // tell join() that we are called from __index, to avoid raising an error if the first returned value is not nil
-        luaG_pushstring(L_, "[]");                                                                 // L_: lane n {uv} "[]"
-        // wait until thread has completed, transfer everything from the lane's stack to our side
-        lua_pushcclosure(L_, LG_thread_join, 1);                                                   // L_: lane n {uv} join
-        lua_pushvalue(L_, kSelf);                                                                  // L_: lane n {uv} join lane
-        lua_call(L_, 1, LUA_MULTRET); // lane:join()                                               // L_: lane n {uv} ...
-        switch (_lane->status) {
-        default:
-            // this is an internal error, we probably never get here
-            lua_settop(L_, 0);                                                                     // L_:
-            luaG_pushstring(L_, "Unexpected status: ");                                            // L_: "Unexpected status: "
-            _lane->pushStatusString(L_);                                                           // L_: "Unexpected status: " "<status>"
-            lua_concat(L_, 2);                                                                     // L_: "Unexpected status: <status>"
-            raise_lua_error(L_);
-
-        case Lane::Suspended: // got yielded values
-        case Lane::Done: // got regular return values
-            {
-                int const _nvalues{ lua_gettop(L_) - 3 };                                          // L_: lane n {uv} ...
-                for (int _i = _nvalues; _i > 0; --_i) {
-                    // pop the last element of the stack, to store it in the uservalue at its proper index
-                    lua_rawseti(L_, kUsr, _i);                                                     // L_: lane n {uv}
-                }
-            }
-            break;
-
-        case Lane::Error: // got 2 or 3 values: nil, errstring, and possibly a callstack table
-            if (_lane->errorTraceLevel == Lane::Minimal) {
-                LUA_ASSERT(L_, lua_gettop(L_) == 5 && lua_isnil(L_, 4) && !lua_isnil(L_, 5));      // L_: lane n {uv} nil "<msg>"
-            } else {
-                LUA_ASSERT(L_, lua_gettop(L_) == 6 && lua_isnil(L_, 4) && !lua_isnil(L_, 5) && lua_istable(L_, 6));
-                lua_insert(L_, -2);                                                                // L_: lane n {uv} nil {trace} "<msg>"
-            }
-            // uv[-1] = "<msg>"
-            lua_rawseti(L_, kUsr, -1);                                                             // L_: lane n {uv} nil {trace}?
-            break;
-
-        case Lane::Cancelled:
-            // do nothing
-            break;
-        }
+    // make sure results are stored
+    int const _stored{ _lane->storeResults(L_) };
+    if (_key > _stored) {
+        // get nil if indexing beyond the actual returned value count
+        lua_pushnil(L_);                                                                           // L_: lane nil
+    } else {
+        _lane->pushIndexedResult(L_, _key);                                                        // L_: lane result
     }
-    STACK_GROW(L_, 6); // up to 6 positions are needed in case of error propagation
-    lua_settop(L_, 3);                                                                             // L_: lane n {uv}
-    int const _key{ static_cast<int>(lua_tointeger(L_, kKey)) };
-    if (_key != -1) {
-        lua_rawgeti(L_, kUsr, -1);                                                                 // L_: lane n {uv} <error>|nil
-        if (!lua_isnil(L_, -1)) { // an error was stored                                           // L_: lane n {uv} <error>
-            lua_getmetatable(L_, 1);                                                               // L_: lane n {uv} <error> {mt}
-            lua_replace(L_, -3);                                                                   // L_: lane n {mt} <error>
-            // Note: Lua 5.1 interpreter is not prepared to show
-            //       non-string errors, so we use 'tostring()' here
-            //       to get meaningful output.  --AKa 22-Jan-2009
-            //
-            //       Also, the stack dump we get is no good; it only
-            //       lists our internal Lanes functions. There seems
-            //       to be no way to switch it off, though.
-            //
-            // Level 3 should show the line where 'h[x]' was read
-            // but this only seems to work for string messages
-            // (Lua 5.1.4). No idea, why.   --AKa 22-Jan-2009
-            if constexpr (LUA_VERSION_NUM == 501) {
-                if (!lua_isstring(L_, -1)) {
-                    kCachedTostring.pushKey(L_);                                                   // L_: lane n {mt} <error> kCachedTostring
-                    lua_rawget(L_, -3);                                                            // L_: lane n {mt} <error> tostring()
-                    lua_insert(L_, -2);                                                            // L_: lane n {mt} tostring() <error>
-                    lua_call(L_, 1, 1); // tostring(errstring)                                     // L_: lane n {mt} "error"
-                }
-            }
-            kCachedError.pushKey(L_);                                                              // L_: lane n {mt} "error" kCachedError
-            lua_rawget(L_, -3);                                                                    // L_: lane n {mt} "error" error()
-            lua_replace(L_, -3);                                                                   // L_: lane n error() "error"
-            lua_pushinteger(L_, 3);                                                                // L_: lane n error() "error" 3
-            lua_call(L_, 2, 0); // error(tostring(errstring), 3) -> doesn't return                 // L_: lane n
-            raise_luaL_error(L_, "%s: should not get here!", _lane->getDebugName().data());
-        } else {
-            lua_pop(L_, 1);                                                                        // L_: lane n {uv}
-        }
-    }
-    lua_rawgeti(L_, kUsr, _key);                                                                   // L_: lane n {uv} uv[n]
     return 1;
 }
 
@@ -569,9 +480,10 @@ int Lane::LuaErrorHandler(lua_State* L_)
 // ########################################## Finalizer ############################################
 // #################################################################################################
 
-static void push_stack_trace(lua_State* L_, Lane::ErrorTraceLevel errorTraceLevel_, LuaError rc_, [[maybe_unused]] int stk_base_)
+static [[nodiscard]] int push_stack_trace(lua_State* const L_, Lane::ErrorTraceLevel const errorTraceLevel_, LuaError const rc_, [[maybe_unused]] int const stk_base_)
 {
     // Lua 5.1 error handler is limited to one return value; it stored the stack trace in the registry
+    int const _top{ lua_gettop(L_) };
     switch (rc_) {
     case LuaError::OK: // no error, body return values are on the stack
         break;
@@ -602,6 +514,7 @@ static void push_stack_trace(lua_State* L_, Lane::ErrorTraceLevel errorTraceLeve
         LUA_ASSERT(L_, (lua_gettop(L_) == stk_base_) && (luaG_type(L_, stk_base_) == LuaType::STRING));
         break;
     }
+    return lua_gettop(L_) - _top; // either 0 or 1
 }
 
 // #################################################################################################
@@ -619,59 +532,85 @@ static void push_stack_trace(lua_State* L_, Lane::ErrorTraceLevel errorTraceLeve
 // TBD: should we add stack trace on failing finalizer, wouldn't be hard..
 //
 
-[[nodiscard]] static LuaError run_finalizers(lua_State* L_, Lane::ErrorTraceLevel errorTraceLevel_, LuaError lua_rc_)
+[[nodiscard]] static LuaError run_finalizers(Lane* const lane_, Lane::ErrorTraceLevel errorTraceLevel_, LuaError lua_rc_)
 {
-    kFinalizerRegKey.pushValue(L_);                                                                // L_: ... finalizers?
-    if (lua_isnil(L_, -1)) {
-        lua_pop(L_, 1);
+    // if we are a coroutine, we can't run the finalizers in the coroutine state!
+    lua_State* const _L{ lane_->S };
+    kFinalizerRegKey.pushValue(_L);                                                                // _L: ... finalizers|nil
+    if (lua_isnil(_L, -1)) {
+        lua_pop(_L, 1);
         return LuaError::OK; // no finalizers
     }
 
-    STACK_GROW(L_, 5);
+    STACK_GROW(_L, 5);
 
-    int const _finalizers_index{ lua_gettop(L_) };
-    int const _err_handler_index{ (errorTraceLevel_ != Lane::Minimal) ? (lua_pushcfunction(L_, Lane::LuaErrorHandler), lua_gettop(L_)) : 0 };
+    int const _finalizers{ lua_gettop(_L) };
+    // always push something as error handler, to have the same stack structure
+    int const _error_handler{ (errorTraceLevel_ != Lane::Minimal)
+        ? (lua_pushcfunction(_L, Lane::LuaErrorHandler), lua_gettop(_L))
+        : (lua_pushnil(_L), 0)
+    };                                                                                             // _L: ... finalizers error_handler()
 
     LuaError _rc{ LuaError::OK };
-    for (int _n = static_cast<int>(lua_rawlen(L_, _finalizers_index)); _n > 0; --_n) {
+    int _finalizer_pushed{};
+    for (int _n = static_cast<int>(lua_rawlen(_L, _finalizers)); _n > 0; --_n) {
         int _args{ 0 };
-        lua_pushinteger(L_, _n);                                                                   // L_: ... finalizers lane_error n
-        lua_rawget(L_, _finalizers_index);                                                         // L_: ... finalizers lane_error finalizer
-        LUA_ASSERT(L_, lua_isfunction(L_, -1));
-        if (lua_rc_ != LuaError::OK) { // we have an error message and an optional stack trace at the bottom of the stack
-            LUA_ASSERT(L_, _finalizers_index == 2 || _finalizers_index == 3);
-            //std::string_view const _err_msg{ luaG_tostring(L_, 1) };
-            lua_pushvalue(L_, 1);                                                                  // L_: ... finalizers lane_error finalizer err_msg
-            // note we don't always have a stack trace for example when kCancelError, or when we got an error that doesn't call our handler, such as LUA_ERRMEM
-            if (_finalizers_index == 3) {
-                lua_pushvalue(L_, 2); // L_: ... finalizers lane_error finalizer err_msg stack_trace
+        lua_rawgeti(_L, _finalizers, _n);                                                          // _L: ... finalizers error_handler() finalizer()
+        LUA_ASSERT(_L, lua_isfunction(_L, -1));
+        if (lua_rc_ != LuaError::OK) { // we have <error>, [trace] on the thread stack
+            LUA_ASSERT(_L, lane_->nresults == 1 || lane_->nresults == 2);
+            //std::string_view const _err_msg{ luaG_tostring(_L, 1) };
+            if (lane_->isCoroutine()) {
+                // transfer them on the main state
+                lua_pushvalue(lane_->L, 1);
+                // note we don't always have a stack trace for example when kCancelError, or when we got an error that doesn't call our handler, such as LUA_ERRMEM
+                if (lane_->nresults == 2) {
+                    lua_pushvalue(lane_->L, 2);
+                }
+                lua_xmove(lane_->L, _L, lane_->nresults);                                          // _L: ... finalizers error_handler() finalizer <error> [trace]
+            } else {
+                lua_pushvalue(_L, 1);                                                              // _L: ... finalizers error_handler() finalizer <error>
+                // note we don't always have a stack trace for example when kCancelError, or when we got an error that doesn't call our handler, such as LUA_ERRMEM
+                if (lane_->nresults == 2) {
+                    lua_pushvalue(_L, 2);                                                          // _L: ... finalizers error_handler() finalizer <error> trace
+                }
             }
-            _args = _finalizers_index - 1;
+            _args = lane_->nresults;
         }
 
         // if no error from the main body, finalizer doesn't receive any argument, else it gets the error message and optional stack trace
-        _rc = ToLuaError(lua_pcall(L_, _args, 0, _err_handler_index));                             // L_: ... finalizers lane_error err_msg2?
+        _rc = ToLuaError(lua_pcall(_L, _args, 0, _error_handler));                                 // _L: ... finalizers error_handler() err_msg2?
         if (_rc != LuaError::OK) {
-            push_stack_trace(L_, errorTraceLevel_, _rc, lua_gettop(L_));                           // L_: ... finalizers lane_error err_msg2? trace
+            _finalizer_pushed = 1 + push_stack_trace(_L, errorTraceLevel_, _rc, lua_gettop(_L));   // _L: ... finalizers error_handler() err_msg2? trace
             // If one finalizer fails, don't run the others. Return this
             // as the 'real' error, replacing what we could have had (or not)
             // from the actual code.
             break;
         }
-        // no error, proceed to next finalizer                                                     // L_: ... finalizers lane_error
+        // no error, proceed to next finalizer                                                     // _L: ... finalizers error_handler()
     }
 
     if (_rc != LuaError::OK) {
-        // errorTraceLevel_ accounts for the presence of lane_error on the stack
-        int const _nb_err_slots{ lua_gettop(L_) - _finalizers_index - ((errorTraceLevel_ != Lane::Minimal) ? 1 : 0) };
-        // a finalizer generated an error, this is what we leave of the stack
-        for (int _n = _nb_err_slots; _n > 0; --_n) {
-            lua_replace(L_, _n);
+        lane_->nresults = _finalizer_pushed;
+        if (lane_->isCoroutine()) {                                                                // _L: ... finalizers error_handler() <error2> trace2
+            // put them back in the thread state stack, as if the finalizer was run from there
+            lua_settop(lane_->L, 0);
+            lua_xmove(_L, lane_->L, _finalizer_pushed);                                            // _L: ... finalizers error_handler()             L: <error2> [trace2]
+            lua_pop(_L, 2);                                                                        // _L: ...                                        L: <error2> [trace2]
+        } else {                                                                                   // _L: ... finalizers error_handler() <error2> [trace2]
+            // adjust the stack to keep only the error data from the finalizer
+            for (int const _n : std::ranges::reverse_view{ std::ranges::iota_view{ 1, _finalizer_pushed + 1 } }) {
+                lua_replace(_L, _n);
+            }
+            lua_settop(_L, _finalizer_pushed);                                                     // _L: <error2> [trace2]
         }
-        // leave on the stack only the error and optional stack trace produced by the error in the finalizer
-        lua_settop(L_, _nb_err_slots);                                                             // L_: ... lane_error trace
     } else { // no error from the finalizers, make sure only the original return values from the lane body remain on the stack
-        lua_settop(L_, _finalizers_index - 1);
+        lua_settop(_L, _finalizers - 1);
+    }
+
+    if (lane_->isCoroutine()) {
+        // only the coroutine thread should remain on the master state when we are done
+        LUA_ASSERT(_L, lua_gettop(_L) == 1 && luaG_type(_L, 1) == LuaType::THREAD);
     }
 
     return _rc;
@@ -773,11 +712,13 @@ static void lane_main(Lane* const lane_)
         PrepareLaneHelpers(lane_);
         if (lane_->S == lane_->L) {                                                                // L: eh? f args...
             _rc = ToLuaError(lua_pcall(_L, _nargs, LUA_MULTRET, _errorHandlerCount));              // L: eh? retvals|err
+            lane_->nresults = lua_gettop(_L) - _errorHandlerCount;
         } else {
             // S and L are different: we run as a coroutine in Lua thread L created in state S
             do {
-                int _nresults{};
-                _rc = luaG_resume(_L, nullptr, _nargs, &_nresults);                                // L: eh? retvals|err...
+                // starting with Lua 5.4, lua_resume can leave more stuff on the stack below the actual yielded values.
+                // that's why we have lane_->nresults
+                _rc = luaG_resume(_L, nullptr, _nargs, &lane_->nresults);                          // L: eh? ... retvals|err...
                 if (_rc == LuaError::YIELD) {
                     // change our status to suspended, and wait until someone wants us to resume
                     std::unique_lock _guard{ lane_->doneMutex };
@@ -798,6 +739,7 @@ static void lane_main(Lane* const lane_)
                 // for some reason, in my tests with Lua 5.4, when the coroutine raises an error, I have 3 copies of it on the stack
                 // or false + the error message when running Lua 5.1
                 // since the rest of our code wants only the error message, let us keep only the latter.
+                lane_->nresults = 1;
                 lua_replace(_L, 1);                                                                // L: err...
                 lua_settop(_L, 1);                                                                 // L: err
                 // now we build the stack trace table if the error trace level requests it
@@ -810,13 +752,13 @@ static void lane_main(Lane* const lane_)
         }
 
         // in case of error and if it exists, fetch stack trace from registry and push it
-        push_stack_trace(_L, lane_->errorTraceLevel, _rc, 1);                                      // L: retvals|error [trace]
+        lane_->nresults += push_stack_trace(_L, lane_->errorTraceLevel, _rc, 1);                   // L: retvals|error [trace]
 
         DEBUGSPEW_CODE(DebugSpew(lane_->U) << "Lane " << _L << " body: " << GetErrcodeName(_rc) << " (" << (kCancelError.equals(_L, 1) ? "cancelled" : luaG_typename(_L, 1)) << ")" << std::endl);
         // Call finalizers, if the script has set them up.
         // If the lane is not a coroutine, there is only a regular state, so everything is the same whether we use S or L.
         // If the lane is a coroutine, this has to be done from the master state (S), not the thread (L), because we can't lua_pcall in a thread state
-        LuaError const _rc2{ run_finalizers(lane_->S, lane_->errorTraceLevel, _rc) };
+        LuaError const _rc2{ run_finalizers(lane_, lane_->errorTraceLevel, _rc) };
         DEBUGSPEW_CODE(DebugSpew(lane_->U) << "Lane " << _L << " finalizer: " << GetErrcodeName(_rc2) << std::endl);
         if (_rc2 != LuaError::OK) { // Error within a finalizer!
             // the finalizer generated an error, and left its own error message [and stack trace] on the stack
@@ -907,6 +849,7 @@ static LUAG_FUNC(lane_gc)
         return 0;
     } else if (_lane->L) {
         // no longer accessing the Lua VM: we can close right now
+        _lane->securizeDebugName(L_);
         _lane->closeState();
     }
 
@@ -1119,6 +1062,59 @@ void Lane::pushStatusString(lua_State* L_) const
 
 // #################################################################################################
 
+void Lane::pushIndexedResult(lua_State* const L_, int const key_) const
+{
+    static constexpr int kSelf{ 1 };
+    LUA_ASSERT(L_, ToLane(L_, kSelf) == this);                                                     // L_: lane ...
+    STACK_GROW(L_, 3);
+
+    lua_getiuservalue(L_, kSelf, 1);                                                               // L_: lane ... {uv}
+    if (status != Lane::Error) {
+        lua_rawgeti(L_, -1, key_);                                                                 // L_: lane ... {uv} uv[i]
+        lua_remove(L_, -2);                                                                        // L_: lane ... uv[i]
+        return;
+    }
+
+    // [1] = nil [2] = <error> [3] = [stack_trace]                                                 // L_: lane ... {uv}
+    lua_rawgeti(L_, -1, 2);                                                                        // L_: lane ... {uv} <error>
+
+    // any negative index gives just the error message without propagation
+    if (key_ < 0) {
+        lua_remove(L_, -2);                                                                        // L_: lane ... <error>
+        return;
+    }
+    lua_getmetatable(L_, kSelf);                                                                   // L_: lane ... {uv} <error> {mt}
+    lua_replace(L_, -3);                                                                           // L_: lane ... {mt} <error>
+    // Note: Lua 5.1 interpreter is not prepared to show
+    //       non-string errors, so we use 'tostring()' here
+    //       to get meaningful output.  --AKa 22-Jan-2009
+    //
+    //       Also, the stack dump we get is no good; it only
+    //       lists our internal Lanes functions. There seems
+    //       to be no way to switch it off, though.
+    //
+    // Level 2 should show the line where 'h[x]' was read
+    // but this only seems to work for string messages
+    // (Lua 5.1.4). No idea, why.   --AKa 22-Jan-2009
+    if constexpr (LUA_VERSION_NUM == 501) {
+        if (!lua_isstring(L_, -1)) {
+            // tostring() and error() are hidden in the lane metatable
+            kCachedTostring.pushKey(L_);                                                           // L_: lane ... {mt} <error> kCachedTostring
+            lua_rawget(L_, -3);                                                                    // L_: lane ... {mt} <error> tostring()
+            lua_insert(L_, -2);                                                                    // L_: lane ... {mt} tostring() <error>
+            lua_call(L_, 1, 1); // tostring(errstring)                                             // L_: lane ... {mt} "error"
+        }
+    }
+    kCachedError.pushKey(L_);                                                                      // L_: lane ... {mt} "error" kCachedError
+    lua_rawget(L_, -3);                                                                            // L_: lane ... {mt} "error" error()
+    lua_replace(L_, -3);                                                                           // L_: lane ... error() "error"
+    lua_pushinteger(L_, 2);                                                                        // L_: lane ... error() "error" 2
+    lua_call(L_, 2, 0); // error(tostring(errstring), 3) -> doesn't return                         // L_: lane ...
+    raise_luaL_error(L_, "%s: should not get here!", getDebugName().data());
+}
+
+// #################################################################################################
+
 [[nodiscard]] std::string_view Lane::pushErrorTraceLevel(lua_State* L_) const
 {
     std::string_view const _str{ errorTraceLevelString() };
@@ -1169,7 +1165,7 @@ void Lane::securizeDebugName(lua_State* L_)
     lua_newtable(L_);                                                                              // L_: lane ... {uv} {}
     {
         std::lock_guard<std::mutex> _guard{ debugNameMutex };
-    debugName = luaG_pushstring(L_, debugName);                                                    // L_: lane ... {uv} {} name
+        debugName = luaG_pushstring(L_, debugName);                                                // L_: lane ... {uv} {} name
     }
     lua_rawset(L_, -3);                                                                            // L_: lane ... {uv}
     lua_pop(L_, 1);                                                                                // L_: lane
@@ -1184,6 +1180,103 @@ void Lane::startThread(int priority_)
     if (priority_ != kThreadPrioDefault) {
         THREAD_SET_PRIORITY(thread, priority_, U->sudo);
     }
+}
+
+// #################################################################################################
+
+// take the results on the lane state stack and store them in our uservalue table, at numeric indices:
+// t[0] = nresults
+// t[i] = result #i
+int Lane::storeResults(lua_State* const L_)
+{
+    static constexpr int kSelf{ 1 };
+    LUA_ASSERT(L_, ToLane(L_, kSelf) == this);
+
+    STACK_CHECK_START_REL(L_, 0);
+    lua_getiuservalue(L_, kSelf, 1);                                                               // L_: lane ... {uv}
+    int const _tidx{ lua_gettop(L_) };
+
+    int _stored{};
+    if (nresults == 0) {
+        lua_rawgeti(L_, -1, 0);                                                                    // L_: lane ... {uv} nresults
+        _stored = static_cast<int>(lua_tointeger(L_, -1));
+        lua_pop(L_, 2);
+        STACK_CHECK(L_, 0);
+        return _stored;
+    }
+
+    switch (status) {
+    default:
+        // this is an internal error, we probably never get here
+        lua_settop(L_, 0);                                                                         // L_:
+        luaG_pushstring(L_, "Unexpected status: ");                                                // L_: "Unexpected status: "
+        pushStatusString(L_);                                                                      // L_: "Unexpected status: " "<status>"
+        lua_concat(L_, 2);                                                                         // L_: "Unexpected status: <status>"
+        raise_lua_error(L_);
+
+    case Lane::Error: // got 1 or 2 error values: <error> <trace>?
+        // error can be anything (even nil!)
+        if (errorTraceLevel == Lane::Minimal) {
+            LUA_ASSERT(L_, (lua_gettop(L) == nresults) && (nresults == 1));
+        } else {
+            LUA_ASSERT(L_, (lua_gettop(L) == nresults) && (nresults == 2));
+            LUA_ASSERT(L_, lua_istable(L, 2));
+        }
+        // convert this to nil,<error>,<trace>
+        lua_pushnil(L);                                                                            //                                                L: <error> <trace> nil
+        lua_insert(L, 1);                                                                          //                                                L: nil <error> <trace>
+        ++nresults;
+        [[fallthrough]];
+
+    case Lane::Suspended: // got yielded values
+    case Lane::Done: // got regular return values
+        {
+            InterCopyResult const _r{ InterCopyContext{ U, DestState{ L_ }, SourceState{ L }, {}, {}, {}, {}, {} }.interMove(nresults) };
+            lua_settop(L, 0);                                                                      // L_: lane ... {uv} results                      L:
+            _stored = nresults;
+            nresults = 0;
+            if (_r != InterCopyResult::Success) {
+                raise_luaL_error(L_, "Tried to copy unsupported types");
+            }
+            for (int _i = _stored; _i > 0; --_i) {
+                // pop the last element of the stack, to store it in the uservalue at its proper index
+                lua_rawseti(L_, _tidx, _i);                                                        // L_: lane ... {uv} results...
+            }                                                                                      // L_: lane ... {uv}
+            // results[0] = nresults
+            lua_pushinteger(L_, _stored);                                                          // L_: lane ... {uv} nresults
+            lua_rawseti(L_, _tidx, 0);                                                             // L_: lane ... {uv}
+            lua_pop(L_, 1);                                                                        // L_: lane ...
+        }
+        break;
+
+    case Lane::Cancelled:
+        _stored = 2;
+        // we should have a single value, kCancelError, in the stack of L
+        LUA_ASSERT(L_, nresults == 1 && lua_gettop(L) == 1 && kCancelError.equals(L, 1));
+        // store nil, cancel_error in the results
+        lua_pushnil(L_);                                                                           // L_: lane ... {uv} nil
+        lua_rawseti(L_, _tidx, 1);                                                                 // L_: lane ... {uv}
+        kCancelError.pushKey(L_);                                                                  // L_: lane ... {uv} cancel_error
+        lua_rawseti(L_, _tidx, 2);                                                                 // L_: lane ... {uv}
+        // results[0] = nresults
+        lua_pushinteger(L_, _stored);                                                              // L_: lane ... {uv} nresults
+        lua_rawseti(L_, _tidx, 0);                                                                 // L_: lane ... {uv}
+        lua_pop(L_, 1);                                                                            // L_: lane ...
+        lua_settop(L, 0);                                                                          //                                                L:
+        nresults = 0;
+        break;
+    }
+    STACK_CHECK(L_, 0);
+    LUA_ASSERT(L_, lua_gettop(L) == 0 && nresults == 0);
+    // if we are suspended, all we want to do is gather the current yielded values
+    if (status != Lane::Suspended) {
+        // debugName is a pointer to string possibly interned in the lane's state, that no longer exists when the state is closed
+        // so store it in the userdata uservalue at a key that can't possibly collide
+        securizeDebugName(L_);
+        closeState();
+    }
+
+    return _stored;
 }
 
 // #################################################################################################

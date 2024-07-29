@@ -99,6 +99,7 @@ class Lane
     Universe* const U{};
     lua_State* S{}; // the master state of the lane
     lua_State* L{}; // the state we run things in (either S or a lua_newthread() state if we run in coroutine mode)
+    int nresults{}; // number of results to extract from the stack (can differ from the actual number of values when in coroutine mode)
     //
     // M: prepares the state, and reads results
     // S: while S is running, M must keep out of modifying the state
@@ -148,13 +149,10 @@ class Lane
     void changeDebugName(int const nameIdx_);
     void closeState()
     {
-        {
-            std::lock_guard<std::mutex> _guard{ debugNameMutex };
-            debugName = std::string_view{ "<gc>" };
-        }
         lua_State* _L{ S };
         S = nullptr;
         L = nullptr;
+        nresults = 0;
         lua_close(_L); // this collects our coroutine thread at the same time
     }
     [[nodiscard]] std::string_view errorTraceLevelString() const;
@@ -174,9 +172,11 @@ class Lane
     [[nodiscard]] std::string_view pushErrorTraceLevel(lua_State* L_) const;
     static void PushMetatable(lua_State* L_);
     void pushStatusString(lua_State* L_) const;
+    void pushIndexedResult(lua_State* L_, int key_) const;
     void resetResultsStorage(lua_State* const L_, int gc_cb_idx_);
     void securizeDebugName(lua_State* L_);
     void startThread(int priority_);
+    [[nodiscard]] int storeResults(lua_State* L_);
     [[nodiscard]] std::string_view threadStatusString() const;
     // wait until the lane stops working with its state (either Suspended or Done+)
     [[nodiscard]] bool waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_);

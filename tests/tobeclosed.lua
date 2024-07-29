@@ -83,6 +83,7 @@ do
     local lane_body = function()
         WR "In lane body"
         lanes.sleep(1)
+        return "success"
     end
 
     local h = lanes.gen("*", lane_body)()
@@ -90,6 +91,7 @@ do
         local tobeclosed <close> = h
     end
     assert(h.status == "done")
+    return "success"
 end
 
 -- #################################################################################################

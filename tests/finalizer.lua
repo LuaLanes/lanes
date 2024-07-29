@@ -39,6 +39,7 @@ local function lane(error_)
         error(error_, 0)    -- exception here; the value needs NOT be a string
     end
     -- no exception
+    io.stderr:write("Lane completed\n")
     return true
 end
 
@@ -81,10 +82,13 @@ local do_test = function(error_)
         assert(stack, "no stack trace on error, check 'error_trace_level'")
         io.stderr:write( "Lane error: "..tostring(err).."\n" )
         io.stderr:write( "\t", table.concat(stack,"\t\n"), "\n" )
+    else
+        io.stderr:write( "Done\n" )
     end
 end
 
 do_test(nil)
+-- do return end
 do_test("An error")
 
 local on_exit = function()
