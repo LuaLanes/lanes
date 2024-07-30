@@ -174,6 +174,8 @@ class Lane
     void pushStatusString(lua_State* L_) const;
     void pushIndexedResult(lua_State* L_, int key_) const;
     void resetResultsStorage(lua_State* const L_, int gc_cb_idx_);
+    void selfdestructAdd();
+    [[nodiscard]] bool selfdestructRemove();
     void securizeDebugName(lua_State* L_);
     void startThread(int priority_);
     [[nodiscard]] int storeResults(lua_State* L_);

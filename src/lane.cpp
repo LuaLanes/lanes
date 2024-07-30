@@ -480,7 +480,7 @@ int Lane::LuaErrorHandler(lua_State* L_)
 // ########################################## Finalizer ############################################
 // #################################################################################################
 
-static [[nodiscard]] int push_stack_trace(lua_State* const L_, Lane::ErrorTraceLevel const errorTraceLevel_, LuaError const rc_, [[maybe_unused]] int const stk_base_)
+[[nodiscard]] static int PushStackTrace(lua_State* const L_, Lane::ErrorTraceLevel const errorTraceLevel_, LuaError const rc_, [[maybe_unused]] int const stk_base_)
 {
     // Lua 5.1 error handler is limited to one return value; it stored the stack trace in the registry
     int const _top{ lua_gettop(L_) };
@@ -532,7 +532,7 @@ static [[nodiscard]] int push_stack_trace(lua_State* const L_, Lane::ErrorTraceL
 // TBD: should we add stack trace on failing finalizer, wouldn't be hard..
 //
 
-[[nodiscard]] static LuaError run_finalizers(Lane* const lane_, Lane::ErrorTraceLevel errorTraceLevel_, LuaError lua_rc_)
+[[nodiscard]] static LuaError run_finalizers(Lane* const lane_, Lane::ErrorTraceLevel const errorTraceLevel_, LuaError const lua_rc_)
 {
     // if we are a coroutine, we can't run the finalizers in the coroutine state!
     lua_State* const _L{ lane_->S };
@@ -581,7 +581,7 @@ static [[nodiscard]] int push_stack_trace(lua_State* const L_, Lane::ErrorTraceL
         // if no error from the main body, finalizer doesn't receive any argument, else it gets the error message and optional stack trace
         _rc = ToLuaError(lua_pcall(_L, _args, 0, _error_handler));                                 // _L: ... finalizers error_handler() err_msg2?
         if (_rc != LuaError::OK) {
-            _finalizer_pushed = 1 + push_stack_trace(_L, errorTraceLevel_, _rc, lua_gettop(_L));   // _L: ... finalizers error_handler() err_msg2? trace
+            _finalizer_pushed = 1 + PushStackTrace(_L, errorTraceLevel_, _rc, lua_gettop(_L));     // _L: ... finalizers error_handler() err_msg2? trace
             // If one finalizer fails, don't run the others. Return this
             // as the 'real' error, replacing what we could have had (or not)
             // from the actual code.
@@ -622,35 +622,35 @@ static [[nodiscard]] int push_stack_trace(lua_State* const L_, Lane::ErrorTraceL
  * Add the lane to selfdestruct chain; the ones still running at the end of the
  * whole process will be cancelled.
  */
-static void selfdestruct_add(Lane* lane_)
+void Lane::selfdestructAdd()
 {
-    std::lock_guard<std::mutex> _guard{ lane_->U->selfdestructMutex };
-    assert(lane_->selfdestruct_next == nullptr);
+    std::lock_guard<std::mutex> _guard{ U->selfdestructMutex };
+    assert(selfdestruct_next == nullptr);
 
-    lane_->selfdestruct_next = lane_->U->selfdestructFirst;
-    lane_->U->selfdestructFirst = lane_;
+    selfdestruct_next = U->selfdestructFirst;
+    U->selfdestructFirst = this;
 }
 
 // #################################################################################################
 
 // A free-running lane has ended; remove it from selfdestruct chain
-[[nodiscard]] static bool selfdestruct_remove(Lane* lane_)
+[[nodiscard]] bool Lane::selfdestructRemove()
 {
     bool _found{ false };
-    std::lock_guard<std::mutex> _guard{ lane_->U->selfdestructMutex };
+    std::lock_guard<std::mutex> _guard{ U->selfdestructMutex };
     // Make sure (within the MUTEX) that we actually are in the chain
     // still (at process exit they will remove us from chain and then
     // cancel/kill).
     //
-    if (lane_->selfdestruct_next != nullptr) {
-        Lane* volatile* _ref = static_cast<Lane* volatile*>(&lane_->U->selfdestructFirst);
+    if (selfdestruct_next != nullptr) {
+        Lane* volatile* _ref = static_cast<Lane* volatile*>(&U->selfdestructFirst);
 
         while (*_ref != SELFDESTRUCT_END) {
-            if (*_ref == lane_) {
-                *_ref = lane_->selfdestruct_next;
-                lane_->selfdestruct_next = nullptr;
+            if (*_ref == this) {
+                *_ref = selfdestruct_next;
+                selfdestruct_next = nullptr;
                 // the terminal shutdown should wait until the lane is done with its lua_close()
-                lane_->U->selfdestructingCount.fetch_add(1, std::memory_order_release);
+                U->selfdestructingCount.fetch_add(1, std::memory_order_release);
                 _found = true;
                 break;
             }
@@ -665,7 +665,7 @@ static void selfdestruct_add(Lane* lane_)
 // ########################################## Main #################################################
 // #################################################################################################
 
-static void PrepareLaneHelpers(Lane* lane_)
+static void PrepareLaneHelpers(Lane* const lane_)
 {
     lua_State* const _L{ lane_->L };
     // Tie "set_finalizer()" to the state
@@ -752,7 +752,7 @@ static void lane_main(Lane* const lane_)
         }
 
         // in case of error and if it exists, fetch stack trace from registry and push it
-        lane_->nresults += push_stack_trace(_L, lane_->errorTraceLevel, _rc, 1);                   // L: retvals|error [trace]
+        lane_->nresults += PushStackTrace(_L, lane_->errorTraceLevel, _rc, 1);                     // L: retvals|error [trace]
 
         DEBUGSPEW_CODE(DebugSpew(lane_->U) << "Lane " << _L << " body: " << GetErrcodeName(_rc) << " (" << (kCancelError.equals(_L, 1) ? "cancelled" : luaG_typename(_L, 1)) << ")" << std::endl);
         // Call finalizers, if the script has set them up.
@@ -765,7 +765,7 @@ static void lane_main(Lane* const lane_)
             _rc = _rc2; // we're overruling the earlier script error or normal return
         }
         lane_->waiting_on = nullptr;  // just in case
-        if (selfdestruct_remove(lane_)) { // check and remove (under lock!)
+        if (lane_->selfdestructRemove()) { // check and remove (under lock!)
             // We're a free-running thread and no-one is there to clean us up.
             lane_->closeState();
             lane_->U->selfdestructMutex.lock();
@@ -809,7 +809,7 @@ static LUAG_FUNC(lane_close)
 
 // #################################################################################################
 
-// = thread_gc( lane_ud )
+// = lane_gc( lane_ud )
 //
 // Cleanup for a thread userdata. If the thread is still executing, leave it
 // alive as a free-running thread (will clean up itself).
@@ -823,7 +823,7 @@ static LUAG_FUNC(lane_close)
 static LUAG_FUNC(lane_gc)
 {
     bool _have_gc_cb{ false };
-    Lane* const _lane{ ToLane(L_, 1) };                                                             // L_: ud
+    Lane* const _lane{ ToLane(L_, 1) };                                                            // L_: ud
 
     // if there a gc callback?
     lua_getiuservalue(L_, 1, 1);                                                                   // L_: ud uservalue
@@ -840,7 +840,7 @@ static LUAG_FUNC(lane_gc)
     // We can read 'lane->status' without locks, but not wait for it
     if (_lane->status < Lane::Done) {
         // still running: will have to be cleaned up later
-        selfdestruct_add(_lane);
+        _lane->selfdestructAdd();
         assert(_lane->selfdestruct_next);
         if (_have_gc_cb) {
             luaG_pushstring(L_, "selfdestruct");                                                   // L_: ud gc_cb name status

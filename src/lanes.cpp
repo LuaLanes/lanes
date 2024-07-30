@@ -836,7 +836,7 @@ static void EnableCrashingOnCrashes(void)
 
 // #################################################################################################
 
-LANES_API int luaopen_lanes_core(lua_State* L_)
+LANES_API int luaopen_lanes_core(lua_State* const L_)
 {
 #if defined PLATFORM_WIN32 && !defined NDEBUG
     EnableCrashingOnCrashes();
@@ -879,7 +879,7 @@ LANES_API int luaopen_lanes_core(lua_State* L_)
 
 // #################################################################################################
 
-[[nodiscard]] static int default_luaopen_lanes(lua_State* L_)
+[[nodiscard]] static int default_luaopen_lanes(lua_State* const L_)
 {
     LuaError const _rc{ luaL_loadfile(L_, "lanes.lua") || lua_pcall(L_, 0, 1, 0) };
     if (_rc != LuaError::OK) {
@@ -891,7 +891,7 @@ LANES_API int luaopen_lanes_core(lua_State* L_)
 // #################################################################################################
 
 // call this instead of luaopen_lanes_core() when embedding Lua and Lanes in a custom application
-LANES_API void luaopen_lanes_embedded(lua_State* L_, lua_CFunction _luaopen_lanes)
+LANES_API void luaopen_lanes_embedded(lua_State* const L_, lua_CFunction const luaopen_lanes_)
 {
     STACK_CHECK_START_REL(L_, 0);
     // pre-require lanes.core so that when lanes.lua calls require "lanes.core" it finds it is already loaded
@@ -899,6 +899,6 @@ LANES_API void luaopen_lanes_embedded(lua_State* L_, lua_CFunction _luaopen_lane
     lua_pop(L_, 1);                                                                                // L_: ...
     STACK_CHECK(L_, 0);
     // call user-provided function that runs the chunk "lanes.lua" from wherever they stored it
-    luaL_requiref(L_, kLanesLibName, _luaopen_lanes ? _luaopen_lanes : default_luaopen_lanes, 0);  // L_: ... lanes
+    luaL_requiref(L_, kLanesLibName, luaopen_lanes_ ? luaopen_lanes_ : default_luaopen_lanes, 0);  // L_: ... lanes
     STACK_CHECK(L_, 1);
 }
