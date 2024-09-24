@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 12-Jun-24, and applies to version <tt>4.0.0</tt>.
+				This document was revised on 24-Sep-24, and applies to version <tt>4.0.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -681,6 +681,7 @@
 
 <p>
 	Any non-<tt>nil</tt> value causes initialization of <tt>"base"</tt> and <tt>"jit"</tt> (the latter only for LuaJIT-based builds).<br />
+	Trying to load a library not supported by the running Lua flavor will raise an error, unless the library name is postfixed with a <tt>'?'</tt>.<br />
 	Initializing the standard libs takes a bit of time at each lane invocation. This is the main reason why "no libraries" is the default.
 </p>
 
@@ -716,6 +717,7 @@
 				These tables are built from the modules listed here. <tt>required</tt> must be an array of strings, each one being the name of a module to be required. Each module is required with <tt>require()</tt> before the lanes function is invoked.
 				So, from the required module's point of view, requiring it manually from inside the lane body or having it required this way doesn't change anything. From the lane body's point of view, the only difference is that a module not creating a global won't be accessible.
 				Therefore, a lane body will also have to require a module manually, but this won't do anything more (see Lua's <tt>require</tt> documentation).	<br />
+				Module names may contain characters matching <tt>std::isalnum(c_) || c_ == '.' || c_ == '-' || c_ == '_'</tt>. Anything else is considered a valid name separator.<br />
 				ATTEMPTING TO TRANSFER A FUNCTION REGISTERED BY A MODULE NOT LISTED HERE WILL RAISE AN ERROR.
 			</td>
 		</tr>

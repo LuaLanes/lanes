@@ -247,21 +247,29 @@ namespace state {
         STACK_CHECK(_L, 0);
 
         // scan all libraries, open them one by one
-        if (!_libs.empty()) {
-            unsigned int _len{ 0 };
-            for (char const* _p{ _libs.data() }; *_p; _p += _len) {
-                // skip delimiters ('.' can be part of name for "lanes.core")
-                while (*_p && !std::isalnum(*_p) && *_p != '.') {
-                    ++_p;
-                }
-                // skip name
-                _len = 0;
-                while (std::isalnum(_p[_len]) || _p[_len] == '.') {
-                    ++_len;
-                }
-                // open library
-                Open1Lib(_L, { _p, _len });
+        auto isLibNameChar = [](char const c_) {
+            // '.' can be part of name for "lanes.core"
+            return std::isalnum(c_) || c_ == '.' || c_ == '-' || c_ == '_';
+        };
+        while (!_libs.empty()) {
+            // remove prefix not part of a name
+            auto _nameStart{ std::find_if(std::cbegin(_libs), std::cend(_libs), isLibNameChar) };
+            if (_nameStart == _libs.end()) {
+                break;
             }
+            auto const _prefixLen{ std::distance(_libs.begin(), _nameStart) };
+
+            auto const _nameEnd{ std::find_if(_nameStart, std::cend(_libs), [&isLibNameChar](char const _c) { return !isLibNameChar(_c); }) };
+            // advance to the end of the character sequence composing the name
+            auto const _nameLen{ std::distance(_nameStart, _nameEnd) };
+            if (_nameLen == 0) {
+                break;
+            }
+            // open library
+            std::string_view const _libName{ _libs.substr(_prefixLen, _nameLen) };
+            Open1Lib(_L, _libName);
+            // advance to next item (can't do this earlier as it invalidates iterators)
+            _libs.remove_prefix(_prefixLen + _nameLen);
         }
         lua_gc(_L, LUA_GCRESTART, 0);
 
