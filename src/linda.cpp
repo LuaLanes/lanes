@@ -180,8 +180,8 @@ std::string_view Linda::getName() const
         return _name;
     }
     if (std::holds_alternative<EmbeddedName>(nameVariant)) {
-        char const* const _name{ std::get<EmbeddedName>(nameVariant).data() };
-        return std::string_view{ _name };
+        EmbeddedName const& _name = std::get<EmbeddedName>(nameVariant);
+        return std::string_view{ _name.data() };
     }
     return std::string_view{};
 }

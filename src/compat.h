@@ -184,9 +184,9 @@ concept RequiresOldLuaGetfield = requires(LUA_GETFIELD f_)
 };
 
 template <RequiresOldLuaGetfield LUA_GETFIELD>
-static inline int WrapLuaGetField(LUA_GETFIELD f_, lua_State* const L_, int const idx_, char const* const name_)
+static inline int WrapLuaGetField(LUA_GETFIELD f_, lua_State* const L_, int const idx_, std::string_view const& name_)
 {
-    f_(L_, idx_, name_);
+    f_(L_, idx_, name_.data());
     return lua_type(L_, -1);
 }
 
@@ -201,16 +201,16 @@ concept RequiresNewLuaGetfield = requires(LUA_GETFIELD f_)
 };
 
 template <RequiresNewLuaGetfield LUA_GETFIELD>
-static inline int WrapLuaGetField(LUA_GETFIELD f_, lua_State* const L_, int const idx_, char const* const name_)
+static inline int WrapLuaGetField(LUA_GETFIELD f_, lua_State* const L_, int const idx_, std::string_view const& name_)
 {
-    return f_(L_, idx_, name_);
+    return f_(L_, idx_, name_.data());
 }
 
 // -------------------------------------------------------------------------------------------------
 
 static inline LuaType luaG_getfield(lua_State* const L_, int const idx_, std::string_view const& name_)
 {
-    return static_cast<LuaType>(WrapLuaGetField(lua_getfield, L_, idx_, name_.data()));
+    return static_cast<LuaType>(WrapLuaGetField(lua_getfield, L_, idx_, name_));
 }
 
 // #################################################################################################
