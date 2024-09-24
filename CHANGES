@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 3: BGe 24-Sep-24
+    * Modernized lanes.gen() library list processing code.
+
 CHANGE 2: BGe 04-Jul-24
     * Internal changes
         - Lanes is implemented in C++20: thread, condition_variable, mutex, string_view, variant, lambdas, templates, and more!
