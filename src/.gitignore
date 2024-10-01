@@ -1,2 +1,4 @@
 /lanes
 *.o
+*.gch
+*.map
