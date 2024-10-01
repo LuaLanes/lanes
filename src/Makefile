@@ -7,6 +7,8 @@
 
 MODULE=lanes
 
+CC= g++ -std=c++20
+
 SRC=_pch.cpp cancel.cpp compat.cpp deep.cpp intercopycontext.cpp keeper.cpp lane.cpp lanes.cpp linda.cpp lindafactory.cpp nameof.cpp state.cpp threading.cpp tools.cpp tracker.cpp universe.cpp
 
 OBJ=$(SRC:.cpp=.o)
@@ -15,7 +17,7 @@ OBJ=$(SRC:.cpp=.o)
 #
 LIBFLAG=-shared
 
-OPT_FLAGS=-O2 -std=c++20
+OPT_FLAGS=-O2
     # -O0 -g
 
 _SO=so
@@ -32,10 +34,14 @@ ifeq "$(LUAROCKS)" ""
     # - %MSCVR80% must be the full pathname of 'msvcr80.dll'
     #
     ifeq "$(LUA_DEV)" ""
-      $(error LUA_DEV not defined - try i.e. 'make LUA_DEV=/c/Program\ Files/Lua/5.1')
+      $(warning LUA_DEV not defined - try i.e. 'make LUA_DEV=/c/Program\ Files/Lua/5.1')
+      # this assumes Lua was built and installed from source and everything is located in default folders (/usr/local/include and /usr/local/bin)
+      LUA_FLAGS:=-I "/usr/local/include"
+      LUA_LIBS:=$(word 1,$(shell which lua54.$(_SO)) $(shell which lua53.$(_SO)) $(shell which lua52.$(_SO)) $(shell which lua51$(_SO)))
+    else
+      LUA_FLAGS:=-I "$(LUA_DEV)/include"
+      LUA_LIBS:="$(LUA_DEV)/lua5.1.dll" -lgcc
     endif
-    LUA_FLAGS:=-I "$(LUA_DEV)/include"
-    LUA_LIBS:="$(LUA_DEV)/lua5.1.dll" -lgcc
     LIBFLAG=-shared -Wl,-Map,lanes.map
   else
     # Autodetect LUA_FLAGS and/or LUA_LIBS
@@ -119,7 +125,11 @@ MODULE_DIR=$(MODULE)
 #---
 all: $(MODULE)/core.$(_SO)
 
-%.o: %.cpp *.h Makefile
+_pch.h.gch: _pch.h
+	$(CC) $(CFLAGS) -x c++-header _pch.h -o _pch.h.gch
+
+%.o: %.cpp _pch.h.gch *.h Makefile
+	$(CC) $(CFLAGS) -c $<
 
 # Note: Don't put $(LUA_LIBS) ahead of $^; MSYS will not like that (I think)
 #

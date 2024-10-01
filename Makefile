@@ -33,7 +33,7 @@ endif
 
 # Autodetect LUA
 #
-LUA=$(word 1,$(shell which lua5.1$(_LUAEXT)) $(shell which lua51$(_LUAEXT)) lua$(_LUAEXT) luajit$(_LUAEXT))
+LUA=$(word 1,$(shell which lua5.1$(_LUAEXT)) $(shell which lua51$(_LUAEXT)) $(shell which lua$(_LUAEXT)) $(shell which luajit$(_LUAEXT)))
 
 _TARGET_SO=$(_TARGET_DIR)/core.$(_SO)
 
