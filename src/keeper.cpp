@@ -721,7 +721,7 @@ void Keeper::operator delete[](void* p_, Universe* U_)
 int Keeper::PushLindaStorage(Linda& linda_, DestState const L_)
 {
     Keeper* const _keeper{ linda_.whichKeeper() };
-    KeeperState const _K{ _keeper ? _keeper->K : nullptr };
+    KeeperState const _K{ _keeper ? _keeper->K : KeeperState{ nullptr } };
     if (_K == nullptr) {
         return 0;
     }

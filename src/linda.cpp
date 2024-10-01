@@ -48,7 +48,8 @@ namespace {
     {
         STACK_CHECK_START_REL(L_, 0);
         for (int const _i : std::ranges::iota_view{ start_, end_ + 1 }) {
-            switch (LuaType const _t{ luaG_type(L_, _i) }) {
+            LuaType const _t{ luaG_type(L_, _i) };
+            switch (_t) {
             case LuaType::BOOLEAN:
             case LuaType::NUMBER:
             case LuaType::STRING:
@@ -81,6 +82,19 @@ namespace {
 
     // #############################################################################################
 
+    template <bool OPT>
+    [[nodiscard]] static inline Linda* ToLinda(lua_State* const L_, int const idx_)
+    {
+        Linda* const _linda{ static_cast<Linda*>(LindaFactory::Instance.toDeep(L_, idx_)) };
+        if constexpr (!OPT) {
+            luaL_argcheck(L_, _linda != nullptr, idx_, "expecting a linda object"); // doesn't return if linda is nullptr
+            LUA_ASSERT(L_, _linda->U == Universe::Get(L_));
+        }
+        return _linda;
+    }
+
+    // #############################################################################################
+
     /*
      * string = linda:__tostring( linda_ud)
      *
@@ -106,19 +120,6 @@ namespace {
             return 1;
         }
         return 0;
-    }
-
-    // #############################################################################################
-
-    template <bool OPT>
-    [[nodiscard]] static inline Linda* ToLinda(lua_State* const L_, int const idx_)
-    {
-        Linda* const _linda{ static_cast<Linda*>(LindaFactory::Instance.toDeep(L_, idx_)) };
-        if constexpr (!OPT) {
-            luaL_argcheck(L_, _linda != nullptr, idx_, "expecting a linda object"); // doesn't return if linda is nullptr
-            LUA_ASSERT(L_, _linda->U == Universe::Get(L_));
-        }
-        return _linda;
     }
 
     // #############################################################################################
@@ -195,7 +196,7 @@ int Linda::ProtectedCall(lua_State* const L_, lua_CFunction const f_)
 
     // acquire the keeper
     Keeper* const _keeper{ _linda->acquireKeeper() };
-    KeeperState const _K{ _keeper ? _keeper->K : nullptr };
+    KeeperState const _K{ _keeper ? _keeper->K : KeeperState{ nullptr } };
     if (_K == nullptr)
         return 0;
 
@@ -574,7 +575,7 @@ LUAG_FUNC(linda_receive)
 
             Lane* const _lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
             Keeper* const _keeper{ _linda->whichKeeper() };
-            KeeperState const _K{ _keeper ? _keeper->K : nullptr };
+            KeeperState const _K{ _keeper ? _keeper->K : KeeperState{ nullptr } };
             if (_K == nullptr)
                 return 0;
 
@@ -713,7 +714,7 @@ LUAG_FUNC(linda_send)
             {
                 Lane* const _lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
                 Keeper* const _keeper{ _linda->whichKeeper() };
-                KeeperState const _K{ _keeper ? _keeper->K : nullptr };
+                KeeperState const _K{ _keeper ? _keeper->K : KeeperState{ nullptr } };
                 if (_K == nullptr)
                     return 0;
 

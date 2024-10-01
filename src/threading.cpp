@@ -134,7 +134,9 @@ void THREAD_SET_PRIORITY(int prio_, [[maybe_unused]] bool sudo_)
 void THREAD_SET_PRIORITY(std::thread& thread_, int prio_, [[maybe_unused]] bool sudo_)
 {
     // prio range [-3,+3] was checked by the caller
-    if (!SetThreadPriority(thread_.native_handle(), gs_prio_remap[prio_ + 3])) {
+    // for some reason when building for mingw, native_handle() is an unsigned long long, but HANDLE is a void*
+    // -> need a strong cast to make g++ happy
+    if (!SetThreadPriority((HANDLE)thread_.native_handle(), gs_prio_remap[prio_ + 3])) {
         FAIL("THREAD_SET_PRIORITY", GetLastError());
     }
 }
@@ -194,7 +196,7 @@ void THREAD_SETNAME(std::string_view const& name_)
 #include <errno.h>
 #include <sched.h>
 
-#if (defined(__MINGW32__) || defined(__MINGW64__)) && defined pthread_attr_setschedpolicy
+#if (defined PLATFORM_MINGW) && defined pthread_attr_setschedpolicy
 #if pthread_attr_setschedpolicy(A, S) == ENOTSUP
 // from the mingw-w64 team:
 // Well, we support pthread_setschedparam by which you can specify
@@ -327,10 +329,15 @@ static int const gs_prio_remap[] = {
 #define _PRIO_0 15
 #define _PRIO_LO 1
 
-#elif defined(PLATFORM_CYGWIN)
+#elif defined(PLATFORM_CYGWIN) || defined(PLATFORM_MINGW)
 //
 // TBD: Find right values for Cygwin
 //
+#define _PRIO_MODE SCHED_OTHER
+#define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
+#define _PRIO_HI 31
+#define _PRIO_0 15
+#define _PRIO_LO 1
 #else
 #error "Unknown OS: not implemented!"
 #endif

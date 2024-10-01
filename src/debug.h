@@ -113,8 +113,8 @@ class StackChecker
 
 #else // HAVE_LUA_ASSERT()
 
-#define LUA_ASSERT(L_, c) nullptr // nothing
-#define LUA_ASSERT_CODE(code_) nullptr
+#define LUA_ASSERT(L_, c) ((void) 0) // nothing
+#define LUA_ASSERT_CODE(code_) ((void) 0)
 
 #define STACK_CHECK_START_REL(L_, offset_)
 #define STACK_CHECK_START_ABS(L_, offset_)
