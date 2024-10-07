@@ -2,6 +2,7 @@
 
 #include "lanesconf.h"
 #include "luaerrors.h"
+#include "unique.hpp"
 
 // #################################################################################################
 
@@ -18,7 +19,7 @@ inline SourceLocation Where(std::source_location const& where_ = std::source_loc
     return std::make_tuple(_fileName, where_.line(), _func);
 }
 
-inline void LUA_ASSERT_IMPL(lua_State* const L_, bool cond_, std::string_view const& txt_, SourceLocation const& where_ = Where())
+inline void LUA_ASSERT_IMPL(lua_State* const L_, bool const cond_, std::string_view const& txt_, SourceLocation const& where_ = Where())
 {
     if (!cond_) {
         raise_luaL_error(L_, "%s:%d: LUA_ASSERT '%s' IN %s", std::get<0>(where_).data(), std::get<1>(where_), txt_.data(), std::get<2>(where_).data());
@@ -35,19 +36,8 @@ class StackChecker
     int oldtop;
 
     public:
-    struct Relative
-    {
-        int const offset;
-
-        operator int() const { return offset; }
-    };
-
-    struct Absolute
-    {
-        int const offset;
-
-        operator int() const { return offset; }
-    };
+    using Relative = Unique<int>;
+    using Absolute = Unique<int>;
 
     StackChecker(lua_State* const L_, Relative const offset_, SourceLocation const& where_ = Where())
     : L{ L_ }
@@ -77,7 +67,7 @@ class StackChecker
     }
 
     // verify if the distance between the current top and the initial one is what we expect
-    void check(int expected_, SourceLocation const& where_ = Where())
+    void check(int const expected_, SourceLocation const& where_ = Where())
     {
         if (expected_ != LUA_MULTRET) {
             int const _actual{ lua_gettop(L) - oldtop };

@@ -44,10 +44,10 @@ namespace {
     // #############################################################################################
 
 
-    static void CheckKeyTypes(lua_State* const L_, int const start_, int const end_)
+    static void CheckKeyTypes(lua_State* const L_, StackIndex const start_, StackIndex const end_)
     {
         STACK_CHECK_START_REL(L_, 0);
-        for (int const _i : std::ranges::iota_view{ start_, end_ + 1 }) {
+        for (StackIndex const _i : std::ranges::iota_view{ start_, StackIndex{ end_ + 1 } }) {
             LuaType const _t{ luaG_type(L_, _i) };
             switch (_t) {
             case LuaType::BOOLEAN:
@@ -83,7 +83,7 @@ namespace {
     // #############################################################################################
 
     template <bool OPT>
-    [[nodiscard]] static inline Linda* ToLinda(lua_State* const L_, int const idx_)
+    [[nodiscard]] static inline Linda* ToLinda(lua_State* const L_, StackIndex const idx_)
     {
         Linda* const _linda{ static_cast<Linda*>(LindaFactory::Instance.toDeep(L_, idx_)) };
         if constexpr (!OPT) {
@@ -104,7 +104,7 @@ namespace {
      */
 
     template <bool OPT>
-    [[nodiscard]] static int LindaToString(lua_State* const L_, int const idx_)
+    [[nodiscard]] static int LindaToString(lua_State* const L_, StackIndex const idx_)
     {
         Linda* const _linda{ ToLinda<OPT>(L_, idx_) };
         if (_linda != nullptr) {
@@ -192,7 +192,7 @@ std::string_view Linda::getName() const
 // used to perform all linda operations that access keepers
 int Linda::ProtectedCall(lua_State* const L_, lua_CFunction const f_)
 {
-    Linda* const _linda{ ToLinda<false>(L_, 1) };
+    Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
 
     // acquire the keeper
     Keeper* const _keeper{ _linda->acquireKeeper() };
@@ -279,7 +279,7 @@ void Linda::setName(std::string_view const& name_)
  */
 LUAG_FUNC(linda_cancel)
 {
-    Linda* const _linda{ ToLinda<false>(L_, 1) };
+    Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
     std::string_view const _who{ luaG_optstring(L_, 2, "both") };
     // make sure we got 2 arguments: the linda and the cancellation mode
     luaL_argcheck(L_, lua_gettop(L_) <= 2, 2, "wrong number of arguments");
@@ -306,7 +306,7 @@ LUAG_FUNC(linda_cancel)
 // linda:__close(err|nil)
 static LUAG_FUNC(linda_close)
 {
-    [[maybe_unused]] Linda* const _linda{ ToLinda<false>(L_, 1) };                                 // L_: linda err|nil
+    [[maybe_unused]] Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };                   // L_: linda err|nil
 
     // do we have a uservalue? it contains a callback
     switch (lua_getiuservalue(L_, 1, 1)) {
@@ -340,11 +340,11 @@ LUAG_FUNC(linda_concat)
 {                                                                                                  // L_: linda1? linda2?
     bool _atLeastOneLinda{ false };
     // Lua semantics enforce that one of the 2 arguments is a Linda, but not necessarily both.
-    if (LindaToString<true>(L_, 1)) {
+    if (LindaToString<true>(L_, StackIndex{ 1 })) {
         _atLeastOneLinda = true;
         lua_replace(L_, 1);
     }
-    if (LindaToString<true>(L_, 2)) {
+    if (LindaToString<true>(L_, StackIndex{ 2 })) {
         _atLeastOneLinda = true;
         lua_replace(L_, 2);
     }
@@ -366,9 +366,9 @@ LUAG_FUNC(linda_count)
 {
     static constexpr lua_CFunction _count{
         +[](lua_State* const L_) {
-            Linda* const _linda{ ToLinda<false>(L_, 1) };
+            Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
             // make sure the keys are of a valid type
-            CheckKeyTypes(L_, 2, lua_gettop(L_));
+            CheckKeyTypes(L_, StackIndex{ 2 }, StackIndex{ lua_gettop(L_) });
 
             Keeper* const _keeper{ _linda->whichKeeper() };
             KeeperCallResult const _pushed{ keeper_call(_keeper->K, KEEPER_API(count), L_, _linda, 2) };
@@ -392,7 +392,7 @@ LUAG_FUNC(linda_count)
  */
 LUAG_FUNC(linda_deep)
 {
-    Linda* const _linda{ ToLinda<false>(L_, 1) };
+    Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
     lua_pushlightuserdata(L_, _linda->obfuscated<void*>()); // just the address
     return 1;
 }
@@ -407,7 +407,7 @@ LUAG_FUNC(linda_dump)
 {
     static constexpr lua_CFunction _dump{
         +[](lua_State* const L_) {
-            Linda* const _linda{ ToLinda<false>(L_, 1) };
+            Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
             return Keeper::PushLindaStorage(*_linda, DestState{ L_ });
         }
     };
@@ -425,12 +425,12 @@ LUAG_FUNC(linda_get)
 {
     static constexpr lua_CFunction _get{
         +[](lua_State* const L_) {
-            Linda* const _linda{ ToLinda<false>(L_, 1) };
+            Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
             lua_Integer const _count{ luaL_optinteger(L_, 3, 1) };
             luaL_argcheck(L_, _count >= 1, 3, "count should be >= 1");
             luaL_argcheck(L_, lua_gettop(L_) <= 3, 4, "too many arguments");
             // make sure the key is of a valid type (throws an error if not the case)
-            CheckKeyTypes(L_, 2, 2);
+            CheckKeyTypes(L_, StackIndex{ 2 }, StackIndex{ 2 });
 
             KeeperCallResult _pushed;
             if (_linda->cancelRequest == CancelRequest::None) {
@@ -463,7 +463,7 @@ LUAG_FUNC(linda_limit)
 {
     static constexpr lua_CFunction _limit{
         +[](lua_State* const L_) {
-            Linda* const _linda{ ToLinda<false>(L_, 1) };
+            Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
             // make sure we got 2 or 3 arguments: the linda, a key and optionally a limit
             int const _nargs{ lua_gettop(L_) };
             luaL_argcheck(L_, _nargs == 2 || _nargs == 3, 2, "wrong number of arguments");
@@ -474,7 +474,7 @@ LUAG_FUNC(linda_limit)
                 raise_luaL_argerror(L_, 3, "limit must be >= 0");
             }
             // make sure the key is of a valid type
-            CheckKeyTypes(L_, 2, 2);
+            CheckKeyTypes(L_, StackIndex{ 2 }, StackIndex{ 2 });
 
             KeeperCallResult _pushed;
             if (_linda->cancelRequest == CancelRequest::None) {
@@ -526,8 +526,8 @@ LUAG_FUNC(linda_receive)
 {
     static constexpr lua_CFunction _receive{
         +[](lua_State* const L_) {
-            Linda* const _linda{ ToLinda<false>(L_, 1) };
-            int _key_i{ 2 }; // index of first key, if timeout not there
+            Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
+            StackIndex _key_i{ 2 }; // index of first key, if timeout not there
 
             std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
             if (luaG_type(L_, 2) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
@@ -566,7 +566,7 @@ LUAG_FUNC(linda_receive)
                 }
             } else {
                 // make sure the keys are of a valid type
-                CheckKeyTypes(L_, _key_i, lua_gettop(L_));
+                CheckKeyTypes(L_, _key_i, StackIndex{ lua_gettop(L_) });
                 // receive a single value, checking multiple slots
                 _selected_keeper_receive = KEEPER_API(receive);
                 // we expect a single (value, key) pair of returned values
@@ -682,8 +682,8 @@ LUAG_FUNC(linda_send)
 {
     static constexpr lua_CFunction _send{
         +[](lua_State* const L_) {
-            Linda* const _linda{ ToLinda<false>(L_, 1) };
-            int _key_i{ 2 }; // index of first key, if timeout not there
+            Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
+            StackIndex _key_i{ 2 }; // index of first key, if timeout not there
 
             std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
             if (luaG_type(L_, 2) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
@@ -820,10 +820,10 @@ LUAG_FUNC(linda_set)
 {
     static constexpr lua_CFunction _set{
         +[](lua_State* const L_) {
-            Linda* const _linda{ ToLinda<false>(L_, 1) };
+            Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
             bool const _has_data{ lua_gettop(L_) > 2 };
             // make sure the key is of a valid type (throws an error if not the case)
-            CheckKeyTypes(L_, 2, 2);
+            CheckKeyTypes(L_, StackIndex{ 2 }, StackIndex{ 2 });
 
             KeeperCallResult _pushed;
             if (_linda->cancelRequest == CancelRequest::None) {
@@ -859,7 +859,7 @@ LUAG_FUNC(linda_set)
 
 LUAG_FUNC(linda_tostring)
 {
-    return LindaToString<false>(L_, 1);
+    return LindaToString<false>(L_, StackIndex{ 1 });
 }
 
 // #################################################################################################
@@ -871,11 +871,11 @@ LUAG_FUNC(linda_tostring)
  */
 LUAG_FUNC(linda_towatch)
 {
-    Linda* const _linda{ ToLinda<false>(L_, 1) };
+    Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
     int _pushed{ Keeper::PushLindaStorage(*_linda, DestState{ L_ }) };
     if (_pushed == 0) {
         // if the linda is empty, don't return nil
-        _pushed = LindaToString<false>(L_, 1);
+        _pushed = LindaToString<false>(L_, StackIndex{ 1 });
     }
     return _pushed;
 }
@@ -989,7 +989,7 @@ LUAG_FUNC(linda)
         }
         // depending on whether we have a handler or not, the stack is not in the same state at this point
         // just make sure we have our Linda at the top
-        LUA_ASSERT(L_, ToLinda<true>(L_, -1));
+        LUA_ASSERT(L_, ToLinda<true>(L_, StackIndex{ -1 }));
         return 1;
     } else { // no to-be-closed support
         // ensure we have name, group in that order on the stack

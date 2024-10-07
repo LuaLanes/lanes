@@ -85,7 +85,7 @@ void Universe::callOnStateCreate(lua_State* const L_, lua_State* const from_, Lo
     }
 
     STACK_CHECK_START_REL(L_, 0);
-    DEBUGSPEW_CODE(DebugSpew(U_) << "calling on_state_create()" << std::endl);
+    DEBUGSPEW_CODE(DebugSpew(this) << "calling on_state_create()" << std::endl);
     if (std::holds_alternative<lua_CFunction>(onStateCreateFunc)) {
             
         // C function: recreate a closure in the new state, bypassing the lookup scheme

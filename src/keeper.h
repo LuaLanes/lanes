@@ -9,6 +9,7 @@ class Universe;
 
 using KeeperState = Unique<lua_State*>;
 using LindaLimit = Unique<int>;
+using KeeperIndex = Unique<int>;
 
 // #################################################################################################
 
@@ -62,7 +63,7 @@ struct Keepers
 
     Keepers() = default;
     void close();
-    [[nodiscard]] Keeper* getKeeper(int idx_);
+    [[nodiscard]] Keeper* getKeeper(KeeperIndex idx_);
     [[nodiscard]] int getNbKeepers() const;
     void initialize(Universe& U_, lua_State* L_, int nbKeepers_, int gc_threshold_);
 };

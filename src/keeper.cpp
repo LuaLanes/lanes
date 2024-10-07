@@ -840,7 +840,7 @@ void Keepers::close()
 
 // #################################################################################################
 
-[[nodiscard]] Keeper* Keepers::getKeeper(int idx_)
+[[nodiscard]] Keeper* Keepers::getKeeper(KeeperIndex const idx_)
 {
     if (isClosing.test(std::memory_order_acquire)) {
         return nullptr;

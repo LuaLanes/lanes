@@ -52,7 +52,7 @@ class Linda
     std::condition_variable readHappened{};
     std::condition_variable writeHappened{};
     Universe* const U{ nullptr }; // the universe this linda belongs to
-    int const keeperIndex{ -1 }; // the keeper associated to this linda
+    KeeperIndex const keeperIndex{ -1 }; // the keeper associated to this linda
     CancelRequest cancelRequest{ CancelRequest::None };
 
     public:
