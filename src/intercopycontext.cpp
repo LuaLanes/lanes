@@ -100,7 +100,7 @@ THE SOFTWARE.
         lua_pushvalue(L1, L1_i);                                                                   // L1: ... v ... {} v
         lua_rawget(L1, -2);                                                                        // L1: ... v ... {} "f.q.n"
     }
-    std::string_view _fqn{ luaG_tostring(L1, -1) };
+    std::string_view _fqn{ luaG_tostring(L1, kIdxTop) };
     DEBUGSPEW_CODE(DebugSpew(U) << "function [C] " << _fqn << std::endl);
     // popping doesn't invalidate the pointer since this is an interned string gotten from the lookup database
     lua_pop(L1, (mode == LookupMode::FromKeeper) ? 1 : 2);                                         // L1: ... v ...
@@ -108,11 +108,12 @@ THE SOFTWARE.
     if (_fqn.empty() && !lua_istable(L1, L1_i)) { // raise an error if we try to send an unknown function (but not for tables)
         // try to discover the name of the function we want to send
         kLaneNameRegKey.pushValue(L1);                                                             // L1: ... v ... lane_name
-        std::string_view const _from{ luaG_tostring(L1, -1) };
+        std::string_view const _from{ luaG_tostring(L1, kIdxTop) };
         lua_pushcfunction(L1, LG_nameof);                                                          // L1: ... v ... lane_name LG_nameof
         lua_pushvalue(L1, L1_i);                                                                   // L1: ... v ... lane_name LG_nameof t
         lua_call(L1, 1, 2);                                                                        // L1: ... v ... lane_name "type" "name"|nil
-        std::string_view const _typewhat{ (luaG_type(L1, -2) == LuaType::STRING) ? luaG_tostring(L1, -2) : luaG_typename(L1, -2) };
+        StackIndex const _indexTypeWhat{ -2 };
+        std::string_view const _typewhat{ (luaG_type(L1, _indexTypeWhat) == LuaType::STRING) ? luaG_tostring(L1, _indexTypeWhat) : luaG_typename(L1, _indexTypeWhat) };
         // second return value can be nil if the table was not found
         // probable reason: the function was removed from the source Lua state before Lanes was required.
         std::string_view _what, _gotchaA, _gotchaB;
@@ -123,7 +124,8 @@ THE SOFTWARE.
         } else {
             _gotchaA = "";
             _gotchaB = "";
-            _what = (luaG_type(L1, -1) == LuaType::STRING) ? luaG_tostring(L1, -1) : luaG_typename(L1, -1);
+            StackIndex const _indexWhat{ kIdxTop };
+            _what = (luaG_type(L1, _indexWhat) == LuaType::STRING) ? luaG_tostring(L1, _indexWhat) : luaG_typename(L1, _indexWhat);
         }
         raise_luaL_error(L1, "%s%s '%s' not found in %s origin transfer database.%s", _typewhat.data(), _gotchaA.data(), _what.data(), _from.empty() ? "main" : _from.data(), _gotchaB.data());
     }
@@ -139,15 +141,15 @@ THE SOFTWARE.
 static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
 
 // get a unique ID for metatable at [i].
-[[nodiscard]] static lua_Integer get_mt_id(Universe* U_, lua_State* L_, int idx_)
+[[nodiscard]] static lua_Integer get_mt_id(Universe* U_, lua_State* L_, StackIndex const idx_)
 {
-    idx_ = luaG_absindex(L_, idx_);
+    StackIndex const _absidx{ luaG_absindex(L_, idx_) };
 
     STACK_GROW(L_, 3);
 
     STACK_CHECK_START_REL(L_, 0);
     std::ignore = kMtIdRegKey.getSubTable(L_, 0, 0);                                               // L_: ... _R[kMtIdRegKey]
-    lua_pushvalue(L_, idx_);                                                                       // L_: ... _R[kMtIdRegKey] {mt}
+    lua_pushvalue(L_, _absidx);                                                                    // L_: ... _R[kMtIdRegKey] {mt}
     lua_rawget(L_, -2);                                                                            // L_: ... _R[kMtIdRegKey] mtk?
 
     lua_Integer _id{ lua_tointeger(L_, -1) }; // 0 for nil
@@ -158,12 +160,12 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
         _id = U_->nextMetatableId.fetch_add(1, std::memory_order_relaxed);
 
         // Create two-way references: id_uint <-> table
-        lua_pushvalue(L_, idx_);                                                                   // L_: ... _R[kMtIdRegKey] {mt}
+        lua_pushvalue(L_, _absidx);                                                                // L_: ... _R[kMtIdRegKey] {mt}
         lua_pushinteger(L_, _id);                                                                  // L_: ... _R[kMtIdRegKey] {mt} id
         lua_rawset(L_, -3);                                                                        // L_: ... _R[kMtIdRegKey]
 
         lua_pushinteger(L_, _id);                                                                  // L_: ... _R[kMtIdRegKey] id
-        lua_pushvalue(L_, idx_);                                                                   // L_: ... _R[kMtIdRegKey] id {mt}
+        lua_pushvalue(L_, _absidx);                                                                // L_: ... _R[kMtIdRegKey] id {mt}
         lua_rawset(L_, -3);                                                                        // L_: ... _R[kMtIdRegKey]
     }
     lua_pop(L_, 1);                                                                                // L_: ...
@@ -223,7 +225,7 @@ void InterCopyContext::copyFunction() const
         }
 
         {
-            std::string_view const _bytecode{ luaG_tostring(L1, -1) };                             // L1: ... b
+            std::string_view const _bytecode{ luaG_tostring(L1, kIdxTop) };                        // L1: ... b
             LUA_ASSERT(L1, !_bytecode.empty());
             STACK_GROW(L2, 2);
             // Note: Line numbers seem to be taken precisely from the
@@ -282,7 +284,7 @@ void InterCopyContext::copyFunction() const
         STACK_CHECK(L1, 0);
 
         // Set upvalues (originally set to 'nil' by 'lua_load')
-        for (int const _func_index{ lua_gettop(L2) - _n }; _n > 0; --_n) {
+        for (StackIndex const _func_index{ lua_gettop(L2) - _n }; _n > 0; --_n) {
             // assign upvalue, popping it from the stack
             [[maybe_unused]] std::string_view const _upname{ lua_setupvalue(L2, _func_index, _n) };//                                                L2: ... {cache} ... function
             LUA_ASSERT(L1, !_upname.empty()); // not having enough slots?
@@ -325,10 +327,10 @@ void InterCopyContext::lookupNativeFunction() const
         // anything other than function or table should not happen!
         if (!lua_isfunction(L2, -1) && !lua_istable(L2, -1)) {
             kLaneNameRegKey.pushValue(L1);                                                         // L1: ... f ... lane_name
-            std::string_view const _from{ luaG_tostring(L1, -1) };
+            std::string_view const _from{ luaG_tostring(L1, kIdxTop) };
             lua_pop(L1, 1);                                                                        // L1: ... f ...
             kLaneNameRegKey.pushValue(L2);                                                         // L1: ... f ...                                  L2: {} f lane_name
-            std::string_view const _to{ luaG_tostring(L2, -1) };
+            std::string_view const _to{ luaG_tostring(L2, kIdxTop) };
             lua_pop(L2, 1);                                                                        //                                                L2: {} f
             raise_luaL_error(
                 getErrL(),
@@ -433,17 +435,17 @@ void InterCopyContext::copyCachedFunction() const
             return false;
         } else if (!lua_istable(L2, -1)) { // this can happen if someone decides to replace same already registered item (for a example a standard lib function) with a table
             kLaneNameRegKey.pushValue(L1);                                                         // L1: ... t ... lane_name
-            std::string_view const _from{ luaG_tostring(L1, -1) };
+            std::string_view const _from{ luaG_tostring(L1, kIdxTop) };
             lua_pop(L1, 1);                                                                        // L1: ... t ...
             kLaneNameRegKey.pushValue(L2);                                                         // L1: ... t ...                                  L2: {} t lane_name
-            std::string_view const _to{ luaG_tostring(L2, -1) };
+            std::string_view const _to{ luaG_tostring(L2, kIdxTop) };
             lua_pop(L2, 1);                                                                        // L1: ... t ...                                  L2: {} t
             raise_luaL_error(
                 getErrL(),
                 "%s: source table '%s' found as %s in %s destination transfer database.",
                 _from.empty() ? "main" : _from.data(),
                 _fqn.data(),
-                luaG_typename(L2, -1).data(),
+                luaG_typename(L2, kIdxTop).data(),
                 _to.empty() ? "main" : _to.data());
         }
         lua_remove(L2, -2);                                                                        // L1: ... t ...                                  L2: t
@@ -490,13 +492,13 @@ void InterCopyContext::interCopyKeyValuePair() const
             _valPath = (char*) alloca(name.size() + 32 + 3); // +3 for [] and terminating 0
             sprintf(_valPath, "%s[" LUA_NUMBER_FMT "]", name.data(), key);
         } else if (luaG_type(L1, _key_i) == LuaType::LIGHTUSERDATA) {
-            void* const key{ lua_touserdata(L1, _key_i) };
+            void* const _key{ lua_touserdata(L1, _key_i) };
             _valPath = (char*) alloca(name.size() + 16 + 5); // +5 for [U:] and terminating 0
-            sprintf(_valPath, "%s[U:%p]", name.data(), key);
+            sprintf(_valPath, "%s[U:%p]", name.data(), _key);
         } else if (luaG_type(L1, _key_i) == LuaType::BOOLEAN) {
-            int const key{ lua_toboolean(L1, _key_i) };
+            int const _key{ lua_toboolean(L1, _key_i) };
             _valPath = (char*) alloca(name.size() + 8); // +8 for [], 'false' and terminating 0
-            sprintf(_valPath, "%s[%s]", name.data(), key ? "true" : "false");
+            sprintf(_valPath, "%s[%s]", name.data(), _key ? "true" : "false");
         }
     }
 
@@ -533,7 +535,7 @@ LuaType InterCopyContext::processConversion() const
     }
     // we have a metatable                                                                         // L1: ... mt
     static constexpr std::string_view kConvertField{ "__lanesconvert" };
-    LuaType const _converterType{ luaG_getfield(L1, -1, kConvertField) };                          // L1: ... mt kConvertField
+    LuaType const _converterType{ luaG_getfield(L1, kIdxTop, kConvertField) };                     // L1: ... mt kConvertField
     switch (_converterType) {
     case LuaType::NIL:
         // no __lanesconvert, nothing to do
@@ -541,7 +543,7 @@ LuaType InterCopyContext::processConversion() const
         break;
 
     case LuaType::LIGHTUSERDATA:
-        if (kNilSentinel.equals(L1, -1)) {
+        if (kNilSentinel.equals(L1, kIdxTop)) {
             DEBUGSPEW_CODE(DebugSpew(U) << "converted " << luaG_typename(L1, _val_type) << " to nil" << std::endl);
             lua_replace(L1, L1_i);                                                                 // L1: ... mt
             lua_pop(L1, 1);                                                                        // L1: ...
@@ -553,7 +555,7 @@ LuaType InterCopyContext::processConversion() const
 
     case LuaType::STRING:
         // kConvertField == "decay" -> replace source value with it's pointer
-        if (std::string_view const _mode{ luaG_tostring(L1, -1) }; _mode == "decay") {
+        if (std::string_view const _mode{ luaG_tostring(L1, kIdxTop) }; _mode == "decay") {
             lua_pop(L1, 1);                                                                        // L1: ... mt
             lua_pushlightuserdata(L1, const_cast<void*>(lua_topointer(L1, L1_i)));                 // L1: ... mt decayed
             lua_replace(L1, L1_i);                                                                 // L1: ... mt
@@ -592,7 +594,7 @@ LuaType InterCopyContext::processConversion() const
     }
     STACK_CHECK(L1, 1);
 
-    lua_Integer const _mt_id{ get_mt_id(U, L1, -1) }; // Unique id for the metatable
+    lua_Integer const _mt_id{ get_mt_id(U, L1, kIdxTop) }; // Unique id for the metatable
 
     STACK_CHECK_START_REL(L2, 0);
     STACK_GROW(L2, 4);
@@ -693,7 +695,7 @@ LuaType InterCopyContext::processConversion() const
     }
 
     // no __lanesclone? -> not clonable
-    if (luaG_getfield(L1, -1, "__lanesclone") == LuaType::NIL) {                                   // L1: ... mt nil
+    if (luaG_getfield(L1, kIdxTop, "__lanesclone") == LuaType::NIL) {                              // L1: ... mt nil
         lua_pop(L1, 2);                                                                            // L1: ...
         STACK_CHECK(L1, 0);
         return false;
@@ -703,7 +705,7 @@ LuaType InterCopyContext::processConversion() const
 
     // we need to copy over the uservalues of the userdata as well
     {
-        int const _mt{ luaG_absindex(L1, -2) };                                                    // L1: ... mt __lanesclone
+        StackIndex const _mt{ luaG_absindex(L1, StackIndex{ -2 }) };                               // L1: ... mt __lanesclone
         size_t const userdata_size{ lua_rawlen(L1, _L1_i) };
         // extract all the uservalues, but don't transfer them yet
         int const _nuv{ luaG_getalluservalues(L1, _L1_i) };                                        // L1: ... mt __lanesclone [uv]*
@@ -738,13 +740,13 @@ LuaType InterCopyContext::processConversion() const
         // assign uservalues
         int _uvi{ _nuv };
         while (_uvi > 0) {
-            _c.L1_i = SourceIndex{ luaG_absindex(L1, -1) };
+            _c.L1_i = SourceIndex{ luaG_absindex(L1, kIdxTop) };
             if (_c.interCopyOne() != InterCopyResult::Success) {                                   //                                                L2: ... u uv
                 raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
             }
             lua_pop(L1, 1);                                                                        // L1: ... mt __lanesclone [uv]*
             // this pops the value from the stack
-            lua_setiuservalue(L2, -2, _uvi);                                                       //                                                L2: ... u
+            lua_setiuservalue(L2, StackIndex{ -2 }, _uvi);                                         //                                                L2: ... u
             --_uvi;
         }
         // when we are done, all uservalues are popped from the source stack, and we want only the single transferred value in the destination
@@ -792,11 +794,11 @@ LuaType InterCopyContext::processConversion() const
     // transfer all uservalues of the source in the destination
     {
         InterCopyContext _c{ U, L2, L1, L2_cache_i, {}, VT::NORMAL, mode, name };
-        int const _clone_i{ lua_gettop(L2) };
+        StackIndex const _clone_i{ lua_gettop(L2) };
         STACK_GROW(L2, _nuv);
         int _uvi{ _nuv };
         while (_uvi) {
-            _c.L1_i = SourceIndex{ luaG_absindex(L1, -1) };
+            _c.L1_i = SourceIndex{ luaG_absindex(L1, kIdxTop) };
             if (_c.interCopyOne() != InterCopyResult::Success) {                                   // L1: ... deep ... [uv]*                           L2: deep uv
                 raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
             }
@@ -862,7 +864,7 @@ LuaType InterCopyContext::processConversion() const
         _source = lua_touserdata(L1, -1);
         void* _clone{ nullptr };
         // get the number of bytes to allocate for the clone
-        size_t const userdata_size{ lua_rawlen(L1, -1) };
+        size_t const userdata_size{ lua_rawlen(L1, kIdxTop) };
         {
             // extract uservalues (don't transfer them yet)
             int const _nuv{ luaG_getalluservalues(L1, source_i) };                                 // L1: ... u [uv]*
@@ -880,13 +882,13 @@ LuaType InterCopyContext::processConversion() const
             InterCopyContext _c{ *this };
             int _uvi{ _nuv };
             while (_uvi > 0) {
-                _c.L1_i = SourceIndex{ luaG_absindex(L1, -1) };
+                _c.L1_i = SourceIndex{ luaG_absindex(L1, kIdxTop) };
                 if (_c.interCopyOne() != InterCopyResult::Success) {                               //                                                L2: ... mt u uv
                     raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
                 }
                 lua_pop(L1, 1);                                                                    // L1: ... u [uv]*
                 // this pops the value from the stack
-                lua_setiuservalue(L2, -2, _uvi);                                                   //                                                L2: ... mt u
+                lua_setiuservalue(L2, StackIndex{ -2 }, _uvi);                                     //                                                L2: ... mt u
                 --_uvi;
             }
             // when we are done, all uservalues are popped from the stack, we can pop the source as well
@@ -897,7 +899,7 @@ LuaType InterCopyContext::processConversion() const
         // perform the custom cloning part
         lua_insert(L2, -2);                                                                        //                                                L2: ... u mt
         // __lanesclone should always exist because we wouldn't be restoring data from a userdata_clone_sentinel closure to begin with
-        LuaType const _funcType{ luaG_getfield(L2, -1, "__lanesclone") };                          //                                                L2: ... u mt __lanesclone
+        LuaType const _funcType{ luaG_getfield(L2, kIdxTop, "__lanesclone") };                     //                                                L2: ... u mt __lanesclone
         if (_funcType != LuaType::FUNCTION) {
             raise_luaL_error(getErrL(), "INTERNAL ERROR: __lanesclone is a %s, not a function", luaG_typename(L2, _funcType).data());
         }
@@ -1191,7 +1193,7 @@ namespace {
     {
         private:
         lua_State* const L2;
-        int const top_L2;
+        StackIndex const top_L2;
         DEBUGSPEW_CODE(DebugSpewIndentScope scope);
 
         public:
@@ -1246,7 +1248,7 @@ namespace {
                 STACK_CHECK(L1, 0);
             }
             if (_result == InterCopyResult::Success) {
-                luaG_setfield(L2, -2, _entry); // set package[entry]
+                luaG_setfield(L2, StackIndex{ -2 }, _entry); // set package[entry]
             } else {
                 std::string_view const _msg{ luaG_pushstring(L1, "failed to copy package.%s", _entry.data()) };
                 // raise the error when copying from lane to lane, else just leave it on the stack to be raised later
@@ -1273,7 +1275,7 @@ namespace {
     DEBUGSPEW_CODE(DebugSpew(U) << "InterCopyContext::interCopy()" << std::endl);
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
 
-    int const _top_L1{ lua_gettop(L1) };
+    StackIndex const _top_L1{ lua_gettop(L1) };
     int const _available{ (L1_i != 0) ? (_top_L1 - L1_i + 1) : _top_L1 };
     if (n_ > _available) {
         // requesting to copy more than is available?
@@ -1289,17 +1291,17 @@ namespace {
      * function entries, avoiding the same entries to be passed on as multiple
      * copies. ESSENTIAL i.e. for handling upvalue tables in the right manner!
      */
-    int const _top_L2{ lua_gettop(L2) };                                                           //                                                L2: ...
+    StackIndex const _top_L2{ lua_gettop(L2) };                                                    //                                                L2: ...
     lua_newtable(L2);                                                                              //                                                L2: ... cache
 
     InterCopyContext _c{ U, L2, L1, CacheIndex{ _top_L2 + 1 }, {}, VT::NORMAL, mode, "?" };
     InterCopyResult _copyok{ InterCopyResult::Success };
     STACK_CHECK_START_REL(L1, 0);
     // if L1_i is specified, start here, else take the _n items off the top of the stack
-    for (int _i{ L1_i != 0 ? L1_i : (_top_L1 - n_ + 1) }, _j{ 1 }; _j <= n_; ++_i, ++_j) {
+    for (StackIndex _i{ L1_i != 0 ? L1_i : (_top_L1 - n_ + 1) }, _j{ 1 }; _j <= n_; ++_i, ++_j) {
         char _tmpBuf[16];
         if (U->verboseErrors) {
-            sprintf(_tmpBuf, "arg_%d", _j);
+            sprintf(_tmpBuf, "arg_%d", _j.operator int());
             _c.name = _tmpBuf;
         }
         _c.L1_i = SourceIndex{ _i };

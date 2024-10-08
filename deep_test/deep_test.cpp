@@ -47,7 +47,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 
 [[nodiscard]] static int deep_gc(lua_State* L)
 {
-    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, 1)) };
+    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, StackIndex{ 1 })) };
     luaL_argcheck(L, 1, !_self->inUse.load(), "being collected while in use!");
     return 0;
 }
@@ -56,7 +56,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 
 [[nodiscard]] static int deep_tostring(lua_State* L)
 {
-    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, 1)) };
+    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, StackIndex{ 1 })) };
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
     luaG_pushstring(L, "%p:deep(%d)", _self, _self->val);
     _self->inUse.fetch_sub(1, std::memory_order_seq_cst);
@@ -68,10 +68,10 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 // won't actually do anything as deep userdata don't have uservalue slots
 [[nodiscard]] static int deep_getuv(lua_State* L)
 {
-    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, 1)) };
+    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, StackIndex{ 1 })) };
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
     int _uv = (int) luaL_optinteger(L, 2, 1);
-    lua_getiuservalue(L, 1, _uv);
+    lua_getiuservalue(L, StackIndex{ 1 }, _uv);
     _self->inUse.fetch_sub(1, std::memory_order_seq_cst);
     return 1;
 }
@@ -80,7 +80,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 
 [[nodiscard]] static int deep_invoke(lua_State* L)
 {
-    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, 1)) };
+    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, StackIndex{ 1 })) };
     luaL_argcheck(L, 2, lua_gettop(L) >= 2, "need something to call");
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
     lua_call(L, lua_gettop(L) - 2, LUA_MULTRET);
@@ -92,7 +92,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 
 [[nodiscard]] static int deep_set(lua_State* const L_)
 {
-    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L_, 1)) };
+    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L_, StackIndex{ 1 })) };
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
     lua_Integer _i = lua_tointeger(L_, 2);
     _self->val = _i;
@@ -104,11 +104,11 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 
 [[nodiscard]] static int deep_setuv(lua_State* L)
 {
-    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, 1)) };
+    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, StackIndex{ 1 })) };
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
     int _uv = (int) luaL_optinteger(L, 2, 1);
     lua_settop(L, 3);
-    lua_pushboolean(L, lua_setiuservalue(L, 1, _uv) != 0);
+    lua_pushboolean(L, lua_setiuservalue(L, StackIndex{ 1 }, _uv) != 0);
     _self->inUse.fetch_sub(1, std::memory_order_seq_cst);
     return 1;
 }
@@ -160,7 +160,7 @@ struct MyClonableUserdata
     MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
     int uv = (int) luaL_optinteger(L, 2, 1);
     lua_settop(L, 3);
-    lua_pushboolean(L, lua_setiuservalue(L, 1, uv) != 0);
+    lua_pushboolean(L, lua_setiuservalue(L, StackIndex{ 1 }, uv) != 0);
     return 1;
 }
 
@@ -170,7 +170,7 @@ struct MyClonableUserdata
 {
     MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
     int uv = (int) luaL_optinteger(L, 2, 1);
-    lua_getiuservalue(L, 1, uv);
+    lua_getiuservalue(L, StackIndex{ 1 }, uv);
     return 1;
 }
 

@@ -66,11 +66,11 @@ class DeepFactory
     public:
     // NVI: public interface
     static void DeleteDeepObject(lua_State* L_, DeepPrelude* o_);
-    [[nodiscard]] static bool IsDeepUserdata(lua_State* const L_, int const idx_);
-    [[nodiscard]] static DeepFactory* LookupFactory(lua_State* L_, int index_, LookupMode mode_);
+    [[nodiscard]] static bool IsDeepUserdata(lua_State* const L_, StackIndex const idx_);
+    [[nodiscard]] static DeepFactory* LookupFactory(lua_State* L_, StackIndex index_, LookupMode mode_);
     static void PushDeepProxy(DestState L_, DeepPrelude* o_, int nuv_, LookupMode mode_, lua_State* errL_);
     void pushDeepUserdata(DestState L_, int nuv_) const;
-    [[nodiscard]] DeepPrelude* toDeep(lua_State* L_, int index_) const;
+    [[nodiscard]] DeepPrelude* toDeep(lua_State* L_, StackIndex index_) const;
 };
 
 // #################################################################################################

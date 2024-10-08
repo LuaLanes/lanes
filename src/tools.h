@@ -18,7 +18,7 @@ enum class FuncSubType
     FastJIT
 };
 
-[[nodiscard]] FuncSubType luaG_getfuncsubtype(lua_State* L_, int i_);
+[[nodiscard]] FuncSubType luaG_getfuncsubtype(lua_State* L_, StackIndex i_);
 
 // #################################################################################################
 
@@ -31,7 +31,7 @@ static constexpr RegistryUniqueKey kLookupRegKey{ 0xBF1FC5CF3C6DD47Bull }; // re
 // #################################################################################################
 
 namespace tools {
-    void PopulateFuncLookupTable(lua_State* const L_, int const i_, std::string_view const& name_);
-    [[nodiscard]] std::string_view PushFQN(lua_State* L_, int t_, int last_);
+    void PopulateFuncLookupTable(lua_State* L_, StackIndex i_, std::string_view const& name_);
+    [[nodiscard]] std::string_view PushFQN(lua_State* L_, StackIndex t_, int last_);
     void SerializeRequire(lua_State* L_);
 } // namespace tools

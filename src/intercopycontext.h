@@ -23,8 +23,8 @@ enum class InterCopyResult
 
 // #################################################################################################
 
-using CacheIndex = Unique<int>;
-using SourceIndex = Unique<int>;
+DECLARE_UNIQUE_TYPE(CacheIndex, StackIndex);
+DECLARE_UNIQUE_TYPE(SourceIndex, StackIndex);
 class InterCopyContext
 {
     public:

@@ -27,7 +27,7 @@ class UniqueKey
     inline constexpr std::weak_ordering operator<=>(UniqueKey const& rhs_) const { return storage <=> rhs_.storage; }
     inline constexpr auto operator==(UniqueKey const& rhs_) const { return storage == rhs_.storage; }
     // ---------------------------------------------------------------------------------------------
-    bool equals(lua_State* const L_, int const i_) const
+    bool equals(lua_State* const L_, StackIndex const i_) const
     {
         return lua_touserdata(L_, i_) == std::bit_cast<void*>(storage);
     }
@@ -50,8 +50,8 @@ class RegistryUniqueKey
     void pushValue(lua_State* const L_) const
     {
         STACK_CHECK_START_REL(L_, 0);
-        pushKey(L_);
-        lua_rawget(L_, LUA_REGISTRYINDEX);
+        pushKey(L_);                                                                               // L_: ... key
+        lua_rawget(L_, kIdxRegistry);                                                              // L_: ... value
         STACK_CHECK(L_, 1);
     }
     // ---------------------------------------------------------------------------------------------
@@ -59,9 +59,9 @@ class RegistryUniqueKey
     void setValue(lua_State* const L_, OP operation_) const
     {
         // Note we can't check stack consistency because operation is not always a push (could be insert, replace, whatever)
-        pushKey(L_);                                                                               // ... key
-        operation_(L_);                                                                            // ... key value
-        lua_rawset(L_, LUA_REGISTRYINDEX);                                                         // ...
+        pushKey(L_);                                                                               // L_: ... key
+        operation_(L_);                                                                            // L_: ... key value
+        lua_rawset(L_, kIdxRegistry);                                                              // L_: ...
     }
     // ---------------------------------------------------------------------------------------------
     template <typename T>
@@ -69,9 +69,9 @@ class RegistryUniqueKey
     {
         STACK_GROW(L_, 1);
         STACK_CHECK_START_REL(L_, 0);
-        pushValue(L_);
-        T* const value{ luaG_tolightuserdata<T>(L_, -1) }; // lightuserdata/nil
-        lua_pop(L_, 1);
+        pushValue(L_);                                                                             // L_: ... {}|nil
+        T* const value{ luaG_tolightuserdata<T>(L_, kIdxTop) };
+        lua_pop(L_, 1);                                                                            // L_: ...
         STACK_CHECK(L_, 0);
         return value;
     }
@@ -80,9 +80,9 @@ class RegistryUniqueKey
     {
         STACK_GROW(L_, 1);
         STACK_CHECK_START_REL(L_, 0);
-        pushValue(L_);
-        bool const value{ lua_toboolean(L_, -1) ? true : false }; // bool/nil
-        lua_pop(L_, 1);
+        pushValue(L_);                                                                             // L_: ... bool|nil
+        bool const value{ lua_toboolean(L_, -1) ? true : false };
+        lua_pop(L_, 1);                                                                            // L_: ...
         STACK_CHECK(L_, 0);
         return value;
     }

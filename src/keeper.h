@@ -7,9 +7,9 @@ class Linda;
 enum class LookupMode;
 class Universe;
 
-using KeeperState = Unique<lua_State*>;
-using LindaLimit = Unique<int>;
-using KeeperIndex = Unique<int>;
+DECLARE_UNIQUE_TYPE(KeeperState,lua_State*);
+DECLARE_UNIQUE_TYPE(LindaLimit, int);
+DECLARE_UNIQUE_TYPE(KeeperIndex, int);
 
 // #################################################################################################
 
@@ -86,5 +86,5 @@ using keeper_api_t = lua_CFunction;
 [[nodiscard]] int keepercall_send(lua_State* L_);
 [[nodiscard]] int keepercall_set(lua_State* L_);
 
-using KeeperCallResult = Unique<std::optional<int>>;
-[[nodiscard]] KeeperCallResult keeper_call(KeeperState K_, keeper_api_t func_, lua_State* L_, Linda* linda_, int starting_index_);
+DECLARE_UNIQUE_TYPE(KeeperCallResult, std::optional<int>);
+[[nodiscard]] KeeperCallResult keeper_call(KeeperState K_, keeper_api_t func_, lua_State* L_, Linda* linda_, StackIndex starting_index_);

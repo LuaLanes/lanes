@@ -1,5 +1,7 @@
 #pragma once
 
+#include "unique.hpp"
+
 // #################################################################################################
 
 // use this instead of Lua's lua_error
@@ -23,7 +25,7 @@ template <typename... ARGS>
 
 // use this instead of Lua's luaL_argerror
 template <typename... ARGS>
-[[noreturn]] static inline void raise_luaL_argerror(lua_State* const L_, int const arg_, std::string_view const& extramsg_)
+[[noreturn]] static inline void raise_luaL_argerror(lua_State* const L_, StackIndex const arg_, std::string_view const& extramsg_)
 {
     std::ignore = luaL_argerror(L_, arg_, extramsg_.data()); // doesn't return
     assert(false); // we should never get here, but i'm paranoid
@@ -34,7 +36,7 @@ template <typename... ARGS>
 #if LUA_VERSION_NUM >= 504
 // use this instead of Lua's luaL_typeerror
 template <typename... ARGS>
-[[noreturn]] static inline void raise_luaL_typeerror(lua_State* const L_, int const arg_, std::string_view const& tname_)
+[[noreturn]] static inline void raise_luaL_typeerror(lua_State* const L_, StackIndex const arg_, std::string_view const& tname_)
 {
     std::ignore = luaL_typeerror(L_, arg_, tname_.data()); // doesn't return
     assert(false); // we should never get here, but i'm paranoid

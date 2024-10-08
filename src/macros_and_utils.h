@@ -25,9 +25,8 @@ using lua_Duration = std::chrono::template duration<lua_Number>;
 
 // #################################################################################################
 
-using SourceState = Unique<lua_State*>;
-using DestState = Unique<lua_State*>;
-using StackIndex = Unique<int>;
+DECLARE_UNIQUE_TYPE(SourceState, lua_State*);
+DECLARE_UNIQUE_TYPE(DestState, lua_State*);
 
 // #################################################################################################
 

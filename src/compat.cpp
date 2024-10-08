@@ -5,10 +5,10 @@
 
 // #################################################################################################
 
-int luaG_getalluservalues(lua_State* const L_, int const idx_)
+int luaG_getalluservalues(lua_State* const L_, StackIndex const idx_)
 {
     STACK_CHECK_START_REL(L_, 0);
-    int const _idx{ luaG_absindex(L_, idx_) };
+    StackIndex const _idx{ luaG_absindex(L_, idx_) };
     int _nuv{ 0 };
     do {
         // we don't know how many uservalues we are going to extract, there might be a lot...
@@ -27,12 +27,12 @@ int luaG_getalluservalues(lua_State* const L_, int const idx_)
 LuaType luaG_getmodule(lua_State* const L_, std::string_view const& name_)
 {
     STACK_CHECK_START_REL(L_, 0);
-    LuaType _type{ luaG_getfield(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE) };                       // L_: _R._LOADED|nil
+    LuaType _type{ luaG_getfield(L_, kIdxRegistry, LUA_LOADED_TABLE) };                            // L_: _R._LOADED|nil
     if (_type != LuaType::TABLE) {                                                                 // L_: _R._LOADED|nil
         STACK_CHECK(L_, 1);
         return _type;
     }
-    _type = luaG_getfield(L_, -1, name_);                                                          // L_: _R._LOADED {module}|nil
+    _type = luaG_getfield(L_, kIdxTop, name_);                                                     // L_: _R._LOADED {module}|nil
     lua_remove(L_, -2);                                                                            // L_: {module}|nil
     STACK_CHECK(L_, 1);
     return _type;
@@ -45,17 +45,17 @@ LuaType luaG_getmodule(lua_State* const L_, std::string_view const& name_)
 // #################################################################################################
 
 // Copied from Lua 5.2 loadlib.c
-int luaL_getsubtable(lua_State* L_, int idx_, const char* fname_)
+int luaL_getsubtable(lua_State* const L_, StackIndex const idx_, char const* fname_)
 {
     lua_getfield(L_, idx_, fname_);
     if (lua_istable(L_, -1))
         return 1; /* table already there */
     else {
         lua_pop(L_, 1); /* remove previous result */
-        idx_ = luaG_absindex(L_, idx_);
+        StackIndex const _absidx{ luaG_absindex(L_, idx_) };
         lua_newtable(L_);
         lua_pushvalue(L_, -1); /* copy to be left at top */
-        lua_setfield(L_, idx_, fname_); /* assign new table to field */
+        lua_setfield(L_, _absidx, fname_); /* assign new table to field */
         return 0; /* false, because did not find table there */
     }
 }
@@ -66,7 +66,7 @@ void luaL_requiref(lua_State* L_, const char* modname_, lua_CFunction openf_, in
     lua_pushcfunction(L_, openf_);
     lua_pushstring(L_, modname_); /* argument to open function */
     lua_call(L_, 1, 1); /* open module */
-    luaL_getsubtable(L_, LUA_REGISTRYINDEX, LUA_LOADED_TABLE);
+    luaL_getsubtable(L_, kIdxRegistry, LUA_LOADED_TABLE);
     lua_pushvalue(L_, -2); /* make copy of module (call result) */
     lua_setfield(L_, -2, modname_); /* _LOADED[modname] = module */
     lua_pop(L_, 1); /* remove _LOADED table */
@@ -92,7 +92,7 @@ void* lua_newuserdatauv(lua_State* L_, size_t sz_, [[maybe_unused]] int nuvalue_
 // #################################################################################################
 
 // push on stack uservalue #n of full userdata at idx
-int lua_getiuservalue(lua_State* const L_, int const idx_, int const n_)
+int lua_getiuservalue(lua_State* const L_, StackIndex const idx_, int const n_)
 {
     STACK_CHECK_START_REL(L_, 0);
     // full userdata can have only 1 uservalue before 5.4
@@ -129,7 +129,7 @@ int lua_getiuservalue(lua_State* const L_, int const idx_, int const n_)
 
 // Pops a value from the stack and sets it as the new n-th user value associated to the full userdata at the given index.
 // Returns 0 if the userdata does not have that value.
-int lua_setiuservalue(lua_State* L_, int idx_, int n_)
+int lua_setiuservalue(lua_State* const L_, StackIndex const idx_, int const n_)
 {
     if (n_ > 1
 #if LUA_VERSION_NUM == 501

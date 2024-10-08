@@ -103,7 +103,7 @@ CancelOp WhichCancelOp(std::string_view const& opString_)
 
 // #################################################################################################
 
-[[nodiscard]] static CancelOp WhichCancelOp(lua_State* const L_, int const idx_)
+[[nodiscard]] static CancelOp WhichCancelOp(lua_State* const L_, StackIndex const idx_)
 {
     if (luaG_type(L_, idx_) == LuaType::STRING) {
         std::string_view const _str{ luaG_tostring(L_, idx_) };
@@ -141,8 +141,8 @@ LUAG_FUNC(cancel_test)
 // bool[,reason] = lane_h:cancel( [mode, hookcount] [, timeout] [, wake_lane])
 LUAG_FUNC(thread_cancel)
 {
-    Lane* const _lane{ ToLane(L_, 1) };
-    CancelOp const _op{ WhichCancelOp(L_, 2) }; // this removes the op string from the stack
+    Lane* const _lane{ ToLane(L_, StackIndex{ 1 }) };
+    CancelOp const _op{ WhichCancelOp(L_, StackIndex{ 2 }) }; // this removes the op string from the stack
 
     int _hook_count{ 0 };
     if (static_cast<int>(_op) > static_cast<int>(CancelOp::Soft)) { // hook is requested
@@ -154,12 +154,12 @@ LUAG_FUNC(thread_cancel)
     }
 
     std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
-    if (luaG_type(L_, 2) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
+    if (luaG_type(L_, StackIndex{ 2 }) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
         lua_Duration const duration{ lua_tonumber(L_, 2) };
         if (duration.count() >= 0.0) {
             _until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration);
         } else {
-            raise_luaL_argerror(L_, 2, "duration cannot be < 0");
+            raise_luaL_argerror(L_, StackIndex{ 2 }, "duration cannot be < 0");
         }
         lua_remove(L_, 2); // argument is processed, remove it
     } else if (lua_isnil(L_, 2)) { // alternate explicit "infinite timeout" by passing nil before the key

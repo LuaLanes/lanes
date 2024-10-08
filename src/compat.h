@@ -32,6 +32,10 @@
 
 // #################################################################################################
 
+static constexpr StackIndex kIdxRegistry{ LUA_REGISTRYINDEX };
+
+// #################################################################################################
+
 // a strong-typed wrapper over lua types to see them easier in a debugger
 enum class LuaType
 {
@@ -53,13 +57,13 @@ enum class LuaType
 // add some Lua 5.3-style API when building for Lua 5.1
 #if LUA_VERSION_NUM == 501
 
-inline size_t lua_rawlen(lua_State* L_, int idx_)
+inline size_t lua_rawlen(lua_State* L_, StackIndex idx_)
 {
     return lua_objlen(L_, idx_);
 }
 void luaL_requiref(lua_State* L_, const char* modname_, lua_CFunction openf_, int glb_); // implementation copied from Lua 5.2 sources
 
-int luaL_getsubtable(lua_State* L_, int idx_, const char* fname_);
+int luaL_getsubtable(lua_State* L_, StackIndex idx_, const char* fname_);
 
 #endif // LUA_VERSION_NUM == 501
 
@@ -80,8 +84,8 @@ inline int luaL_optint(lua_State* L_, int n_, lua_Integer d_)
 #if LUA_VERSION_NUM < 504
 
 void* lua_newuserdatauv(lua_State* L_, size_t sz_, int nuvalue_);
-int lua_getiuservalue(lua_State* L_, int idx_, int n_);
-int lua_setiuservalue(lua_State* L_, int idx_, int n_);
+int lua_getiuservalue(lua_State* L_, StackIndex idx_, int n_);
+int lua_setiuservalue(lua_State* L_, StackIndex idx_, int n_);
 
 #define LUA_GNAME "_G"
 
@@ -92,7 +96,7 @@ int lua_setiuservalue(lua_State* L_, int idx_, int n_);
 // wrap Lua 5.4 calls under Lua 5.1 API when it is simpler that way
 #if LUA_VERSION_NUM == 504
 
-inline int luaL_optint(lua_State* L_, int n_, lua_Integer d_)
+inline int luaL_optint(lua_State* L_, StackIndex n_, lua_Integer d_)
 {
     return static_cast<int>(luaL_optinteger(L_, n_, d_));
 }
@@ -123,7 +127,7 @@ inline constexpr LuaError ToLuaError(int const rc_)
 // #################################################################################################
 
 // break lexical order for that one because it's needed below
-inline LuaType luaG_type(lua_State* const L_, int const idx_)
+inline LuaType luaG_type(lua_State* const L_, StackIndex const idx_)
 {
     return static_cast<LuaType>(lua_type(L_, idx_));
 }
@@ -135,9 +139,9 @@ inline LuaType luaG_type(lua_State* const L_, int const idx_)
 // #################################################################################################
 
 // use this in place of lua_absindex to save a function call
-inline int luaG_absindex(lua_State* L_, int idx_)
+inline StackIndex luaG_absindex(lua_State* const L_, StackIndex const idx_)
 {
-    return (((idx_) >= 0 || (idx_) <= LUA_REGISTRYINDEX) ? (idx_) : lua_gettop(L_) + (idx_) + 1);
+    return StackIndex{ (idx_ >= 0 || idx_ <= kIdxRegistry) ? idx_ : lua_gettop(L_) + idx_ + 1 };
 }
 
 // #################################################################################################
@@ -171,7 +175,7 @@ static inline int luaG_dump(lua_State* const L_, lua_Writer const writer_, void*
 
 // #################################################################################################
 
-int luaG_getalluservalues(lua_State* L_, int idx_);
+int luaG_getalluservalues(lua_State* L_, StackIndex idx_);
 
 // #################################################################################################
 
@@ -184,7 +188,7 @@ concept RequiresOldLuaGetfield = requires(LUA_GETFIELD f_)
 };
 
 template <RequiresOldLuaGetfield LUA_GETFIELD>
-static inline int WrapLuaGetField(LUA_GETFIELD f_, lua_State* const L_, int const idx_, std::string_view const& name_)
+static inline int WrapLuaGetField(LUA_GETFIELD f_, lua_State* const L_, StackIndex const idx_, std::string_view const& name_)
 {
     f_(L_, idx_, name_.data());
     return lua_type(L_, -1);
@@ -201,14 +205,14 @@ concept RequiresNewLuaGetfield = requires(LUA_GETFIELD f_)
 };
 
 template <RequiresNewLuaGetfield LUA_GETFIELD>
-static inline int WrapLuaGetField(LUA_GETFIELD f_, lua_State* const L_, int const idx_, std::string_view const& name_)
+static inline int WrapLuaGetField(LUA_GETFIELD f_, lua_State* const L_, StackIndex const idx_, std::string_view const& name_)
 {
     return f_(L_, idx_, name_.data());
 }
 
 // -------------------------------------------------------------------------------------------------
 
-static inline LuaType luaG_getfield(lua_State* const L_, int const idx_, std::string_view const& name_)
+static inline LuaType luaG_getfield(lua_State* const L_, StackIndex const idx_, std::string_view const& name_)
 {
     return static_cast<LuaType>(WrapLuaGetField(lua_getfield, L_, idx_, name_));
 }
@@ -306,14 +310,14 @@ inline void luaG_pushglobaltable(lua_State* const L_)
 #ifdef LUA_GLOBALSINDEX // All flavors of Lua 5.1
     ::lua_pushvalue(L_, LUA_GLOBALSINDEX);
 #else // LUA_GLOBALSINDEX
-    ::lua_rawgeti(L_, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
+    ::lua_rawgeti(L_, kIdxRegistry, LUA_RIDX_GLOBALS);
 #endif // LUA_GLOBALSINDEX
 }
 
 // #################################################################################################
 
-inline void luaG_setfield(lua_State* const L_, int const idx_, char const* k_) = delete;
-inline void luaG_setfield(lua_State* const L_, int const idx_, std::string_view const& k_)
+inline void luaG_setfield(lua_State* const L_, StackIndex const idx_, char const* k_) = delete;
+inline void luaG_setfield(lua_State* const L_, StackIndex const idx_, std::string_view const& k_)
 {
     lua_setfield(L_, idx_, k_.data());
 }
@@ -336,7 +340,7 @@ inline void luaG_setmetatable(lua_State* const L_, std::string_view const& tname
 
 // a small helper to extract a full userdata pointer from the stack in a safe way
 template <typename T>
-[[nodiscard]] T* luaG_tofulluserdata(lua_State* const L_, int const index_)
+[[nodiscard]] T* luaG_tofulluserdata(lua_State* const L_, StackIndex const index_)
 {
     LUA_ASSERT(L_, lua_isnil(L_, index_) || lua_type(L_, index_) == LUA_TUSERDATA);
     return static_cast<T*>(lua_touserdata(L_, index_));
@@ -345,7 +349,7 @@ template <typename T>
 // -------------------------------------------------------------------------------------------------
 
 template <typename T>
-[[nodiscard]] auto luaG_tolightuserdata(lua_State* const L_, int const index_)
+[[nodiscard]] auto luaG_tolightuserdata(lua_State* const L_, StackIndex const index_)
 {
     LUA_ASSERT(L_, lua_isnil(L_, index_) || lua_islightuserdata(L_, index_));
     if constexpr (std::is_pointer_v<T>) {
@@ -364,7 +368,7 @@ template <typename T>
 
 // -------------------------------------------------------------------------------------------------
 
-[[nodiscard]] inline std::string_view luaG_typename(lua_State* const L_, int const idx_)
+[[nodiscard]] inline std::string_view luaG_typename(lua_State* const L_, StackIndex const idx_)
 {
     return luaG_typename(L_, luaG_type(L_, idx_));
 }
@@ -375,21 +379,21 @@ template <typename T>
 #define STRINGVIEW_FMT "%.*s"
 
 // a replacement of lua_tolstring
-[[nodiscard]] inline std::string_view luaG_tostring(lua_State* const L_, int const idx_)
+[[nodiscard]] inline std::string_view luaG_tostring(lua_State* const L_, StackIndex const idx_)
 {
     size_t _len{ 0 };
     char const* _str{ lua_tolstring(L_, idx_, &_len) };
     return _str ? std::string_view{ _str, _len } : "";
 }
 
-[[nodiscard]] inline std::string_view luaG_checkstring(lua_State* const L_, int const idx_)
+[[nodiscard]] inline std::string_view luaG_checkstring(lua_State* const L_, StackIndex const idx_)
 {
     size_t _len{ 0 };
     char const* _str{ luaL_checklstring(L_, idx_, &_len) };
     return std::string_view{ _str, _len };
 }
 
-[[nodiscard]] inline std::string_view luaG_optstring(lua_State* const L_, int const idx_, std::string_view const& default_)
+[[nodiscard]] inline std::string_view luaG_optstring(lua_State* const L_, StackIndex const idx_, std::string_view const& default_)
 {
     if (lua_isnoneornil(L_, idx_)) {
         return default_;
@@ -406,7 +410,7 @@ inline std::string_view luaG_pushstring(lua_State* const L_, std::string_view co
         if constexpr (LUA_VERSION_NUM == 501) {
             // lua_pushlstring doesn't return a value in Lua 5.1
             lua_pushlstring(L_, str_.data(), str_.size());
-            return luaG_tostring(L_, -1);
+            return luaG_tostring(L_, kIdxTop);
         } else {
             return std::string_view{ lua_pushlstring(L_, str_.data(), str_.size()), str_.size() };
         }

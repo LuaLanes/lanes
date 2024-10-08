@@ -169,12 +169,12 @@ LUAG_FUNC(sleep)
     lua_pushcfunction(L_, LG_linda_receive);                                                       // L_: duration|nil receive()
     STACK_CHECK_START_REL(L_, 0); // we pushed the function we intend to call, now prepare the arguments
     _U->timerLinda->push(L_);                                                                      // L_: duration|nil receive() timerLinda
-    if (luaG_tostring(L_, 1) == "indefinitely") {
+    if (luaG_tostring(L_, StackIndex{ 1 }) == "indefinitely") {
         lua_pushnil(L_);                                                                           // L_: duration? receive() timerLinda nil
     } else if (lua_isnoneornil(L_, 1)) {
         lua_pushnumber(L_, 0);                                                                     // L_: duration? receive() timerLinda 0
     } else if (!lua_isnumber(L_, 1)) {
-        raise_luaL_argerror(L_, 1, "invalid duration");
+        raise_luaL_argerror(L_, StackIndex{ 1 }, "invalid duration");
     }
     else {
         lua_pushnumber(L_, lua_tonumber(L_, 1));                                                   // L_: duration? receive() timerLinda duration
@@ -193,7 +193,7 @@ LUAG_FUNC(sleep)
 // upvalue[1]: _G.require
 LUAG_FUNC(require)
 {
-    std::string_view const _name{ luaG_tostring(L_, 1) };                                          // L_: "name" ...
+    std::string_view const _name{ luaG_tostring(L_, StackIndex{ 1 }) };                            // L_: "name" ...
     int const _nargs{ lua_gettop(L_) };
     DEBUGSPEW_CODE(Universe * _U{ Universe::Get(L_) });
     STACK_CHECK_START_REL(L_, 0);
@@ -202,7 +202,7 @@ LUAG_FUNC(require)
     lua_pushvalue(L_, lua_upvalueindex(1));                                                        // L_: "name" ... require
     lua_insert(L_, 1);                                                                             // L_: require "name" ...
     lua_call(L_, _nargs, 1);                                                                       // L_: module
-    tools::PopulateFuncLookupTable(L_, -1, _name);
+    tools::PopulateFuncLookupTable(L_, kIdxTop, _name);
     DEBUGSPEW_CODE(DebugSpew(_U) << "lanes.require '" << _name << "' END" << std::endl);
     STACK_CHECK(L_, 0);
     return 1;
@@ -215,8 +215,8 @@ LUAG_FUNC(require)
 // lanes.register( "modname", module)
 LUAG_FUNC(register)
 {
-    std::string_view const _name{ luaG_checkstring(L_, 1) };
-    LuaType const _mod_type{ luaG_type(L_, 2) };
+    std::string_view const _name{ luaG_checkstring(L_, StackIndex{ 1 }) };
+    LuaType const _mod_type{ luaG_type(L_, StackIndex{ 2 }) };
     // ignore extra arguments, just in case
     lua_settop(L_, 2);
     luaL_argcheck(L_, (_mod_type == LuaType::TABLE) || (_mod_type == LuaType::FUNCTION), 2, "unexpected module type");
@@ -224,7 +224,7 @@ LUAG_FUNC(register)
     STACK_CHECK_START_REL(L_, 0); // "name" mod_table
     DEBUGSPEW_CODE(DebugSpew(_U) << "lanes.register '" << _name << "' BEGIN" << std::endl);
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
-    tools::PopulateFuncLookupTable(L_, -1, _name);
+    tools::PopulateFuncLookupTable(L_, kIdxTop, _name);
     DEBUGSPEW_CODE(DebugSpew(_U) << "lanes.register '" << _name << "' END" << std::endl);
     STACK_CHECK(L_, 0);
     return 0;
@@ -249,17 +249,17 @@ LUAG_FUNC(register)
 //
 LUAG_FUNC(lane_new)
 {
-    static constexpr int kFuncIdx{ 1 };
-    static constexpr int kLibsIdx{ 2 };
-    static constexpr int kPrioIdx{ 3 };
-    static constexpr int kGlobIdx{ 4 };
-    static constexpr int kPackIdx{ 5 };
-    static constexpr int kRequIdx{ 6 };
-    static constexpr int kGcCbIdx{ 7 };
-    static constexpr int kNameIdx{ 8 };
-    static constexpr int kErTlIdx{ 9 };
-    static constexpr int kAsCoro{ 10 };
-    static constexpr int kFixedArgsIdx{ 10 };
+    static constexpr StackIndex kFuncIdx{ 1 };
+    static constexpr StackIndex kLibsIdx{ 2 };
+    static constexpr StackIndex kPrioIdx{ 3 };
+    static constexpr StackIndex kGlobIdx{ 4 };
+    static constexpr StackIndex kPackIdx{ 5 };
+    static constexpr StackIndex kRequIdx{ 6 };
+    static constexpr StackIndex kGcCbIdx{ 7 };
+    static constexpr StackIndex kNameIdx{ 8 };
+    static constexpr StackIndex kErTlIdx{ 9 };
+    static constexpr StackIndex kAsCoro{ 10 };
+    static constexpr StackIndex kFixedArgsIdx{ 10 };
 
     int const _nargs{ lua_gettop(L_) - kFixedArgsIdx };
     LUA_ASSERT(L_, _nargs >= 0);
@@ -342,7 +342,7 @@ LUAG_FUNC(lane_new)
             lua_newtable(L);                                                                       // L: ... lane {uv}
 
             // Store the gc_cb callback in the uservalue
-            int const _gc_cb_idx{ lua_isnoneornil(L, kGcCbIdx) ? 0 : kGcCbIdx };
+            StackIndex const _gc_cb_idx{ lua_isnoneornil(L, kGcCbIdx) ? 0 : kGcCbIdx };
             if (_gc_cb_idx > 0) {
                 kLaneGC.pushKey(L);                                                                // L: ... lane {uv} k
                 lua_pushvalue(L, _gc_cb_idx);                                                      // L: ... lane {uv} k gc_cb
@@ -350,11 +350,11 @@ LUAG_FUNC(lane_new)
             }
             STACK_CHECK(L, 2);
             // store the uservalue in the Lane full userdata
-            lua_setiuservalue(L, -2, 1);                                                           // L: ... lane
+            lua_setiuservalue(L, StackIndex{ -2 }, 1);                                             // L: ... lane
 
             lua_State* const _L2{ lane->L };
             STACK_CHECK_START_REL(_L2, 0);
-            int const _name_idx{ lua_isnoneornil(L, kNameIdx) ? 0 : kNameIdx };
+            StackIndex const _name_idx{ lua_isnoneornil(L, kNameIdx) ? 0 : kNameIdx };
             std::string_view const _debugName{ (_name_idx > 0) ? luaG_tostring(L, _name_idx) : std::string_view{} };
             if (!_debugName.empty())
             {
@@ -366,7 +366,7 @@ LUAG_FUNC(lane_new)
                     lua_getinfo(L, ">S", &_ar);                                                    // L: ... lane
                     luaG_pushstring(_L2, "%s:%d", _ar.short_src, _ar.linedefined);                 // L: ... lane                                    L2: "<name>"
                 }
-                lane->changeDebugName(-1);
+                lane->changeDebugName(kIdxTop);
                 lua_pop(_L2, 1);                                                                   // L: ... lane                                    L2:
             }
             STACK_CHECK(_L2, 0);
@@ -412,7 +412,7 @@ LUAG_FUNC(lane_new)
     STACK_CHECK_START_REL(L_, 0);
 
     // package
-    int const _package_idx{ lua_isnoneornil(L_, kPackIdx) ? 0 : kPackIdx };
+    StackIndex const _package_idx{ lua_isnoneornil(L_, kPackIdx) ? 0 : kPackIdx };
     if (_package_idx != 0) {
         DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: update 'package'" << std::endl);
         // when copying with mode LookupMode::LaneBody, should raise an error in case of problem, not leave it one the stack
@@ -424,7 +424,7 @@ LUAG_FUNC(lane_new)
     STACK_CHECK(_L2, 0);
 
     // modules to require in the target lane *before* the function is transfered!
-    int const _required_idx{ lua_isnoneornil(L_, kRequIdx) ? 0 : kRequIdx };
+    StackIndex const _required_idx{ lua_isnoneornil(L_, kRequIdx) ? 0 : kRequIdx };
     if (_required_idx != 0) {
         int _nbRequired{ 1 };
         DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: process 'required' list" << std::endl);
@@ -436,11 +436,11 @@ LUAG_FUNC(lane_new)
 
         lua_pushnil(L_);                                                                           // L_: [fixed] args... nil                        L2:
         while (lua_next(L_, _required_idx) != 0) {                                                 // L_: [fixed] args... n "modname"                L2:
-            if (luaG_type(L_, -1) != LuaType::STRING || luaG_type(L_, -2) != LuaType::NUMBER || lua_tonumber(L_, -2) != _nbRequired) {
+            if (luaG_type(L_, kIdxTop) != LuaType::STRING || luaG_type(L_, StackIndex{ -2 }) != LuaType::NUMBER || lua_tonumber(L_, -2) != _nbRequired) {
                 raise_luaL_error(L_, "required module list should be a list of strings");
             } else {
                 // require the module in the target state, and populate the lookup table there too
-                std::string_view const _name{ luaG_tostring(L_, -1) };
+                std::string_view const _name{ luaG_tostring(L_, kIdxTop) };
                 DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: require '" << _name << "'" << std::endl);
 
                 // require the module in the target lane
@@ -459,7 +459,7 @@ LUAG_FUNC(lane_new)
                     }
                     // here the module was successfully required                                   // L_: [fixed] args... n "modname"                L2: ret
                     // after requiring the module, register the functions it exported in our name<->function database
-                    tools::PopulateFuncLookupTable(_L2, -1, _name);
+                    tools::PopulateFuncLookupTable(_L2, kIdxTop, _name);
                     lua_pop(_L2, 1);                                                               // L_: [fixed] args... n "modname"                L2:
                 }
             }
@@ -473,7 +473,7 @@ LUAG_FUNC(lane_new)
     // Appending the specified globals to the global environment
     // *after* stdlibs have been loaded and modules required, in case we transfer references to native functions they exposed...
     //
-    int const _globals_idx{ lua_isnoneornil(L_, kGlobIdx) ? 0 : kGlobIdx };
+    StackIndex const _globals_idx{ lua_isnoneornil(L_, kGlobIdx) ? 0 : kGlobIdx };
     if (_globals_idx != 0) {
         DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: transfer globals" << std::endl);
         if (!lua_istable(L_, _globals_idx)) {
@@ -603,7 +603,7 @@ LUAG_FUNC(wakeup_conv)
 
     STACK_CHECK_START_REL(L_, 0);
     auto _readInteger = [L = L_](std::string_view const& name_) {
-        std::ignore = luaG_getfield(L, 1, name_);
+        std::ignore = luaG_getfield(L, StackIndex{ 1 }, name_);
         lua_Integer const val{ lua_tointeger(L, -1) };
         lua_pop(L, 1);
         return static_cast<int>(val);
@@ -619,7 +619,7 @@ LUAG_FUNC(wakeup_conv)
     // If Lua table has '.isdst' we trust that. If it does not, we'll let
     // 'mktime' decide on whether the time is within DST or not (value -1).
     //
-    int const _isdst{ (luaG_getfield(L_, 1, "isdst") == LuaType::BOOLEAN) ? lua_toboolean(L_, -1) : -1 };
+    int const _isdst{ (luaG_getfield(L_, StackIndex{ 1 }, "isdst") == LuaType::BOOLEAN) ? lua_toboolean(L_, -1) : -1 };
     lua_pop(L_, 1);
     STACK_CHECK(L_, 0);
 
@@ -682,8 +682,8 @@ LUAG_FUNC(configure)
 
     Universe* _U{ Universe::Get(L_) };
     bool const _from_master_state{ _U == nullptr };
-    std::string_view const _name{ luaG_checkstring(L_, lua_upvalueindex(1)) };
-    LUA_ASSERT(L_, luaG_type(L_, 1) == LuaType::TABLE);
+    std::string_view const _name{ luaG_checkstring(L_, StackIndex{ lua_upvalueindex(1) }) };
+    LUA_ASSERT(L_, luaG_type(L_, StackIndex{ 1 }) == LuaType::TABLE);
 
     STACK_GROW(L_, 4);
     STACK_CHECK_START_ABS(L_, 1);                                                                  // L_: settings
@@ -759,7 +759,7 @@ LUAG_FUNC(configure)
     // register all native functions found in that module in the transferable functions database
     // we process it before _G because we don't want to find the module when scanning _G (this would generate longer names)
     // for example in package.loaded["lanes.core"].*
-    tools::PopulateFuncLookupTable(L_, -1, _name);
+    tools::PopulateFuncLookupTable(L_, kIdxTop, _name);
     STACK_CHECK(L_, 2);
 
     // record all existing C/JIT-fast functions
@@ -769,7 +769,7 @@ LUAG_FUNC(configure)
         // because we will do it after on_state_create() is called,
         // and we don't want to skip _G because of caching in case globals are created then
         luaG_pushglobaltable(L_);                                                                  // L_: settings M _G
-        tools::PopulateFuncLookupTable(L_, -1, {});
+        tools::PopulateFuncLookupTable(L_, kIdxTop, {});
         lua_pop(L_, 1);                                                                            // L_: settings M
     }
     lua_pop(L_, 1);                                                                                // L_: settings

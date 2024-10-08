@@ -146,7 +146,7 @@ class Lane
     public:
 
     CancelResult cancel(CancelOp op_, int hookCount_, std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_);
-    void changeDebugName(int const nameIdx_);
+    void changeDebugName(StackIndex nameIdx_);
     void closeState()
     {
         lua_State* _L{ S };
@@ -173,7 +173,7 @@ class Lane
     static void PushMetatable(lua_State* L_);
     void pushStatusString(lua_State* L_) const;
     void pushIndexedResult(lua_State* L_, int key_) const;
-    void resetResultsStorage(lua_State* const L_, int gc_cb_idx_);
+    void resetResultsStorage(lua_State* L_, StackIndex self_idx_);
     void selfdestructAdd();
     [[nodiscard]] bool selfdestructRemove();
     void securizeDebugName(lua_State* L_);
@@ -190,7 +190,7 @@ class Lane
 // 'Lane' are malloc/free'd and the handle only carries a pointer.
 // This is not deep userdata since the handle is not portable among lanes.
 //
-[[nodiscard]] inline Lane* ToLane(lua_State* L_, int i_)
+[[nodiscard]] inline Lane* ToLane(lua_State* const L_, StackIndex const i_)
 {
     return *(static_cast<Lane**>(luaL_checkudata(L_, i_, kLaneMetatableName)));
 }

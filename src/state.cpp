@@ -103,7 +103,7 @@ namespace {
                 luaL_requiref(L_, _name.data(), _libfunc, !_isLanesCore);                          // L_: {lib}
                 // lanes.core doesn't declare a global, so scan it here and now
                 if (_isLanesCore) {
-                    tools::PopulateFuncLookupTable(L_, -1, _name);
+                    tools::PopulateFuncLookupTable(L_, kIdxTop, _name);
                 }
                 lua_pop(L_, 1);                                                                    // L_:
                 STACK_CHECK(L_, 0);
@@ -282,7 +282,7 @@ namespace state {
         STACK_CHECK(_L, 0);
         // after all this, register everything we find in our name<->function database
         luaG_pushglobaltable(_L);                                                                  // L: _G
-        tools::PopulateFuncLookupTable(_L, -1, {});
+        tools::PopulateFuncLookupTable(_L, kIdxTop, {});
         lua_pop(_L, 1);                                                                            // L:
         STACK_CHECK(_L, 0);
 
@@ -324,7 +324,7 @@ namespace state {
         lua_newtable(L_);                                                                          // L_: out
         for (luaL_Reg const& _entry : local::sLibs) {
             lua_pushboolean(L_, 1);                                                                // L_: out true
-            luaG_setfield(L_, -2, std::string_view{ _entry.name }); // out[name] = true            // L_: out
+            luaG_setfield(L_, StackIndex{ -2 }, std::string_view{ _entry.name });                  // out[name] = true            // L_: out
         }
         STACK_CHECK(L_, 1);
         return 1;

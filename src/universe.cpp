@@ -100,7 +100,7 @@ void Universe::callOnStateCreate(lua_State* const L_, lua_State* const from_, Lo
         }
         kConfigRegKey.pushValue(L_);                                                               // L_: config
         STACK_CHECK(L_, 1);
-        LuaType const _funcType{ luaG_getfield(L_, -1, kOnStateCreate) };                          // L_: config on_state_create()
+        LuaType const _funcType{ luaG_getfield(L_, kIdxTop, kOnStateCreate) };                     // L_: config on_state_create()
         if (_funcType != LuaType::FUNCTION) {
             raise_luaL_error(L_, "INTERNAL ERROR: %s is a %s, not a function", kOnStateCreate.data(), luaG_typename(L_, _funcType).data());
         }
@@ -111,12 +111,10 @@ void Universe::callOnStateCreate(lua_State* const L_, lua_State* const from_, Lo
     std::string_view const _stateType{ mode_ == LookupMode::LaneBody ? "lane" : "keeper" };
     luaG_pushstring(L_, _stateType);                                                               // L_: on_state_create() "<type>"
     if (lua_pcall(L_, 1, 0, 0) != LUA_OK) {
-        raise_luaL_error(from_, "%s failed in %s: \"%s\"", kOnStateCreate.data(), _stateType.data(), lua_isstring(L_, -1) ? luaG_tostring(L_, -1).data() : luaG_typename(L_, -1).data());
+        raise_luaL_error(from_, "%s failed in %s: \"%s\"", kOnStateCreate.data(), _stateType.data(), lua_isstring(L_, -1) ? luaG_tostring(L_, kIdxTop).data() : luaG_typename(L_, kIdxTop).data());
     }
     STACK_CHECK(L_, 0);
 }
-
-
 
 // #################################################################################################
 
@@ -124,16 +122,17 @@ void Universe::callOnStateCreate(lua_State* const L_, lua_State* const from_, Lo
 [[nodiscard]] Universe* Universe::Create(lua_State* const L_)
 {
     LUA_ASSERT(L_, Universe::Get(L_) == nullptr);
+    static constexpr StackIndex kIdxSettings{ 1 };
     LUA_ASSERT(L_, lua_gettop(L_) == 1 && lua_istable(L_, 1));
     STACK_CHECK_START_REL(L_, 0);                                                                  // L_: settings
-    std::ignore = luaG_getfield(L_, 1, "nb_user_keepers");                                         // L_: settings nb_user_keepers
+    std::ignore = luaG_getfield(L_, kIdxSettings, "nb_user_keepers");                              // L_: settings nb_user_keepers
     int const _nbUserKeepers{ static_cast<int>(lua_tointeger(L_, -1)) + 1};
     lua_pop(L_, 1);                                                                                // L_: settings
     if (_nbUserKeepers < 1) {
         raise_luaL_error(L_, "Bad number of additional keepers (%d)", _nbUserKeepers);
     }
     STACK_CHECK(L_, 0);
-    std::ignore = luaG_getfield(L_, 1, "keepers_gc_threshold");                                    // L_: settings keepers_gc_threshold
+    std::ignore = luaG_getfield(L_, kIdxSettings, "keepers_gc_threshold");                         // L_: settings keepers_gc_threshold
     int const _keepers_gc_threshold{ static_cast<int>(lua_tointeger(L_, -1)) };
     lua_pop(L_, 1);                                                                                // L_: settings
     STACK_CHECK(L_, 0);
@@ -146,22 +145,22 @@ void Universe::callOnStateCreate(lua_State* const L_, lua_State* const from_, Lo
 
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
     lua_createtable(L_, 0, 1);                                                                     // L_: settings universe {mt}
-    std::ignore = luaG_getfield(L_, 1, "shutdown_timeout");                                        // L_: settings universe {mt} shutdown_timeout
+    std::ignore = luaG_getfield(L_, kIdxSettings, "shutdown_timeout");                             // L_: settings universe {mt} shutdown_timeout
     lua_pushcclosure(L_, LG_universe_gc, 1);                                                       // L_: settings universe {mt} LG_universe_gc
     lua_setfield(L_, -2, "__gc");                                                                  // L_: settings universe {mt}
     lua_setmetatable(L_, -2);                                                                      // L_: settings universe
     lua_pop(L_, 1);                                                                                // L_: settings
 
-    std::ignore = luaG_getfield(L_, 1, "strip_functions");                                         // L_: settings strip_functions
+    std::ignore = luaG_getfield(L_, kIdxSettings, "strip_functions");                              // L_: settings strip_functions
     _U->stripFunctions = lua_toboolean(L_, -1) ? true : false;
     lua_pop(L_, 1);                                                                                // L_: settings
 
-    std::ignore = luaG_getfield(L_, 1, "verbose_errors");                                          // L_: settings verbose_errors
+    std::ignore = luaG_getfield(L_, kIdxSettings, "verbose_errors");                               // L_: settings verbose_errors
     _U->verboseErrors = lua_toboolean(L_, -1) ? true : false;
     lua_pop(L_, 1);                                                                                // L_: settings
 
     // tracking
-    std::ignore = luaG_getfield(L_, 1, "track_lanes");                                             // L_: settings track_lanes
+    std::ignore = luaG_getfield(L_, kIdxSettings, "track_lanes");                                  // L_: settings track_lanes
     if (lua_toboolean(L_, -1)) {
         _U->tracker.activate();
     }
@@ -182,7 +181,7 @@ void Universe::callOnStateCreate(lua_State* const L_, lua_State* const from_, Lo
     STACK_CHECK(L_, 1);
 
     // Proxy userdata contents is only a 'DeepPrelude*' pointer
-    _U->timerLinda = *luaG_tofulluserdata<DeepPrelude*>(L_, -1);
+    _U->timerLinda = *luaG_tofulluserdata<DeepPrelude*>(L_, kIdxTop);
     // increment refcount so that this linda remains alive as long as the universe exists.
     _U->timerLinda->refcount.fetch_add(1, std::memory_order_relaxed);
     lua_pop(L_, 1);                                                                                // L_: settings
@@ -224,13 +223,13 @@ void Universe::initializeAllocatorFunction(lua_State* const L_)
     // start by just grabbing whatever allocator was provided to the master state
     protectedAllocator.initFrom(L_);
     STACK_CHECK_START_REL(L_, 1);                                                                  // L_: settings
-    switch (luaG_getfield(L_, -1, "allocator")) {                                                  // L_: settings allocator|nil|"protected"
+    switch (luaG_getfield(L_, kIdxTop, "allocator")) {                                             // L_: settings allocator|nil|"protected"
     case LuaType::NIL:
         // nothing else to do
         break;
 
     case LuaType::STRING:
-        LUA_ASSERT(L_, luaG_tostring(L_, -1) == "protected");
+        LUA_ASSERT(L_, luaG_tostring(L_, kIdxTop) == "protected");
         // set the original allocator to call from inside protection by the mutex
         protectedAllocator.installIn(L_);
         // before a state is created, this function will be called to obtain the allocator
@@ -255,14 +254,14 @@ void Universe::initializeAllocatorFunction(lua_State* const L_)
         break;
 
     default: // should be filtered out in lanes.lua
-        raise_luaL_error(L_, "Bad config.allocator type %s", luaG_typename(L_, -1).data());
+        raise_luaL_error(L_, "Bad config.allocator type %s", luaG_typename(L_, kIdxTop).data());
     }
     lua_pop(L_, 1);                                                                                // L_: settings
     STACK_CHECK(L_, 1);
 
-    std::ignore = luaG_getfield(L_, -1, "internal_allocator");                                     // L_: settings "libc"|"allocator"
-    LUA_ASSERT(L_, lua_isstring(L_, -1)); // should be the case due to lanes.lua parameter validation
-    std::string_view const _allocator{ luaG_tostring(L_, -1) };
+    std::ignore = luaG_getfield(L_, kIdxTop, "internal_allocator");                                // L_: settings "libc"|"allocator"
+    LUA_ASSERT(L_, lua_isstring(L_, kIdxTop)); // should be the case due to lanes.lua parameter validation
+    std::string_view const _allocator{ luaG_tostring(L_, kIdxTop) };
     if (_allocator == "libc") {
         internalAllocator = lanes::AllocatorDefinition{ lanes::AllocatorDefinition::kAllocatorVersion, libc_lua_Alloc, nullptr };
     } else {
@@ -284,7 +283,7 @@ int Universe::InitializeFinalizer(lua_State* const L_)
 
     // make sure we are only called from the Master Lua State!
     kUniverseFullRegKey.pushValue(L_);                                                             // L_: f U
-    if (luaG_type(L_, -1) != LuaType::USERDATA) {
+    if (luaG_type(L_, kIdxTop) != LuaType::USERDATA) {
         raise_luaL_error(L_, "lanes.%s called from inside a lane", kFinally);
     }
     lua_pop(L_, 1);                                                                                // L_: f
@@ -300,8 +299,8 @@ int Universe::InitializeFinalizer(lua_State* const L_)
 void Universe::initializeOnStateCreate(lua_State* const L_)
 {
     STACK_CHECK_START_REL(L_, 0);                                                                  // L_: settings
-    if (luaG_getfield(L_, -1, kOnStateCreate) != LuaType::NIL) {                                   // L_: settings on_state_create|nil
-        LUA_ASSERT(L_, luaG_type(L_, -1) == LuaType::FUNCTION); // ensured by lanes.lua parameter validation
+    if (luaG_getfield(L_, kIdxTop, kOnStateCreate) != LuaType::NIL) {                              // L_: settings on_state_create|nil
+        LUA_ASSERT(L_, luaG_type(L_, kIdxTop) == LuaType::FUNCTION); // ensured by lanes.lua parameter validation
         // store C function pointer in an internal variable
         lua_CFunction const _func{ lua_tocfunction(L_, -1) };                                      // L_: settings on_state_create
         if (_func) {
@@ -314,7 +313,7 @@ void Universe::initializeOnStateCreate(lua_State* const L_)
             // remove this C function from the config table so that it doesn't cause problems
             // when we transfer the config table in newly created Lua states
             lua_pushnil(L_);                                                                       // L_: settings on_state_create nil
-            luaG_setfield(L_, -3, kOnStateCreate);                                                 // L_: settings on_state_create
+            luaG_setfield(L_, StackIndex{ -3 }, kOnStateCreate);                                   // L_: settings on_state_create
         } else {
             // the function is still in the config table. we indicate this with the uintptr_t alternative (actual value is irrelevant)
             onStateCreateFunc.emplace<uintptr_t>(std::bit_cast<uintptr_t>(kOnStateCreate.data()));
@@ -339,7 +338,7 @@ lanes::AllocatorDefinition Universe::resolveAllocator(lua_State* const L_, std::
     lua_pushcclosure(L_, provideAllocator, 0);                                                     // L_: provideAllocator()
     luaG_pushstring(L_, hint_);                                                                    // L_: provideAllocator() "<hint>"
     lua_call(L_, 1, 1);                                                                            // L_: result
-    lanes::AllocatorDefinition* const _def{ luaG_tofulluserdata<lanes::AllocatorDefinition>(L_, -1) };
+    lanes::AllocatorDefinition* const _def{ luaG_tofulluserdata<lanes::AllocatorDefinition>(L_, kIdxTop) };
     if (!_def || _def->version != lanes::AllocatorDefinition::kAllocatorVersion) {
         raise_luaL_error(L_, "Bad config.allocator function, must provide a valid AllocatorDefinition");
     }
@@ -414,7 +413,7 @@ LUAG_FUNC(universe_gc)
 {
     lua_Duration const _shutdown_timeout{ lua_tonumber(L_, lua_upvalueindex(1)) };
     STACK_CHECK_START_ABS(L_, 1);
-    Universe* const _U{ luaG_tofulluserdata<Universe>(L_, 1) };                                    // L_: U
+    Universe* const _U{ luaG_tofulluserdata<Universe>(L_, StackIndex{ 1 }) };                      // L_: U
 
     // attempt to terminate all lanes with increasingly stronger cancel methods
     bool const _allLanesTerminated{ 
@@ -433,7 +432,7 @@ LUAG_FUNC(universe_gc)
     STACK_CHECK(L_, 2);
 
     // if some lanes are still running here, we have no other choice than crashing or freezing and let the client figure out what's wrong
-    bool const _throw{ luaG_tostring(L_, -1) == "throw" };
+    bool const _throw{ luaG_tostring(L_, kIdxTop) == "throw" };
     lua_pop(L_, 1);                                                                                // L_: U
 
     while (_U->selfdestructFirst != SELFDESTRUCT_END) {

@@ -13,7 +13,7 @@ static constexpr UniqueKey kLindaBatched{ 0xB8234DF772646567ull, "linda.batched"
 
 // #################################################################################################
 
-using LindaGroup = Unique<int>;
+DECLARE_UNIQUE_TYPE(LindaGroup, int);
 
 class Linda
 : public DeepPrelude // Deep userdata MUST start with this header

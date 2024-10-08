@@ -34,10 +34,10 @@ THE SOFTWARE.
 // Return some name helping to identify an object
 [[nodiscard]] static int DiscoverObjectNameRecur(lua_State* L_, int shortest_, int depth_)
 {
-    static constexpr int kWhat{ 1 }; // the object to investigate                                  // L_: o "r" {c} {fqn} ... {?}
-    static constexpr int kResult{ 2 }; // where the result string is stored
-    static constexpr int kCache{ 3 }; // a cache
-    static constexpr int kFQN{ 4 }; // the name compositing stack
+    static constexpr StackIndex kWhat{ 1 }; // the object to investigate                           // L_: o "r" {c} {fqn} ... {?}
+    static constexpr StackIndex kResult{ 2 }; // where the result string is stored
+    static constexpr StackIndex kCache{ 3 }; // a cache
+    static constexpr StackIndex kFQN{ 4 }; // the name compositing stack
     // no need to scan this table if the name we will discover is longer than one we already know
     if (shortest_ <= depth_ + 1) {
         return shortest_;
@@ -80,7 +80,7 @@ THE SOFTWARE.
             STACK_CHECK(L_, 0);
             break;
         }
-        switch (luaG_type(L_, -1)) {                                                               // L_: o "r" {c} {fqn} ... {?} k v
+        switch (luaG_type(L_, kIdxTop)) {                                                          // L_: o "r" {c} {fqn} ... {?} k v
         default: // nil, boolean, light userdata, number and string aren't identifiable
             break;
 
@@ -126,7 +126,7 @@ THE SOFTWARE.
             // search in the object's uservalues
             {
                 int _uvi{ 1 };
-                while (lua_getiuservalue(L_, -1, _uvi) != LUA_TNONE) {                             // L_: o "r" {c} {fqn} ... {?} k U {u}
+                while (lua_getiuservalue(L_, kIdxTop, _uvi) != LUA_TNONE) {                        // L_: o "r" {c} {fqn} ... {?} k U {u}
                     if (lua_istable(L_, -1)) { // if it is a table, look inside
                         ++depth_;
                         luaG_pushstring(L_, "uservalue");                                          // L_: o "r" {c} {fqn} ... {?} k v {u} "uservalue"
@@ -167,13 +167,13 @@ THE SOFTWARE.
 // "type", "name" = lanes.nameof(o)
 LUAG_FUNC(nameof)
 {
-    int const _what{ lua_gettop(L_) };
+    StackIndex const _what{ lua_gettop(L_) };
     if (_what > 1) {
         raise_luaL_argerror(L_, _what, "too many arguments.");
     }
 
     // nil, boolean, light userdata, number and string aren't identifiable
-    if (luaG_type(L_, 1) < LuaType::TABLE) {
+    if (luaG_type(L_, StackIndex{ 1 }) < LuaType::TABLE) {
         lua_pushstring(L_, luaL_typename(L_, 1));                                                  // L_: o "type"
         lua_insert(L_, -2);                                                                        // L_: "type" o
         return 2;
@@ -197,7 +197,7 @@ LUAG_FUNC(nameof)
         lua_pop(L_, 1);                                                                            // L_: o nil {c} {fqn}
         luaG_pushstring(L_, "_R");                                                                 // L_: o nil {c} {fqn} "_R"
         lua_rawseti(L_, -2, 1);                                                                    // L_: o nil {c} {fqn}
-        lua_pushvalue(L_, LUA_REGISTRYINDEX);                                                      // L_: o nil {c} {fqn} _R
+        lua_pushvalue(L_, kIdxRegistry);                                                           // L_: o nil {c} {fqn} _R
         std::ignore = DiscoverObjectNameRecur(L_, std::numeric_limits<int>::max(), 1);
     }
     lua_pop(L_, 3);                                                                                // L_: o "result"

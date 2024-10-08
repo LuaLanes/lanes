@@ -36,8 +36,8 @@ class StackChecker
     int oldtop;
 
     public:
-    using Relative = Unique<int>;
-    using Absolute = Unique<int>;
+    DECLARE_UNIQUE_TYPE(Relative, int);
+    DECLARE_UNIQUE_TYPE(Absolute, int);
 
     StackChecker(lua_State* const L_, Relative const offset_, SourceLocation const& where_ = Where())
     : L{ L_ }
