@@ -48,9 +48,9 @@ LuaType luaG_getmodule(lua_State* const L_, std::string_view const& name_)
 int luaL_getsubtable(lua_State* const L_, StackIndex const idx_, char const* fname_)
 {
     lua_getfield(L_, idx_, fname_);
-    if (lua_istable(L_, -1))
+    if (lua_istable(L_, -1)) {
         return 1; /* table already there */
-    else {
+    } else {
         lua_pop(L_, 1); /* remove previous result */
         StackIndex const _absidx{ luaG_absindex(L_, idx_) };
         lua_newtable(L_);
