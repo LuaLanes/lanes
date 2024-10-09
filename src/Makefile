@@ -18,7 +18,7 @@ OBJ=$(SRC:.cpp=.o)
 LIBFLAG=-shared
 
 OPT_FLAGS=-O2
-    # -O0 -g
+#         -O0 -g
 
 _SO=so
 ifeq "$(findstring MINGW,$(shell uname -s))" "MINGW"
@@ -128,7 +128,7 @@ all: $(MODULE)/core.$(_SO)
 _pch.h.gch: _pch.h
 	$(CC) $(CFLAGS) -x c++-header _pch.h -o _pch.h.gch
 
-%.o: %.cpp _pch.h.gch *.h Makefile
+%.o: %.cpp _pch.h.gch *.h *.hpp Makefile
 	$(CC) $(CFLAGS) -c $<
 
 # Note: Don't put $(LUA_LIBS) ahead of $^; MSYS will not like that (I think)
@@ -157,7 +157,7 @@ nslu2:
 # EXPERIMENTAL; NOT TESTED OF LATE.
 #
 MINGW_GCC=mingw32-gcc
-    # i686-pc-mingw32-gcc
+# i686-pc-mingw32-gcc
 
 win32: $(WIN32_LUA51)/include/lua.h
 	$(MAKE) build CC=$(MINGW_GCC) \
