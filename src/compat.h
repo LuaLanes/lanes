@@ -1,6 +1,7 @@
 #pragma once
 
 #include "debug.h"
+#include "stackindex.hpp"
 
 // try to detect if we are building against LuaJIT or MoonJIT
 #if defined(LUA_JITLIBNAME)
@@ -29,10 +30,6 @@
 #endif // LUA_LOADED_TABLE
 
 // code is now preferring Lua 5.4 API
-
-// #################################################################################################
-
-static constexpr StackIndex kIdxRegistry{ LUA_REGISTRYINDEX };
 
 // #################################################################################################
 
