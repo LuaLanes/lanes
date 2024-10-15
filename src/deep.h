@@ -44,7 +44,7 @@ class DeepFactory
     protected:
     // protected non-virtual destructor: Lanes won't manage the Factory's lifetime
     DeepFactory() = default;
-    ~DeepFactory() = default;
+    virtual ~DeepFactory() = default;
 
     public:
     // non-copyable, non-movable
