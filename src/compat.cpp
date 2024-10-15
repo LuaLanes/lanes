@@ -83,7 +83,7 @@ void luaL_requiref(lua_State* L_, const char* modname_, lua_CFunction openf_, in
 // #################################################################################################
 // #################################################################################################
 
-void* lua_newuserdatauv(lua_State* L_, size_t sz_, [[maybe_unused]] int nuvalue_)
+void* lua_newuserdatauv(lua_State* const L_, size_t const sz_, [[maybe_unused]] int const nuvalue_)
 {
     LUA_ASSERT(L_, nuvalue_ <= 1);
     return lua_newuserdata(L_, sz_);

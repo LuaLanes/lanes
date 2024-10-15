@@ -172,7 +172,7 @@ LUAG_FUNC(thread_cancel)
         if (!lua_isboolean(L_, 2)) {
             raise_luaL_error(L_, "wake_lindas argument is not a boolean");
         }
-        _wake_lane = lua_toboolean(L_, 2);
+        _wake_lane = lua_toboolean(L_, 2) ? true : false;
         lua_remove(L_, 2); // argument is processed, remove it
     }
     STACK_CHECK_START_REL(L_, 0);

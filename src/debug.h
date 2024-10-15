@@ -26,7 +26,7 @@ inline void LUA_ASSERT_IMPL(lua_State* const L_, bool const cond_, std::string_v
     }
 }
 
-#define LUA_ASSERT(L_, cond_) LUA_ASSERT_IMPL(L_, cond_, #cond_)
+#define LUA_ASSERT(L_, cond_) LUA_ASSERT_IMPL(L_, (cond_) ? true : false, #cond_)
 #define LUA_ASSERT_CODE(code_) code_
 
 class StackChecker
