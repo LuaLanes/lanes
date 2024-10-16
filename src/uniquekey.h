@@ -22,7 +22,12 @@ class UniqueKey
     {
     }
     // ---------------------------------------------------------------------------------------------
-    constexpr UniqueKey(UniqueKey const& rhs_) = default;
+    // rule of 5
+    UniqueKey() = delete;
+    constexpr UniqueKey(UniqueKey const&) = default;
+    UniqueKey(UniqueKey&&) = delete;
+    UniqueKey& operator=(UniqueKey const&) = delete;
+    UniqueKey& operator=(UniqueKey&&) = delete;
     // debugName is irrelevant in comparisons
     inline constexpr std::weak_ordering operator<=>(UniqueKey const& rhs_) const { return storage <=> rhs_.storage; }
     inline constexpr auto operator==(UniqueKey const& rhs_) const { return storage == rhs_.storage; }

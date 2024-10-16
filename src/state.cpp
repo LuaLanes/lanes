@@ -266,10 +266,10 @@ namespace state {
                 break;
             }
             // open library
-            std::string_view const _libName{ _libs.substr(_prefixLen, _nameLen) };
+            std::string_view const _libName{ _libs.substr(static_cast<size_t>(_prefixLen), static_cast<size_t>(_nameLen)) };
             Open1Lib(_L, _libName);
             // advance to next item (can't do this earlier as it invalidates iterators)
-            _libs.remove_prefix(_prefixLen + _nameLen);
+            _libs.remove_prefix(static_cast<size_t>(_prefixLen + _nameLen));
         }
         lua_gc(_L, LUA_GCRESTART, 0);
 

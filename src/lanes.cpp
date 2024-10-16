@@ -805,14 +805,14 @@ static volatile int s_ecoc_go_ahead = 0;
 static void EnableCrashingOnCrashes(void)
 {
     if (InterlockedCompareExchange(&s_ecoc_initCount, 1, 0) == 0) {
-        typedef BOOL(WINAPI * tGetPolicy)(LPDWORD lpFlags);
-        typedef BOOL(WINAPI * tSetPolicy)(DWORD dwFlags);
+        using GetPolicy_t = BOOL(WINAPI *)(LPDWORD lpFlags);
+        using SetPolicy_t = BOOL(WINAPI *)(DWORD dwFlags);
         const DWORD EXCEPTION_SWALLOWING = 0x1;
 
         HMODULE _kernel32 = LoadLibraryA("kernel32.dll");
         if (_kernel32) {
-            tGetPolicy pGetPolicy = (tGetPolicy) GetProcAddress(_kernel32, "GetProcessUserModeExceptionPolicy");
-            tSetPolicy pSetPolicy = (tSetPolicy) GetProcAddress(_kernel32, "SetProcessUserModeExceptionPolicy");
+            auto pGetPolicy{ (GetPolicy_t) (void*) GetProcAddress(_kernel32, "GetProcessUserModeExceptionPolicy") };
+            auto pSetPolicy{ (SetPolicy_t) (void*) GetProcAddress(_kernel32, "SetProcessUserModeExceptionPolicy") };
             if (pGetPolicy && pSetPolicy) {
                 DWORD _dwFlags;
                 if (pGetPolicy(&_dwFlags)) {

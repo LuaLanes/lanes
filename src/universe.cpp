@@ -170,7 +170,7 @@ void Universe::callOnStateCreate(lua_State* const L_, lua_State* const from_, Lo
     _U->selfdestructFirst = SELFDESTRUCT_END;
     _U->initializeAllocatorFunction(L_);
     _U->initializeOnStateCreate(L_);
-    _U->keepers.initialize(*_U, L_, _nbUserKeepers, _keepers_gc_threshold);
+    _U->keepers.initialize(*_U, L_, static_cast<size_t>(_nbUserKeepers), _keepers_gc_threshold);
     STACK_CHECK(L_, 0);
 
     // Initialize 'timerLinda'; a common Linda object shared by all states

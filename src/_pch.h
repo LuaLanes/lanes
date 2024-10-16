@@ -26,6 +26,14 @@
 #include <utility>
 #include <variant>
 
+#ifdef _MSC_VER
+
+// warning level /Wall triggers a bunch of warnings in Lua headers. we can't do anything about that, so suppress them
+#pragma warning(push)
+#pragma warning(disable : 4820) // 'n' bytes padding added after data member 'x'
+
+#endif // _MSC_VER
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -36,3 +44,23 @@ extern "C"
 #ifdef __cplusplus
 }
 #endif // __cplusplus
+
+#ifdef _MSC_VER
+
+#pragma warning(pop)
+
+#pragma warning(disable : 4061) // enumerator 'x' in switch of 'y' is not explicitly handled by a case label
+#pragma warning(disable : 4514) // 'x': unreferenced inline function has been removed
+#pragma warning(disable : 4623) // 'x': default constructor was implicitly defined as deleted
+#pragma warning(disable : 4623) // 'x': default constructor was implicitly defined as deleted
+#pragma warning(disable : 4625) // 'x': copy constructor was implicitly defined as deleted
+#pragma warning(disable : 4626) // 'x': assignment operator was implicitly defined as deleted
+#pragma warning(disable : 4820) // 'n' bytes padding added after data member 'x'
+#pragma warning(disable : 5026) // 'x': move constructor was implicitly defined as deleted
+#pragma warning(disable : 5027) // 'x': move assignment operator was implicitly defined as deleted
+#pragma warning(disable : 5039) // 'x': pointer or reference to potentially throwing function passed to 'extern "C"' function under -EHc. Undefined behavior may occur if this function throws an exception.
+#pragma warning(disable : 5045) // Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
+#pragma warning(disable : 5220) // 'x': a non-static data member with a volatile qualified type no longer implies that compiler generated copy/move constructors and copy/move assignment operators are not trivial
+#pragma warning(disable : 5246) // 'x': the initialization of a subobject should be wrapped in braces
+
+#endif // _MSC_VER

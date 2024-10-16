@@ -864,13 +864,13 @@ LuaType InterCopyContext::processConversion() const
         _source = lua_touserdata(L1, -1);
         void* _clone{ nullptr };
         // get the number of bytes to allocate for the clone
-        size_t const userdata_size{ lua_rawlen(L1, kIdxTop) };
+        size_t const _userdata_size{ lua_rawlen(L1, kIdxTop) };
         {
             // extract uservalues (don't transfer them yet)
             int const _nuv{ luaG_getalluservalues(L1, source_i) };                                 // L1: ... u [uv]*
             STACK_CHECK(L1, _nuv + 1);
             // create the clone userdata with the required number of uservalue slots
-            _clone = lua_newuserdatauv(L2, userdata_size, _nuv);                                   //                                                L2: ... mt u
+            _clone = lua_newuserdatauv(L2, _userdata_size, _nuv);                                  //                                                L2: ... mt u
             // add it in the cache
             lua_pushlightuserdata(L2, _source);                                                    //                                                L2: ... mt u source
             lua_pushvalue(L2, -2);                                                                 //                                                L2: ... mt u source u
@@ -906,7 +906,7 @@ LuaType InterCopyContext::processConversion() const
         lua_remove(L2, -2);                                                                        //                                                L2: ... u __lanesclone
         lua_pushlightuserdata(L2, _clone);                                                         //                                                L2: ... u __lanesclone clone
         lua_pushlightuserdata(L2, _source);                                                        //                                                L2: ... u __lanesclone clone source
-        lua_pushinteger(L2, userdata_size);                                                        //                                                L2: ... u __lanesclone clone source size
+        lua_pushinteger(L2, static_cast<lua_Integer>(_userdata_size));                             //                                                L2: ... u __lanesclone clone source size
         // clone:__lanesclone(dest, source, size)
         lua_call(L2, 3, 0);                                                                        //                                                L2: ... u
     } else { // regular function

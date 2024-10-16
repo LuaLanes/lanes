@@ -790,7 +790,7 @@ int Keeper::PushLindaStorage(Linda& linda_, DestState const L_)
 
 void Keepers::DeleteKV::operator()(Keeper* const k_) const
 {
-    for (Keeper& _k : std::views::counted(k_, count)) {
+    for (auto& _k : std::span<Keeper>(k_, count)) {
         _k.~Keeper();
     }
     U->internalAllocator.free(k_, count * sizeof(Keeper));
@@ -826,7 +826,7 @@ void Keepers::close()
         // when keeper N+1 is closed, object is GCed, linda operation is called, which attempts to acquire keeper N, whose Lua state no longer exists
         // in that case, the linda operation should do nothing. which means that these operations must check for keeper acquisition success
         // which is early-outed with a keepers->nbKeepers null-check
-        size_t const _nbKeepers{ std::exchange(_kv.nbKeepers, 0) };
+        size_t const _nbKeepers{ std::exchange(_kv.nbKeepers, size_t{ 0 }) };
         for (size_t const _i : std::ranges::iota_view{ size_t{ 0 }, _nbKeepers }) {
             if (!_closeOneKeeper(_kv.keepers[_i])) {
                 // detected partial init: destroy only the mutexes that got initialized properly
@@ -889,7 +889,7 @@ void Keepers::close()
  * settings table is expected at position 1 on the stack
  */
 
-void Keepers::initialize(Universe& U_, lua_State* L_, int const nbKeepers_, int const gc_threshold_)
+void Keepers::initialize(Universe& U_, lua_State* L_, size_t const nbKeepers_, int const gc_threshold_)
 {
     gc_threshold = gc_threshold_;
 
@@ -945,7 +945,7 @@ void Keepers::initialize(Universe& U_, lua_State* L_, int const nbKeepers_, int 
         U->callOnStateCreate(_K, L, LookupMode::ToKeeper);
 
         // _R[kLindasRegKey] = {}
-        kLindasRegKey.setValue(_K, [](lua_State* L_) { lua_newtable(L_); });
+        kLindasRegKey.setValue(_K, [](lua_State* const L_) { lua_newtable(L_); });
         STACK_CHECK(_K, 0);
 
         // configure GC last
@@ -968,8 +968,8 @@ void Keepers::initialize(Universe& U_, lua_State* L_, int const nbKeepers_, int 
             std::unique_ptr<Keeper[], DeleteKV>{ new(&U_) Keeper[nbKeepers_], DeleteKV{ &U_, nbKeepers_ } },
             nbKeepers_
         );
-        for (int const _i : std::ranges::iota_view{ 0, nbKeepers_ }) {
-            _initOneKeeper(_kv.keepers[_i], _i);
+        for (size_t const _i : std::ranges::iota_view{ size_t{ 0 }, nbKeepers_ }) {
+            _initOneKeeper(_kv.keepers[_i], static_cast<int>(_i));
         }
     }
 }

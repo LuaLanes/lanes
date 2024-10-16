@@ -42,7 +42,7 @@ struct Keepers
     struct DeleteKV
     {
         Universe* U{};
-        int count{};
+        size_t count{};
         void operator()(Keeper* k_) const;
     };
     // can't use std::vector<Keeper> because Keeper contains a mutex, so we need a raw memory buffer
@@ -65,7 +65,7 @@ struct Keepers
     void close();
     [[nodiscard]] Keeper* getKeeper(KeeperIndex idx_);
     [[nodiscard]] int getNbKeepers() const;
-    void initialize(Universe& U_, lua_State* L_, int nbKeepers_, int gc_threshold_);
+    void initialize(Universe& U_, lua_State* L_, size_t nbKeepers_, int gc_threshold_);
 };
 
 // #################################################################################################

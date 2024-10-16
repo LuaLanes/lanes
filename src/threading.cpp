@@ -87,14 +87,14 @@ THE SOFTWARE.
  * error in _this_ code.
  */
 #if defined(PLATFORM_XBOX) || defined(PLATFORM_WIN32) || defined(PLATFORM_POCKETPC)
-static void FAIL(char const* funcname, int rc)
+static void FAIL(char const* funcname_, DWORD const rc_)
 {
 #if defined(PLATFORM_XBOX)
-    fprintf(stderr, "%s() failed! (%d)\n", funcname, rc);
+    fprintf(stderr, "%s() failed! (%d)\n", funcname_, rc_);
 #else  // PLATFORM_XBOX
     char buf[256];
-    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, rc, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 256, nullptr);
-    fprintf(stderr, "%s() failed! [GetLastError() -> %d] '%s'", funcname, rc, buf);
+    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, rc_, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 256, nullptr);
+    fprintf(stderr, "%s() failed! [GetLastError() -> %lu] '%s'", funcname_, rc_, buf);
 #endif // PLATFORM_XBOX
 #ifdef _MSC_VER
     __debugbreak(); // give a chance to the debugger!
