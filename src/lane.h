@@ -37,8 +37,9 @@ static constexpr RegistryUniqueKey kLaneNameRegKey{ 0xA194E2645C57F6DDull };
 // The chain is ended by '(Lane*)(-1)', not nullptr: 'selfdestructFirst -> ... -> ... -> (-1)'
 #define SELFDESTRUCT_END ((Lane*) (-1))
 
+static constexpr std::string_view kLaneMetatableName{ "Lane" };
+
 // must be a #define instead of a constexpr to benefit from compile-time string concatenation
-#define kLaneMetatableName "Lane"
 #define kLanesLibName "lanes"
 #define kLanesCoreLibName kLanesLibName ".core"
 
@@ -140,8 +141,7 @@ class Lane
 
     private:
 
-    [[nodiscard]] CancelResult cancelHard(std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_);
-    [[nodiscard]] CancelResult cancelSoft(std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_);
+    [[nodiscard]] CancelResult internalCancel(CancelRequest rq_, std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_);
 
     public:
 
@@ -192,5 +192,5 @@ class Lane
 //
 [[nodiscard]] inline Lane* ToLane(lua_State* const L_, StackIndex const i_)
 {
-    return *(static_cast<Lane**>(luaL_checkudata(L_, i_, kLaneMetatableName)));
+    return *(static_cast<Lane**>(luaL_checkudata(L_, i_, kLaneMetatableName.data())));
 }

@@ -924,20 +924,22 @@ CancelResult Lane::cancel(CancelOp const op_, int const hookCount_, std::chrono:
     // signal the linda the wake up the thread so that it can react to the cancel query
     // let us hope we never land here with a pointer on a linda that has been destroyed...
     if (op_ == CancelOp::Soft) {
-        return cancelSoft(until_, wakeLane_);
+        return internalCancel(CancelRequest::Soft, until_, wakeLane_);
     } else if (static_cast<int>(op_) > static_cast<int>(CancelOp::Soft)) {
         lua_sethook(L, _cancelHook, static_cast<int>(op_), hookCount_);
     }
 
-    return cancelHard(until_, wakeLane_);
+    return internalCancel(CancelRequest::Hard, until_, wakeLane_);
 }
 
 // #################################################################################################
 
-[[nodiscard]] CancelResult Lane::cancelHard(std::chrono::time_point<std::chrono::steady_clock> const until_, bool const wakeLane_)
+[[nodiscard]] CancelResult Lane::internalCancel(CancelRequest const rq_, std::chrono::time_point<std::chrono::steady_clock> const until_, bool const wakeLane_)
 {
-    cancelRequest = CancelRequest::Hard; // it's now signaled to stop
-    // lane_->thread.get_stop_source().request_stop();
+    cancelRequest = rq_; // it's now signaled to stop
+    if (rq_ == CancelRequest::Hard) {
+        // lane_->thread.get_stop_source().request_stop();
+    }
     if (wakeLane_) { // wake the thread so that execution returns from any pending linda operation if desired
         std::condition_variable* const _waiting_on{ waiting_on };
         if (status == Lane::Waiting && _waiting_on != nullptr) {
@@ -945,25 +947,8 @@ CancelResult Lane::cancel(CancelOp const op_, int const hookCount_, std::chrono:
         }
     }
     // wait until the lane stops working with its state (either Suspended or Done+)
-    CancelResult result{ waitForCompletion(until_) ? CancelResult::Cancelled : CancelResult::Timeout };
+    CancelResult const result{ waitForCompletion(until_) ? CancelResult::Cancelled : CancelResult::Timeout };
     return result;
-}
-
-// #################################################################################################
-
-[[nodiscard]] CancelResult Lane::cancelSoft(std::chrono::time_point<std::chrono::steady_clock> const until_, bool const wakeLane_)
-{
-    cancelRequest = CancelRequest::Soft; // it's now signaled to stop
-    // negative timeout: we don't want to truly abort the lane, we just want it to react to cancel_test() on its own
-    if (wakeLane_) { // wake the thread so that execution returns from any pending linda operation if desired
-        std::condition_variable* const _waiting_on{ waiting_on };
-        if (status == Lane::Waiting && _waiting_on != nullptr) {
-            _waiting_on->notify_all();
-        }
-    }
-
-    // wait until the lane stops working with its state (either Suspended or Done+)
-    return waitForCompletion(until_) ? CancelResult::Cancelled : CancelResult::Timeout;
 }
 
 // #################################################################################################
@@ -1036,7 +1021,7 @@ namespace {
 void Lane::PushMetatable(lua_State* L_)
 {
     STACK_CHECK_START_REL(L_, 0);
-    if (luaL_newmetatable(L_, kLaneMetatableName)) {                                               // L_: mt
+    if (luaL_newmetatable(L_, kLaneMetatableName.data())) {                                        // L_: mt
         luaG_registerlibfuncs(L_, local::sLaneFunctions);
         // cache error() and tostring()
         kCachedError.pushKey(L_);                                                                  // L_: mt kCachedError
