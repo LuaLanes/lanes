@@ -671,7 +671,7 @@ LuaType InterCopyContext::processConversion() const
 
 [[nodiscard]] bool InterCopyContext::tryCopyClonable() const
 {
-    SourceIndex const _L1_i{ luaG_absindex(L1, L1_i) };
+    SourceIndex const _L1_i{ luaG_absindex(L1, L1_i).value() };
     void* const _source{ lua_touserdata(L1, _L1_i) };
 
     STACK_CHECK_START_REL(L1, 0);
@@ -740,7 +740,7 @@ LuaType InterCopyContext::processConversion() const
         // assign uservalues
         UserValueIndex _uvi{ _nuv.value() };
         while (_uvi > 0) {
-            _c.L1_i = SourceIndex{ luaG_absindex(L1, kIdxTop) };
+            _c.L1_i = SourceIndex{ luaG_absindex(L1, kIdxTop).value() };
             if (_c.interCopyOne() != InterCopyResult::Success) {                                   //                                                L2: ... u uv
                 raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
             }
@@ -798,7 +798,7 @@ LuaType InterCopyContext::processConversion() const
         STACK_GROW(L2, _nuv);
         UserValueIndex _uvi{ _nuv.value() };
         while (_uvi) {
-            _c.L1_i = SourceIndex{ luaG_absindex(L1, kIdxTop) };
+            _c.L1_i = SourceIndex{ luaG_absindex(L1, kIdxTop).value() };
             if (_c.interCopyOne() != InterCopyResult::Success) {                                   // L1: ... deep ... [uv]*                           L2: deep uv
                 raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
             }
@@ -882,7 +882,7 @@ LuaType InterCopyContext::processConversion() const
             InterCopyContext _c{ *this };
             UserValueIndex _uvi{ _nuv.value() };
             while (_uvi > 0) {
-                _c.L1_i = SourceIndex{ luaG_absindex(L1, kIdxTop) };
+                _c.L1_i = SourceIndex{ luaG_absindex(L1, kIdxTop).value() };
                 if (_c.interCopyOne() != InterCopyResult::Success) {                               //                                                L2: ... mt u uv
                     raise_luaL_error(getErrL(), "Cannot copy upvalue type '%s'", luaL_typename(L1, -1));
                 }
@@ -1301,10 +1301,10 @@ namespace {
     for (StackIndex _i{ (L1_i != 0) ? L1_i.value() : (_top_L1 - n_ + 1) }, _j{ 1 }; _j <= n_; ++_i, ++_j) {
         char _tmpBuf[16];
         if (U->verboseErrors) {
-            sprintf(_tmpBuf, "arg_%d", _j.operator int());
+            sprintf(_tmpBuf, "arg_%d", _j.value());
             _c.name = _tmpBuf;
         }
-        _c.L1_i = SourceIndex{ _i };
+        _c.L1_i = SourceIndex{ _i.value() };
         _copyok = _c.interCopyOne();                                                               //                                                L2: ... cache {}n
         if (_copyok != InterCopyResult::Success) {
             break;

@@ -928,7 +928,7 @@ void Keepers::initialize(Universe& U_, lua_State* L_, size_t const nbKeepers_, i
         // copy package.path and package.cpath from the source state
         if (luaG_getmodule(L, LUA_LOADLIBNAME) != LuaType::NIL) {                                  // L_: settings package                           _K:
             // when copying with mode LookupMode::ToKeeper, error message is pushed at the top of the stack, not raised immediately
-            InterCopyContext _c{ U, DestState{ _K.value() }, SourceState{ L }, {}, SourceIndex{ luaG_absindex(L, kIdxTop) }, {}, LookupMode::ToKeeper, {} };
+            InterCopyContext _c{ U, DestState{ _K.value() }, SourceState{ L }, {}, SourceIndex{ luaG_absindex(L, kIdxTop).value() }, {}, LookupMode::ToKeeper, {} };
             if (_c.interCopyPackage() != InterCopyResult::Success) {                               // L_: settings ... error_msg                     _K:
                 // if something went wrong, the error message is at the top of the stack
                 lua_remove(L, -2);                                                                 // L_: settings error_msg
