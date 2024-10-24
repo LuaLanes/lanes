@@ -329,7 +329,7 @@ LUAG_FUNC(lane_new)
             DEBUGSPEW_CODE(DebugSpew(lane->U) << "lane_new: preparing lane userdata" << std::endl);
             STACK_CHECK_START_REL(L, 0);
             // a Lane full userdata needs a single uservalue
-            Lane** const _ud{ luaG_newuserdatauv<Lane*>(L, 1) };                                   // L: ... lane
+            Lane** const _ud{ luaG_newuserdatauv<Lane*>(L, UserValueCount{ 1 }) };                 // L: ... lane
             *_ud = lane; // don't forget to store the pointer in the userdata!
 
             // Set metatable for the userdata
@@ -342,7 +342,7 @@ LUAG_FUNC(lane_new)
             lua_newtable(L);                                                                       // L: ... lane {uv}
 
             // Store the gc_cb callback in the uservalue
-            StackIndex const _gc_cb_idx{ lua_isnoneornil(L, kGcCbIdx) ? 0 : kGcCbIdx };
+            StackIndex const _gc_cb_idx{ lua_isnoneornil(L, kGcCbIdx) ? kIdxNone : kGcCbIdx };
             if (_gc_cb_idx > 0) {
                 kLaneGC.pushKey(L);                                                                // L: ... lane {uv} k
                 lua_pushvalue(L, _gc_cb_idx);                                                      // L: ... lane {uv} k gc_cb
@@ -354,7 +354,7 @@ LUAG_FUNC(lane_new)
 
             lua_State* const _L2{ lane->L };
             STACK_CHECK_START_REL(_L2, 0);
-            StackIndex const _name_idx{ lua_isnoneornil(L, kNameIdx) ? 0 : kNameIdx };
+            StackIndex const _name_idx{ lua_isnoneornil(L, kNameIdx) ? kIdxNone : kNameIdx };
             std::string_view const _debugName{ (_name_idx > 0) ? luaG_tostring(L, _name_idx) : std::string_view{} };
             if (!_debugName.empty())
             {
@@ -393,7 +393,7 @@ LUAG_FUNC(lane_new)
     // On some platforms, -3 is equivalent to -2 and +3 to +2
     int const _priority{
         std::invoke([L = L_]() {
-            int const _prio_idx{ lua_isnoneornil(L, kPrioIdx) ? 0 : kPrioIdx };
+            StackIndex const _prio_idx{ lua_isnoneornil(L, kPrioIdx) ? kIdxNone : kPrioIdx };
             if (_prio_idx == 0) {
                 return kThreadPrioDefault;
             }
@@ -412,7 +412,7 @@ LUAG_FUNC(lane_new)
     STACK_CHECK_START_REL(L_, 0);
 
     // package
-    StackIndex const _package_idx{ lua_isnoneornil(L_, kPackIdx) ? 0 : kPackIdx };
+    StackIndex const _package_idx{ lua_isnoneornil(L_, kPackIdx) ? kIdxNone : kPackIdx };
     if (_package_idx != 0) {
         DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: update 'package'" << std::endl);
         // when copying with mode LookupMode::LaneBody, should raise an error in case of problem, not leave it one the stack
@@ -424,7 +424,7 @@ LUAG_FUNC(lane_new)
     STACK_CHECK(_L2, 0);
 
     // modules to require in the target lane *before* the function is transfered!
-    StackIndex const _required_idx{ lua_isnoneornil(L_, kRequIdx) ? 0 : kRequIdx };
+    StackIndex const _required_idx{ lua_isnoneornil(L_, kRequIdx) ? kIdxNone : kRequIdx };
     if (_required_idx != 0) {
         int _nbRequired{ 1 };
         DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: process 'required' list" << std::endl);
@@ -473,7 +473,7 @@ LUAG_FUNC(lane_new)
     // Appending the specified globals to the global environment
     // *after* stdlibs have been loaded and modules required, in case we transfer references to native functions they exposed...
     //
-    StackIndex const _globals_idx{ lua_isnoneornil(L_, kGlobIdx) ? 0 : kGlobIdx };
+    StackIndex const _globals_idx{ lua_isnoneornil(L_, kGlobIdx) ? kIdxNone : kGlobIdx };
     if (_globals_idx != 0) {
         DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: transfer globals" << std::endl);
         if (!lua_istable(L_, _globals_idx)) {

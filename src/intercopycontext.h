@@ -41,7 +41,7 @@ class InterCopyContext
     [[nodiscard]] std::string_view findLookupName() const;
     // when mode == LookupMode::FromKeeper, L1 is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
     // whon mode != LookupMode::FromKeeper, L1 is not a keeper state, therefore L1 is the state where we want to raise the error
-    lua_State* getErrL() const { return (mode == LookupMode::FromKeeper) ? L2 : L1; }
+    lua_State* getErrL() const { return (mode == LookupMode::FromKeeper) ? L2.value() : L1.value(); }
     [[nodiscard]] LuaType processConversion() const;
 
     // for use in copyCachedFunction

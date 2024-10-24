@@ -80,7 +80,7 @@ inline int luaL_optint(lua_State* L_, int n_, lua_Integer d_)
 
 #if LUA_VERSION_NUM < 504
 
-void* lua_newuserdatauv(lua_State* L_, size_t sz_, int nuvalue_);
+void* lua_newuserdatauv(lua_State* L_, size_t sz_, UserValueCount nuvalue_);
 int lua_getiuservalue(lua_State* L_, StackIndex idx_, int n_);
 int lua_setiuservalue(lua_State* L_, StackIndex idx_, int n_);
 
@@ -138,7 +138,7 @@ inline LuaType luaG_type(lua_State* const L_, StackIndex const idx_)
 // use this in place of lua_absindex to save a function call
 inline StackIndex luaG_absindex(lua_State* const L_, StackIndex const idx_)
 {
-    return StackIndex{ (idx_ >= 0 || idx_ <= kIdxRegistry) ? idx_ : lua_gettop(L_) + idx_ + 1 };
+    return StackIndex{ (idx_ >= 0 || idx_ <= kIdxRegistry) ? idx_ : StackIndex{ lua_gettop(L_) + idx_ + 1 } };
 }
 
 // #################################################################################################
@@ -295,7 +295,7 @@ static inline void luaG_newlib(lua_State* const L_, luaL_Reg const (&funcs_)[N])
 // #################################################################################################
 
 template <typename T>
-[[nodiscard]] T* luaG_newuserdatauv(lua_State* L_, int nuvalue_)
+[[nodiscard]] T* luaG_newuserdatauv(lua_State* L_, UserValueCount nuvalue_)
 {
     return static_cast<T*>(lua_newuserdatauv(L_, sizeof(T), nuvalue_));
 }

@@ -738,7 +738,7 @@ LuaType InterCopyContext::processConversion() const
             lua_getupvalue(L2, -1, 2);                                                             //                                                L2: ... userdata_clone_sentinel u
         }
         // assign uservalues
-        int _uvi{ _nuv };
+        UserValueIndex _uvi{ _nuv.value() };
         while (_uvi > 0) {
             _c.L1_i = SourceIndex{ luaG_absindex(L1, kIdxTop) };
             if (_c.interCopyOne() != InterCopyResult::Success) {                                   //                                                L2: ... u uv
@@ -796,7 +796,7 @@ LuaType InterCopyContext::processConversion() const
         InterCopyContext _c{ U, L2, L1, L2_cache_i, {}, VT::NORMAL, mode, name };
         StackIndex const _clone_i{ lua_gettop(L2) };
         STACK_GROW(L2, _nuv);
-        int _uvi{ _nuv };
+        UserValueIndex _uvi{ _nuv.value() };
         while (_uvi) {
             _c.L1_i = SourceIndex{ luaG_absindex(L1, kIdxTop) };
             if (_c.interCopyOne() != InterCopyResult::Success) {                                   // L1: ... deep ... [uv]*                           L2: deep uv
@@ -880,7 +880,7 @@ LuaType InterCopyContext::processConversion() const
             lua_setmetatable(L2, -2);                                                              //                                                L2: ... mt u
             // transfer and assign uservalues
             InterCopyContext _c{ *this };
-            int _uvi{ _nuv };
+            UserValueIndex _uvi{ _nuv.value() };
             while (_uvi > 0) {
                 _c.L1_i = SourceIndex{ luaG_absindex(L1, kIdxTop) };
                 if (_c.interCopyOne() != InterCopyResult::Success) {                               //                                                L2: ... mt u uv
@@ -1276,7 +1276,7 @@ namespace {
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
 
     StackIndex const _top_L1{ lua_gettop(L1) };
-    int const _available{ (L1_i != 0) ? (_top_L1 - L1_i + 1) : _top_L1 };
+    int const _available{ (L1_i != 0) ? (_top_L1 - L1_i + 1) : _top_L1.value() };
     if (n_ > _available) {
         // requesting to copy more than is available?
         DEBUGSPEW_CODE(DebugSpew(U) << "nothing to copy" << std::endl);
@@ -1298,7 +1298,7 @@ namespace {
     InterCopyResult _copyok{ InterCopyResult::Success };
     STACK_CHECK_START_REL(L1, 0);
     // if L1_i is specified, start here, else take the _n items off the top of the stack
-    for (StackIndex _i{ L1_i != 0 ? L1_i : (_top_L1 - n_ + 1) }, _j{ 1 }; _j <= n_; ++_i, ++_j) {
+    for (StackIndex _i{ (L1_i != 0) ? L1_i.value() : (_top_L1 - n_ + 1) }, _j{ 1 }; _j <= n_; ++_i, ++_j) {
         char _tmpBuf[16];
         if (U->verboseErrors) {
             sprintf(_tmpBuf, "arg_%d", _j.operator int());

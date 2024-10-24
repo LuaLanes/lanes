@@ -80,7 +80,7 @@ void LindaFactory::deleteDeepObjectInternal(lua_State* L_, DeepPrelude* o_) cons
         Keeper* const _keeper{ _need_acquire_release ? _linda->acquireKeeper() : _myKeeper };
         LUA_ASSERT(L_, _keeper == _myKeeper); // should always be the same
         // hopefully this won't ever raise an error as we would jump to the closest pcall site while forgetting to release the keeper mutex...
-        [[maybe_unused]] KeeperCallResult const result{ keeper_call(_keeper->K, KEEPER_API(destruct), L_, _linda, StackIndex{ 0 }) };
+        [[maybe_unused]] KeeperCallResult const result{ keeper_call(_keeper->K, KEEPER_API(destruct), L_, _linda, kIdxNone) };
         LUA_ASSERT(L_, result.has_value() && result.value() == 0);
         if (_need_acquire_release) {
             _linda->releaseKeeper(_keeper);

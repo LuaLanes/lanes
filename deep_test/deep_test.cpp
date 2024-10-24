@@ -229,7 +229,7 @@ static luaL_Reg const clonable_mt[] = {
 
 int luaD_new_clonable(lua_State* L)
 {
-    int const _nuv{ static_cast<int>(luaL_optinteger(L, 1, 1)) };
+    UserValueCount const _nuv{ static_cast<int>(luaL_optinteger(L, 1, 1)) };
     lua_newuserdatauv(L, sizeof(MyClonableUserdata), _nuv);
     luaG_setmetatable(L, "clonable");
     return 1;

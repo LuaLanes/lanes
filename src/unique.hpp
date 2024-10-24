@@ -10,6 +10,7 @@ class Unique
     T val; // no default initialization so that std::is_trivial_v<Unique<T>> == true
 
     public:
+    using self = Unique<T, TAG, specialization>;
     using type = T;
 
     ~Unique() = default;
@@ -25,12 +26,20 @@ class Unique
     constexpr Unique& operator=(Unique const&) = default;
     constexpr Unique& operator=(Unique&&) = default;
 
+    // Forbid construction with any other class, especially with types that convert naturally to UnderlyingType.
+    // For instance, this prevents construction with a float when UnderlyingType is an integer type.
+    // Conversion will have to be explicit and the developer will be aware of it.
+    // However we want to keep the same-type copy constructors (including with an inherited class), hence the enable_if stuff.
+    template <typename AnyOtherClass, std::enable_if_t<!std::is_base_of_v<self, std::decay_t<AnyOtherClass>>, bool> = true>
+    Unique(AnyOtherClass&&) = delete;
+
     // can't implicitly affect from base type
     Unique& operator=(T const&) = delete;
     constexpr Unique& operator=(T&&) = delete;
 
     // cast
     constexpr operator T() const noexcept { return val; }
+    constexpr T value() const noexcept { return val; }
 
     // pre-increment
     auto& operator++() noexcept

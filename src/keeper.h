@@ -16,7 +16,7 @@ DECLARE_UNIQUE_TYPE(KeeperIndex, int);
 struct Keeper
 {
     std::mutex mutex;
-    KeeperState K{ nullptr };
+    KeeperState K{ static_cast<lua_State*>(nullptr) };
 
     [[nodiscard]] static void* operator new[](size_t size_, Universe* U_) noexcept;
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception

@@ -196,7 +196,7 @@ int Linda::ProtectedCall(lua_State* const L_, lua_CFunction const f_)
 
     // acquire the keeper
     Keeper* const _keeper{ _linda->acquireKeeper() };
-    KeeperState const _K{ _keeper ? _keeper->K : KeeperState{ nullptr } };
+    KeeperState const _K{ _keeper ? _keeper->K : KeeperState{ static_cast<lua_State*>(nullptr) } };
     if (_K == nullptr)
         return 0;
 
@@ -469,7 +469,7 @@ LUAG_FUNC(linda_limit)
             luaL_argcheck(L_, _nargs == 2 || _nargs == 3, 2, "wrong number of arguments");
             // make sure we got a numeric limit, or "unlimited", (or nothing)
             bool const _unlimited{ luaG_tostring(L_, StackIndex{ 3 }) == "unlimited" };
-            LindaLimit const _val{ _unlimited ? std::numeric_limits<LindaLimit::type>::max() : LindaLimit{ static_cast<LindaLimit::type>(luaL_optinteger(L_, 3, 0)) } };
+            LindaLimit const _val{ _unlimited ? std::numeric_limits<LindaLimit::type>::max() : static_cast<LindaLimit::type>(luaL_optinteger(L_, 3, 0)) };
             if (_val < 0) {
                 raise_luaL_argerror(L_, StackIndex{ 3 }, "limit must be >= 0");
             }
@@ -575,7 +575,7 @@ LUAG_FUNC(linda_receive)
 
             Lane* const _lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
             Keeper* const _keeper{ _linda->whichKeeper() };
-            KeeperState const _K{ _keeper ? _keeper->K : KeeperState{ nullptr } };
+            KeeperState const _K{ _keeper ? _keeper->K : KeeperState{ static_cast<lua_State*>(nullptr) } };
             if (_K == nullptr)
                 return 0;
 
@@ -714,7 +714,7 @@ LUAG_FUNC(linda_send)
             {
                 Lane* const _lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
                 Keeper* const _keeper{ _linda->whichKeeper() };
-                KeeperState const _K{ _keeper ? _keeper->K : KeeperState{ nullptr } };
+                KeeperState const _K{ _keeper ? _keeper->K : KeeperState{ static_cast<lua_State*>(nullptr) } };
                 if (_K == nullptr)
                     return 0;
 

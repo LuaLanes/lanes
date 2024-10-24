@@ -16,11 +16,11 @@ namespace lanes {
         lua_Alloc allocF{ nullptr };
         void* allocUD{ nullptr };
 
-        [[nodiscard]] static void* operator new(size_t size_) noexcept = delete; // can't create one outside of a Lua state
-        [[nodiscard]] static void* operator new(size_t size_, lua_State* L_) noexcept { return lua_newuserdatauv(L_, size_, 0); }
+        [[nodiscard]] static void* operator new(size_t const size_) noexcept = delete; // can't create one outside of a Lua state
+        [[nodiscard]] static void* operator new(size_t const size_, lua_State* const L_) noexcept { return lua_newuserdatauv(L_, size_, UserValueCount{ 0 }); }
         // always embedded somewhere else or "in-place constructed" as a full userdata
         // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
-        static void operator delete([[maybe_unused]] void* p_, [[maybe_unused]] lua_State* L_) {}
+        static void operator delete([[maybe_unused]] void* const p_, [[maybe_unused]] lua_State* const L_) {}
 
         AllocatorDefinition(uintptr_t const version_, lua_Alloc const allocF_, void* const allocUD_) noexcept
         : version{ version_ }

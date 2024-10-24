@@ -75,7 +75,7 @@ class KeyUD
     LindaLimit limit{ -1 };
 
     // a fifo full userdata has one uservalue, the table that holds the actual fifo contents
-    [[nodiscard]] static void* operator new([[maybe_unused]] size_t size_, KeeperState L_) noexcept { return luaG_newuserdatauv<KeyUD>(L_, 1); }
+    [[nodiscard]] static void* operator new([[maybe_unused]] size_t size_, KeeperState L_) noexcept { return luaG_newuserdatauv<KeyUD>(L_, UserValueCount{ 1 }); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete([[maybe_unused]] void* p_, [[maybe_unused]] KeeperState L_) { LUA_ASSERT(L_, !"should never be called"); }
@@ -275,7 +275,7 @@ bool KeyUD::reset(KeeperState const K_)
     bool const _wasFull{ (limit > 0) && (count >= limit) };
     // empty the KeyUD: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
     // if we have an actual limit, use it to preconfigure the table
-    lua_createtable(K_, (limit <= 0) ? 0 : limit, 0);                                              // K_: KeysDB key val... KeyUD {}
+    lua_createtable(K_, (limit <= 0) ? 0 : limit.value(), 0);                                      // K_: KeysDB key val... KeyUD {}
     lua_setiuservalue(K_, StackIndex{ -2 }, kContentsTableIndex);                                  // K_: KeysDB key val... KeyUD
     first = 1;
     count = 0;
@@ -646,7 +646,7 @@ KeeperCallResult keeper_call(KeeperState const K_, keeper_api_t const func_, lua
     lua_pushlightuserdata(K_, linda_);                                                             // L: ... args...                                  K_: func_ linda
     if (
         (_args == 0) ||
-        (InterCopyContext{ linda_->U, DestState{ K_ }, SourceState{ L_ }, {}, {}, {}, LookupMode::ToKeeper, {} }.interCopy(_args) == InterCopyResult::Success)
+        (InterCopyContext{ linda_->U, DestState{ K_.value() }, SourceState{ L_ }, {}, {}, {}, LookupMode::ToKeeper, {} }.interCopy(_args) == InterCopyResult::Success)
     ) {                                                                                            // L: ... args...                                  K_: func_ linda args...
         lua_call(K_, 1 + _args, LUA_MULTRET);                                                      // L: ... args...                                  K_: result...
         int const _retvals{ lua_gettop(K_) - _top_K };
@@ -656,7 +656,7 @@ KeeperCallResult keeper_call(KeeperState const K_, keeper_api_t const func_, lua
         // when attempting to grab the mutex again (WINVER <= 0x400 does this, but locks just fine, I don't know about pthread)
         if (
             (_retvals == 0) ||
-            (InterCopyContext{ linda_->U, DestState{ L_ }, SourceState{ K_ }, {}, {}, {}, LookupMode::FromKeeper, {} }.interMove(_retvals) == InterCopyResult::Success)
+            (InterCopyContext{ linda_->U, DestState{ L_ }, SourceState{ K_.value() }, {}, {}, {}, LookupMode::FromKeeper, {} }.interMove(_retvals) == InterCopyResult::Success)
         ) {                                                                                        // L: ... args... result...                        K_: result...
             _result.emplace(_retvals);
         }
@@ -721,7 +721,7 @@ void Keeper::operator delete[](void* p_, Universe* U_)
 int Keeper::PushLindaStorage(Linda& linda_, DestState const L_)
 {
     Keeper* const _keeper{ linda_.whichKeeper() };
-    KeeperState const _K{ _keeper ? _keeper->K : KeeperState{ nullptr } };
+    KeeperState const _K{ _keeper ? _keeper->K : KeeperState{ static_cast<lua_State*>(nullptr) } };
     if (_K == nullptr) {
         return 0;
     }
@@ -740,7 +740,7 @@ int Keeper::PushLindaStorage(Linda& linda_, DestState const L_)
     STACK_GROW(L_, 5);
     STACK_CHECK_START_REL(L_, 0);
     lua_newtable(L_);                                                                              // _K: KeysDB                                         L_: out
-    InterCopyContext _c{ linda_.U, L_, SourceState{ _K }, {}, {}, {}, LookupMode::FromKeeper, {} };
+    InterCopyContext _c{ linda_.U, L_, SourceState{ _K.value() }, {}, {}, {}, LookupMode::FromKeeper, {} };
     lua_pushnil(_K);                                                                               // _K: KeysDB nil                                     L_: out
     while (lua_next(_K, -2)) {                                                                     // _K: KeysDB key KeyUD                               L_: out
         KeyUD* const _key{ KeyUD::GetPtr(_K, kIdxTop) };
@@ -810,7 +810,7 @@ void Keepers::close()
     }
 
     auto _closeOneKeeper = [](Keeper& keeper_) {
-        lua_State* const _K{ std::exchange(keeper_.K, KeeperState{ nullptr }) };
+        lua_State* const _K{ std::exchange(keeper_.K, KeeperState{ static_cast<lua_State*>(nullptr) }) };
         if (_K) {
             lua_close(_K);
         }
@@ -928,7 +928,7 @@ void Keepers::initialize(Universe& U_, lua_State* L_, size_t const nbKeepers_, i
         // copy package.path and package.cpath from the source state
         if (luaG_getmodule(L, LUA_LOADLIBNAME) != LuaType::NIL) {                                  // L_: settings package                           _K:
             // when copying with mode LookupMode::ToKeeper, error message is pushed at the top of the stack, not raised immediately
-            InterCopyContext _c{ U, DestState{ _K }, SourceState{ L }, {}, SourceIndex{ luaG_absindex(L, kIdxTop) }, {}, LookupMode::ToKeeper, {} };
+            InterCopyContext _c{ U, DestState{ _K.value() }, SourceState{ L }, {}, SourceIndex{ luaG_absindex(L, kIdxTop) }, {}, LookupMode::ToKeeper, {} };
             if (_c.interCopyPackage() != InterCopyResult::Success) {                               // L_: settings ... error_msg                     _K:
                 // if something went wrong, the error message is at the top of the stack
                 lua_remove(L, -2);                                                                 // L_: settings error_msg
