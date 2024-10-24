@@ -70,7 +70,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 {
     MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, StackIndex{ 1 })) };
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
-    int _uv = (int) luaL_optinteger(L, 2, 1);
+    UserValueIndex const _uv{ static_cast<UserValueIndex::type>(luaL_optinteger(L, 2, 1)) };
     lua_getiuservalue(L, StackIndex{ 1 }, _uv);
     _self->inUse.fetch_sub(1, std::memory_order_seq_cst);
     return 1;
@@ -106,7 +106,7 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 {
     MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, StackIndex{ 1 })) };
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
-    int _uv = (int) luaL_optinteger(L, 2, 1);
+    UserValueIndex const _uv{ static_cast<UserValueIndex::type>(luaL_optinteger(L, 2, 1)) };
     lua_settop(L, 3);
     lua_pushboolean(L, lua_setiuservalue(L, StackIndex{ 1 }, _uv) != 0);
     _self->inUse.fetch_sub(1, std::memory_order_seq_cst);
@@ -157,10 +157,10 @@ struct MyClonableUserdata
 
 [[nodiscard]] static int clonable_setuv(lua_State* L)
 {
-    MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
-    int uv = (int) luaL_optinteger(L, 2, 1);
+    MyClonableUserdata* const _self{ static_cast<MyClonableUserdata*>(lua_touserdata(L, 1)) };
+    UserValueIndex const _uv{ static_cast<UserValueIndex::type>(luaL_optinteger(L, 2, 1)) };
     lua_settop(L, 3);
-    lua_pushboolean(L, lua_setiuservalue(L, StackIndex{ 1 }, uv) != 0);
+    lua_pushboolean(L, lua_setiuservalue(L, StackIndex{ 1 }, _uv) != 0);
     return 1;
 }
 
@@ -168,9 +168,9 @@ struct MyClonableUserdata
 
 [[nodiscard]] static int clonable_getuv(lua_State* L)
 {
-    MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
-    int uv = (int) luaL_optinteger(L, 2, 1);
-    lua_getiuservalue(L, StackIndex{ 1 }, uv);
+    MyClonableUserdata* const _self{ static_cast<MyClonableUserdata*>(lua_touserdata(L, 1)) };
+    UserValueIndex const _uv{ static_cast<UserValueIndex::type>(luaL_optinteger(L, 2, 1)) };
+    lua_getiuservalue(L, StackIndex{ 1 }, _uv);
     return 1;
 }
 

@@ -350,7 +350,7 @@ LUAG_FUNC(lane_new)
             }
             STACK_CHECK(L, 2);
             // store the uservalue in the Lane full userdata
-            lua_setiuservalue(L, StackIndex{ -2 }, 1);                                             // L: ... lane
+            lua_setiuservalue(L, StackIndex{ -2 }, UserValueIndex{ 1 });                           // L: ... lane
 
             lua_State* const _L2{ lane->L };
             STACK_CHECK_START_REL(_L2, 0);

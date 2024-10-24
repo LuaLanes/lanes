@@ -81,8 +81,8 @@ inline int luaL_optint(lua_State* L_, int n_, lua_Integer d_)
 #if LUA_VERSION_NUM < 504
 
 void* lua_newuserdatauv(lua_State* L_, size_t sz_, UserValueCount nuvalue_);
-int lua_getiuservalue(lua_State* L_, StackIndex idx_, int n_);
-int lua_setiuservalue(lua_State* L_, StackIndex idx_, int n_);
+int lua_getiuservalue(lua_State* L_, StackIndex idx_, UserValueIndex n_);
+int lua_setiuservalue(lua_State* L_, StackIndex idx_, UserValueIndex n_);
 
 #define LUA_GNAME "_G"
 

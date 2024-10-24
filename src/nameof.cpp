@@ -125,7 +125,7 @@ THE SOFTWARE.
             STACK_CHECK(L_, 2);
             // search in the object's uservalues
             {
-                int _uvi{ 1 };
+                UserValueIndex _uvi{ 1 };
                 while (lua_getiuservalue(L_, kIdxTop, _uvi) != LUA_TNONE) {                        // L_: o "r" {c} {fqn} ... {?} k U {u}
                     if (lua_istable(L_, -1)) { // if it is a table, look inside
                         ++depth_;

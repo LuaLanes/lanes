@@ -9,7 +9,7 @@ UserValueCount luaG_getalluservalues(lua_State* const L_, StackIndex const idx_)
 {
     STACK_CHECK_START_REL(L_, 0);
     StackIndex const _idx{ luaG_absindex(L_, idx_) };
-    UserValueCount _nuv{ 0 };
+    UserValueIndex _nuv{ 0 };
     do {
         // we don't know how many uservalues we are going to extract, there might be a lot...
         STACK_GROW(L_, 1);
@@ -18,7 +18,7 @@ UserValueCount luaG_getalluservalues(lua_State* const L_, StackIndex const idx_)
     lua_pop(L_, 1);                                                                                // L_: ... [uv]*
     --_nuv;
     STACK_CHECK(L_, _nuv);
-    return _nuv;
+    return UserValueCount{ _nuv.value() };
 }
 
 // #################################################################################################
@@ -92,7 +92,7 @@ void* lua_newuserdatauv(lua_State* const L_, size_t const sz_, [[maybe_unused]] 
 // #################################################################################################
 
 // push on stack uservalue #n of full userdata at idx
-int lua_getiuservalue(lua_State* const L_, StackIndex const idx_, int const n_)
+int lua_getiuservalue(lua_State* const L_, StackIndex const idx_, UserValueIndex const n_)
 {
     STACK_CHECK_START_REL(L_, 0);
     // full userdata can have only 1 uservalue before 5.4
@@ -129,7 +129,7 @@ int lua_getiuservalue(lua_State* const L_, StackIndex const idx_, int const n_)
 
 // Pops a value from the stack and sets it as the new n-th user value associated to the full userdata at the given index.
 // Returns 0 if the userdata does not have that value.
-int lua_setiuservalue(lua_State* const L_, StackIndex const idx_, int const n_)
+int lua_setiuservalue(lua_State* const L_, StackIndex const idx_, UserValueIndex const n_)
 {
     if (n_ > 1
 #if LUA_VERSION_NUM == 501

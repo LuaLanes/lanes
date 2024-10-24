@@ -63,7 +63,7 @@ namespace {
 class KeyUD
 {
     private:
-    static constexpr int kContentsTableIndex{ 1 };
+    static constexpr UserValueIndex kContentsTableIndex{ 1 };
 
     public:
     static constexpr std::string_view kUnder{ "under" };

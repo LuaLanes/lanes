@@ -150,7 +150,7 @@ static LUAG_FUNC(thread_join)
             if (_stored == 0) {
                 raise_luaL_error(L_, _lane->L ? "First return value must be non-nil when using join()" : "Can't join() more than once or after indexing");
             }
-            lua_getiuservalue(L_, StackIndex{ 1 }, 1);                                             // L_: lane {uv}
+            lua_getiuservalue(L_, StackIndex{ 1 }, UserValueIndex{ 1 });                           // L_: lane {uv}
             for (int _i = 2; _i <= _stored; ++_i) {
                 lua_rawgeti(L_, 2, _i);                                                            // L_: lane {uv} results2...N
             }
@@ -163,7 +163,7 @@ static LUAG_FUNC(thread_join)
     case Lane::Error:
         {
             LUA_ASSERT(L_, _stored == 2 || _stored == 3);
-            lua_getiuservalue(L_, StackIndex{ 1 }, 1);                                             // L_: lane {uv}
+            lua_getiuservalue(L_, StackIndex{ 1 }, UserValueIndex{ 1 });                           // L_: lane {uv}
             lua_rawgeti(L_, 2, 2);                                                                 // L_: lane {uv} <error>
             lua_rawgeti(L_, 2, 3);                                                                 // L_: lane {uv} <error> <trace>|nil
             if (lua_isnil(L_, -1)) {
@@ -178,7 +178,7 @@ static LUAG_FUNC(thread_join)
 
     case Lane::Cancelled:
         LUA_ASSERT(L_, _stored == 2);
-        lua_getiuservalue(L_, StackIndex{ 1 }, 1);                                                // L_: lane {uv}
+        lua_getiuservalue(L_, StackIndex{ 1 }, UserValueIndex{ 1 });                              // L_: lane {uv}
         lua_rawgeti(L_, 2, 2);                                                                    // L_: lane {uv} cancel_error
         lua_rawgeti(L_, 2, 1);                                                                    // L_: lane {uv} cancel_error nil
         lua_replace(L_, -3);                                                                      // L_: lane nil cancel_error
@@ -828,7 +828,7 @@ static LUAG_FUNC(lane_gc)
     Lane* const _lane{ ToLane(L_, StackIndex{ 1 }) };                                              // L_: ud
 
     // if there a gc callback?
-    lua_getiuservalue(L_, StackIndex{ 1 }, 1);                                                     // L_: ud uservalue
+    lua_getiuservalue(L_, StackIndex{ 1 }, UserValueIndex{ 1 });                                   // L_: ud uservalue
     kLaneGC.pushKey(L_);                                                                           // L_: ud uservalue __gc
     lua_rawget(L_, -2);                                                                            // L_: ud uservalue gc_cb|nil
     if (!lua_isnil(L_, -1)) {
@@ -1070,7 +1070,7 @@ void Lane::pushIndexedResult(lua_State* const L_, int const key_) const
     LUA_ASSERT(L_, ToLane(L_, kIdxSelf) == this);                                                  // L_: lane ...
     STACK_GROW(L_, 3);
 
-    lua_getiuservalue(L_, kIdxSelf, 1);                                                            // L_: lane ... {uv}
+    lua_getiuservalue(L_, kIdxSelf, UserValueIndex{ 1 });                                          // L_: lane ... {uv}
     if (status != Lane::Error) {
         lua_rawgeti(L_, -1, key_);                                                                 // L_: lane ... {uv} uv[i]
         lua_remove(L_, -2);                                                                        // L_: lane ... uv[i]
@@ -1138,7 +1138,7 @@ void Lane::resetResultsStorage(lua_State* const L_, StackIndex const self_idx_)
     // create the new table
     lua_newtable(L_);                                                                              // L_: ... self ... {}
     // get the current table
-    lua_getiuservalue(L_, _self_idx, 1);                                                           // L_: ... self ... {} {uv}
+    lua_getiuservalue(L_, _self_idx, UserValueIndex{ 1 });                                         // L_: ... self ... {} {uv}
     LUA_ASSERT(L_, lua_istable(L_, -1));
     // read gc_cb from the current table
     kLaneGC.pushKey(L_);                                                                           // L_: ... self ... {} {uv} kLaneGC
@@ -1149,7 +1149,7 @@ void Lane::resetResultsStorage(lua_State* const L_, StackIndex const self_idx_)
     // we can forget the old table
     lua_pop(L_, 1);                                                                                // L_: ... self ... {}
     // and store the new one
-    lua_setiuservalue(L_, _self_idx, 1);                                                           // L_: ... self ...
+    lua_setiuservalue(L_, _self_idx, UserValueIndex{ 1 });                                         // L_: ... self ...
     STACK_CHECK(L_, 0);
 }
 
@@ -1161,7 +1161,7 @@ void Lane::securizeDebugName(lua_State* const L_)
     STACK_CHECK_START_REL(L_, 0);
     STACK_GROW(L_, 3);
     // a Lane's uservalue should be a table
-    lua_getiuservalue(L_, StackIndex{ 1 }, 1);                                                     // L_: lane ... {uv}
+    lua_getiuservalue(L_, StackIndex{ 1 }, UserValueIndex{ 1 });                                   // L_: lane ... {uv}
     LUA_ASSERT(L_, lua_istable(L_, -1));
     // we don't care about the actual key, so long as it's unique and can't collide with anything.
     lua_newtable(L_);                                                                              // L_: lane ... {uv} {}
@@ -1195,7 +1195,7 @@ int Lane::storeResults(lua_State* const L_)
     LUA_ASSERT(L_, ToLane(L_, kIdxSelf) == this);
 
     STACK_CHECK_START_REL(L_, 0);
-    lua_getiuservalue(L_, kIdxSelf, 1);                                                            // L_: lane ... {uv}
+    lua_getiuservalue(L_, kIdxSelf, UserValueIndex{ 1 });                                          // L_: lane ... {uv}
     StackIndex const _tidx{ lua_gettop(L_) };
 
     int _stored{};
