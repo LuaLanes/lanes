@@ -148,7 +148,7 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
     STACK_GROW(L_, 3);
 
     STACK_CHECK_START_REL(L_, 0);
-    std::ignore = kMtIdRegKey.getSubTable(L_, 0, 0);                                               // L_: ... _R[kMtIdRegKey]
+    std::ignore = kMtIdRegKey.getSubTable(L_, NArr{ 0 }, NRec{ 0 });                               // L_: ... _R[kMtIdRegKey]
     lua_pushvalue(L_, _absidx);                                                                    // L_: ... _R[kMtIdRegKey] {mt}
     lua_rawget(L_, -2);                                                                            // L_: ... _R[kMtIdRegKey] mtk?
 
@@ -599,7 +599,7 @@ LuaType InterCopyContext::processConversion() const
     STACK_CHECK_START_REL(L2, 0);
     STACK_GROW(L2, 4);
     // do we already know this metatable?
-    std::ignore = kMtIdRegKey.getSubTable(L2, 0, 0);                                               //                                                L2: _R[kMtIdRegKey]
+    std::ignore = kMtIdRegKey.getSubTable(L2, NArr{ 0 }, NRec{ 0 });                               //                                                L2: _R[kMtIdRegKey]
     lua_pushinteger(L2, _mt_id);                                                                   //                                                L2: _R[kMtIdRegKey] id
     lua_rawget(L2, -2);                                                                            //                                                L2: _R[kMtIdRegKey] mt|nil
     STACK_CHECK(L2, 2);

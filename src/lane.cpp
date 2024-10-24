@@ -68,7 +68,7 @@ static LUAG_FUNC(set_finalizer)
     luaL_argcheck(L_, lua_gettop(L_) == 1, 1, "too many arguments");
     STACK_GROW(L_, 3);
     // Get the current finalizer table (if any), create one if it doesn't exist
-    std::ignore = kFinalizerRegKey.getSubTable(L_, 1, 0);                                          // L_: finalizer {finalisers}
+    std::ignore = kFinalizerRegKey.getSubTable(L_, NArr{ 1 }, NRec{ 0 });                          // L_: finalizer {finalisers}
     // must cast to int, not lua_Integer, because LuaJIT signature of lua_rawseti is not the same as PUC-Lua.
     int const _idx{ static_cast<int>(lua_rawlen(L_, kIdxTop) + 1) };
     lua_pushvalue(L_, 1);                                                                          // L_: finalizer {finalisers} finalizer

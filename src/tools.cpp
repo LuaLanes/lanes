@@ -340,7 +340,7 @@ namespace tools {
                 STACK_CHECK(L_, 2);
             }
             // retrieve the cache, create it if we haven't done it yet
-            std::ignore = kLookupCacheRegKey.getSubTable(L_, 0, 0);                                // L_: {} {fqn} {cache}
+            std::ignore = kLookupCacheRegKey.getSubTable(L_, NArr{ 0 }, NRec{ 0 });                // L_: {} {fqn} {cache}
             // process everything we find in that table, filling in lookup data for all functions and tables we see there
             populate_func_lookup_table_recur(L_, _dbIdx, _in_base, _startDepth);
             lua_pop(L_, 3);                                                                        // L_:

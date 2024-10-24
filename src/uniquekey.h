@@ -45,6 +45,9 @@ class UniqueKey
 
 // #################################################################################################
 
+DECLARE_UNIQUE_TYPE(NArr, int);
+DECLARE_UNIQUE_TYPE(NRec, int);
+
 class RegistryUniqueKey
 : public UniqueKey
 {
@@ -93,7 +96,7 @@ class RegistryUniqueKey
     }
     // ---------------------------------------------------------------------------------------------
     // equivalent to luaL_getsubtable
-    [[nodiscard]] bool getSubTable(lua_State* const L_, int const narr_, int const nrec_) const
+    [[nodiscard]] bool getSubTable(lua_State* const L_, NArr const narr_, NRec const nrec_) const
     {
         STACK_CHECK_START_REL(L_, 0);
         pushValue(L_);                                                                             // L_: {}|nil
@@ -113,7 +116,7 @@ class RegistryUniqueKey
     void getSubTableMode(lua_State* const L_, std::string_view const& mode_) const
     {
         STACK_CHECK_START_REL(L_, 0);
-        if (!getSubTable(L_, 0, 0)) {                                                              // L_: {}
+        if (!getSubTable(L_, NArr{ 0 }, NRec{ 0 })) {                                              // L_: {}
             // Set its metatable if requested
             if (!mode_.empty()) {
                 STACK_GROW(L_, 3);
