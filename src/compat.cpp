@@ -5,11 +5,11 @@
 
 // #################################################################################################
 
-int luaG_getalluservalues(lua_State* const L_, StackIndex const idx_)
+UserValueCount luaG_getalluservalues(lua_State* const L_, StackIndex const idx_)
 {
     STACK_CHECK_START_REL(L_, 0);
     StackIndex const _idx{ luaG_absindex(L_, idx_) };
-    int _nuv{ 0 };
+    UserValueCount _nuv{ 0 };
     do {
         // we don't know how many uservalues we are going to extract, there might be a lot...
         STACK_GROW(L_, 1);

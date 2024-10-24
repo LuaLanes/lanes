@@ -172,7 +172,7 @@ static inline int luaG_dump(lua_State* const L_, lua_Writer const writer_, void*
 
 // #################################################################################################
 
-int luaG_getalluservalues(lua_State* L_, StackIndex idx_);
+UserValueCount luaG_getalluservalues(lua_State* L_, StackIndex idx_);
 
 // #################################################################################################
 

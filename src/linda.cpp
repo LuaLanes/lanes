@@ -981,7 +981,7 @@ LUAG_FUNC(linda)
         lua_replace(L_, 3);                                                                        // L_: name group close_handler
 
         // if we have a __close handler, we need a uservalue slot to store it
-        int const _nuv{ _closeHandlerIdx ? 1 : 0 };
+        UserValueCount const _nuv{ _closeHandlerIdx ? 1 : 0 };
         LindaFactory::Instance.pushDeepUserdata(DestState{ L_ }, _nuv);                            // L_: name group close_handler linda
         if (_closeHandlerIdx != 0) {
             lua_replace(L_, 2);                                                                    // L_: name linda close_handler
@@ -996,7 +996,7 @@ LUAG_FUNC(linda)
         if (_nameIdx > _groupIdx) {
             lua_insert(L_, 1);                                                                     // L_: name group
         }
-        LindaFactory::Instance.pushDeepUserdata(DestState{ L_ }, 0);                               // L_: name group linda
+        LindaFactory::Instance.pushDeepUserdata(DestState{ L_ }, UserValueCount{ 0 });             // L_: name group linda
         return 1;
     }
 

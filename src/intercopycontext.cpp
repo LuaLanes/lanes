@@ -708,7 +708,7 @@ LuaType InterCopyContext::processConversion() const
         StackIndex const _mt{ luaG_absindex(L1, StackIndex{ -2 }) };                               // L1: ... mt __lanesclone
         size_t const userdata_size{ lua_rawlen(L1, _L1_i) };
         // extract all the uservalues, but don't transfer them yet
-        int const _nuv{ luaG_getalluservalues(L1, _L1_i) };                                        // L1: ... mt __lanesclone [uv]*
+        UserValueCount const _nuv{ luaG_getalluservalues(L1, _L1_i) };                             // L1: ... mt __lanesclone [uv]*
         // create the clone userdata with the required number of uservalue slots
         void* const _clone{ lua_newuserdatauv(L2, userdata_size, _nuv) };                          //                                                L2: ... u
         // copy the metatable in the target state, and give it to the clone we put there
@@ -785,7 +785,7 @@ LuaType InterCopyContext::processConversion() const
     STACK_CHECK_START_REL(L2, 0);
 
     // extract all uservalues of the source. unfortunately, the only way to know their count is to iterate until we fail
-    int const _nuv{ luaG_getalluservalues(L1, L1_i) };                                             // L1: ... deep ... [uv]*
+    UserValueCount const _nuv{ luaG_getalluservalues(L1, L1_i) };                                  // L1: ... deep ... [uv]*
     STACK_CHECK(L1, _nuv);
 
     DeepPrelude* const _deep{ *luaG_tofulluserdata<DeepPrelude*>(L1, L1_i) };
@@ -867,7 +867,7 @@ LuaType InterCopyContext::processConversion() const
         size_t const _userdata_size{ lua_rawlen(L1, kIdxTop) };
         {
             // extract uservalues (don't transfer them yet)
-            int const _nuv{ luaG_getalluservalues(L1, source_i) };                                 // L1: ... u [uv]*
+            UserValueCount const _nuv{ luaG_getalluservalues(L1, source_i) };                      // L1: ... u [uv]*
             STACK_CHECK(L1, _nuv + 1);
             // create the clone userdata with the required number of uservalue slots
             _clone = lua_newuserdatauv(L2, _userdata_size, _nuv);                                  //                                                L2: ... mt u

@@ -43,6 +43,18 @@ class Unique
     {
         return Unique<T, TAG>{ std::exchange(val, val + 1) };
     }
+
+    // pre-decrement
+    auto& operator--() noexcept
+    {
+        --val;
+        return *this;
+    }
+    // post-decrement
+    auto operator--(int) noexcept
+    {
+        return Unique<T, TAG>{ std::exchange(val, val - 1) };
+    }
 };
 
 template <typename T, typename TAG>

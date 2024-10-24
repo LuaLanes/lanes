@@ -129,9 +129,9 @@ static luaL_Reg const deep_mt[] = {
 
 int luaD_new_deep(lua_State* L)
 {
-    int const nuv{ static_cast<int>(luaL_optinteger(L, 1, 0)) };
+    UserValueCount const _nuv{ static_cast<int>(luaL_optinteger(L, 1, 0)) };
     lua_settop(L, 0);
-    MyDeepFactory::Instance.pushDeepUserdata(DestState{ L }, nuv);
+    MyDeepFactory::Instance.pushDeepUserdata(DestState{ L }, _nuv);
     return 1;
 }
 

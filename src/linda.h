@@ -30,13 +30,13 @@ class Linda
         : linda{ linda_ }
         , L{ L_ }
         {
-            [[maybe_unused]] int const _prev{ linda.keeperOperationCount.fetch_add(1, std::memory_order_seq_cst) };
+            [[maybe_unused]] UnusedInt const _prev{ linda.keeperOperationCount.fetch_add(1, std::memory_order_seq_cst) };
         }
 
         public:
         ~KeeperOperationInProgress()
         {
-            [[maybe_unused]] int const _prev{ linda.keeperOperationCount.fetch_sub(1, std::memory_order_seq_cst) };
+            [[maybe_unused]] UnusedInt const _prev{ linda.keeperOperationCount.fetch_sub(1, std::memory_order_seq_cst) };
         }
     };
 

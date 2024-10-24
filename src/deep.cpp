@@ -175,7 +175,7 @@ DeepFactory* DeepFactory::LookupFactory(lua_State* const L_, StackIndex const in
  * Initializes necessary structures if it's the first time 'factory' is being used in
  * this Lua state (metatable, registring it). Otherwise, increments the reference count.
  */
-void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_, int const nuv_, LookupMode const mode_, lua_State* const errL_)
+void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_, UserValueCount const nuv_, LookupMode const mode_, lua_State* const errL_)
 {
     STACK_CHECK_START_REL(L_, 0);
     kDeepProxyCacheRegKey.getSubTableMode(L_, "v");                                                // L_: DPC
@@ -302,7 +302,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
  *
  * Returns: 'proxy' userdata for accessing the deep data via 'DeepFactory::toDeep()'
  */
-void DeepFactory::pushDeepUserdata(DestState const L_, int const nuv_) const
+void DeepFactory::pushDeepUserdata(DestState const L_, UserValueCount const nuv_) const
 {
     STACK_GROW(L_, 1);
     STACK_CHECK_START_REL(L_, 0);
