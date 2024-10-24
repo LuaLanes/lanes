@@ -901,7 +901,7 @@ Lane::~Lane()
 
 // #################################################################################################
 
-CancelResult Lane::cancel(CancelOp const op_, int const hookCount_, std::chrono::time_point<std::chrono::steady_clock> const until_, bool const wakeLane_)
+CancelResult Lane::cancel(CancelOp const op_, std::chrono::time_point<std::chrono::steady_clock> const until_, WakeLane const wakeLane_, int const hookCount_)
 {
     // this is a hook installed with lua_sethook: can't capture anything to be convertible to lua_Hook
     static constexpr lua_Hook _cancelHook{
@@ -915,17 +915,17 @@ CancelResult Lane::cancel(CancelOp const op_, int const hookCount_, std::chrono:
     };
 
     // remember that lanes are not transferable: only one thread can cancel a lane, so no multithreading issue here
-    // We can read 'lane_->status' without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
+    // We can read status without locks, but not wait for it (if Posix no PTHREAD_TIMEDJOIN)
     if (status >= Lane::Done) {
         // say "ok" by default, including when lane is already done
         return CancelResult::Cancelled;
     }
 
-    // signal the linda the wake up the thread so that it can react to the cancel query
+    // signal the linda to wake up the thread so that it can react to the cancel query
     // let us hope we never land here with a pointer on a linda that has been destroyed...
     if (op_ == CancelOp::Soft) {
         return internalCancel(CancelRequest::Soft, until_, wakeLane_);
-    } else if (static_cast<int>(op_) > static_cast<int>(CancelOp::Soft)) {
+    } else if (op_ > CancelOp::Soft) {
         lua_sethook(L, _cancelHook, static_cast<int>(op_), hookCount_);
     }
 
@@ -934,13 +934,13 @@ CancelResult Lane::cancel(CancelOp const op_, int const hookCount_, std::chrono:
 
 // #################################################################################################
 
-[[nodiscard]] CancelResult Lane::internalCancel(CancelRequest const rq_, std::chrono::time_point<std::chrono::steady_clock> const until_, bool const wakeLane_)
+[[nodiscard]] CancelResult Lane::internalCancel(CancelRequest const rq_, std::chrono::time_point<std::chrono::steady_clock> const until_, WakeLane const wakeLane_)
 {
     cancelRequest = rq_; // it's now signaled to stop
     if (rq_ == CancelRequest::Hard) {
         // lane_->thread.get_stop_source().request_stop();
     }
-    if (wakeLane_) { // wake the thread so that execution returns from any pending linda operation if desired
+    if (wakeLane_ == WakeLane::Yes) { // wake the thread so that execution returns from any pending linda operation if desired
         std::condition_variable* const _waiting_on{ waiting_on };
         if (status == Lane::Waiting && _waiting_on != nullptr) {
             _waiting_on->notify_all();

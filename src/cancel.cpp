@@ -138,14 +138,14 @@ LUAG_FUNC(cancel_test)
 
 // #################################################################################################
 
-// bool[,reason] = lane_h:cancel( [mode, hookcount] [, timeout] [, wake_lane])
+// bool[,reason] = lane_h:cancel( [cancel_op, hookcount] [, timeout] [, wake_lane])
 LUAG_FUNC(thread_cancel)
 {
     Lane* const _lane{ ToLane(L_, StackIndex{ 1 }) };
-    CancelOp const _op{ WhichCancelOp(L_, StackIndex{ 2 }) }; // this removes the op string from the stack
+    CancelOp const _op{ WhichCancelOp(L_, StackIndex{ 2 }) }; // this removes the cancel_op string from the stack
 
     int _hook_count{ 0 };
-    if (static_cast<int>(_op) > static_cast<int>(CancelOp::Soft)) { // hook is requested
+    if (_op > CancelOp::Soft) { // hook is requested
         _hook_count = static_cast<int>(luaL_checkinteger(L_, 2));
         lua_remove(L_, 2); // argument is processed, remove it
         if (_hook_count < 1) {
@@ -167,23 +167,23 @@ LUAG_FUNC(thread_cancel)
     }
 
     // we wake by default in "hard" mode (remember that hook is hard too), but this can be turned off if desired
-    bool _wake_lane{ _op != CancelOp::Soft };
+    WakeLane _wake_lane{ _op != CancelOp::Soft ? WakeLane::Yes : WakeLane::No };
     if (lua_gettop(L_) >= 2) {
         if (!lua_isboolean(L_, 2)) {
-            raise_luaL_error(L_, "wake_lindas argument is not a boolean");
+            raise_luaL_error(L_, "wake_lane argument is not a boolean");
         }
-        _wake_lane = lua_toboolean(L_, 2) ? true : false;
+        _wake_lane = lua_toboolean(L_, 2) ? WakeLane::Yes : WakeLane::No;
         lua_remove(L_, 2); // argument is processed, remove it
     }
     STACK_CHECK_START_REL(L_, 0);
-    switch (_lane->cancel(_op, _hook_count, _until, _wake_lane)) {
+    switch (_lane->cancel(_op, _until, _wake_lane, _hook_count)) {
     default: // should never happen unless we added a case and forgot to handle it
         raise_luaL_error(L_, "should not get here!");
         break;
 
     case CancelResult::Timeout:
         lua_pushboolean(L_, 0);                                                                    // false
-        lua_pushstring(L_, "timeout");                                                             // false "timeout"
+        luaG_pushstring(L_, "timeout");                                                            // false "timeout"
         break;
 
     case CancelResult::Cancelled:

@@ -32,6 +32,11 @@ enum class CancelOp
     MaskAll = LUA_MASKCALL | LUA_MASKRET | LUA_MASKLINE | LUA_MASKCOUNT
 };
 
+inline auto operator<=>(CancelOp const a_, CancelOp const b_)
+{
+    return static_cast<std::underlying_type_t<CancelOp>>(a_) <=> static_cast<std::underlying_type_t<CancelOp>>(b_);
+}
+
 // xxh64 of string "kCancelError" generated at https://www.pelock.com/products/hash-calculator
 static constexpr UniqueKey kCancelError{ 0x0630345FEF912746ull, "lanes.cancel_error" }; // 'raise_cancel_error' sentinel
 

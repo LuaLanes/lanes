@@ -362,7 +362,7 @@ bool Universe::terminateFreeRunningLanes(lua_Duration const shutdownTimeout_, Ca
                 // if waiting on a linda, they will raise a cancel_error.
                 // if a cancellation hook is desired, it will be installed to try to raise an error
                 if (_lane->thread.joinable()) {
-                    std::ignore = _lane->cancel(op_, 1, std::chrono::steady_clock::now() + 1us, true);
+                    std::ignore = _lane->cancel(op_, std::chrono::steady_clock::now() + 1us, WakeLane::Yes, 1);
                 }
                 _lane = _lane->selfdestruct_next;
             }

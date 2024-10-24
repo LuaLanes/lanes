@@ -43,6 +43,13 @@ static constexpr std::string_view kLaneMetatableName{ "Lane" };
 #define kLanesLibName "lanes"
 #define kLanesCoreLibName kLanesLibName ".core"
 
+// for cancel() argument
+enum class WakeLane
+{
+    No,
+    Yes
+};
+
 // NOTE: values to be changed by either thread, during execution, without locking, are marked "volatile"
 class Lane
 {
@@ -136,20 +143,26 @@ class Lane
     // this one is for us, to make sure memory is freed by the correct allocator
     static void operator delete(void* p_) { static_cast<Lane*>(p_)->U->internalAllocator.free(p_, sizeof(Lane)); }
 
-    Lane(Universe* U_, lua_State* L_, ErrorTraceLevel errorTraceLevel_, bool asCoroutine_);
     ~Lane();
+    Lane(Universe* U_, lua_State* L_, ErrorTraceLevel errorTraceLevel_, bool asCoroutine_);
+
+    // rule of 5
+    Lane(Lane const&) = delete;
+    Lane(Lane&&) = delete;
+    Lane& operator=(Lane const&) = delete;
+    Lane& operator=(Lane&&) = delete;
 
     private:
 
-    [[nodiscard]] CancelResult internalCancel(CancelRequest rq_, std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_);
+    [[nodiscard]] CancelResult internalCancel(CancelRequest rq_, std::chrono::time_point<std::chrono::steady_clock> until_, WakeLane wakeLane_);
 
     public:
 
-    CancelResult cancel(CancelOp op_, int hookCount_, std::chrono::time_point<std::chrono::steady_clock> until_, bool wakeLane_);
+    CancelResult cancel(CancelOp op_, std::chrono::time_point<std::chrono::steady_clock> until_, WakeLane wakeLane_, int hookCount_);
     void changeDebugName(StackIndex nameIdx_);
     void closeState()
     {
-        lua_State* _L{ S };
+        lua_State* const _L{ S };
         S = nullptr;
         L = nullptr;
         nresults = 0;

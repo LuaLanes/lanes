@@ -239,7 +239,7 @@ namespace state {
                     lua_pop(_L, 1);
                 } else {
                     lua_pushcfunction(_L, luaopen_base);
-                    lua_pushstring(_L, "");
+                    luaG_pushstring(_L, "");
                     lua_call(_L, 1, 0);
                 }
             }
