@@ -216,7 +216,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
                 raise_luaL_error(errL_, "Bad DeepFactory::createMetatable overload: unexpected pushed value");
             }
             // if the metatable contains a __gc, we will call it from our own
-            std::ignore = luaG_getfield(L_, kIdxTop, "__gc");                                      // L_: DPC proxy metatable __gc
+            std::ignore = luaG_rawgetfield(L_, kIdxTop, "__gc");                                   // L_: DPC proxy metatable __gc
         } else {
             // keepers need a minimal metatable that only contains our own __gc
             lua_createtable(L_, 0, 1);                                                             // L_: DPC proxy metatable

@@ -135,6 +135,53 @@ inline LuaType luaG_type(lua_State* const L_, StackIndex const idx_)
 // #################################################################################################
 // #################################################################################################
 
+// must keep as a macro as long as we do constant string concatenations
+#define STRINGVIEW_FMT "%.*s"
+
+// a replacement of lua_tolstring
+[[nodiscard]] inline std::string_view luaG_tostring(lua_State* const L_, StackIndex const idx_)
+{
+    size_t _len{ 0 };
+    char const* _str{ lua_tolstring(L_, idx_, &_len) };
+    return _str ? std::string_view{ _str, _len } : "";
+}
+
+[[nodiscard]] inline std::string_view luaG_checkstring(lua_State* const L_, StackIndex const idx_)
+{
+    size_t _len{ 0 };
+    char const* _str{ luaL_checklstring(L_, idx_, &_len) };
+    return std::string_view{ _str, _len };
+}
+
+[[nodiscard]] inline std::string_view luaG_optstring(lua_State* const L_, StackIndex const idx_, std::string_view const& default_)
+{
+    if (lua_isnoneornil(L_, idx_)) {
+        return default_;
+    }
+    size_t _len{ 0 };
+    char const* _str{ luaL_optlstring(L_, idx_, default_.data(), &_len) };
+    return std::string_view{ _str, _len };
+}
+
+template <typename... EXTRA>
+inline std::string_view luaG_pushstring(lua_State* const L_, std::string_view const& str_, EXTRA&&... extra_)
+{
+    if constexpr (sizeof...(EXTRA) == 0) {
+        if constexpr (LUA_VERSION_NUM == 501) {
+            // lua_pushlstring doesn't return a value in Lua 5.1
+            lua_pushlstring(L_, str_.data(), str_.size());
+            return luaG_tostring(L_, kIdxTop);
+        } else {
+            return std::string_view{ lua_pushlstring(L_, str_.data(), str_.size()), str_.size() };
+        }
+    } else {
+        static_assert((... && std::is_trivial_v<std::decay_t<EXTRA>>));
+        return std::string_view{ lua_pushfstring(L_, str_.data(), std::forward<EXTRA>(extra_)...) };
+    }
+}
+
+// #################################################################################################
+
 // use this in place of lua_absindex to save a function call
 inline StackIndex luaG_absindex(lua_State* const L_, StackIndex const idx_)
 {
@@ -285,6 +332,16 @@ static inline LuaError luaG_resume(lua_State* const L_, lua_State* const from_, 
 
 // #################################################################################################
 
+static inline LuaType luaG_rawgetfield(lua_State* const L_, StackIndex const idx_, std::string_view const& name_)
+{
+    auto const _absIdx{ luaG_absindex(L_, idx_) };
+    luaG_pushstring(L_, name_);                                                                    // L_: ... t ... name_
+    lua_rawget(L_, _absIdx);                                                                       // L_: ... t ... <field>
+    return luaG_type(L_, kIdxTop);
+}
+
+// #################################################################################################
+
 template <size_t N>
 static inline void luaG_newlib(lua_State* const L_, luaL_Reg const (&funcs_)[N])
 {
@@ -368,51 +425,4 @@ template <typename T>
 [[nodiscard]] inline std::string_view luaG_typename(lua_State* const L_, StackIndex const idx_)
 {
     return luaG_typename(L_, luaG_type(L_, idx_));
-}
-
-// #################################################################################################
-
-// must keep as a macro as long as we do constant string concatenations
-#define STRINGVIEW_FMT "%.*s"
-
-// a replacement of lua_tolstring
-[[nodiscard]] inline std::string_view luaG_tostring(lua_State* const L_, StackIndex const idx_)
-{
-    size_t _len{ 0 };
-    char const* _str{ lua_tolstring(L_, idx_, &_len) };
-    return _str ? std::string_view{ _str, _len } : "";
-}
-
-[[nodiscard]] inline std::string_view luaG_checkstring(lua_State* const L_, StackIndex const idx_)
-{
-    size_t _len{ 0 };
-    char const* _str{ luaL_checklstring(L_, idx_, &_len) };
-    return std::string_view{ _str, _len };
-}
-
-[[nodiscard]] inline std::string_view luaG_optstring(lua_State* const L_, StackIndex const idx_, std::string_view const& default_)
-{
-    if (lua_isnoneornil(L_, idx_)) {
-        return default_;
-    }
-    size_t _len{ 0 };
-    char const* _str{ luaL_optlstring(L_, idx_, default_.data(), &_len) };
-    return std::string_view{ _str, _len };
-}
-
-template<typename ...EXTRA>
-inline std::string_view luaG_pushstring(lua_State* const L_, std::string_view const& str_, EXTRA&&... extra_)
-{
-    if constexpr (sizeof...(EXTRA) == 0) {
-        if constexpr (LUA_VERSION_NUM == 501) {
-            // lua_pushlstring doesn't return a value in Lua 5.1
-            lua_pushlstring(L_, str_.data(), str_.size());
-            return luaG_tostring(L_, kIdxTop);
-        } else {
-            return std::string_view{ lua_pushlstring(L_, str_.data(), str_.size()), str_.size() };
-        }
-    } else {
-        static_assert((... && std::is_trivial_v<std::decay_t<EXTRA>>));
-        return std::string_view{ lua_pushfstring(L_, str_.data(), std::forward<EXTRA>(extra_)...) };
-    }
 }
