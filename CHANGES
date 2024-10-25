@@ -47,7 +47,9 @@ CHANGE 2: BGe 04-Jul-24
             - linda :receive(), :send(), :get(), :set(), :limit() return nil, error in case of problem. Returned values in case of success change too.
             - linda:limit() can be used to read the value if no new limit is provided.
             - New __close metamethod that calls any suitable handler that was provided at Linda creation.
-            - linda:dump outputs <key>.limit as 'unlimited' instead of -1 for unlimited keys.
+            - linda:dump() outputs <key>.limit as 'unlimited' instead of -1 for unlimited keys.
+            - linda:wake() can wake up threads waiting for a Linda without doing any I/O on it.
+            - linda.status reads the cancel status of the Linda.
             - Deep userdata are an acceptable key to send data into (for example, another linda).
         - Full userdata conversion:
             - __lanesconvert added.

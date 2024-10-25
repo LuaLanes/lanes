@@ -233,6 +233,13 @@ int Linda::ProtectedCall(lua_State* const L_, lua_CFunction const f_)
 
 // #################################################################################################
 
+void Linda::pushCancelString(lua_State* L_) const
+{
+    luaG_pushstring(L_, cancelStatus == Status::Cancelled ? "cancelled" : "active");
+}
+
+// #################################################################################################
+
 void Linda::releaseKeeper(Keeper* const keeper_) const
 {
     if (keeper_) { // can be nullptr if we tried to acquire during shutdown
@@ -284,18 +291,20 @@ LUAG_FUNC(linda_cancel)
     // make sure we got 2 arguments: the linda and the cancellation mode
     luaL_argcheck(L_, lua_gettop(L_) <= 2, 2, "wrong number of arguments");
 
-    _linda->cancelRequest = CancelRequest::Soft;
-    if (_who == "both") { // tell everyone writers to wake up
+    if (_who == "both") { // tell everyone to wake up
+        _linda->cancelStatus = Linda::Status::Cancelled;
         _linda->writeHappened.notify_all();
         _linda->readHappened.notify_all();
     } else if (_who == "none") { // reset flag
-        _linda->cancelRequest = CancelRequest::None;
+        _linda->cancelStatus = Linda::Status::Active;
     } else if (_who == "read") { // tell blocked readers to wake up
+        _linda->cancelStatus = Linda::Status::Cancelled;
         _linda->writeHappened.notify_all();
     } else if (_who == "write") { // tell blocked writers to wake up
+        _linda->cancelStatus = Linda::Status::Cancelled;
         _linda->readHappened.notify_all();
     } else {
-        raise_luaL_error(L_, "unknown wake hint '%s'", _who);
+        raise_luaL_error(L_, "unknown wake hint '%s'", _who.data());
     }
     return 0;
 }
@@ -353,6 +362,53 @@ LUAG_FUNC(linda_concat)
     }
     lua_concat(L_, 2);
     return 1;
+}
+
+// #################################################################################################
+
+// If key is "status" return the linda cancel status
+static int linda_index_string(lua_State* L_)
+{
+    static constexpr StackIndex kIdxSelf{ 1 };
+    static constexpr StackIndex kIdxKey{ 2 };
+
+    Linda* const _linda{ ToLinda<false>(L_, kIdxSelf) };
+    LUA_ASSERT(L_, lua_gettop(L_) == 2);                                                           // L_: linda "key"
+
+    std::string_view const _keystr{ luaG_tostring(L_, kIdxKey) };
+    lua_settop(L_, 2); // keep only our original arguments on the stack
+
+    // look in metatable first
+    lua_getmetatable(L_, kIdxSelf);                                                                // L_: linda "key" mt
+    lua_replace(L_, -3);                                                                           // L_: mt "key"
+    lua_rawget(L_, -2);                                                                            // L_: mt value
+    if (luaG_type(L_, kIdxTop) != LuaType::NIL) { // found something?
+        return 1; // done
+    }
+
+    lua_pop(L_, 2);                                                                                // L_:
+    if (_keystr == "status") {
+        _linda->pushCancelString(L_);                                                              // L_: "<status>"
+        return 1;
+    }
+    raise_luaL_error(L_, "unknown field '%s'", _keystr.data());
+}
+
+// #################################################################################################
+
+// linda:__index(key,usr) -> value
+static LUAG_FUNC(linda_index)
+{
+    static constexpr StackIndex kIdxKey{ 2 };
+    LUA_ASSERT(L_, lua_gettop(L_) == 2);
+
+    switch (luaG_type(L_, kIdxKey)) {
+    case LuaType::STRING:
+        return linda_index_string(L_); // stack modification is undefined, returned value is at the top
+
+    default: // unknown key
+        raise_luaL_error(L_, "Unsupported linda indexing key type %s", luaG_typename(L_, kIdxKey).data());
+    }
 }
 
 // #################################################################################################
@@ -433,7 +489,7 @@ LUAG_FUNC(linda_get)
             CheckKeyTypes(L_, StackIndex{ 2 }, StackIndex{ 2 });
 
             KeeperCallResult _pushed;
-            if (_linda->cancelRequest == CancelRequest::None) {
+            if (_linda->cancelStatus == Linda::Active) {
                 Keeper* const _keeper{ _linda->whichKeeper() };
                 _pushed = keeper_call(_keeper->K, KEEPER_API(get), L_, _linda, StackIndex{ 2 });
             } else { // linda is cancelled
@@ -477,7 +533,7 @@ LUAG_FUNC(linda_limit)
             CheckKeyTypes(L_, StackIndex{ 2 }, StackIndex{ 2 });
 
             KeeperCallResult _pushed;
-            if (_linda->cancelRequest == CancelRequest::None) {
+            if (_linda->cancelStatus == Linda::Active) {
                 if (_unlimited) {
                     LUA_ASSERT(L_, lua_gettop(L_) == 3 && luaG_tostring(L_, StackIndex{ 3 }) == "unlimited");
                     // inside the Keeper, unlimited is signified with a -1 limit (can't use nil because of nil kNilSentinel conversions!)
@@ -586,7 +642,9 @@ LUAG_FUNC(linda_receive)
                 if (_lane != nullptr) {
                     _cancel = _lane->cancelRequest;
                 }
-                _cancel = (_cancel != CancelRequest::None) ? _cancel : _linda->cancelRequest;
+                _cancel = (_cancel != CancelRequest::None)
+                    ? _cancel
+                    : ((_linda->cancelStatus == Linda::Cancelled) ? CancelRequest::Soft : CancelRequest::None);
                 // if user wants to cancel, or looped because of a timeout, the call returns without sending anything
                 if (!_try_again || _cancel != CancelRequest::None) {
                     _pushed.emplace(0);
@@ -723,7 +781,9 @@ LUAG_FUNC(linda_send)
                     if (_lane != nullptr) {
                         _cancel = _lane->cancelRequest;
                     }
-                    _cancel = (_cancel != CancelRequest::None) ? _cancel : _linda->cancelRequest;
+                    _cancel = (_cancel != CancelRequest::None)
+                        ? _cancel
+                        : ((_linda->cancelStatus == Linda::Cancelled) ? CancelRequest::Soft : CancelRequest::None);
                     // if user wants to cancel, or looped because of a timeout, the call returns without sending anything
                     if (!_try_again || _cancel != CancelRequest::None) {
                         _pushed.emplace(0);
@@ -826,7 +886,7 @@ LUAG_FUNC(linda_set)
             CheckKeyTypes(L_, StackIndex{ 2 }, StackIndex{ 2 });
 
             KeeperCallResult _pushed;
-            if (_linda->cancelRequest == CancelRequest::None) {
+            if (_linda->cancelStatus == Linda::Active) {
                 Keeper* const _keeper{ _linda->whichKeeper() };
                 _pushed = keeper_call(_keeper->K, KEEPER_API(set), L_, _linda, StackIndex{ 2 });
                 if (_pushed.has_value()) { // no error?
@@ -884,6 +944,33 @@ LUAG_FUNC(linda_towatch)
 
 // #################################################################################################
 
+/*
+ * (void) = linda_wake( linda_ud, "read"|"write"|"both")
+ *
+ * Signal linda so that waiting threads wake up as if their own lane was cancelled
+ */
+LUAG_FUNC(linda_wake)
+{
+    Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
+    std::string_view const _who{ luaG_optstring(L_, StackIndex{ 2 }, "both") };
+    // make sure we got 2 arguments: the linda and the wake targets
+    luaL_argcheck(L_, lua_gettop(L_) <= 2, 2, "wrong number of arguments");
+
+    if (_who == "both") { // tell everyone to wake up
+        _linda->writeHappened.notify_all();
+        _linda->readHappened.notify_all();
+    } else if (_who == "read") { // simulate a read to wake writers
+        _linda->writeHappened.notify_all();
+    } else if (_who == "write") { // simulate a write to wake readers
+        _linda->readHappened.notify_all();
+    } else {
+        raise_luaL_error(L_, "unknown wake hint '%s'", _who.data());
+    }
+    return 0;
+}
+
+// #################################################################################################
+
 namespace {
     namespace local {
         static luaL_Reg const sLindaMT[] = {
@@ -891,6 +978,7 @@ namespace {
             { "__close", LG_linda_close },
 #endif // LUA_VERSION_NUM >= 504
             { "__concat", LG_linda_concat },
+            { "__index", LG_linda_index },
             { "__tostring", LG_linda_tostring },
 #if HAVE_DECODA_SUPPORT()
             { "__towatch", LG_linda_towatch }, // Decoda __towatch support
@@ -904,6 +992,7 @@ namespace {
             { "receive", LG_linda_receive },
             { "send", LG_linda_send },
             { "set", LG_linda_set },
+            { "wake", LG_linda_wake },
             { nullptr, nullptr }
         };
     } // namespace local
@@ -985,7 +1074,7 @@ LUAG_FUNC(linda)
         LindaFactory::Instance.pushDeepUserdata(DestState{ L_ }, _nuv);                            // L_: name group close_handler linda
         if (_closeHandlerIdx != 0) {
             lua_replace(L_, 2);                                                                    // L_: name linda close_handler
-            lua_setiuservalue(L_, StackIndex{ 2 }, 1);                                             // L_: name linda
+            lua_setiuservalue(L_, StackIndex{ 2 }, UserValueIndex{ 1 });                           // L_: name linda
         }
         // depending on whether we have a handler or not, the stack is not in the same state at this point
         // just make sure we have our Linda at the top

@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 24-Sep-24, and applies to version <tt>4.0.0</tt>.
+				This document was revised on 25-Oct-24, and applies to version <tt>4.0.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -1405,13 +1405,23 @@
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
 	void = linda_h:cancel("read"|"write"|"both"|"none")
+	"cancelled"|"active" = linda_h.status
 </pre></td></tr></table>
 
 <p>
-	Signals the linda so that lanes waiting for read, write, or both, wake up.
+	<tt>linda:cancel()</tt> signals the linda so that lanes waiting for read, write, or both, wake up.
 	All linda operations (including <tt>get()</tt> and <tt>set()</tt>) will return <tt>lanes.cancel_error</tt> as when the calling lane is <a href="#cancelling">soft-cancelled</a> as long as the linda is marked as cancelled.<br />
 	<tt>"none"</tt> reset the linda's cancel status, but doesn't signal it.<br />
+	<tt>linda.status</tt> reads the current cancel status.
 	If not void, the lane's cancel status overrides the linda's cancel status.
+</p>
+
+<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
+	void = linda_h:wake("read"|"write"|"both")
+</pre></td></tr></table>
+
+<p>
+	Signals the linda so that lanes waiting for read, write, or both, wake up. Does not change the current Linda's cancel status. Can be used to break early out of a blocking wait.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>

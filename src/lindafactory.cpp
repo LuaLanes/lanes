@@ -41,25 +41,33 @@ static constexpr std::string_view kLindaMetatableName{ "Linda" };
 
 void LindaFactory::createMetatable(lua_State* L_) const
 {
+    static constexpr std::string_view kIndex{ "__index" };
+
     STACK_CHECK_START_REL(L_, 0);
-    lua_newtable(L_);
-    // metatable is its own index
-    lua_pushvalue(L_, -1);
-    lua_setfield(L_, -2, "__index");
+    lua_newtable(L_);                                                                              // L_: mt
 
     // protect metatable from external access
-    luaG_pushstring(L_, kLindaMetatableName);
-    lua_setfield(L_, -2, "__metatable");
+    luaG_pushstring(L_, kLindaMetatableName);                                                      // L_: mt "<name>"
+    lua_setfield(L_, -2, "__metatable");                                                           // L_: mt
 
     // the linda functions
     luaG_registerlibfuncs(L_, mLindaMT);
 
     // some constants
-    kLindaBatched.pushKey(L_);
-    lua_setfield(L_, -2, "batched");
+    kLindaBatched.pushKey(L_);                                                                     // L_: mt kLindaBatched
+    lua_setfield(L_, -2, "batched");                                                               // L_: mt
 
-    kNilSentinel.pushKey(L_);
-    lua_setfield(L_, -2, "null");
+    kNilSentinel.pushKey(L_);                                                                      // L_: mt kNilSentinel
+    lua_setfield(L_, -2, "null");                                                                  // L_: mt
+
+    // if the metatable contains __index, leave it as is
+    if (luaG_getfield(L_, kIdxTop, kIndex) != LuaType::NIL) {                                      // L_: mt __index
+        lua_pop(L_, 1);                                                                            // L_: mt __index
+    } else {
+        // metatable is its own index
+        lua_pushvalue(L_, kIdxTop);                                                                // L_: mt mt
+        luaG_setfield(L_, StackIndex{ -2 }, kIndex);                                               // L_: mt
+    }
 
     STACK_CHECK(L_, 1);
 }

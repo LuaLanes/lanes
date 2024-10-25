@@ -40,7 +40,15 @@ class Linda
         }
     };
 
+    enum class Status
+    {
+        Active,
+        Cancelled
+    };
+    using enum Status;
+
     private:
+
     static constexpr size_t kEmbeddedNameLength = 24;
     using EmbeddedName = std::array<char, kEmbeddedNameLength>;
     // depending on the name length, it is either embedded inside the Linda, or allocated separately
@@ -53,7 +61,7 @@ class Linda
     std::condition_variable writeHappened{};
     Universe* const U{ nullptr }; // the universe this linda belongs to
     KeeperIndex const keeperIndex{ -1 }; // the keeper associated to this linda
-    CancelRequest cancelRequest{ CancelRequest::None };
+    Status cancelStatus{ Status::Active };
 
     public:
     [[nodiscard]] static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internalAllocator.alloc(size_); }
@@ -89,6 +97,7 @@ class Linda
     };
     void releaseKeeper(Keeper* keeper_) const;
     [[nodiscard]] static int ProtectedCall(lua_State* L_, lua_CFunction f_);
+    void pushCancelString(lua_State* L_) const;
     [[nodiscard]] KeeperOperationInProgress startKeeperOperation(lua_State* const L_) { return KeeperOperationInProgress{ *this, L_ }; };
     [[nodiscard]] Keeper* whichKeeper() const { return U->keepers.getKeeper(keeperIndex); }
 };
