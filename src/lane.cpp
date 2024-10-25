@@ -1018,7 +1018,7 @@ namespace {
 } // namespace
 
   // contains keys: { __close, __gc, __index, kCachedError, kCachedTostring, cancel, get_threadname, join }
-void Lane::PushMetatable(lua_State* L_)
+void Lane::PushMetatable(lua_State* const L_)
 {
     STACK_CHECK_START_REL(L_, 0);
     if (luaL_newmetatable(L_, kLaneMetatableName.data())) {                                        // L_: mt
@@ -1039,7 +1039,7 @@ void Lane::PushMetatable(lua_State* L_)
 
 // #################################################################################################
 
-void Lane::pushStatusString(lua_State* L_) const
+void Lane::pushStatusString(lua_State* const L_) const
 {
     std::string_view const _str{ threadStatusString() };
     LUA_ASSERT(L_, !_str.empty());

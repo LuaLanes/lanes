@@ -52,7 +52,7 @@ THE SOFTWARE.
  */
 [[nodiscard]] CancelRequest CheckCancelRequest(lua_State* const L_)
 {
-    Lane* const _lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
+    auto const* const _lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
     // 'lane' is nullptr for the original main state (and no-one can cancel that)
     return _lane ? _lane->cancelRequest : CancelRequest::None;
 }
@@ -82,7 +82,7 @@ THE SOFTWARE.
 
 CancelOp WhichCancelOp(std::string_view const& opString_)
 {
-    CancelOp _op{ CancelOp::Invalid };
+    auto _op{ CancelOp::Invalid };
     if (opString_ == "hard") {
         _op = CancelOp::Hard;
     } else if (opString_ == "soft") {
@@ -110,7 +110,7 @@ CancelOp WhichCancelOp(std::string_view const& opString_)
         CancelOp _op{ WhichCancelOp(_str) };
         lua_remove(L_, idx_); // argument is processed, remove it
         if (_op == CancelOp::Invalid) {
-            raise_luaL_error(L_, "invalid hook option %s", _str);
+            raise_luaL_error(L_, "invalid hook option %s", _str.data());
         }
         return _op;
     }

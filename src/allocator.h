@@ -28,23 +28,25 @@ namespace lanes {
         , allocUD{ allocUD_ }
         {
         }
+
+        // rule of 5
         AllocatorDefinition() = default;
         AllocatorDefinition(AllocatorDefinition const& rhs_) = default;
         AllocatorDefinition(AllocatorDefinition&& rhs_) = default;
         AllocatorDefinition& operator=(AllocatorDefinition const& rhs_) = default;
         AllocatorDefinition& operator=(AllocatorDefinition&& rhs_) = default;
 
-        void initFrom(lua_State* L_)
+        void initFrom(lua_State* const L_)
         {
             allocF = lua_getallocf(L_, &allocUD);
         }
 
-        void* alloc(size_t nsize_)
+        void* alloc(size_t const nsize_)
         {
             return allocF(allocUD, nullptr, 0, nsize_);
         }
 
-        void free(void* ptr_, size_t osize_)
+        void free(void* const ptr_, size_t const osize_)
         {
             std::ignore = allocF(allocUD, ptr_, osize_, 0);
         }
