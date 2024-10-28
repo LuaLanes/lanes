@@ -27,7 +27,7 @@ THE SOFTWARE.
 #include "lane.hpp"
 
 #include "debugspew.hpp"
-#include "intercopycontext.h"
+#include "intercopycontext.hpp"
 #include "threading.hpp"
 #include "tools.hpp"
 

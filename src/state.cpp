@@ -32,9 +32,9 @@ THE SOFTWARE.
 */
 
 #include "_pch.hpp"
-#include "state.h"
+#include "state.hpp"
 
-#include "intercopycontext.h"
+#include "intercopycontext.hpp"
 #include "lane.hpp"
 #include "lanes.hpp"
 #include "tools.hpp"

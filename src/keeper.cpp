@@ -40,10 +40,10 @@
 #include "_pch.hpp"
 #include "keeper.hpp"
 
-#include "intercopycontext.h"
+#include "intercopycontext.hpp"
 #include "lane.hpp"
 #include "linda.hpp"
-#include "state.h"
+#include "state.hpp"
 
 // There is a table at _R[kLindasRegKey] (aka LindasDB)
 // This table contains entries of the form [Linda*] = {KeysDB...}

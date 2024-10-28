@@ -83,11 +83,11 @@ THE SOFTWARE.
 #include "lanes.hpp"
 
 #include "deep.hpp"
-#include "intercopycontext.h"
+#include "intercopycontext.hpp"
 #include "keeper.hpp"
 #include "lane.hpp"
 #include "nameof.hpp"
-#include "state.h"
+#include "state.hpp"
 #include "threading.hpp"
 #include "tools.hpp"
 

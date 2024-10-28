@@ -32,10 +32,10 @@ THE SOFTWARE.
 #include "universe.hpp"
 
 #include "deep.hpp"
-#include "intercopycontext.h"
+#include "intercopycontext.hpp"
 #include "keeper.hpp"
 #include "lane.hpp"
-#include "state.h"
+#include "state.hpp"
 
 extern LUAG_FUNC(linda);
 

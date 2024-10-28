@@ -24,7 +24,7 @@ THE SOFTWARE.
 ===============================================================================
 */
 #include "_pch.hpp"
-#include "intercopycontext.h"
+#include "intercopycontext.hpp"
 
 #include "debugspew.hpp"
 #include "deep.hpp"
