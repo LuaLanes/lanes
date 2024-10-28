@@ -26,22 +26,22 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\compat.h">
-      <Filter>Lanes</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\uniquekey.h">
       <Filter>Lanes</Filter>
     </ClInclude>
     <ClInclude Include="..\src\lanesconf.h">
       <Filter>Lanes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\macros_and_utils.h">
-      <Filter>Lanes</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\platform.h">
       <Filter>Lanes</Filter>
     </ClInclude>
     <ClInclude Include="..\src\deep.hpp">
+      <Filter>Lanes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\compat.hpp">
+      <Filter>Lanes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\macros_and_utils.hpp">
       <Filter>Lanes</Filter>
     </ClInclude>
   </ItemGroup>

@@ -6,7 +6,7 @@
  */
 
 #include "lanesconf.h"
-#include "uniquekey.h"
+#include "uniquekey.hpp"
 
 // forwards
 enum class LookupMode;

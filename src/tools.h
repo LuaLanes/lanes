@@ -1,6 +1,6 @@
 #pragma once
 
-#include "uniquekey.h"
+#include "uniquekey.hpp"
 
 class Universe;
 
