@@ -29,7 +29,7 @@ THE SOFTWARE.
 */
 
 #include "_pch.hpp"
-#include "universe.h"
+#include "universe.hpp"
 
 #include "deep.hpp"
 #include "intercopycontext.h"

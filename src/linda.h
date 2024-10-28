@@ -2,7 +2,7 @@
 
 #include "cancel.hpp"
 #include "deep.hpp"
-#include "universe.h"
+#include "universe.hpp"
 
 struct Keeper;
 
