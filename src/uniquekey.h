@@ -1,6 +1,6 @@
 #pragma once
 
-#include "compat.h"
+#include "compat.hpp"
 #include "macros_and_utils.h"
 
 // #################################################################################################

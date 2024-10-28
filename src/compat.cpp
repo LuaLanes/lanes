@@ -1,5 +1,5 @@
 #include "_pch.hpp"
-#include "compat.h"
+#include "compat.hpp"
 
 #include "macros_and_utils.h"
 
