@@ -61,7 +61,7 @@ THE SOFTWARE.
 // #################################################################################################
 
 //---
-// = thread_cancel( lane_ud [,timeout_secs=0.0] [,wake_lindas_bool=false] )
+// = lane_cancel( lane_ud [,timeout_secs=0.0] [,wake_lindas_bool=false] )
 //
 // The originator thread asking us specifically to cancel the other thread.
 //
@@ -139,7 +139,7 @@ LUAG_FUNC(cancel_test)
 // #################################################################################################
 
 // bool[,reason] = lane_h:cancel( [cancel_op, hookcount] [, timeout] [, wake_lane])
-LUAG_FUNC(thread_cancel)
+LUAG_FUNC(lane_cancel)
 {
     Lane* const _lane{ ToLane(L_, StackIndex{ 1 }) };
     CancelOp const _op{ WhichCancelOp(L_, StackIndex{ 2 }) }; // this removes the cancel_op string from the stack

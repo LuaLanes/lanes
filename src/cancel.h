@@ -57,4 +57,4 @@ static constexpr UniqueKey kCancelError{ 0x0630345FEF912746ull, "lanes.cancel_er
 // #################################################################################################
 
 LUAG_FUNC(cancel_test);
-LUAG_FUNC(thread_cancel);
+LUAG_FUNC(lane_cancel);

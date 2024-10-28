@@ -45,7 +45,7 @@ static constexpr UniqueKey kCachedTostring{ 0xAB5EA23BCEA0C35Cull };
 // #################################################################################################
 
 // lane:get_threadname()
-static LUAG_FUNC(get_threadname)
+static LUAG_FUNC(lane_get_threadname)
 {
     Lane* const _lane{ ToLane(L_, StackIndex{ 1 }) };
     luaL_argcheck(L_, lua_gettop(L_) == 1, 2, "too many arguments");
@@ -111,7 +111,7 @@ static LUAG_FUNC(lane_threadname)
 //  error:     returns nil + error value [+ stack table]
 //  cancelled: returns nil
 //
-static LUAG_FUNC(thread_join)
+static LUAG_FUNC(lane_join)
 {
     Lane* const _lane{ ToLane(L_, StackIndex{ 1 }) };
 
@@ -197,7 +197,7 @@ static LUAG_FUNC(thread_join)
 
 // #################################################################################################
 
-LUAG_FUNC(thread_resume)
+LUAG_FUNC(lane_resume)
 {
     static constexpr StackIndex kIdxSelf{ 1 };
     Lane* const _lane{ ToLane(L_, kIdxSelf) };
@@ -252,7 +252,7 @@ LUAG_FUNC(thread_resume)
 // key is numeric, wait until the thread returns and populate the environment with the return values
 // If the return values signal an error, propagate it
 // Else If key is found in the environment, return it
-static int thread_index_number(lua_State* L_)
+static int lane_index_number(lua_State* L_)
 {
     static constexpr StackIndex kIdxSelf{ 1 };
 
@@ -282,7 +282,7 @@ static int thread_index_number(lua_State* L_)
 // If key is "status" return the thread status
 // If key is found in the environment, return it
 // Else raise an error
-static int thread_index_string(lua_State* L_)
+static int lane_index_string(lua_State* L_)
 {
     static constexpr StackIndex kIdxSelf{ 1 };
     static constexpr StackIndex kIdxKey{ 2 };
@@ -292,6 +292,16 @@ static int thread_index_string(lua_State* L_)
 
     std::string_view const _keystr{ luaG_tostring(L_, kIdxKey) };
     lua_settop(L_, 2); // keep only our original arguments on the stack
+
+    // look in metatable first
+    lua_getmetatable(L_, kIdxSelf);                                                                // L_: lane "key" mt
+    lua_replace(L_, -3);                                                                           // L_: mt "key"
+    lua_rawget(L_, -2);                                                                            // L_: mt value
+    if (luaG_type(L_, kIdxTop) != LuaType::NIL) { // found something?
+        return 1; // done
+    }
+
+    lua_pop(L_, 2);                                                                                // L_:
     if (_keystr == "status") {
         _lane->pushStatusString(L_);                                                               // L_: lane "key" "<status>"
         return 1;
@@ -300,21 +310,13 @@ static int thread_index_string(lua_State* L_)
         std::ignore = _lane->pushErrorTraceLevel(L_);                                              // L_: lane "key" "<level>"
         return 1;
     }
-    // return self.metatable[key]
-    lua_getmetatable(L_, kIdxSelf);                                                                // L_: lane "key" mt
-    lua_replace(L_, -3);                                                                           // L_: mt "key"
-    lua_rawget(L_, -2);                                                                            // L_: mt value
-    // only "cancel" and "join" are registered as functions, any other string will raise an error
-    if (!lua_iscfunction(L_, -1)) {
-        raise_luaL_error(L_, "can't index a lane with '%s'", _keystr.data());
-    }
-    return 1;
+    raise_luaL_error(L_, "unknown field '%s'", _keystr.data());
 }
 
 // #################################################################################################
 
 // lane:__index(key,usr) -> value
-static LUAG_FUNC(thread_index)
+static LUAG_FUNC(lane_index)
 {
     static constexpr StackIndex kIdxSelf{ 1 };
     static constexpr StackIndex kKey{ 2 };
@@ -323,10 +325,10 @@ static LUAG_FUNC(thread_index)
 
     switch (luaG_type(L_, kKey)) {
     case LuaType::NUMBER:
-        return thread_index_number(L_); // stack modification is undefined, returned value is at the top
+        return lane_index_number(L_); // stack modification is undefined, returned value is at the top
 
     case LuaType::STRING:
-        return thread_index_string(L_); // stack modification is undefined, returned value is at the top
+        return lane_index_string(L_); // stack modification is undefined, returned value is at the top
 
     default: // unknown key
         lua_getmetatable(L_, kIdxSelf);                                                            // L_: mt
@@ -802,7 +804,7 @@ static LUAG_FUNC(lane_close)
 
     // no error if the lane body doesn't return a non-nil first value
     luaG_pushstring(L_, "close");                                                                  // L_: lane "close"
-    lua_pushcclosure(L_, LG_thread_join, 1);                                                       // L_: lane join()
+    lua_pushcclosure(L_, LG_lane_join, 1);                                                         // L_: lane join()
     lua_insert(L_, 1);                                                                             // L_: join() lane
     lua_call(L_, 1, LUA_MULTRET);                                                                  // L_: join() results
     return lua_gettop(L_);
@@ -1007,11 +1009,11 @@ namespace {
             { "__close", LG_lane_close },
 #endif // LUA_VERSION_NUM >= 504
             { "__gc", LG_lane_gc },
-            { "__index", LG_thread_index },
-            { "cancel", LG_thread_cancel },
-            { "get_threadname", LG_get_threadname },
-            { "join", LG_thread_join },
-            { "resume", LG_thread_resume },
+            { "__index", LG_lane_index },
+            { "cancel", LG_lane_cancel },
+            { "get_threadname", LG_lane_get_threadname },
+            { "join", LG_lane_join },
+            { "resume", LG_lane_resume },
             { nullptr, nullptr }
         };
     } // namespace local
