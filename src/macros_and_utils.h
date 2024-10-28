@@ -1,7 +1,7 @@
 #pragma once
 
 #include "debug.h"
-#include "luaerrors.h"
+#include "luaerrors.hpp"
 #include "unique.hpp"
 
 using namespace std::chrono_literals;

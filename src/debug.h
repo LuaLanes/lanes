@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lanesconf.h"
-#include "luaerrors.h"
+#include "luaerrors.hpp"
 #include "unique.hpp"
 
 // #################################################################################################
