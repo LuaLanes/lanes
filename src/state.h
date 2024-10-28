@@ -1,7 +1,7 @@
 #pragma once
 
 #include "debugspew.h"
-#include "macros_and_utils.h"
+#include "macros_and_utils.hpp"
 
 // forwards
 enum class LookupMode;

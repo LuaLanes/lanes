@@ -1,6 +1,6 @@
 #include "lanes/src/_pch.hpp"
 #include "lanes/src/deep.hpp"
-#include "lanes/src/compat.h"
+#include "lanes/src/compat.hpp"
 
 class MyDeepFactory : public DeepFactory
 {
