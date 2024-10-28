@@ -31,12 +31,12 @@ THE SOFTWARE.
 ===============================================================================
 */
 
-#include "_pch.h"
+#include "_pch.hpp"
 #include "state.h"
 
 #include "intercopycontext.h"
 #include "lane.h"
-#include "lanes.h"
+#include "lanes.hpp"
 #include "tools.h"
 #include "universe.h"
 

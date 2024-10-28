@@ -79,10 +79,10 @@ THE SOFTWARE.
 ===============================================================================
 */
 
-#include "_pch.h"
-#include "lanes.h"
+#include "_pch.hpp"
+#include "lanes.hpp"
 
-#include "deep.h"
+#include "deep.hpp"
 #include "intercopycontext.h"
 #include "keeper.h"
 #include "lane.h"

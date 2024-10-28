@@ -23,11 +23,11 @@ THE SOFTWARE.
 
 ===============================================================================
 */
-#include "_pch.h"
+#include "_pch.hpp"
 #include "intercopycontext.h"
 
 #include "debugspew.h"
-#include "deep.h"
+#include "deep.hpp"
 #include "keeper.h"
 #include "lane.h"
 #include "linda.h"

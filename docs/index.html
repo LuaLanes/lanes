@@ -196,7 +196,7 @@
 	<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%">
 	<tr>
 			<td>
-				<pre>	#include "lanes.h"</pre>
+				<pre>	#include "lanes.hpp"</pre>
 				<br />
 				<pre>	int load_lanes_lua(lua_State* L)</pre>
 				<pre>	{</pre>
@@ -1849,7 +1849,7 @@ static MyDeepFactory g_MyDeepFactory;
 		</ul>
 		Take a look at <tt>LindaFactory</tt> in <tt>lindafactory.cpp</tt> or <tt>MyDeepFactory</tt> in <tt>deep_test.cpp</tt>.
 	</li>
-	<li>Include <tt>"_pch.h", "deep.h"</tt> and either link against Lanes or statically compile <tt>compat.cpp deep.cpp</tt> into your module if you want to avoid a runtime dependency for users that will use your module without Lanes.
+	<li>Include <tt>"_pch.hpp", "deep.hpp"</tt> and either link against Lanes or statically compile <tt>compat.cpp deep.cpp</tt> into your module if you want to avoid a runtime dependency for users that will use your module without Lanes.
 	<li>Instanciate your userdata using <tt>yourFactoryObject.pushDeepUserdata()</tt>, instead of the regular <tt>lua_newuserdata()</tt>. Given a <tt>factory</tt>, it sets up the support structures and returns a state-specific proxy userdata for accessing your data. This proxy can also be copied over to other lanes.</li>
 	<li>Accessing the deep userdata from your C code, use <tt>yourFactoryObject.toDeep()</tt> instead of the regular <tt>lua_touserdata()</tt>.</li>
 	<li>To push an existing proxy on the stack, use <tt>DeepPrelude::push(L)</tt>.</li>

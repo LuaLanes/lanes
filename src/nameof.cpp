@@ -24,7 +24,7 @@ THE SOFTWARE.
 ===============================================================================
 */
 
-#include "_pch.h"
+#include "_pch.hpp"
 #include "nameof.h"
 
 #include "tools.h"
