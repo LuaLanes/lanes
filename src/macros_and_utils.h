@@ -1,6 +1,6 @@
 #pragma once
 
-#include "debug.h"
+#include "debug.hpp"
 #include "luaerrors.hpp"
 #include "unique.hpp"
 

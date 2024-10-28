@@ -1,6 +1,6 @@
 #pragma once
 
-#include "debug.h"
+#include "debug.hpp"
 #include "stackindex.hpp"
 
 // try to detect if we are building against LuaJIT or MoonJIT
