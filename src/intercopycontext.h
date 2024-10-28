@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tools.h"
+#include "tools.hpp"
 
 // forwards
 class Universe;

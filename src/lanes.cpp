@@ -84,12 +84,12 @@ THE SOFTWARE.
 
 #include "deep.hpp"
 #include "intercopycontext.h"
-#include "keeper.h"
+#include "keeper.hpp"
 #include "lane.h"
 #include "nameof.h"
 #include "state.h"
 #include "threading.h"
-#include "tools.h"
+#include "tools.hpp"
 
 #if !(defined(PLATFORM_XBOX) || defined(PLATFORM_WIN32) || defined(PLATFORM_POCKETPC))
 #include <sys/time.h>

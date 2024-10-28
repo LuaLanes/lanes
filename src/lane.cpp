@@ -29,7 +29,7 @@ THE SOFTWARE.
 #include "debugspew.h"
 #include "intercopycontext.h"
 #include "threading.h"
-#include "tools.h"
+#include "tools.hpp"
 
 // #################################################################################################
 

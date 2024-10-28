@@ -34,7 +34,7 @@ THE SOFTWARE.
 #include "_pch.hpp"
 #include "deep.hpp"
 
-#include "tools.h"
+#include "tools.hpp"
 
 /*-- Metatable copying --*/
 

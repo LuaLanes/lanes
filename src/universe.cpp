@@ -33,7 +33,7 @@ THE SOFTWARE.
 
 #include "deep.hpp"
 #include "intercopycontext.h"
-#include "keeper.h"
+#include "keeper.hpp"
 #include "lane.h"
 #include "state.h"
 

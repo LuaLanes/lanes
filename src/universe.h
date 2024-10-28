@@ -1,7 +1,7 @@
 #pragma once
 
-#include "allocator.h"
-#include "keeper.h"
+#include "allocator.hpp"
+#include "keeper.hpp"
 #include "lanesconf.h"
 #include "tracker.h"
 #include "uniquekey.hpp"

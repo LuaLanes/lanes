@@ -33,7 +33,7 @@ THE SOFTWARE.
 */
 #include "_pch.hpp"
 
-#include "tools.h"
+#include "tools.hpp"
 
 #include "debugspew.h"
 #include "universe.h"

@@ -33,7 +33,7 @@ THE SOFTWARE.
 ]]--
 */
 #include "_pch.hpp"
-#include "cancel.h"
+#include "cancel.hpp"
 
 #include "debugspew.h"
 #include "lane.h"
