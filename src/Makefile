@@ -125,10 +125,10 @@ MODULE_DIR=$(MODULE)
 #---
 all: $(MODULE)/core.$(_SO)
 
-_pch.h.gch: _pch.h
-	$(CC) $(CFLAGS) -x c++-header _pch.h -o _pch.h.gch
+_pch.hpp.gch: _pch.hpp
+	$(CC) $(CFLAGS) -x c++-header _pch.hpp -o _pch.hpp.gch
 
-%.o: %.cpp _pch.h.gch *.h *.hpp Makefile
+%.o: %.cpp _pch.hpp.gch *.h *.hpp Makefile
 	$(CC) $(CFLAGS) -c $<
 
 # Note: Don't put $(LUA_LIBS) ahead of $^; MSYS will not like that (I think)
