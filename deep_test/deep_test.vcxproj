@@ -780,7 +780,7 @@
     <ClInclude Include="..\src\lanesconf.h" />
     <ClInclude Include="..\src\macros_and_utils.hpp" />
     <ClInclude Include="..\src\platform.h" />
-    <ClInclude Include="..\src\uniquekey.h" />
+    <ClInclude Include="..\src\uniquekey.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="deeptest.lua" />

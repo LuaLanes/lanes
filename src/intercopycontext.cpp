@@ -31,7 +31,7 @@ THE SOFTWARE.
 #include "keeper.hpp"
 #include "lane.h"
 #include "linda.h"
-#include "nameof.h"
+#include "nameof.hpp"
 #include "universe.h"
 
 // #################################################################################################

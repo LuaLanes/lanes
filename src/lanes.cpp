@@ -86,7 +86,7 @@ THE SOFTWARE.
 #include "intercopycontext.h"
 #include "keeper.hpp"
 #include "lane.h"
-#include "nameof.h"
+#include "nameof.hpp"
 #include "state.h"
 #include "threading.h"
 #include "tools.hpp"

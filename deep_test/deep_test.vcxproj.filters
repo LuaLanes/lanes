@@ -26,9 +26,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\uniquekey.h">
-      <Filter>Lanes</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\lanesconf.h">
       <Filter>Lanes</Filter>
     </ClInclude>
@@ -42,6 +39,9 @@
       <Filter>Lanes</Filter>
     </ClInclude>
     <ClInclude Include="..\src\macros_and_utils.hpp">
+      <Filter>Lanes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\uniquekey.hpp">
       <Filter>Lanes</Filter>
     </ClInclude>
   </ItemGroup>
