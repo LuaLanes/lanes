@@ -34,7 +34,7 @@ THE SOFTWARE.
 #include "linda.hpp"
 
 #include "lane.hpp"
-#include "lindafactory.h"
+#include "lindafactory.hpp"
 #include "tools.hpp"
 
 // #################################################################################################

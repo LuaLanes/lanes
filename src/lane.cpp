@@ -26,7 +26,7 @@ THE SOFTWARE.
 #include "_pch.hpp"
 #include "lane.hpp"
 
-#include "debugspew.h"
+#include "debugspew.hpp"
 #include "intercopycontext.h"
 #include "threading.hpp"
 #include "tools.hpp"

@@ -26,7 +26,7 @@ THE SOFTWARE.
 #include "_pch.hpp"
 #include "intercopycontext.h"
 
-#include "debugspew.h"
+#include "debugspew.hpp"
 #include "deep.hpp"
 #include "keeper.hpp"
 #include "lane.hpp"

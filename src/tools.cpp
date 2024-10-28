@@ -35,7 +35,7 @@ THE SOFTWARE.
 
 #include "tools.hpp"
 
-#include "debugspew.h"
+#include "debugspew.hpp"
 #include "universe.hpp"
 
 DEBUGSPEW_CODE(std::string_view const DebugSpewIndentScope::debugspew_indent{ "----+----!----+----!----+----!----+----!----+----!----+----!----+----!----+" });
