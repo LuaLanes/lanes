@@ -776,7 +776,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\compat.h" />
-    <ClInclude Include="..\src\deep.h" />
+    <ClInclude Include="..\src\deep.hpp" />
     <ClInclude Include="..\src\lanesconf.h" />
     <ClInclude Include="..\src\macros_and_utils.h" />
     <ClInclude Include="..\src\platform.h" />

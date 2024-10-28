@@ -26,9 +26,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\deep.h">
-      <Filter>Lanes</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\compat.h">
       <Filter>Lanes</Filter>
     </ClInclude>
@@ -42,6 +39,9 @@
       <Filter>Lanes</Filter>
     </ClInclude>
     <ClInclude Include="..\src\platform.h">
+      <Filter>Lanes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\deep.hpp">
       <Filter>Lanes</Filter>
     </ClInclude>
   </ItemGroup>
