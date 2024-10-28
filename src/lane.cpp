@@ -24,11 +24,11 @@ THE SOFTWARE.
 ===============================================================================
 */
 #include "_pch.hpp"
-#include "lane.h"
+#include "lane.hpp"
 
 #include "debugspew.h"
 #include "intercopycontext.h"
-#include "threading.h"
+#include "threading.hpp"
 #include "tools.hpp"
 
 // #################################################################################################

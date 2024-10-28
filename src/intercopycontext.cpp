@@ -29,8 +29,8 @@ THE SOFTWARE.
 #include "debugspew.h"
 #include "deep.hpp"
 #include "keeper.hpp"
-#include "lane.h"
-#include "linda.h"
+#include "lane.hpp"
+#include "linda.hpp"
 #include "nameof.hpp"
 #include "universe.hpp"
 

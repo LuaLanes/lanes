@@ -41,8 +41,8 @@
 #include "keeper.hpp"
 
 #include "intercopycontext.h"
-#include "lane.h"
-#include "linda.h"
+#include "lane.hpp"
+#include "linda.hpp"
 #include "state.h"
 
 // There is a table at _R[kLindasRegKey] (aka LindasDB)

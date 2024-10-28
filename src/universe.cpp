@@ -34,7 +34,7 @@ THE SOFTWARE.
 #include "deep.hpp"
 #include "intercopycontext.h"
 #include "keeper.hpp"
-#include "lane.h"
+#include "lane.hpp"
 #include "state.h"
 
 extern LUAG_FUNC(linda);

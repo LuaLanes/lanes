@@ -35,7 +35,7 @@ THE SOFTWARE.
 #include "state.h"
 
 #include "intercopycontext.h"
-#include "lane.h"
+#include "lane.hpp"
 #include "lanes.hpp"
 #include "tools.hpp"
 #include "universe.hpp"

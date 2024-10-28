@@ -33,7 +33,7 @@ THE SOFTWARE.
 #include "_pch.hpp"
 #include "lindafactory.h"
 
-#include "linda.h"
+#include "linda.hpp"
 
 static constexpr std::string_view kLindaMetatableName{ "Linda" };
 

@@ -49,7 +49,7 @@ THE SOFTWARE.
 
 #endif // __linux__
 
-#include "threading.h"
+#include "threading.hpp"
 
 #if !defined(PLATFORM_XBOX) && !defined(PLATFORM_WIN32) && !defined(PLATFORM_POCKETPC)
 #include <sys/time.h>
