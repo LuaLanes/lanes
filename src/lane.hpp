@@ -112,7 +112,8 @@ class Lane
     // M: prepares the state, and reads results
     // S: while S is running, M must keep out of modifying the state
 
-    Status volatile status{ Pending };
+    std::atomic<Status> status{ Pending };
+    static_assert(std::atomic<Status>::is_always_lock_free);
     //
     // M: sets to Pending (before launching)
     // S: updates -> Running/Waiting/Suspended -> Done/Error/Cancelled

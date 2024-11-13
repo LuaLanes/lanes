@@ -312,7 +312,7 @@ LUAG_FUNC(lane_new)
                 {
                     std::lock_guard _guard{ lane->doneMutex };
                     // this will cause lane_main to skip actual running (because we are not Pending anymore)
-                    lane->status = Lane::Running;
+                    lane->status.store(Lane::Running, std::memory_order_release);
                 }
                 // unblock the thread so that it can terminate gracefully
 #ifndef __PROSPERO__

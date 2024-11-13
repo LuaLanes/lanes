@@ -671,9 +671,9 @@ LUAG_FUNC(linda_receive)
                     Lane::Status _prev_status{ Lane::Error }; // prevent 'might be used uninitialized' warnings
                     if (_lane != nullptr) {
                         // change status of lane to "waiting"
-                        _prev_status = _lane->status; // Running, most likely
+                        _prev_status = _lane->status.load(std::memory_order_acquire); // Running, most likely
                         LUA_ASSERT(L_, _prev_status == Lane::Running); // but check, just in case
-                        _lane->status = Lane::Waiting;
+                        _lane->status.store(Lane::Waiting, std::memory_order_release);
                         LUA_ASSERT(L_, _lane->waiting_on == nullptr);
                         _lane->waiting_on = &_linda->writeHappened;
                     }
@@ -684,7 +684,7 @@ LUAG_FUNC(linda_receive)
                     _try_again = (_status == std::cv_status::no_timeout); // detect spurious wakeups
                     if (_lane != nullptr) {
                         _lane->waiting_on = nullptr;
-                        _lane->status = _prev_status;
+                        _lane->status.store(_prev_status, std::memory_order_release);
                     }
                 }
             }
@@ -816,9 +816,9 @@ LUAG_FUNC(linda_send)
                         Lane::Status _prev_status{ Lane::Error }; // prevent 'might be used uninitialized' warnings
                         if (_lane != nullptr) {
                             // change status of lane to "waiting"
-                            _prev_status = _lane->status; // Running, most likely
+                            _prev_status = _lane->status.load(std::memory_order_acquire); // Running, most likely
                             LUA_ASSERT(L_, _prev_status == Lane::Running); // but check, just in case
-                            _lane->status = Lane::Waiting;
+                            _lane->status.store(Lane::Waiting, std::memory_order_release);
                             LUA_ASSERT(L_, _lane->waiting_on == nullptr);
                             _lane->waiting_on = &_linda->readHappened;
                         }
@@ -829,7 +829,7 @@ LUAG_FUNC(linda_send)
                         _try_again = (status == std::cv_status::no_timeout); // detect spurious wakeups
                         if (_lane != nullptr) {
                             _lane->waiting_on = nullptr;
-                            _lane->status = _prev_status;
+                            _lane->status.store(_prev_status, std::memory_order_release);
                         }
                     }
                 }
