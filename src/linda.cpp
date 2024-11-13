@@ -673,9 +673,9 @@ LUAG_FUNC(linda_receive)
                         // change status of lane to "waiting"
                         _prev_status = _lane->status.load(std::memory_order_acquire); // Running, most likely
                         LUA_ASSERT(L_, _prev_status == Lane::Running); // but check, just in case
-                        _lane->status.store(Lane::Waiting, std::memory_order_release);
                         LUA_ASSERT(L_, _lane->waiting_on == nullptr);
                         _lane->waiting_on = &_linda->writeHappened;
+                        _lane->status.store(Lane::Waiting, std::memory_order_release);
                     }
                     // not enough data to read: wakeup when data was sent, or when timeout is reached
                     std::unique_lock<std::mutex> _guard{ _keeper->mutex, std::adopt_lock };
@@ -818,9 +818,9 @@ LUAG_FUNC(linda_send)
                             // change status of lane to "waiting"
                             _prev_status = _lane->status.load(std::memory_order_acquire); // Running, most likely
                             LUA_ASSERT(L_, _prev_status == Lane::Running); // but check, just in case
-                            _lane->status.store(Lane::Waiting, std::memory_order_release);
                             LUA_ASSERT(L_, _lane->waiting_on == nullptr);
                             _lane->waiting_on = &_linda->readHappened;
+                            _lane->status.store(Lane::Waiting, std::memory_order_release);
                         }
                         // could not send because no room: wait until some data was read before trying again, or until timeout is reached
                         std::unique_lock<std::mutex> _guard{ _keeper->mutex, std::adopt_lock };

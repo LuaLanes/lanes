@@ -50,7 +50,6 @@ enum class WakeLane
     Yes
 };
 
-// NOTE: values to be changed by either thread, during execution, without locking, are marked "volatile"
 class Lane
 {
     public:
@@ -118,9 +117,9 @@ class Lane
     // M: sets to Pending (before launching)
     // S: updates -> Running/Waiting/Suspended -> Done/Error/Cancelled
 
-    std::condition_variable* volatile waiting_on{ nullptr };
-    //
+    // accessed under control of status acquire/release semantics
     // When status is Waiting, points on the linda's signal the thread waits on, else nullptr
+    std::condition_variable* waiting_on{ nullptr };
 
     std::atomic<CancelRequest> cancelRequest{ CancelRequest::None };
     static_assert(std::atomic<CancelRequest>::is_always_lock_free);

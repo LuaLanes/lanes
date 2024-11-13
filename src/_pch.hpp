@@ -60,7 +60,6 @@ extern "C"
 #pragma warning(disable : 5027) // 'x': move assignment operator was implicitly defined as deleted
 #pragma warning(disable : 5039) // 'x': pointer or reference to potentially throwing function passed to 'extern "C"' function under -EHc. Undefined behavior may occur if this function throws an exception.
 #pragma warning(disable : 5045) // Compiler will insert Spectre mitigation for memory load if /Qspectre switch specified
-#pragma warning(disable : 5220) // 'x': a non-static data member with a volatile qualified type no longer implies that compiler generated copy/move constructors and copy/move assignment operators are not trivial
 #pragma warning(disable : 5246) // 'x': the initialization of a subobject should be wrapped in braces
 
 #endif // _MSC_VER

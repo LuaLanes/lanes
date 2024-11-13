@@ -945,9 +945,10 @@ CancelResult Lane::cancel(CancelOp const op_, std::chrono::time_point<std::chron
         // lane_->thread.get_stop_source().request_stop();
     }
     if (wakeLane_ == WakeLane::Yes) { // wake the thread so that execution returns from any pending linda operation if desired
-        std::condition_variable* const _waiting_on{ waiting_on };
-        if (status.load(std::memory_order_acquire) == Lane::Waiting && _waiting_on != nullptr) {
-            _waiting_on->notify_all();
+        if (status.load(std::memory_order_acquire) == Lane::Waiting) { // waiting_on is updated under control of status acquire/release semantics
+            if (std::condition_variable* const _waiting_on{ waiting_on }) {
+                _waiting_on->notify_all();
+            }
         }
     }
     // wait until the lane stops working with its state (either Suspended or Done+)
