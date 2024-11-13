@@ -381,7 +381,7 @@ bool Universe::terminateFreeRunningLanes(lua_Duration const shutdownTimeout_, Ca
                     std::lock_guard<std::mutex> _guard{ selfdestructMutex };
                     Lane* _lane{ selfdestructFirst };
                     while (_lane != SELFDESTRUCT_END) {
-                        if (_lane->cancelRequest != CancelRequest::None)
+                        if (_lane->cancelRequest.load(std::memory_order_relaxed) != CancelRequest::None)
                             ++_n;
                         _lane = _lane->selfdestruct_next;
                     }

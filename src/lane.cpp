@@ -939,7 +939,7 @@ CancelResult Lane::cancel(CancelOp const op_, std::chrono::time_point<std::chron
 
 [[nodiscard]] CancelResult Lane::internalCancel(CancelRequest const rq_, std::chrono::time_point<std::chrono::steady_clock> const until_, WakeLane const wakeLane_)
 {
-    cancelRequest = rq_; // it's now signaled to stop
+    cancelRequest.store(rq_, std::memory_order_relaxed); // it's now signaled to stop
     if (rq_ == CancelRequest::Hard) {
         // lane_->thread.get_stop_source().request_stop();
     }

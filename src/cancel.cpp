@@ -54,7 +54,7 @@ THE SOFTWARE.
 {
     auto const* const _lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
     // 'lane' is nullptr for the original main state (and no-one can cancel that)
-    return _lane ? _lane->cancelRequest : CancelRequest::None;
+    return _lane ? _lane->cancelRequest.load(std::memory_order_relaxed) : CancelRequest::None;
 }
 
 // #################################################################################################

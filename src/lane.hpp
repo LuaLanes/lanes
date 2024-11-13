@@ -122,7 +122,8 @@ class Lane
     //
     // When status is Waiting, points on the linda's signal the thread waits on, else nullptr
 
-    CancelRequest volatile cancelRequest{ CancelRequest::None };
+    std::atomic<CancelRequest> cancelRequest{ CancelRequest::None };
+    static_assert(std::atomic<CancelRequest>::is_always_lock_free);
     //
     // M: sets to false, flags true for cancel request
     // S: reads to see if cancel is requested

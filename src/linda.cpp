@@ -640,7 +640,7 @@ LUAG_FUNC(linda_receive)
             STACK_CHECK_START_REL(_K, 0);
             for (bool _try_again{ true };;) {
                 if (_lane != nullptr) {
-                    _cancel = _lane->cancelRequest;
+                    _cancel = _lane->cancelRequest.load(std::memory_order_relaxed);
                 }
                 _cancel = (_cancel != CancelRequest::None)
                     ? _cancel
@@ -779,7 +779,7 @@ LUAG_FUNC(linda_send)
                 STACK_CHECK_START_REL(_K, 0);
                 for (bool _try_again{ true };;) {
                     if (_lane != nullptr) {
-                        _cancel = _lane->cancelRequest;
+                        _cancel = _lane->cancelRequest.load(std::memory_order_relaxed);
                     }
                     _cancel = (_cancel != CancelRequest::None)
                         ? _cancel
