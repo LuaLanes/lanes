@@ -801,11 +801,11 @@ void signal_handler(int signal_)
 
 // helper to have correct callstacks when crashing a Win32 running on 64 bits Windows
 // don't forget to toggle Debug/Exceptions/Win32 in visual Studio too!
-static volatile long s_ecoc_initCount = 0;
-static volatile int s_ecoc_go_ahead = 0;
+static std::atomic_flag s_ecoc_initDone;
+static std::atomic_flag s_ecoc_go_ahead;
 static void EnableCrashingOnCrashes(void)
 {
-    if (InterlockedCompareExchange(&s_ecoc_initCount, 1, 0) == 0) {
+    if (!s_ecoc_initDone.test_and_set(std::memory_order_acquire)) {
         using GetPolicy_t = BOOL(WINAPI *)(LPDWORD lpFlags);
         using SetPolicy_t = BOOL(WINAPI *)(DWORD dwFlags);
         const DWORD EXCEPTION_SWALLOWING = 0x1;
@@ -826,11 +826,12 @@ static void EnableCrashingOnCrashes(void)
         // typedef void (* SignalHandlerPointer)( int);
         /*SignalHandlerPointer previousHandler =*/signal(SIGABRT, signal_handler);
 
-        s_ecoc_go_ahead = 1; // let others pass
+        // we are done, other threads waiting to initialize lanes can proceed
+        std::ignore = s_ecoc_go_ahead.test_and_set(std::memory_order_relaxed);
+        s_ecoc_go_ahead.notify_all();
     } else {
-        while (!s_ecoc_go_ahead) {
-            Sleep(1);
-        } // changes threads
+        // wait until flag becomes true
+        s_ecoc_go_ahead.wait(false, std::memory_order_relaxed);
     }
 }
 #endif // PLATFORM_WIN32 && !defined NDEBUG
