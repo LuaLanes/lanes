@@ -113,7 +113,8 @@ class Universe
     std::atomic<int> debugspewIndentDepth{ 0 };
 #endif // USE_DEBUG_SPEW()
 
-    Lane* volatile selfdestructFirst{ nullptr };
+    // access is protected by selfDestructMutex
+    Lane* selfdestructFirst{ nullptr };
     // After a lane has removed itself from the chain, it still performs some processing.
     // The terminal desinit sequence should wait for all such processing to terminate before force-killing threads
     std::atomic<int> selfdestructingCount{ 0 };

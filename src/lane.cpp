@@ -633,6 +633,8 @@ void Lane::selfdestructAdd()
     assert(selfdestruct_next == nullptr);
 
     selfdestruct_next = U->selfdestructFirst;
+    assert(selfdestruct_next);
+
     U->selfdestructFirst = this;
 }
 
@@ -648,7 +650,7 @@ void Lane::selfdestructAdd()
     // cancel/kill).
     //
     if (selfdestruct_next != nullptr) {
-        Lane* volatile* _ref = static_cast<Lane* volatile*>(&U->selfdestructFirst);
+        Lane** _ref{ &U->selfdestructFirst };
 
         while (*_ref != SELFDESTRUCT_END) {
             if (*_ref == this) {
@@ -659,7 +661,7 @@ void Lane::selfdestructAdd()
                 _found = true;
                 break;
             }
-            _ref = static_cast<Lane* volatile*>(&((*_ref)->selfdestruct_next));
+            _ref = &((*_ref)->selfdestruct_next);
         }
         assert(_found);
     }
@@ -846,7 +848,6 @@ static LUAG_FUNC(lane_gc)
     if (_lane->status.load(std::memory_order_acquire) < Lane::Done) {
         // still running: will have to be cleaned up later
         _lane->selfdestructAdd();
-        assert(_lane->selfdestruct_next);
         if (_have_gc_cb) {
             luaG_pushstring(L_, "selfdestruct");                                                   // L_: ud gc_cb name status
             lua_call(L_, 2, 0);                                                                    // L_: ud

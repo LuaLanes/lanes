@@ -128,7 +128,8 @@ class Lane
     // M: sets to false, flags true for cancel request
     // S: reads to see if cancel is requested
 
-    Lane* volatile selfdestruct_next{ nullptr };
+    // access is protected by Universe::selfDestructMutex
+    Lane* selfdestruct_next{ nullptr };
     //
     // M: sets to non-nullptr if facing lane handle '__gc' cycle but the lane
     //    is still running
