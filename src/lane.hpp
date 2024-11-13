@@ -135,8 +135,8 @@ class Lane
     //    is still running
     // S: cleans up after itself if non-nullptr at lane exit
 
-    // For tracking only
-    Lane* volatile tracking_next{ nullptr };
+    // access is protected by LaneTracker::trackingMutex
+    Lane* tracking_next{ nullptr };
 
     ErrorTraceLevel const errorTraceLevel{ Basic };
 

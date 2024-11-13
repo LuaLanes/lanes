@@ -11,7 +11,7 @@ class LaneTracker
 {
     private:
     mutable std::mutex trackingMutex;
-    Lane* volatile trackingFirst{ nullptr }; // will change to TRACKING_END if we want to activate tracking
+    Lane* trackingFirst{ nullptr }; // will change to TRACKING_END if we want to activate tracking
 
     public:
     void tracking_add(Lane* lane_);
