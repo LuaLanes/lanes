@@ -253,23 +253,17 @@ namespace state {
         };
         while (!_libs.empty()) {
             // remove prefix not part of a name
-            auto _nameStart{ std::find_if(std::cbegin(_libs), std::cend(_libs), isLibNameChar) };
-            if (_nameStart == _libs.end()) {
-                break;
-            }
-            auto const _prefixLen{ std::distance(_libs.begin(), _nameStart) };
-
-            auto const _nameEnd{ std::find_if(_nameStart, std::cend(_libs), [&isLibNameChar](char const _c) { return !isLibNameChar(_c); }) };
-            // advance to the end of the character sequence composing the name
-            auto const _nameLen{ std::distance(_nameStart, _nameEnd) };
-            if (_nameLen == 0) {
+            _libs = std::string_view{ std::find_if(std::cbegin(_libs), std::cend(_libs), isLibNameChar), _libs.end() };
+            // extract a single name
+            auto const _libNameEnd{ std::find_if(std::cbegin(_libs), std::cend(_libs), [&isLibNameChar](char const _c) { return !isLibNameChar(_c); }) };
+            std::string_view const _libName{ _libs.begin(), _libNameEnd };
+            if (_libName.empty()) {
                 break;
             }
             // open library
-            std::string_view const _libName{ _libs.substr(static_cast<size_t>(_prefixLen), static_cast<size_t>(_nameLen)) };
             Open1Lib(_L, _libName);
-            // advance to next item (can't do this earlier as it invalidates iterators)
-            _libs.remove_prefix(static_cast<size_t>(_prefixLen + _nameLen));
+            // advance to next item
+            _libs = std::string_view{ _libNameEnd, _libs.end() };
         }
         lua_gc(_L, LUA_GCRESTART, 0);
 
