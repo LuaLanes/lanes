@@ -61,6 +61,7 @@ build = {
 			sources =
 			{
 				"src/_pch.cpp",
+				"src/allocator.cpp",
 				"src/cancel.cpp",
 				"src/compat.cpp",
 				"src/deep.cpp",

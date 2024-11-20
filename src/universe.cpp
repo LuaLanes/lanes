@@ -263,7 +263,7 @@ void Universe::initializeAllocatorFunction(lua_State* const L_)
     LUA_ASSERT(L_, lua_isstring(L_, kIdxTop)); // should be the case due to lanes.lua parameter validation
     std::string_view const _allocator{ luaG_tostring(L_, kIdxTop) };
     if (_allocator == "libc") {
-        internalAllocator = lanes::AllocatorDefinition{ lanes::AllocatorDefinition::kAllocatorVersion, libc_lua_Alloc, nullptr };
+        internalAllocator = lanes::AllocatorDefinition{ libc_lua_Alloc, nullptr };
     } else {
         // use whatever the provider provides
         internalAllocator = resolveAllocator(L_, "internal");
@@ -338,11 +338,8 @@ lanes::AllocatorDefinition Universe::resolveAllocator(lua_State* const L_, std::
     lua_pushcclosure(L_, provideAllocator, 0);                                                     // L_: provideAllocator()
     luaG_pushstring(L_, hint_);                                                                    // L_: provideAllocator() "<hint>"
     lua_call(L_, 1, 1);                                                                            // L_: result
-    lanes::AllocatorDefinition* const _def{ luaG_tofulluserdata<lanes::AllocatorDefinition>(L_, kIdxTop) };
-    if (!_def || _def->version != lanes::AllocatorDefinition::kAllocatorVersion) {
-        raise_luaL_error(L_, "Bad config.allocator function, must provide a valid AllocatorDefinition");
-    }
-    _ret = *_def;
+    // make sure we have a valid AllocatorDefinition on the stack (an error is raised instead if it is not the case)
+    _ret = lanes::AllocatorDefinition::Validated(L_, kIdxTop);
     lua_pop(L_, 1);                                                                                // L_:
     STACK_CHECK(L_, 0);
     return _ret;

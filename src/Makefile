@@ -9,7 +9,7 @@ MODULE=lanes
 
 CC= g++ -std=c++20
 
-SRC=_pch.cpp cancel.cpp compat.cpp deep.cpp intercopycontext.cpp keeper.cpp lane.cpp lanes.cpp linda.cpp lindafactory.cpp nameof.cpp state.cpp threading.cpp tools.cpp tracker.cpp universe.cpp
+SRC=_pch.cpp allocator.cpp cancel.cpp compat.cpp deep.cpp intercopycontext.cpp keeper.cpp lane.cpp lanes.cpp linda.cpp lindafactory.cpp nameof.cpp state.cpp threading.cpp tools.cpp tracker.cpp universe.cpp
 
 OBJ=$(SRC:.cpp=.o)
 

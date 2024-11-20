@@ -20,13 +20,16 @@ class ProtectedAllocator
 : public lanes::AllocatorDefinition
 {
     private:
+
+    using super = lanes::AllocatorDefinition;
+
     std::mutex mutex;
 
     [[nodiscard]] static void* protected_lua_Alloc(void* ud_, void* ptr_, size_t osize_, size_t nsize_)
     {
         ProtectedAllocator* const allocator{ static_cast<ProtectedAllocator*>(ud_) };
         std::lock_guard<std::mutex> guard{ allocator->mutex };
-        return allocator->allocF(allocator->allocUD, ptr_, osize_, nsize_);
+        return allocator->alloc(ptr_, osize_, nsize_);
     }
 
     public:
@@ -36,21 +39,19 @@ class ProtectedAllocator
 
     AllocatorDefinition makeDefinition()
     {
-        return AllocatorDefinition{ version, protected_lua_Alloc, this };
+        return AllocatorDefinition{ protected_lua_Alloc, this };
     }
 
-    void installIn(lua_State* L_)
+    void installIn(lua_State* const L_) const
     {
-        lua_setallocf(L_, protected_lua_Alloc, this);
+        // install our replacement allocator function (this is a C function, we need to deconst ourselves)
+        lua_setallocf(L_, protected_lua_Alloc, static_cast<void*>(const_cast<ProtectedAllocator*>(this)));
     }
 
-    void removeFrom(lua_State* L_)
+    void removeFrom(lua_State* const L_) const
     {
-        // remove the protected allocator, if any
-        if (allocF != nullptr) {
-            // install the non-protected allocator
-            lua_setallocf(L_, allocF, allocUD);
-        }
+        // restore the base allocator function
+        super::installIn(L_);
     }
 };
 

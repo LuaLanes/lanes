@@ -159,7 +159,7 @@ namespace state {
                         return luaL_newstate();
                     } else {
                         lanes::AllocatorDefinition const _def{ U->resolveAllocator(from, hint) };
-                        return lua_newstate(_def.allocF, _def.allocUD);
+                        return _def.newState();
                     }
                 }
             )
