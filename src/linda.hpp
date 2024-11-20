@@ -19,7 +19,7 @@ class Linda
 : public DeepPrelude // Deep userdata MUST start with this header
 {
     public:
-    class KeeperOperationInProgress
+    class [[nodiscard]] KeeperOperationInProgress
     {
         private:
         Linda& linda;
@@ -64,7 +64,8 @@ class Linda
     Status cancelStatus{ Status::Active };
 
     public:
-    [[nodiscard]] static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internalAllocator.alloc(size_); }
+    [[nodiscard]]
+    static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internalAllocator.alloc(size_); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete(void* p_, Universe* U_) { U_->internalAllocator.free(p_, sizeof(Linda)); }
@@ -85,19 +86,26 @@ class Linda
     void setName(std::string_view const& name_);
 
     public:
-    [[nodiscard]] Keeper* acquireKeeper() const;
-    [[nodiscard]] std::string_view getName() const;
-    [[nodiscard]] bool inKeeperOperation() const { return keeperOperationCount.load(std::memory_order_seq_cst) != 0; }
+    [[nodiscard]]
+    Keeper* acquireKeeper() const;
+    [[nodiscard]]
+    std::string_view getName() const;
+    [[nodiscard]]
+    bool inKeeperOperation() const { return keeperOperationCount.load(std::memory_order_seq_cst) != 0; }
     template <typename T = uintptr_t>
-    [[nodiscard]] T obfuscated() const
+    [[nodiscard]]
+    T obfuscated() const
     {
         // xxh64 of string "kObfuscator" generated at https://www.pelock.com/products/hash-calculator
         static constexpr UniqueKey kObfuscator{ 0x7B8AA1F99A3BD782ull };
         return std::bit_cast<T>(std::bit_cast<uintptr_t>(this) ^ kObfuscator.storage);
     };
     void releaseKeeper(Keeper* keeper_) const;
-    [[nodiscard]] static int ProtectedCall(lua_State* L_, lua_CFunction f_);
+    [[nodiscard]]
+    static int ProtectedCall(lua_State* L_, lua_CFunction f_);
     void pushCancelString(lua_State* L_) const;
-    [[nodiscard]] KeeperOperationInProgress startKeeperOperation(lua_State* const L_) { return KeeperOperationInProgress{ *this, L_ }; };
-    [[nodiscard]] Keeper* whichKeeper() const { return U->keepers.getKeeper(keeperIndex); }
+    [[nodiscard]]
+    KeeperOperationInProgress startKeeperOperation(lua_State* const L_) { return KeeperOperationInProgress{ *this, L_ }; };
+    [[nodiscard]]
+    Keeper* whichKeeper() const { return U->keepers.getKeeper(keeperIndex); }
 };

@@ -3,8 +3,9 @@
 // #################################################################################################
 
 // A unique type generator
+// Marking *all* Unique<> types as [[nodiscard]] is maybe overkill, but there is no way of marking a specific instanciation
 template <typename T, typename TAG, typename specialization = void>
-class Unique
+class [[nodiscard]] Unique
 {
     private:
     T val; // no default initialization so that std::is_trivial_v<Unique<T>> == true
@@ -69,7 +70,8 @@ class Unique
 };
 
 template <typename T, typename TAG>
-class Unique<T, TAG, std::enable_if_t<!std::is_scalar_v<T>>>
+// Marking *all* Unique<> types as [[nodiscard]] is maybe overkill, but there is no way of marking a specific instanciation
+class [[nodiscard]] Unique<T, TAG, std::enable_if_t<!std::is_scalar_v<T>>>
 : public T
 {
     public:

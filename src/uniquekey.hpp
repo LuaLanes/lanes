@@ -73,7 +73,8 @@ class RegistryUniqueKey
     }
     // ---------------------------------------------------------------------------------------------
     template <typename T>
-    [[nodiscard]] T* readLightUserDataValue(lua_State* const L_) const
+    [[nodiscard]]
+    T* readLightUserDataValue(lua_State* const L_) const
     {
         STACK_GROW(L_, 1);
         STACK_CHECK_START_REL(L_, 0);
@@ -84,7 +85,8 @@ class RegistryUniqueKey
         return value;
     }
     // ---------------------------------------------------------------------------------------------
-    [[nodiscard]] bool readBoolValue(lua_State* const L_) const
+    [[nodiscard]]
+    bool readBoolValue(lua_State* const L_) const
     {
         STACK_GROW(L_, 1);
         STACK_CHECK_START_REL(L_, 0);
@@ -96,7 +98,8 @@ class RegistryUniqueKey
     }
     // ---------------------------------------------------------------------------------------------
     // equivalent to luaL_getsubtable
-    [[nodiscard]] bool getSubTable(lua_State* const L_, NArr const narr_, NRec const nrec_) const
+    [[nodiscard]]
+    bool getSubTable(lua_State* const L_, NArr const narr_, NRec const nrec_) const
     {
         STACK_CHECK_START_REL(L_, 0);
         pushValue(L_);                                                                             // L_: {}|nil

@@ -9,7 +9,6 @@
 enum class CancelRequest
 {
     None, // no pending cancel request
-    // TODO: add a Wake mode: user wants to wake the waiting lindas (in effect resulting in a timeout before the initial operation duration)
     Soft, // user wants the lane to cancel itself manually on cancel_test()
     Hard // user wants the lane to be interrupted (meaning code won't return from those functions) from inside linda:send/receive calls
 };
@@ -42,12 +41,15 @@ static constexpr UniqueKey kCancelError{ 0x0630345FEF912746ull, "lanes.cancel_er
 
 // #################################################################################################
 
-[[nodiscard]] CancelRequest CheckCancelRequest(lua_State* L_);
-[[nodiscard]] CancelOp WhichCancelOp(std::string_view const& opString_);
+[[nodiscard]]
+CancelRequest CheckCancelRequest(lua_State* L_);
+[[nodiscard]]
+CancelOp WhichCancelOp(std::string_view const& opString_);
 
 // #################################################################################################
 
-[[noreturn]] static inline void raise_cancel_error(lua_State* const L_)
+[[noreturn]]
+static inline void raise_cancel_error(lua_State* const L_)
 {
     STACK_GROW(L_, 1);
     kCancelError.pushKey(L_); // special error value

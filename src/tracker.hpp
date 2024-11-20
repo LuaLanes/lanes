@@ -15,12 +15,15 @@ class LaneTracker
 
     public:
     void tracking_add(Lane* lane_);
-    [[nodiscard]] bool tracking_remove(Lane* lane_);
-    [[nodiscard]] int pushThreadsTable(lua_State* L_) const;
+    [[nodiscard]]
+    bool tracking_remove(Lane* lane_);
+    [[nodiscard]]
+    int pushThreadsTable(lua_State* L_) const;
     void activate() {
         trackingFirst = TRACKING_END;
     }
-    [[nodiscard]] bool isActive() const {
+    [[nodiscard]]
+    bool isActive() const {
         return trackingFirst != nullptr;
     }
 };

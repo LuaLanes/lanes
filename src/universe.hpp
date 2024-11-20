@@ -25,7 +25,8 @@ class ProtectedAllocator
 
     std::mutex mutex;
 
-    [[nodiscard]] static void* protected_lua_Alloc(void* ud_, void* ptr_, size_t osize_, size_t nsize_)
+    [[nodiscard]]
+    static void* protected_lua_Alloc(void* ud_, void* ptr_, size_t osize_, size_t nsize_)
     {
         ProtectedAllocator* const allocator{ static_cast<ProtectedAllocator*>(ud_) };
         std::lock_guard<std::mutex> guard{ allocator->mutex };
@@ -34,7 +35,8 @@ class ProtectedAllocator
 
     public:
     // we are not like our base class: we can't be created inside a full userdata (or we would have to install a metatable and __gc handler to destroy ourselves properly)
-    [[nodiscard]] static void* operator new(size_t size_, lua_State* L_) noexcept = delete;
+    [[nodiscard]]
+    static void* operator new(size_t size_, lua_State* L_) noexcept = delete;
     static void operator delete(void* p_, lua_State* L_) = delete;
 
     AllocatorDefinition makeDefinition()
@@ -121,7 +123,8 @@ class Universe
     std::atomic<int> selfdestructingCount{ 0 };
 
     public:
-    [[nodiscard]] static void* operator new([[maybe_unused]] size_t size_, lua_State* L_) noexcept { return luaG_newuserdatauv<Universe>(L_, UserValueCount{ 0 }); };
+    [[nodiscard]]
+    static void* operator new([[maybe_unused]] size_t size_, lua_State* L_) noexcept { return luaG_newuserdatauv<Universe>(L_, UserValueCount{ 0 }); };
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete([[maybe_unused]] void* p_, [[maybe_unused]] lua_State* L_) {} // nothing to do, as nothing is allocated independently
 
@@ -134,18 +137,22 @@ class Universe
     Universe& operator=(Universe&&) = delete;
 
     void callOnStateCreate(lua_State* const L_, lua_State* const from_, LookupMode const mode_);
-    [[nodiscard]] static Universe* Create(lua_State* L_);
-    [[nodiscard]] static inline Universe* Get(lua_State* L_);
+    [[nodiscard]]
+    static Universe* Create(lua_State* L_);
+    [[nodiscard]]
+    static inline Universe* Get(lua_State* L_);
     void initializeAllocatorFunction(lua_State* L_);
     static int InitializeFinalizer(lua_State* L_);
     void initializeOnStateCreate(lua_State* const L_);
     lanes::AllocatorDefinition resolveAllocator(lua_State* const L_, std::string_view const& hint_) const;
     static inline void Store(lua_State* L_, Universe* U_);
-    [[nodiscard]] bool terminateFreeRunningLanes(lua_Duration shutdownTimeout_, CancelOp op_);
+    [[nodiscard]]
+    bool terminateFreeRunningLanes(lua_Duration shutdownTimeout_, CancelOp op_);
 };
 
 // #################################################################################################
 
+[[nodiscard]]
 inline Universe* Universe::Get(lua_State* L_)
 {
     STACK_CHECK_START_REL(L_, 0);

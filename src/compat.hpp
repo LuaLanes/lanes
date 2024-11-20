@@ -115,6 +115,7 @@ enum class LuaError
     ERRFILE = LUA_ERRFILE
 };
 
+[[nodiscard]]
 inline constexpr LuaError ToLuaError(int const rc_)
 {
     assert(rc_ == LUA_OK || rc_ == LUA_YIELD || rc_ == LUA_ERRRUN || rc_ == LUA_ERRSYNTAX || rc_ == LUA_ERRMEM || rc_ == LUA_ERRGCMM || rc_ == LUA_ERRERR || rc_ == LUA_ERRFILE);
@@ -124,6 +125,7 @@ inline constexpr LuaError ToLuaError(int const rc_)
 // #################################################################################################
 
 // break lexical order for that one because it's needed below
+[[nodiscard]]
 inline LuaType luaG_type(lua_State* const L_, StackIndex const idx_)
 {
     return static_cast<LuaType>(lua_type(L_, idx_));
@@ -139,21 +141,24 @@ inline LuaType luaG_type(lua_State* const L_, StackIndex const idx_)
 #define STRINGVIEW_FMT "%.*s"
 
 // a replacement of lua_tolstring
-[[nodiscard]] inline std::string_view luaG_tostring(lua_State* const L_, StackIndex const idx_)
+[[nodiscard]]
+inline std::string_view luaG_tostring(lua_State* const L_, StackIndex const idx_)
 {
     size_t _len{ 0 };
     char const* _str{ lua_tolstring(L_, idx_, &_len) };
     return _str ? std::string_view{ _str, _len } : "";
 }
 
-[[nodiscard]] inline std::string_view luaG_checkstring(lua_State* const L_, StackIndex const idx_)
+[[nodiscard]]
+inline std::string_view luaG_checkstring(lua_State* const L_, StackIndex const idx_)
 {
     size_t _len{ 0 };
     char const* _str{ luaL_checklstring(L_, idx_, &_len) };
     return std::string_view{ _str, _len };
 }
 
-[[nodiscard]] inline std::string_view luaG_optstring(lua_State* const L_, StackIndex const idx_, std::string_view const& default_)
+[[nodiscard]]
+inline std::string_view luaG_optstring(lua_State* const L_, StackIndex const idx_, std::string_view const& default_)
 {
     if (lua_isnoneornil(L_, idx_)) {
         return default_;
@@ -352,7 +357,8 @@ static inline void luaG_newlib(lua_State* const L_, luaL_Reg const (&funcs_)[N])
 // #################################################################################################
 
 template <typename T>
-[[nodiscard]] T* luaG_newuserdatauv(lua_State* L_, UserValueCount nuvalue_)
+[[nodiscard]]
+T* luaG_newuserdatauv(lua_State* const L_, UserValueCount const nuvalue_)
 {
     return static_cast<T*>(lua_newuserdatauv(L_, sizeof(T), nuvalue_));
 }
@@ -394,7 +400,8 @@ inline void luaG_setmetatable(lua_State* const L_, std::string_view const& tname
 
 // a small helper to extract a full userdata pointer from the stack in a safe way
 template <typename T>
-[[nodiscard]] T* luaG_tofulluserdata(lua_State* const L_, StackIndex const index_)
+[[nodiscard]]
+T* luaG_tofulluserdata(lua_State* const L_, StackIndex const index_)
 {
     LUA_ASSERT(L_, lua_isnil(L_, index_) || lua_type(L_, index_) == LUA_TUSERDATA);
     return static_cast<T*>(lua_touserdata(L_, index_));
@@ -403,7 +410,8 @@ template <typename T>
 // -------------------------------------------------------------------------------------------------
 
 template <typename T>
-[[nodiscard]] auto luaG_tolightuserdata(lua_State* const L_, StackIndex const index_)
+[[nodiscard]]
+auto luaG_tolightuserdata(lua_State* const L_, StackIndex const index_)
 {
     LUA_ASSERT(L_, lua_isnil(L_, index_) || lua_islightuserdata(L_, index_));
     if constexpr (std::is_pointer_v<T>) {
@@ -415,14 +423,16 @@ template <typename T>
 
 // -------------------------------------------------------------------------------------------------
 
-[[nodiscard]] inline std::string_view luaG_typename(lua_State* const L_, LuaType const t_)
+[[nodiscard]]
+inline std::string_view luaG_typename(lua_State* const L_, LuaType const t_)
 {
     return lua_typename(L_, static_cast<int>(t_));
 }
 
 // -------------------------------------------------------------------------------------------------
 
-[[nodiscard]] inline std::string_view luaG_typename(lua_State* const L_, StackIndex const idx_)
+[[nodiscard]]
+inline std::string_view luaG_typename(lua_State* const L_, StackIndex const idx_)
 {
     return luaG_typename(L_, luaG_type(L_, idx_));
 }

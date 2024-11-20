@@ -139,7 +139,8 @@ class Lane
 
     ErrorTraceLevel const errorTraceLevel{ Basic };
 
-    [[nodiscard]] static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internalAllocator.alloc(size_); }
+    [[nodiscard]]
+    static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internalAllocator.alloc(size_); }
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete(void* p_, Universe* U_) { U_->internalAllocator.free(p_, sizeof(Lane)); }
     // this one is for us, to make sure memory is freed by the correct allocator
@@ -156,7 +157,8 @@ class Lane
 
     private:
 
-    [[nodiscard]] CancelResult internalCancel(CancelRequest rq_, std::chrono::time_point<std::chrono::steady_clock> until_, WakeLane wakeLane_);
+    [[nodiscard]]
+    CancelResult internalCancel(CancelRequest rq_, std::chrono::time_point<std::chrono::steady_clock> until_, WakeLane wakeLane_);
 
     public:
 
@@ -170,33 +172,43 @@ class Lane
         nresults = 0;
         lua_close(_L); // this collects our coroutine thread at the same time
     }
-    [[nodiscard]] std::string_view errorTraceLevelString() const;
-    [[nodiscard]] int errorHandlerCount() const noexcept
+    [[nodiscard]]
+    std::string_view errorTraceLevelString() const;
+    [[nodiscard]]
+    int errorHandlerCount() const noexcept
     {
         // don't push a error handler when in coroutine mode, as the first lua_resume wants only the function and its arguments on the stack
         return ((errorTraceLevel == Lane::Minimal) || isCoroutine()) ? 0 : 1; 
     }
-    [[nodiscard]] bool isCoroutine() const noexcept { return S != L; }
-    [[nodiscard]] std::string_view getDebugName() const
+    [[nodiscard]]
+    bool isCoroutine() const noexcept { return S != L; }
+    [[nodiscard]]
+    std::string_view getDebugName() const
     {
         std::lock_guard<std::mutex> _guard{ debugNameMutex };
         return debugName;
     }
     static int LuaErrorHandler(lua_State* L_);
-    [[nodiscard]] int pushErrorHandler() const noexcept { return (errorHandlerCount() == 0) ? 0 : (lua_pushcfunction(L, LuaErrorHandler), 1); }
-    [[nodiscard]] std::string_view pushErrorTraceLevel(lua_State* L_) const;
+    [[nodiscard]]
+    int pushErrorHandler() const noexcept { return (errorHandlerCount() == 0) ? 0 : (lua_pushcfunction(L, LuaErrorHandler), 1); }
+    [[nodiscard]]
+    std::string_view pushErrorTraceLevel(lua_State* L_) const;
     static void PushMetatable(lua_State* L_);
     void pushStatusString(lua_State* L_) const;
     void pushIndexedResult(lua_State* L_, int key_) const;
     void resetResultsStorage(lua_State* L_, StackIndex self_idx_);
     void selfdestructAdd();
-    [[nodiscard]] bool selfdestructRemove();
+    [[nodiscard]]
+    bool selfdestructRemove();
     void securizeDebugName(lua_State* L_);
     void startThread(int priority_);
-    [[nodiscard]] int storeResults(lua_State* L_);
-    [[nodiscard]] std::string_view threadStatusString() const;
+    [[nodiscard]]
+    int storeResults(lua_State* L_);
+    [[nodiscard]]
+    std::string_view threadStatusString() const;
     // wait until the lane stops working with its state (either Suspended or Done+)
-    [[nodiscard]] bool waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_);
+    [[nodiscard]]
+    bool waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_);
 };
 
 // #################################################################################################
@@ -205,7 +217,8 @@ class Lane
 // 'Lane' are malloc/free'd and the handle only carries a pointer.
 // This is not deep userdata since the handle is not portable among lanes.
 //
-[[nodiscard]] inline Lane* ToLane(lua_State* const L_, StackIndex const i_)
+[[nodiscard]]
+static inline Lane* ToLane(lua_State* const L_, StackIndex const i_)
 {
     return *(static_cast<Lane**>(luaL_checkudata(L_, i_, kLaneMetatableName.data())));
 }
