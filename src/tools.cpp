@@ -46,7 +46,8 @@ static constexpr RegistryUniqueKey kLookupCacheRegKey{ 0x9BF75F84E54B691Bull };
 // #################################################################################################
 
 static constexpr int kWriterReturnCode{ 666 };
-[[nodiscard]] static int dummy_writer([[maybe_unused]] lua_State* L_, [[maybe_unused]] void const* p_, [[maybe_unused]] size_t sz_, [[maybe_unused]] void* ud_)
+[[nodiscard]]
+static int dummy_writer([[maybe_unused]] lua_State* L_, [[maybe_unused]] void const* p_, [[maybe_unused]] size_t sz_, [[maybe_unused]] void* ud_)
 {
     // always fail with this code
     return kWriterReturnCode;

@@ -75,21 +75,28 @@ class KeyUD
     LindaLimit limit{ -1 };
 
     // a fifo full userdata has one uservalue, the table that holds the actual fifo contents
-    [[nodiscard]] static void* operator new([[maybe_unused]] size_t size_, KeeperState L_) noexcept { return luaG_newuserdatauv<KeyUD>(L_, UserValueCount{ 1 }); }
+    [[nodiscard]]
+    static void* operator new([[maybe_unused]] size_t size_, KeeperState L_) noexcept { return luaG_newuserdatauv<KeyUD>(L_, UserValueCount{ 1 }); }
     // always embedded somewhere else or "in-place constructed" as a full userdata
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete([[maybe_unused]] void* p_, [[maybe_unused]] KeeperState L_) { LUA_ASSERT(L_, !"should never be called"); }
 
-    [[nodiscard]] bool changeLimit(LindaLimit limit_);
-    [[nodiscard]] static KeyUD* Create(KeeperState K_);
-    [[nodiscard]] static KeyUD* GetPtr(KeeperState K_, StackIndex idx_);
+    [[nodiscard]]
+    bool changeLimit(LindaLimit limit_);
+    [[nodiscard]]
+    static KeyUD* Create(KeeperState K_);
+    [[nodiscard]]
+    static KeyUD* GetPtr(KeeperState K_, StackIndex idx_);
     void peek(KeeperState K_, int count_) const; // keepercall_get
-    [[nodiscard]] int pop(KeeperState K_, int minCount_, int maxCount_); // keepercall_receive[_batched]
+    [[nodiscard]]
+    int pop(KeeperState K_, int minCount_, int maxCount_); // keepercall_receive[_batched]
     void prepareAccess(KeeperState K_, StackIndex idx_) const;
-    [[nodiscard]] bool push(KeeperState K_, int count_, bool enforceLimit_); // keepercall_send and keepercall_set
+    [[nodiscard]]
+    bool push(KeeperState K_, int count_, bool enforceLimit_); // keepercall_send and keepercall_set
     void pushFillStatus(KeeperState K_) const;
     static void PushFillStatus(KeeperState K_, KeyUD const* key_);
-    [[nodiscard]] bool reset(KeeperState K_);
+    [[nodiscard]]
+    bool reset(KeeperState K_);
 };
 
 // #################################################################################################
@@ -840,7 +847,8 @@ void Keepers::close()
 
 // #################################################################################################
 
-[[nodiscard]] Keeper* Keepers::getKeeper(KeeperIndex const idx_)
+[[nodiscard]]
+Keeper* Keepers::getKeeper(KeeperIndex const idx_)
 {
     if (isClosing.test(std::memory_order_acquire)) {
         return nullptr;
@@ -859,7 +867,8 @@ void Keepers::close()
 
 // #################################################################################################
 
-[[nodiscard]] int Keepers::getNbKeepers() const
+[[nodiscard]]
+int Keepers::getNbKeepers() const
 {
     if (isClosing.test(std::memory_order_acquire)) {
         return 0;

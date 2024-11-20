@@ -881,7 +881,8 @@ LANES_API int luaopen_lanes_core(lua_State* const L_)
 
 // #################################################################################################
 
-[[nodiscard]] static int default_luaopen_lanes(lua_State* const L_)
+[[nodiscard]]
+static int default_luaopen_lanes(lua_State* const L_)
 {
     LuaError const _rc{ luaL_loadfile(L_, "lanes.lua") || lua_pcall(L_, 0, 1, 0) };
     if (_rc != LuaError::OK) {

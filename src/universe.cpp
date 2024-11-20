@@ -119,7 +119,8 @@ void Universe::callOnStateCreate(lua_State* const L_, lua_State* const from_, Lo
 // #################################################################################################
 
 // only called from the master state
-[[nodiscard]] Universe* Universe::Create(lua_State* const L_)
+[[nodiscard]]
+Universe* Universe::Create(lua_State* const L_)
 {
     LUA_ASSERT(L_, Universe::Get(L_) == nullptr);
     static constexpr StackIndex kIdxSettings{ 1 };
@@ -194,7 +195,8 @@ void Universe::callOnStateCreate(lua_State* const L_, lua_State* const from_, Lo
 // #################################################################################################
 
 // same as PUC-Lua l_alloc
-[[nodiscard]] static void* libc_lua_Alloc([[maybe_unused]] void* ud_, [[maybe_unused]] void* ptr_, [[maybe_unused]] size_t osize_, size_t nsize_)
+[[nodiscard]]
+static void* libc_lua_Alloc([[maybe_unused]] void* ud_, [[maybe_unused]] void* ptr_, [[maybe_unused]] size_t osize_, size_t nsize_)
 {
     if (nsize_ == 0) {
         free(ptr_);
@@ -206,7 +208,8 @@ void Universe::callOnStateCreate(lua_State* const L_, lua_State* const from_, Lo
 
 // #################################################################################################
 
-[[nodiscard]] static int luaG_provide_protected_allocator(lua_State* const L_)
+[[nodiscard]]
+static int luaG_provide_protected_allocator(lua_State* const L_)
 {
     Universe* const _U{ Universe::Get(L_) };
     // push a new full userdata on the stack, giving access to the universe's protected allocator

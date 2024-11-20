@@ -204,7 +204,8 @@ void THREAD_SETNAME(std::string_view const& name_)
 // general its implementation is pretty much trivial, as on Win32 target
 // just SCHED_OTHER can be supported.
 #undef pthread_attr_setschedpolicy
-[[nodiscard]] static int pthread_attr_setschedpolicy(pthread_attr_t* attr, int policy)
+[[nodiscard]]
+static int pthread_attr_setschedpolicy(pthread_attr_t* attr, int policy)
 {
     if (policy != SCHED_OTHER) {
         return ENOTSUP;

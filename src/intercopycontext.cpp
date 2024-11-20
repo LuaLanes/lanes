@@ -40,7 +40,8 @@ THE SOFTWARE.
 // we have to do it that way because we can't unbalance the stack between buffer operations
 // namely, this means we can't push a function on top of the stack *after* we initialize the buffer!
 // luckily, this also works with earlier Lua versions
-[[nodiscard]] static int buf_writer(lua_State* L_, void const* b_, size_t size_, void* ud_)
+[[nodiscard]]
+static int buf_writer(lua_State* L_, void const* b_, size_t size_, void* ud_)
 {
     luaL_Buffer* const _B{ static_cast<luaL_Buffer*>(ud_) };
     if (!_B->L) {
@@ -53,7 +54,8 @@ THE SOFTWARE.
 // #################################################################################################
 
 // function sentinel used to transfer native functions from/to keeper states
-[[nodiscard]] static int func_lookup_sentinel(lua_State* L_)
+[[nodiscard]]
+static int func_lookup_sentinel(lua_State* L_)
 {
     raise_luaL_error(L_, "function lookup sentinel for %s, should never be called", lua_tostring(L_, lua_upvalueindex(1)));
 }
@@ -61,7 +63,8 @@ THE SOFTWARE.
 // #################################################################################################
 
 // function sentinel used to transfer native table from/to keeper states
-[[nodiscard]] static int table_lookup_sentinel(lua_State* L_)
+[[nodiscard]]
+static int table_lookup_sentinel(lua_State* L_)
 {
     raise_luaL_error(L_, "table lookup sentinel for %s, should never be called", lua_tostring(L_, lua_upvalueindex(1)));
 }
@@ -69,7 +72,8 @@ THE SOFTWARE.
 // #################################################################################################
 
 // function sentinel used to transfer cloned full userdata from/to keeper states
-[[nodiscard]] static int userdata_clone_sentinel(lua_State* L_)
+[[nodiscard]]
+static int userdata_clone_sentinel(lua_State* L_)
 {
     raise_luaL_error(L_, "userdata clone sentinel for %s, should never be called", lua_tostring(L_, lua_upvalueindex(1)));
 }
@@ -77,7 +81,8 @@ THE SOFTWARE.
 // #################################################################################################
 
 // retrieve the name of a function/table in the lookup database
-[[nodiscard]] std::string_view InterCopyContext::findLookupName() const
+[[nodiscard]]
+std::string_view InterCopyContext::findLookupName() const
 {
     LUA_ASSERT(L1, lua_isfunction(L1, L1_i) || lua_istable(L1, L1_i));                             // L1: ... v ...
     STACK_CHECK_START_REL(L1, 0);
@@ -141,7 +146,8 @@ THE SOFTWARE.
 static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
 
 // get a unique ID for metatable at [i].
-[[nodiscard]] static lua_Integer get_mt_id(Universe* U_, lua_State* L_, StackIndex const idx_)
+[[nodiscard]]
+static lua_Integer get_mt_id(Universe* U_, lua_State* L_, StackIndex const idx_)
 {
     StackIndex const _absidx{ luaG_absindex(L_, idx_) };
 
@@ -399,7 +405,8 @@ void InterCopyContext::copyCachedFunction() const
 // #################################################################################################
 
 // Push a looked-up table, or nothing if we found nothing
-[[nodiscard]] bool InterCopyContext::lookupTable() const
+[[nodiscard]]
+bool InterCopyContext::lookupTable() const
 {
     // get the name of the table we want to send
     std::string_view const _fqn{ findLookupName() };
@@ -585,7 +592,8 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::pushCachedMetatable() const
+[[nodiscard]]
+bool InterCopyContext::pushCachedMetatable() const
 {
     STACK_CHECK_START_REL(L1, 0);
     if (!lua_getmetatable(L1, L1_i)) {                                                             // L1: ... mt
@@ -637,7 +645,8 @@ LuaType InterCopyContext::processConversion() const
 // local functions to point to the same table, also in the target.
 // Always pushes a table to 'L2'.
 // Returns true if the table was cached (no need to fill it!); false if it's a virgin.
-[[nodiscard]] bool InterCopyContext::pushCachedTable() const
+[[nodiscard]]
+bool InterCopyContext::pushCachedTable() const
 {
     void const* const _p{ lua_topointer(L1, L1_i) };
 
@@ -669,7 +678,8 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::tryCopyClonable() const
+[[nodiscard]]
+bool InterCopyContext::tryCopyClonable() const
 {
     SourceIndex const _L1_i{ luaG_absindex(L1, L1_i).value() };
     void* const _source{ lua_touserdata(L1, _L1_i) };
@@ -773,7 +783,8 @@ LuaType InterCopyContext::processConversion() const
 
 // Copy deep userdata between two separate Lua states (from L1 to L2)
 // Returns false if not a deep userdata, else true (unless an error occured)
-[[nodiscard]] bool InterCopyContext::tryCopyDeep() const
+[[nodiscard]]
+bool InterCopyContext::tryCopyDeep() const
 {
     DeepFactory* const _factory{ DeepFactory::LookupFactory(L1, L1_i, mode) };                     // L1: ... deep ...
     if (_factory == nullptr) {
@@ -817,7 +828,8 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::interCopyBoolean() const
+[[nodiscard]]
+bool InterCopyContext::interCopyBoolean() const
 {
     int const _v{ lua_toboolean(L1, L1_i) };
     DEBUGSPEW_CODE(DebugSpew(nullptr) << (_v ? "true" : "false") << std::endl);
@@ -827,7 +839,8 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::interCopyFunction() const
+[[nodiscard]]
+bool InterCopyContext::interCopyFunction() const
 {
     if (vt == VT::KEY) {
         return false;
@@ -921,7 +934,8 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::interCopyLightuserdata() const
+[[nodiscard]]
+bool InterCopyContext::interCopyLightuserdata() const
 {
     void* const _p{ lua_touserdata(L1, L1_i) };
     // recognize and print known UniqueKey names here
@@ -952,7 +966,8 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::interCopyNil() const
+[[nodiscard]]
+bool InterCopyContext::interCopyNil() const
 {
     if (vt == VT::KEY) {
         return false;
@@ -968,7 +983,8 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::interCopyNumber() const
+[[nodiscard]]
+bool InterCopyContext::interCopyNumber() const
 {
     // LNUM patch support (keeping integer accuracy)
 #if defined LUA_LNUM || LUA_VERSION_NUM >= 503
@@ -988,7 +1004,8 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::interCopyString() const
+[[nodiscard]]
+bool InterCopyContext::interCopyString() const
 {
     std::string_view const _s{ luaG_tostring(L1, L1_i) };
     DEBUGSPEW_CODE(DebugSpew(nullptr) << "'" << _s << "'" << std::endl);
@@ -998,7 +1015,8 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::interCopyTable() const
+[[nodiscard]]
+bool InterCopyContext::interCopyTable() const
 {
     if (vt == VT::KEY) {
         return false;
@@ -1055,7 +1073,8 @@ LuaType InterCopyContext::processConversion() const
 
 // #################################################################################################
 
-[[nodiscard]] bool InterCopyContext::interCopyUserdata() const
+[[nodiscard]]
+bool InterCopyContext::interCopyUserdata() const
 {
     STACK_CHECK_START_REL(L1, 0);
     STACK_CHECK_START_REL(L2, 0);
@@ -1120,7 +1139,8 @@ namespace {
  *
  * Returns true if value was pushed, false if its type is non-supported.
  */
-[[nodiscard]] InterCopyResult InterCopyContext::interCopyOne() const
+[[nodiscard]]
+InterCopyResult InterCopyContext::interCopyOne() const
 {
     STACK_GROW(L2, 1);
     STACK_CHECK_START_REL(L1, 0);
@@ -1185,7 +1205,8 @@ namespace {
 // returns InterCopyResult::Success if everything is fine
 // returns InterCopyResult::Error if pushed an error message in L1
 // else raise an error in whichever state is not a keeper
-[[nodiscard]] InterCopyResult InterCopyContext::interCopyPackage() const
+[[nodiscard]]
+InterCopyResult InterCopyContext::interCopyPackage() const
 {
     DEBUGSPEW_CODE(DebugSpew(U) << "InterCopyContext::interCopyPackage()" << std::endl);
 
@@ -1268,7 +1289,8 @@ namespace {
 
 // Akin to 'lua_xmove' but copies values between _any_ Lua states.
 // NOTE: Both the states must be solely in the current OS thread's possession.
-[[nodiscard]] InterCopyResult InterCopyContext::interCopy(int const n_) const
+[[nodiscard]]
+InterCopyResult InterCopyContext::interCopy(int const n_) const
 {
     LUA_ASSERT(L1, vt == VT::NORMAL);
 
@@ -1328,7 +1350,8 @@ namespace {
 
 // #################################################################################################
 
-[[nodiscard]] InterCopyResult InterCopyContext::interMove(int const n_) const
+[[nodiscard]]
+InterCopyResult InterCopyContext::interMove(int const n_) const
 {
     assert(L1_i == 0); // we can only move stuff off the top of the stack
     InterCopyResult const _ret{ interCopy(n_) };

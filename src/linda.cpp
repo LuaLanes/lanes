@@ -83,7 +83,8 @@ namespace {
     // #############################################################################################
 
     template <bool OPT>
-    [[nodiscard]] static inline Linda* ToLinda(lua_State* const L_, StackIndex const idx_)
+    [[nodiscard]]
+    static inline Linda* ToLinda(lua_State* const L_, StackIndex const idx_)
     {
         Linda* const _linda{ static_cast<Linda*>(LindaFactory::Instance.toDeep(L_, idx_)) };
         if constexpr (!OPT) {
@@ -104,7 +105,8 @@ namespace {
      */
 
     template <bool OPT>
-    [[nodiscard]] static int LindaToString(lua_State* const L_, StackIndex const idx_)
+    [[nodiscard]]
+    static int LindaToString(lua_State* const L_, StackIndex const idx_)
     {
         Linda* const _linda{ ToLinda<OPT>(L_, idx_) };
         if (_linda != nullptr) {

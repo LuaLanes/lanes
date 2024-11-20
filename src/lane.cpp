@@ -484,7 +484,8 @@ int Lane::LuaErrorHandler(lua_State* L_)
 // ########################################## Finalizer ############################################
 // #################################################################################################
 
-[[nodiscard]] static int PushStackTrace(lua_State* const L_, Lane::ErrorTraceLevel const errorTraceLevel_, LuaError const rc_, [[maybe_unused]] StackIndex const stk_base_)
+[[nodiscard]]
+static int PushStackTrace(lua_State* const L_, Lane::ErrorTraceLevel const errorTraceLevel_, LuaError const rc_, [[maybe_unused]] StackIndex const stk_base_)
 {
     // Lua 5.1 error handler is limited to one return value; it stored the stack trace in the registry
     StackIndex const _top{ lua_gettop(L_) };
@@ -536,7 +537,8 @@ int Lane::LuaErrorHandler(lua_State* L_)
 // TBD: should we add stack trace on failing finalizer, wouldn't be hard..
 //
 
-[[nodiscard]] static LuaError run_finalizers(Lane* const lane_, Lane::ErrorTraceLevel const errorTraceLevel_, LuaError const lua_rc_)
+[[nodiscard]]
+static LuaError run_finalizers(Lane* const lane_, Lane::ErrorTraceLevel const errorTraceLevel_, LuaError const lua_rc_)
 {
     // if we are a coroutine, we can't run the finalizers in the coroutine state!
     lua_State* const _L{ lane_->S };
@@ -641,7 +643,8 @@ void Lane::selfdestructAdd()
 // #################################################################################################
 
 // A free-running lane has ended; remove it from selfdestruct chain
-[[nodiscard]] bool Lane::selfdestructRemove()
+[[nodiscard]]
+bool Lane::selfdestructRemove()
 {
     bool _found{ false };
     std::lock_guard<std::mutex> _guard{ U->selfdestructMutex };
@@ -938,7 +941,8 @@ CancelResult Lane::cancel(CancelOp const op_, std::chrono::time_point<std::chron
 
 // #################################################################################################
 
-[[nodiscard]] CancelResult Lane::internalCancel(CancelRequest const rq_, std::chrono::time_point<std::chrono::steady_clock> const until_, WakeLane const wakeLane_)
+[[nodiscard]]
+CancelResult Lane::internalCancel(CancelRequest const rq_, std::chrono::time_point<std::chrono::steady_clock> const until_, WakeLane const wakeLane_)
 {
     cancelRequest.store(rq_, std::memory_order_relaxed); // it's now signaled to stop
     if (rq_ == CancelRequest::Hard) {
@@ -992,7 +996,8 @@ void Lane::changeDebugName(StackIndex const nameIdx_)
 //                   / "error"     finished at an error, error value is there
 //                   / "cancelled"   execution cancelled by M (state gone)
 //
-[[nodiscard]] std::string_view Lane::errorTraceLevelString() const
+[[nodiscard]]
+std::string_view Lane::errorTraceLevelString() const
 {
     std::string_view const _str{
         (errorTraceLevel == ErrorTraceLevel::Minimal) ? "minimal" :
@@ -1107,7 +1112,8 @@ void Lane::pushIndexedResult(lua_State* const L_, int const key_) const
 
 // #################################################################################################
 
-[[nodiscard]] std::string_view Lane::pushErrorTraceLevel(lua_State* L_) const
+[[nodiscard]]
+std::string_view Lane::pushErrorTraceLevel(lua_State* L_) const
 {
     std::string_view const _str{ errorTraceLevelString() };
     LUA_ASSERT(L_, !_str.empty());
@@ -1287,7 +1293,8 @@ int Lane::storeResults(lua_State* const L_)
 // "error"     finished at an error, error value is there
 // "cancelled" execution cancelled (state gone)
 //
-[[nodiscard]] std::string_view Lane::threadStatusString() const
+[[nodiscard]]
+std::string_view Lane::threadStatusString() const
 {
     static constexpr std::string_view kStrs[] = {
         "pending",

@@ -13,8 +13,10 @@ class MyDeepFactory : public DeepFactory
         luaL_getmetatable(L_, "deep");
     }
     void deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* o_) const override;
-    [[nodiscard]] DeepPrelude* newDeepObjectInternal(lua_State* const L_) const override;
-    [[nodiscard]] std::string_view moduleName() const override { return std::string_view{ "deep_test" }; }
+    [[nodiscard]]
+    DeepPrelude* newDeepObjectInternal(lua_State* const L_) const override;
+    [[nodiscard]]
+    std::string_view moduleName() const override { return std::string_view{ "deep_test" }; }
 };
 /*static*/ MyDeepFactory MyDeepFactory::Instance{};
 
@@ -45,7 +47,8 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 
 // #################################################################################################
 
-[[nodiscard]] static int deep_gc(lua_State* L)
+[[nodiscard]]
+static int deep_gc(lua_State* L)
 {
     MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, StackIndex{ 1 })) };
     luaL_argcheck(L, 1, !_self->inUse.load(), "being collected while in use!");
@@ -54,7 +57,8 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 
 // #################################################################################################
 
-[[nodiscard]] static int deep_tostring(lua_State* L)
+[[nodiscard]]
+static int deep_tostring(lua_State* L)
 {
     MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, StackIndex{ 1 })) };
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
@@ -66,7 +70,8 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 // #################################################################################################
 
 // won't actually do anything as deep userdata don't have uservalue slots
-[[nodiscard]] static int deep_getuv(lua_State* L)
+[[nodiscard]]
+static int deep_getuv(lua_State* L)
 {
     MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, StackIndex{ 1 })) };
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
@@ -78,7 +83,8 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 
 // #################################################################################################
 
-[[nodiscard]] static int deep_invoke(lua_State* L)
+[[nodiscard]]
+static int deep_invoke(lua_State* L)
 {
     MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, StackIndex{ 1 })) };
     luaL_argcheck(L, 2, lua_gettop(L) >= 2, "need something to call");
@@ -90,7 +96,8 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 
 // #################################################################################################
 
-[[nodiscard]] static int deep_set(lua_State* const L_)
+[[nodiscard]]
+static int deep_set(lua_State* const L_)
 {
     MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L_, StackIndex{ 1 })) };
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
@@ -102,7 +109,8 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 
 // #################################################################################################
 
-[[nodiscard]] static int deep_setuv(lua_State* L)
+[[nodiscard]]
+static int deep_setuv(lua_State* L)
 {
     MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, StackIndex{ 1 })) };
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
@@ -145,7 +153,8 @@ struct MyClonableUserdata
 
 // #################################################################################################
 
-[[nodiscard]] static int clonable_set(lua_State* L)
+[[nodiscard]]
+static int clonable_set(lua_State* L)
 {
     MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
     lua_Integer i = lua_tointeger(L, 2);
@@ -155,7 +164,8 @@ struct MyClonableUserdata
 
 // #################################################################################################
 
-[[nodiscard]] static int clonable_setuv(lua_State* L)
+[[nodiscard]]
+static int clonable_setuv(lua_State* L)
 {
     MyClonableUserdata* const _self{ static_cast<MyClonableUserdata*>(lua_touserdata(L, 1)) };
     UserValueIndex const _uv{ static_cast<UserValueIndex::type>(luaL_optinteger(L, 2, 1)) };
@@ -166,7 +176,8 @@ struct MyClonableUserdata
 
 // #################################################################################################
 
-[[nodiscard]] static int clonable_getuv(lua_State* L)
+[[nodiscard]]
+static int clonable_getuv(lua_State* L)
 {
     MyClonableUserdata* const _self{ static_cast<MyClonableUserdata*>(lua_touserdata(L, 1)) };
     UserValueIndex const _uv{ static_cast<UserValueIndex::type>(luaL_optinteger(L, 2, 1)) };
@@ -176,7 +187,8 @@ struct MyClonableUserdata
 
 // #################################################################################################
 
-[[nodiscard]] static int clonable_tostring(lua_State* L)
+[[nodiscard]]
+static int clonable_tostring(lua_State* L)
 {
     MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
     luaG_pushstring(L, "%p:clonable(%d)", lua_topointer(L, 1), self->val);
@@ -185,7 +197,8 @@ struct MyClonableUserdata
 
 // #################################################################################################
 
-[[nodiscard]] static int clonable_gc(lua_State* L)
+[[nodiscard]]
+static int clonable_gc(lua_State* L)
 {
     MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
     return 0;
@@ -194,7 +207,8 @@ struct MyClonableUserdata
 // #################################################################################################
 
 // this is all we need to make a userdata lanes-clonable. no dependency on Lanes code.
-[[nodiscard]] static int clonable_lanesclone(lua_State* L)
+[[nodiscard]]
+static int clonable_lanesclone(lua_State* L)
 {
     switch (lua_gettop(L)) {
     case 3:

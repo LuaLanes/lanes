@@ -51,7 +51,8 @@ void LaneTracker::tracking_add(Lane* lane_)
 /*
  * A free-running lane has ended; remove it from tracking chain
  */
-[[nodiscard]] bool LaneTracker::tracking_remove(Lane* lane_)
+[[nodiscard]]
+bool LaneTracker::tracking_remove(Lane* lane_)
 {
     if (!isActive()) {
         return false;
@@ -82,7 +83,8 @@ void LaneTracker::tracking_add(Lane* lane_)
 
 // ################################################################################################
 
-[[nodiscard]] int LaneTracker::pushThreadsTable(lua_State* L_) const
+[[nodiscard]]
+int LaneTracker::pushThreadsTable(lua_State* L_) const
 {
     int const _top{ lua_gettop(L_) };
     // List _all_ still running threads

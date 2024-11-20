@@ -32,7 +32,8 @@ THE SOFTWARE.
 // #################################################################################################
 
 // Return some name helping to identify an object
-[[nodiscard]] static int DiscoverObjectNameRecur(lua_State* L_, int shortest_, int depth_)
+[[nodiscard]]
+static int DiscoverObjectNameRecur(lua_State* L_, int shortest_, int depth_)
 {
     static constexpr StackIndex kWhat{ 1 }; // the object to investigate                           // L_: o "r" {c} {fqn} ... {?}
     static constexpr StackIndex kResult{ 2 }; // where the result string is stored

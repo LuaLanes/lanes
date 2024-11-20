@@ -68,7 +68,8 @@ namespace {
      * End of life for a proxy object; reduce the deep reference count and clean it up if reaches 0.
      *
      */
-    [[nodiscard]] static int DeepGC(lua_State* const L_)
+    [[nodiscard]]
+    static int DeepGC(lua_State* const L_)
     {
         DeepPrelude* const* const _proxy{ luaG_tofulluserdata<DeepPrelude*>(L_, StackIndex{ 1 }) };
         DeepPrelude* const _p{ *_proxy };
