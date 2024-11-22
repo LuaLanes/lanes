@@ -22,7 +22,8 @@ inline SourceLocation Where(std::source_location const& where_ = std::source_loc
 inline void LUA_ASSERT_IMPL(lua_State* const L_, bool const cond_, std::string_view const& txt_, SourceLocation const& where_ = Where())
 {
     if (!cond_) {
-        raise_luaL_error(L_, "%s:%d: LUA_ASSERT '%s' IN %s", std::get<0>(where_).data(), std::get<1>(where_), txt_.data(), std::get<2>(where_).data());
+        auto const& [_file, _line, _func] = where_;
+        raise_luaL_error(L_, "%s:%d: LUA_ASSERT '%s' IN %s", _file.data(), _line, txt_.data(), _func.data());
     }
 }
 
@@ -39,13 +40,16 @@ class StackChecker
     DECLARE_UNIQUE_TYPE(Relative, int);
     DECLARE_UNIQUE_TYPE(Absolute, int);
 
+    static inline bool CallsCassert{ true };
+
     StackChecker(lua_State* const L_, Relative const offset_, SourceLocation const& where_ = Where())
     : L{ L_ }
     , oldtop{ lua_gettop(L_) - offset_ }
     {
         if ((offset_ < 0) || (oldtop < 0)) {
-            assert(false);
-            raise_luaL_error(L, "%s:%d: STACK INIT ASSERT (%d not %d) IN %s", std::get<0>(where_).data(), std::get<1>(where_), lua_gettop(L), offset_, std::get<2>(where_).data());
+            assert(!CallsCassert);
+            auto const& [_file, _line, _func] = where_;
+            raise_luaL_error(L, "%s:%d: STACK INIT ASSERT (%d not %d) IN %s", _file.data(), _line, lua_gettop(L), offset_, _func.data());
         }
     }
 
@@ -54,8 +58,9 @@ class StackChecker
     , oldtop{ 0 }
     {
         if (lua_gettop(L) != pos_) {
-            assert(false);
-            raise_luaL_error(L, "%s:%d: STACK INIT ASSERT (%d not %d) IN %s", std::get<0>(where_).data(), std::get<1>(where_), lua_gettop(L), pos_, std::get<2>(where_).data());
+            assert(!CallsCassert);
+            auto const& [_file, _line, _func] = where_;
+            raise_luaL_error(L, "%s:%d: STACK INIT ASSERT (%d not %d) IN %s", _file.data(), _line, lua_gettop(L), pos_, _func.data());
         }
     }
 
@@ -72,8 +77,9 @@ class StackChecker
         if (expected_ != LUA_MULTRET) {
             int const _actual{ lua_gettop(L) - oldtop };
             if (_actual != expected_) {
-                assert(false);
-                raise_luaL_error(L, "%s:%d: STACK CHECK ASSERT (%d not %d) IN %s", std::get<0>(where_).data(), std::get<1>(where_), _actual, expected_, std::get<2>(where_).data());
+                assert(!CallsCassert);
+                auto const& [_file, _line, _func] = where_;
+                raise_luaL_error(L, "%s:%d: STACK CHECK ASSERT (%d not %d) IN %s", _file.data(), _line, _actual, expected_, _func.data());
             }
         }
     }
