@@ -215,12 +215,15 @@ LUAG_FUNC(require)
 // lanes.register( "modname", module)
 int lanes_register(lua_State* const L_)
 {
+    Universe* const _U{ Universe::Get(L_) };
+    if (!_U) {
+        raise_luaL_error(L_, "Lanes is not ready");
+    }
     std::string_view const _name{ luaG_checkstring(L_, StackIndex{ 1 }) };
     LuaType const _mod_type{ luaG_type(L_, StackIndex{ 2 }) };
     // ignore extra arguments, just in case
     lua_settop(L_, 2);
     luaL_argcheck(L_, (_mod_type == LuaType::TABLE) || (_mod_type == LuaType::FUNCTION), 2, "unexpected module type");
-    DEBUGSPEW_CODE(Universe* _U = Universe::Get(L_));
     STACK_CHECK_START_REL(L_, 0); // "name" mod_table
     DEBUGSPEW_CODE(DebugSpew(_U) << "lanes.register '" << _name << "' BEGIN" << std::endl);
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
