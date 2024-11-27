@@ -18,3 +18,5 @@ LANES_API int luaopen_lanes_core(lua_State* L_);
 LANES_API void luaopen_lanes_embedded(lua_State* L_, lua_CFunction luaopen_lanes_);
 using luaopen_lanes_embedded_t = void (*)(lua_State* L_, lua_CFunction luaopen_lanes_);
 static_assert(std::is_same_v<decltype(&luaopen_lanes_embedded), luaopen_lanes_embedded_t>, "signature changed: check all uses of luaopen_lanes_embedded_t");
+
+LANES_API int lanes_register(lua_State* L_);

@@ -440,7 +440,8 @@
 	<br />
 	Use <tt>lanes.require()</tt> for this purpose. This will call the original <tt>require()</tt>, then add the result to the lookup databases.
 	<br />
-	It is also possible to register a given module <i>a posteriori</i> with <tt>lanes.register()</tt>. This function will raise an error if the registered module is not a function or table.
+	It is also possible to register a given module <i>a posteriori</i> with <tt>lanes.register()</tt>. This function will raise an error if the registered module is not a function or table.<br />
+	Embedders can call the equivalent function <tt>lanes_register()</tt> from the C side.
 </p>
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%">

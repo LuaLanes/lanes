@@ -1,9 +1,6 @@
 CHANGES:
 
-CHANGE 3: BGe 24-Sep-24
-    * Modernized lanes.gen() library list processing code.
-
-CHANGE 2: BGe 04-Jul-24
+CHANGE 2: BGe 27-Nov-24
     * Internal changes
         - Lanes is implemented in C++20: thread, condition_variable, mutex, string_view, variant, lambdas, templates, and more!
         - Almost all platform-specific code is gone (only a small bit for thread priority and affinity remains).
@@ -12,6 +9,7 @@ CHANGE 2: BGe 04-Jul-24
     * Lanes API changes
         - Version is now 4.0.0
         - Lanes module:
+            - lanes.register() is also available as lanes_register() in the exported C API.
             - lanes.sleep() accepts a new argument "indefinitely" to block forever (until hard cancellation is received).
             - function set_debug_threadname() available inside a Lane is renamed lane_threadname(); can now both read and write the name.
             - new function lanes.finally(). Installs a function that gets called at Lanes shutdown after attempting to terminate all lanes.

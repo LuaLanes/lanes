@@ -213,7 +213,7 @@ LUAG_FUNC(require)
 // --- If a client wants to transfer stuff of a previously required module from the current state to another Lane, the module must be registered
 // to populate the lookup database in the source lane (and in the destination too, of course)
 // lanes.register( "modname", module)
-LUAG_FUNC(register)
+int lanes_register(lua_State* const L_)
 {
     std::string_view const _name{ luaG_checkstring(L_, StackIndex{ 1 }) };
     LuaType const _mod_type{ luaG_type(L_, StackIndex{ 2 }) };
@@ -649,7 +649,7 @@ namespace {
             { "linda", LG_linda },
             { "nameof", LG_nameof },
             { "now_secs", LG_now_secs },
-            { "register", LG_register },
+            { "register", lanes_register },
             { "set_singlethreaded", LG_set_singlethreaded },
             { "set_thread_priority", LG_set_thread_priority },
             { "set_thread_affinity", LG_set_thread_affinity },
