@@ -1699,7 +1699,10 @@
 <p>
 	There are several issues here:
 	<ul>
-		<li>Some base libraries register some C functions in the global environment. Because of that, Lanes must scan the global namespace to find all C functions (such as <tt>error</tt>, <tt>print</tt>, etc.).</li>
+		<li>
+			Some base libraries register some C functions in the global environment. Because of that, Lanes must scan the global namespace to find all C functions (such as <tt>error</tt>, <tt>print</tt>, etc.).<br />
+			This happens a single time, when <a href="#initialization"><tt>lanes.configure()</tt></a> is called. Therefore, if some base libraries are not loaded before that point, it will not be possible to send values that reference stuff they offer unless they are manually registered with <tt>lanes.register()</tt>.
+		</li>
 		<li>
 			Nothing prevents a script to create other references to a C function. For example one could do
 			<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
