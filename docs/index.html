@@ -436,11 +436,11 @@
 </p>
 
 <p>
-	Once Lanes is configured, one should register with Lanes the modules exporting functions that will be transferred either during lane generation or through <a href="#lindas">lindas</a>.
+	Once Lanes is configured, one should register with Lanes the modules exporting functions/userdata that will be transferred either during lane generation or through <a href="#lindas">lindas</a>.
 	<br />
 	Use <tt>lanes.require()</tt> for this purpose. This will call the original <tt>require()</tt>, then add the result to the lookup databases.
 	<br />
-	It is also possible to register a given module <i>a posteriori</i> with <tt>lanes.register()</tt>. This function will raise an error if the registered module is not a function or table.<br />
+	It is also possible to register a given module <i>a posteriori</i> with <tt>lanes.register()</tt>. This function will raise an error if the registered module is not a function, table, or full userdata.<br />
 	Embedders can call the equivalent function <tt>lanes_register()</tt> from the C side, through <tt>lua_call()</tt> or similar.
 </p>
 
@@ -715,7 +715,7 @@
 			</td>
 			<td>table</td>
 			<td>
-				Lists modules that have to be required in order to be able to transfer functions they exposed. Non-Lua functions are <a href="#function_notes">searched in lookup tables</a>.
+				Lists modules that have to be required in order to be able to transfer functions/userdata they exposed. Non-Lua functions are <a href="#function_notes">searched in lookup tables</a>.
 				These tables are built from the modules listed here. <tt>required</tt> must be an array of strings, each one being the name of a module to be required. Each module is required with <tt>require()</tt> before the lanes function is invoked.
 				So, from the required module's point of view, requiring it manually from inside the lane body or having it required this way doesn't change anything. From the lane body's point of view, the only difference is that a module not creating a global won't be accessible.
 				Therefore, a lane body will also have to require a module manually, but this won't do anything more (see Lua's <tt>require</tt> documentation).	<br />
@@ -785,8 +785,8 @@
 </p>
 
 <p>
-	If a lane body pulls a C function imported by a module required before Lanes itself (thus not through a hooked <tt>require()</tt>), the lane generator creation will raise an error.
-	The function name it shows is a path where it was found by scanning <tt>_G</tt> and the registry. As a utility, the name guessing functionality is exposed as such:
+	If a lane body pulls a C function or userdata exposed by a module required before Lanes itself (thus not through a hooked <tt>require()</tt>), the lane generator creation will raise an error.
+	The name in the message is a path where it was found by scanning <tt>_G</tt> and the registry. As a utility, the name guessing functionality is exposed as such:
 
 	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 		<tr>
@@ -1233,10 +1233,10 @@
 	Characteristics of the Lanes implementation of lindas are:
 
 	<ul>
-		<li>Keys can be of boolean, number, string, light userdata, and deep userdata type. Tables and functions can't be keys because their identity isn't preserved when transfered from one Lua state to another.</li>
-		<li>values can be any type supported by inter-state copying (same <a href="#limitations">limits</a> as for function arguments and upvalues).</li>
+		<li>Keys can be of boolean, number, string, light userdata, and deep userdata type. Tables, functions and non-deep userdata can't be keys because their identity isn't preserved when transfered from one Lua state to another.</li>
+		<li>Values can be any type supported by inter-state copying (same <a href="#limitations">limits</a> as for function arguments and upvalues).</li>
 		<li>
-			Registered functions transiting into a Keeper state are converted to a special dummy function that holds its actual identity. On transit out, the identity is used to find the real function in the destination.
+			Registered functions and userdata transiting into a Keeper state are converted to a special dummy closure that holds its actual identity. On transit out, the identity is used to find the real function or userdata in the destination.
 			For that reason, it is not possible to run user code inside a Keeper state. The only exception is <a href="#on_state_create"><tt>on_state_create</tt></a>, which is handled in a special way.
 		</li>
 		<li>Consuming method is <tt>:receive</tt> (not in).</li>
@@ -1644,7 +1644,7 @@
 			</ul>
 		</li>
 		<li>
-			Non-converted full userdata can be passed only if it is prepared using the <a href="#deep_userdata">deep userdata</a> system, which handles its lifespan management.
+			Non-converted full userdata can be passed only if it registered, or prepared using the <a href="#deep_userdata">deep userdata</a> system, which handles its lifespan management.
 		</li>
 		<li>
 			Objects (tables with a metatable) are copyable between lanes. Metatables are assumed to be immutable; they are internally indexed and only copied once per each type of objects per lane.
@@ -1661,55 +1661,57 @@
 </p>
 
 
-<h3 id="function_notes">Notes about passing C functions</h3>
+<h3 id="function_notes">Notes about passing C functions and full userdata</h3>
 
 <p>
-	Functions are transfered as follows (more or less):
+	C functions and full userdata are transfered as follows (more or less):
 </p>
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
-	// expects a C function on top of the source Lua stack
-	copyFunction(lua_State *dest, lua_State* source)
+	// expects a C function or full userdata on top of the source Lua stack
+	copyValue(lua_State *dest, lua_State* source)
 	{
 		// fetch function 'name' from source lookup database
-		char const* funcname = lookup_func_name(source, -1);
-		// lookup a function bound to this name in the destination state, and push it on the stack
-		push_resolved_func(dest, funcname);
+		char const* valuename = lookup_name(source, -1);
+		// lookup a function or userdata bound to this name in the destination state, and push it on the stack
+		push_resolved_value(dest, valuename);
 	}
 </pre></td></tr></table>
 
 <p>
-	The devil lies in the details: what does "function lookup" mean?
+	The devil lies in the details: what does "lookup" mean?
 </p>
 
 <p>
-	Since functions are first class values, they don't have a name. All we know for sure is that when a C module registers some functions, they are accessible to the script that required the module through some exposed variables.
+	Since functions and full userdata are first class values, they don't have a name. All we know for sure is that when a C module registers some functions or full userdata, they are accessible to the script that required the module through some exposed variables.
 	<br />
 	For example, loading the <tt>string</tt> base library creates a table accessible when indexing the global environment with key <tt>"string"</tt>. Indexing this table with <tt>"match"</tt>, <tt>"gsub"</tt>, etc. will give us a function.
 	<br />
-	When a lane generator creates a lane and performs initializations described by the list of base libraries and the list of required modules, it recursively scans the table created by the initialisation of the module, looking for all values that are C functions.
+	Similarly, loading the <tt>io</tt> base library creates a table accessible when indexing the global environment with key <tt>"io"</tt>. Indexing this table with <tt>"open"</tt>, will give us a function, and <tt>"stdin"</tt> will give us a full userdata.
 	<br />
-	Each time a function is encountered, the sequence of keys that reached that function is contatenated in a (hopefully) unique name. The [name, function] and [function, name] pairs are both stored in a lookup table in all involved Lua states (main Lua state and lanes states).
+	When a lane generator creates a lane and performs initializations described by the list of base libraries and the list of required modules, it recursively scans the table created by the initialisation of the module, looking for all values that are C functions and full userdata.
 	<br />
-	Then when a function is transfered from one state to another, all we have to do is retrieve the name associated to a function in the source Lua state, then with that name retrieve the equivalent function that already exists in the destination state.
+	Each time a function or full userdata is encountered, the sequence of keys traversed to reach it is contatenated in a (hopefully) unique name. The [name, value] and [value, name] pairs are both stored in a lookup table in all involved Lua states (main Lua state and lanes states).
 	<br />
-	Note that there is no need to transfer upvalues, as they are already bound to the function registered in the destination state. (And in any event, it is not possible to create a closure from a C function pushed on the stack, it can only be created with a <tt>lua_CFunction</tt> pointer).
+	Then, when a function or full userdata is transfered from one state to another, all we have to do is retrieve the name associated to this value in the source Lua state, then with that name retrieve the equivalent value that already exists in the destination state.
+	<br />
+	Note that there is no need to transfer upvalues/uservalues, as they are already bound to the value registered in the destination state. (And in any event, it is not possible to create a closure from a C function pushed on the stack, it can only be created with a <tt>lua_CFunction</tt> pointer).
 </p>
 
 <p>
 	There are several issues here:
 	<ul>
 		<li>
-			Some base libraries register some C functions in the global environment. Because of that, Lanes must scan the global namespace to find all C functions (such as <tt>error</tt>, <tt>print</tt>, etc.).<br />
+			Some base libraries register some C functions in the global environment. Because of that, Lanes must scan the global namespace to find all C functions (such as <tt>error</tt>, <tt>print</tt>, <tt>require</tt>, etc.).<br />
 			This happens a single time, when <a href="#initialization"><tt>lanes.configure()</tt></a> is called. Therefore, if some base libraries are not loaded before that point, it will not be possible to send values that reference stuff they offer unless they are manually registered with <tt>lanes.register()</tt>.
 		</li>
 		<li>
-			Nothing prevents a script to create other references to a C function. For example one could do
+			Nothing prevents a script to create other references to a C function or full userdata. For example one could do
 			<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 				string2 = string
 			</pre></td></tr></table>
 			When iterating over all keys of the global table, Lanes has no guarantee that it will hit <tt>"string"</tt> before or after <tt>"string2"</tt>. However, the values associated to <tt>string.match</tt> and <tt>string2.match</tt> are the same C function.
-			Lanes doesn't normally expect a C function value to be encountered more than once. In the event it occurs, the shortest name that was computed is retained.
+			Lanes doesn't normally expect a C function or full userdata value to be encountered more than once. In the event it occurs, the shortest name that was computed is retained.
 			If Lanes processed <tt>"string2"</tt> first, it means that if the Lua state that contains the <tt>"string2"</tt> global name sends function <tt>string.match</tt>, <tt>lookup_func_name</tt> would return name <tt>"string2.match"</tt>, with the obvious effect that <tt>push_resolved_func</tt>
 			won't find <tt>"string2.match"</tt> in the destination lookup database, thus failing the transfer (even though this function exists, but is referenced under name <tt>"string.match"</tt>).
 		</li>
@@ -1721,9 +1723,9 @@
 			To circumvent this, Lanes has to select one name among all candidates, and the rule for this is to keep the 'smaller' one: first in byte count, then in lexical order.
 		</li>
 	</ul>
-	Another more immediate reason of failed transfer is when the destination state doesn't know about the C function that has to be transferred. This occurs if a function is transferred in a lane before it had a chance to scan the module.
-	If the C function is sent through a <a href="#lindas">linda</a>, it is enough for the destination lane body to have required the module before the function is sent.
-	But if the lane body provided to the generator has a C function as upvalue, the transfer itself must succeed, therefore the module that imported that C function must be required in the destination lane before the lane body starts executing. This is where the <a href = "#.required"><tt>.required</tt></a> options play their role.
+	Another more immediate reason of failed transfer is when the destination state doesn't know about the C function or full userdata that has to be transferred. This occurs if a value is transferred in a lane before it had a chance to scan the module that exposed it.
+	If the C function or full userdata is sent through a <a href="#lindas">linda</a>, it is sufficient for the destination lane body to have required the module before the function is sent.
+	But if the lane body provided to the generator has a C function or full userdata as upvalue, the transfer itself must succeed, therefore the module that exposed that C function or full userdata must be required in the destination lane before the lane body starts executing. This is where the <a href = "#.required"><tt>.required</tt></a> options play their role.
 </p>
 
 

@@ -23,6 +23,7 @@ CHANGE 2: BGe 27-Nov-24
                 - strip_functions added. Only useful for Lua 5.3+.
                 - verbose_errors removed. Use lane error_trace_level instead.
                 - with_timers is false by default.
+            - Non-deep full userdata are processed during module registration just like ordinary module C functions, making them valid transferable (up)values (for example: io.stdin).
         - Lanes:
             - Can no longer be "killed" by hard-stopping their thread without any resource cleanup (see lane:cancel()).
             - lanes.gen() settings:

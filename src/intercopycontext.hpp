@@ -64,6 +64,8 @@ class InterCopyContext
 
     // for use in inter_copy_userdata
     [[nodiscard]]
+    bool lookupUserdata() const;
+    [[nodiscard]]
     bool tryCopyClonable() const;
     [[nodiscard]]
     bool tryCopyDeep() const;
