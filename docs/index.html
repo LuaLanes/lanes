@@ -1218,7 +1218,7 @@
 	lane_h = lanes.gen("", loop)(10000)
 
 	while true do
-		local key, val = linda:receive(3.0, "x")    -- timeout in seconds
+		local slot, val = linda:receive(3.0, "x")    -- timeout in seconds
 		if val == nil then
 			print("timed out")
 			break
@@ -1233,7 +1233,7 @@
 	Characteristics of the Lanes implementation of lindas are:
 
 	<ul>
-		<li>Keys can be of boolean, number, string, light userdata, and deep userdata type. Tables, functions and non-deep userdata can't be keys because their identity isn't preserved when transfered from one Lua state to another.</li>
+		<li>Slots can be of boolean, number, string, light userdata, and deep userdata type. Tables, functions and non-deep userdata can't be slots because their identity isn't preserved when transfered from one Lua state to another.</li>
 		<li>Values can be any type supported by inter-state copying (same <a href="#limitations">limits</a> as for function arguments and upvalues).</li>
 		<li>
 			Registered functions and userdata transiting into a Keeper state are converted to a special dummy closure that holds its actual identity. On transit out, the identity is used to find the real function or userdata in the destination.
@@ -1242,10 +1242,11 @@
 		<li>Consuming method is <tt>:receive</tt> (not in).</li>
 		<li>Non-consuming method is <tt>:get</tt> (not rd).</li>
 		<li>Two producer-side methods: <tt>:send</tt> and <tt>:set</tt> (not out).</li>
-		<li><tt>send</tt> allows for sending multiple values -atomically- to a given key.</li>
-		<li><tt>receive</tt> can wait for multiple keys at once.</li>
-		<li><tt>receive</tt> has a batched mode to consume more than one value from a single key, as in <tt>linda:receive(1.0, linda.batched, "key", 3, 6).</tt></li>
-		<li>Individual keys' queue length can be limited, balancing speed differences in a producer/consumer scenario (making <tt>:send</tt> wait).</li>
+		<li><tt>send</tt> allows for sending multiple values -atomically- to a given slot.</li>
+		<li><tt>receive</tt> can wait for multiple slots at once.</li>
+		<li><tt>receive</tt> has a batched mode to consume more than one value from a single slot, as in <tt>linda:receive(1.0, linda.batched, "slot", 3, 6).</tt></li>
+		<li><tt>restrict</tt> can restrain a particular slot to function either with <tt>send/receive</tt> or <tt>set/get</tt>.</li>
+		<li>Individual slots' queue length can be limited, balancing speed differences in a producer/consumer scenario (making <tt>:send</tt> wait).</li>
 		<li><tt>tostring(linda)</tt> returns a string of the form <tt>"Linda: &lt;opt_name&gt;"</tt></li>
 		<li>
 			Several linda objects may share the same <a href="#keepers">Keeper state</a>. In case there is more than one user <a href="#keepers">Keeper state</a>, assignation must be controlled with the linda's group (an integer in <tt>[0,nb_user_keepers]</tt>).
@@ -1272,62 +1273,81 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	bool,string|(nil,[lanes.cancel_error|"timeout"]) = h:limit(key, &lt;limit&gt;)
-	(number|string),string = h:limit(key)
+	bool,string|(nil,[lanes.cancel_error|"timeout"]) = h:limit(slot, &lt;limit&gt;)
+	(number|string),string = h:limit(slot)
 </pre></td></tr></table>
 
 <p>
 	By default, queue sizes are unlimited but limits can be enforced using the <tt>limit()</tt> method. This can be useful to balance execution speeds in a producer/consumer scenario.<br />
 	A limit of 0 is allowed to block everything. <tt>"unlimited"</tt> removes the limit.<br />
-	If the key was full but the limit change added some room, <tt>limit()</tt> first return value is <tt>true</tt> and the linda is signalled so that <tt>send()</tt>-blocked threads are awakened, else the return value is <tt>false</tt>.
-	If no limit is provided, <tt>limit()</tt> first return value is the current limit for the specified key.<br />
-	The second returned value is a string representing the fill status relatively to the key's current limit (one of <tt>"over"</tt>, <tt>"under"</tt>, <tt>"exact"</tt>).
+	If the slot was full but the limit change added some room, <tt>limit()</tt> first return value is <tt>true</tt> and the linda is signalled so that <tt>send()</tt>-blocked threads are awakened, else the return value is <tt>false</tt>.
+	If no limit is provided, <tt>limit()</tt> first return value is the current limit for the specified slot.<br />
+	The second returned value is a string representing the fill status relatively to the slot's current limit (one of <tt>"over"</tt>, <tt>"under"</tt>, <tt>"exact"</tt>).
 	Whether reading or writing, if the linda is cancelled, <tt>limit()</tt> returns <tt>nil, lanes.cancel_error</tt>.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	true|lanes.cancel_error = h:send([timeout_secs,] key, ...)
+	string|(nil,[lanes.cancel_error|"timeout"]) = h:restrict(slot [, "&lt;mode&gt;"])
+	string = h:restrict(slot)
 </pre></td></tr></table>
 
 <p>
-	Timeouts are given in seconds (&gt= 0, millisecond accuracy) or <tt>nil</tt>. Timeout can be omitted only if the first key is not a number (then it is equivalent to an infinite duration).<br />
-	Each key acts as a FIFO queue. There is no limit to the number of keys a linda may contain. Different lindas can have identical keys, which are totally unrelated.
+	It is possible to restrict a particular slot in a Linda to either <tt>send/receive</tt> or <tt>set/get</tt> operations.<br />
+	Possible modes are <tt>"none"</tt>, <tt>"set/get"</tt> or <tt>"send/receive"</tt>.<br />
+	If a new mode is specified, <tt>restrict()</tt> updates the mode and returns the previous one.<br />
+	If no mode is specified, <tt>restrict()</tt> does nothing and returns the current mode.<br />
+	If the linda is cancelled, <tt>restrict()</tt> returns <tt>nil, lanes.cancel_error</tt>.<br />
+	If an unknown mode is specified, <tt>restrict()</tt> raises an error.
+</p>
+
+<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
+	true|lanes.cancel_error = h:send([timeout_secs,] slot, ...)
+</pre></td></tr></table>
+
+<p>
+	Timeouts are given in seconds (&gt= 0, millisecond accuracy) or <tt>nil</tt>. Timeout can be omitted only if the first slot is not a number (then it is equivalent to an infinite duration).<br />
+	Each slot acts as a FIFO queue. There is no limit to the number of slots a linda may contain. Different lindas can have identical slots, which are totally unrelated.
 </p>
 
 <p>
-	Multiple values can be sent to a given key at once, atomically (the send will fail unless all the values fit within the queue limit). This can be useful for multiple producer scenarios, if the protocols used are giving data in streams of multiple units.
+	Multiple values can be sent to a given slot at once, atomically (the send will fail unless all the values fit within the queue limit). This can be useful for multiple producer scenarios, if the protocols used are giving data in streams of multiple units.
 	Atomicity avoids the producers from garbling each others messages, which could happen if the units were sent individually.
 </p>
 
 <p>
-	If no data is provided after the key, <tt>send()</tt> raises an error.<br />
-	Also, if <tt>linda.null</tt> or <tt>lanes.null</tt> is sent as data in a linda, it will be read as a <tt>nil</tt>.<br />
+	If <tt>linda.null</tt> or <tt>lanes.null</tt> is sent as data in a linda, it will be read as a <tt>nil</tt>.<br />
+</p>
+
+<p>
+	<tt>send()</tt> raises an error if no data is provided after the slot.<br />
+	<tt>send()</tt> raises an error if called when a restriction forbids its use on the provided slot.<br />
+	<tt>send()</tt> raises <tt>lanes.cancel_error</tt> if interrupted by a hard cancel request.<br />
 	<tt>send()</tt> return values can be:
 	<ul>
 		<li><tt>true</tt> on success.</li>
 		<li><tt>nil, "timeout"</tt> if the queue limit was met, and the queue did not empty enough during the given duration.</li>
 		<li><tt>nil, lanes.cancel_error</tt> if interrupted by a soft cancel request.</li>
-		<li>Raises <tt>lanes.cancel_error</tt> if interrupted by a hard cancel request.</li>
 	</ul>
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	key, val = h:receive([timeout_secs,] key [, key...])
+	slot, val = h:receive([timeout_secs,] slot [, slot...])
 
-	key, val [, val...] = h:receive([timeout,] h.batched, key, n_uint_min[, n_uint_max])
+	slot, val [, val...] = h:receive([timeout,] h.batched, slot, n_uint_min[, n_uint_max])
 </pre></td></tr></table>
+
+<p>
+	<tt>receive()</tt> raises an error if called when a restriction forbids its use on any provided slot.<br />
+	In batched mode, <tt>receive()</tt> will raise an error if <tt>min_count < 1</tt> or <tt>max_count < min_count</tt>.
+</p>
 
 <p>
 	Unbatched <tt>receive()</tt> return values can be:
 	<ul>
 		<li><tt>nil, lanes.cancel_error</tt> if interrupted by a hard cancel request.</li>
 		<li><tt>nil, "timeout"</tt> if nothing was available.</li>
-		<li>A key and the value extracted from it. Note that <tt>nil</tt> can be sent and received; the <tt>key</tt> value will tell it apart from a timeout.</li>
+		<li>A slot and the value extracted from it. Note that <tt>nil</tt> can be sent and received; the first returned value <tt>slot</tt> will tell it apart from a timeout.</li>
 	</ul>
-</p>
-
-<p>
-	In batched mode, <tt>linda:receive()</tt> will raise an error if <tt>min_count < 1</tt> or <tt>max_count < min_count</tt>.
 </p>
 
 <p>
@@ -1339,19 +1359,20 @@
 </p>
 
 <p>
-	When receiving from multiple slots, the keys are checked in order, which can	be used for making priority queues.
+	When receiving from multiple slots, the slots are checked in order, which can be used for making priority queues.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	(bool,string)|(nil,lanes.cancel_error) = linda_h:set(key [, val [, ...]])
+	(bool,string)|(nil,lanes.cancel_error) = linda_h:set(slot [, val [, ...]])
 
-	(number,[val [, ...]])|(nil,lanes.cancel_error) = linda_h:get(key [, count = 1])
+	(number,[val [, ...]])|(nil,lanes.cancel_error) = linda_h:get(slot [, count = 1])
 </pre></td></tr></table>
 
 <p>
-	<tt>get()</tt>/<tt>set()</tt> and <tt>send()</tt>/<tt>receive()</tt> can be used together; reading a slot essentially peeks the next outcoming value of a queue.<br />
-	<tt>get()</tt>/<tt>set()</tt> are for accessing a key without queuing or consuming. They can be used for making shared tables of storage among the lanes.<br />
-	Writing to a key never blocks because it ignores the limit. It overwrites existing values and clears any possible queued entries.<br />
+	<tt>set()</tt> and <tt>get()</tt> raise an error if used when a restriction forbids their use on the provided slot.<br />
+	Unless a particular slot is constrained with <tt>restrict()</tt>, <tt>get()</tt>/<tt>set()</tt> and <tt>send()</tt>/<tt>receive()</tt> can be used together; reading a slot essentially peeks the next outcoming value of a queue.<br />
+	<tt>get()</tt>/<tt>set()</tt> are for accessing a slot without queuing or consuming. They can be used for making shared tables of storage among the lanes.<br />
+	<tt>set()</tt> never blocks because it ignores the limit. It overwrites existing values and clears any possible queued entries.<br />
 </p>
 <p>
 	<tt>get()</tt> can read several values at once, and does not block. Return values ares:
@@ -1361,12 +1382,12 @@
 	</ul>
 </p>
 <p>
-	<tt>set()</tt> can write several values at the specified key. Writing <tt>nil</tt> values is possible, and clearing the contents at the specified key is done by not providing any value.<br />
+	<tt>set()</tt> can write several values at the specified slot. Writing <tt>nil</tt> values is possible, and clearing the contents at the specified slot is done by not providing any value.<br />
 	If <tt>set()</tt> actually stores data, the linda is signalled for write, so that <tt>receive()</tt>-blocked Lanes are awakened.<br />
-	Clearing the contents of a non-existent key does not create it!<br />
-	If the key was full but the new data count of the key after <tt>set()</tt> is below its limit, <tt>set()</tt> first return value is <tt>true</tt> and the linda is also signaled for read, so that <tt>send()</tt>-blocked Lanes are awakened.<br />
-	If the key was not already full, nothing additional happens, and <tt>set()</tt> first return value is <tt>false</tt>.<br />
-	The second return value is a string representing the fill status relatively to the key's current limit (one of <tt>"over"</tt>, <tt>"under"</tt>, <tt>"exact"</tt>).
+	Clearing the contents of a non-existent slot does not create it!<br />
+	If the slot was full but the new data count of the slot after <tt>set()</tt> is below its limit, <tt>set()</tt> first return value is <tt>true</tt> and the linda is also signaled for read, so that <tt>send()</tt>-blocked Lanes are awakened.<br />
+	If the slot was not already full, nothing additional happens, and <tt>set()</tt> first return value is <tt>false</tt>.<br />
+	The second return value is a string representing the fill status relatively to the slot's current limit (one of <tt>"over"</tt>, <tt>"under"</tt>, <tt>"exact"</tt>).
 </p>
 
 <p>
@@ -1374,25 +1395,26 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	[val] = linda_h:count([key[,...]])
+	[val] = linda_h:count([slot[,...]])
 </pre></td></tr></table>
 
 <p>
 	Returns some information about the contents of the linda.<br />
-	If no key is specified, and the linda is empty, returns nothing.<br />
-	If no key is specified, and the linda is not empty, returns a table of key/count pairs that counts the number of items in each of the exiting keys of the linda. This count can be 0 if the key has been used but is empty.<br />
-	If a single key is specified, returns the number of pending items, or nothing if the key is unknown.<br />
-	If more than one key is specified, return a table of key/count pairs for the known keys.
+	If no slot is specified, and the linda is empty, returns nothing.<br />
+	If no slot is specified, and the linda is not empty, returns a table of slot/count pairs that counts the number of items in each of the exiting slots of the linda. This count can be 0 if the slot has been used but is empty.<br />
+	If a single slot is specified, returns the number of pending items, or nothing if the slot is unknown.<br />
+	If more than one slot is specified, return a table of slot/count pairs for the known slots.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
 	linda_h:dump() ->
 	{
-		[&lt;key&gt;] =
+		[&lt;slot&gt;] =
 		{
 			first = &lt;n&gt;
 			count = &lt;n&gt;
 			limit = &lt;n&gt;|'unlimited'
+			restrict = "none"|"set/get"|"send/receive"
 			fifo = { &lt;array of values&gt; }
 		}
 		...
@@ -1458,7 +1480,7 @@
 		</li>
 
 		<li>
-			Namespace control. linda keys have a "flat" namespace, so collisions are possible if you try to use the same linda for too many separate uses.
+			Namespace control. linda slots have a "flat" namespace, so collisions are possible if you try to use the same linda for too many separate uses.
 		</li>
 
 		<li>
@@ -1467,7 +1489,7 @@
 		</li>
 	</ul>
 
-	On the other side, you need to use a common linda for waiting for multiple keys. You cannot wait for keys from two separate linda objects at the same time.
+	On the other side, you need to use a common linda for waiting for multiple slots. You cannot wait for slots from two separate linda objects at the same time.
 </p>
 
 <p>
@@ -1480,7 +1502,7 @@
 <h2 id="timers">Timers</h2>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	void = lanes.timer(linda_h, key, date_tbl|first_secs [,period_secs])
+	void = lanes.timer(linda_h, slot, date_tbl|first_secs [,period_secs])
 </pre></td></tr></table>
 
 <p>
@@ -1492,7 +1514,7 @@
 </p>
 
 <p>
-	Once a timer expires, the <tt>key</tt> is set with the current time (in seconds, same offset as <tt>os.time()</tt> but with millisecond accuracy). The key can be waited upon using the regular <a href="#lindas">linda</a> <tt>:receive()</tt> method.
+	Once a timer expires, the <tt>slot</tt> is set with the current time (in seconds, same offset as <tt>os.time()</tt> but with millisecond accuracy). The slot can be waited upon using the regular <a href="#lindas">linda</a> <tt>:receive()</tt> method.
 </p>
 
 <p>
@@ -1517,13 +1539,13 @@
 	lanes.timer(linda, "min", t, 60)   -- reoccur every minute (sharp)
 
 	while true do
-		local key, v = linda:receive("sec", "min")
-		print("Timer "..key..": "..v)
+		local slot, v = linda:receive("sec", "min")
+		print("Timer "..slot..": "..v)
 	end
 </pre></td></tr></table>
 
 <p>
-	NOTE: Timer keys are set, not queued, so missing a beat is possible especially if the timer cycle is extremely small. The key value can be used to know the actual time passed.
+	NOTE: Timer slots are set, not queued, so missing a beat is possible especially if the timer cycle is extremely small. The slot value can be used to know the actual time passed.
 </p>
 
 <table>
@@ -1533,7 +1555,7 @@
 			<font size="-1">
 				Having the API as <tt>lanes.timer()</tt> is intentional. Another alternative would be <tt>linda_h:timer()</tt> but timers are not traditionally seen to be part of lindas. Also, it would mean any lane getting a <a href="#lindas">linda</a> handle would be able to modify timers on it.
 				A third choice could be abstracting the timers out of <a href="#lindas">linda</a> realm altogether (<tt>timer_h= lanes.timer(date|first_secs, period_secs )</tt>) but that would mean separate waiting functions for timers, and lindas.
-				Even if a <a href="#lindas">linda</a> object and key was returned, that key couldn't be waited upon simultaneously with one's general <a href="#lindas">linda</a> events.
+				Even if a <a href="#lindas">linda</a> object and slot was returned, that slot couldn't be waited upon simultaneously with one's general <a href="#lindas">linda</a> events.
 				The current system gives maximum capabilities with minimum API, and any smoothenings can easily be crafted in Lua at the application level.
 			</font>
 		</td>
@@ -1578,7 +1600,7 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	lock_func|lanes.cancel_error = lanes.genlock(linda_h, key [,N_uint=1])
+	lock_func|lanes.cancel_error = lanes.genlock(linda_h, slot [,N_uint=1])
 
 	bool|lanes.cancel_error = lock_func(M_uint [, "try"] )     -- acquire
 	..
@@ -1604,13 +1626,13 @@
 <p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	atomic_func|lanes.cancel_error = lanes.genatomic(linda_h, key [,initial_num=0.0])
+	atomic_func|lanes.cancel_error = lanes.genatomic(linda_h, slot [,initial_num=0.0])
 
 	new_num|lanes.cancel_error = atomic_func([diff_num=+1.0])
 </pre></td></tr></table>
 
 <p>
-	Each time called, the generated function will change <tt>linda[key]</tt> atomically, without other lanes being able to interfere. The new value is returned. You can use either <tt>diff 0.0</tt> or <tt>get</tt> to just read the current value.
+	Each time called, the generated function will change <tt>linda[slot]</tt> atomically, without other lanes being able to interfere. The new value is returned. You can use either <tt>diff 0.0</tt> or <tt>get</tt> to just read the current value.
 </p>
 
 <p>
@@ -1632,7 +1654,7 @@
 		<li>Booleans, numbers, strings, light userdata, Lua functions and tables of such can always be passed.</li>
 		<li>
 			Cyclic tables and/or duplicate references are allowed and reproduced appropriately, but only <u>within the same transmission</u>.
-			Using the same source table in multiple <a href="#lindas">linda</a> messages keeps no ties between the tables (this is the same reason why tables can't be used as keys).
+			Using the same source table in multiple <a href="#lindas">linda</a> messages keeps no ties between the tables (this is the same reason why tables can't be used as slots).
 		</li>
 		<li>
 			For tables and full userdata: before anything else, the metatable is searched for a <tt>__lanesconvert</tt> field. If found, the source object is converted as follows depending on <tt>__lanesconvert</tt>'s value:
@@ -1914,7 +1936,7 @@ static MyDeepFactory g_MyDeepFactory;
 	<ul>
 		<li>Data passing (arguments, upvalues, <a href="#lindas">linda</a> messages) is generally fast, doing two binary state-to-state copies (from source state to hidden state, hidden state to target state). Remember that not only the function you specify but also its upvalues, their upvalues, etc. etc. will get copied.</li>
 		<li>Lane startup is fast (1000's of lanes a second), depending on the number of standard libraries initialized. Initializing all standard libraries is about 3-4 times slower than having no standard libraries at all. If you throw in a lot of lanes per second, make sure you give them minimal necessary set of libraries.</li>
-		<li>Waiting lindas are woken up (and execute some hidden Lua code) each time <u>any</u> key in the <a href="#lindas">lindas</a> they are waiting for are changed. This may give essential slow-down (not measured, just a gut feeling) if a lot of <a href="#lindas">linda</a> keys are used. Using separate <a href="#lindas">lindas</a> for logically separate issues will help (which is good practice anyhow).</li>
+		<li>Waiting lindas are woken up (and execute some hidden Lua code) each time <u>any</u> slot in the <a href="#lindas">lindas</a> they are waiting for are changed. This may give essential slow-down (not measured, just a gut feeling) if a lot of <a href="#lindas">linda</a> slots are used. Using separate <a href="#lindas">lindas</a> for logically separate issues will help (which is good practice anyhow).</li>
 		<li><a href="#lindas">linda</a> objects are light. The memory footprint is two OS-level signalling objects (<tt>HANDLE</tt> or <tt>pthread_cond_t</tt>) for each, plus one C pointer for the proxies per each Lua state using the <a href="#lindas">linda</a>. Barely nothing.</li>
 		<li>Timers are light. You can probably expect timers up to 0.01 second resolution to be useful, but that is very system specific. All timers are merged into one main timer state (see <tt>timer.lua</tt>); no OS side timers are utilized.</li>
 		<li>If you are using a lot of <a href="#lindas">linda</a> objects, it may be useful to try having more of these <a href="#keepers">Keeper states</a>. By default, only one is used (see <a href="#initialization"><tt>lanes.configure()</tt></a>).</li>

@@ -39,10 +39,17 @@ if not next(which_tests) or which_tests.genlock then
 	local lock = lanes.genlock( linda, "lock", 1)
 	local atomic = lanes.genatomic( linda, "atomic")
 
+	local check_returned_cancel_error = function(_status, _err)
+		assert(_status == nil and _err == lanes.cancel_error)
+	end
 	-- check that cancelled lindas give cancel_error as they should
 	linda:cancel()
-	local _status, _err = linda:get( "empty")
-	assert(_status == nil and _err == lanes.cancel_error)
+	check_returned_cancel_error(linda:set( "empty", 42))
+	check_returned_cancel_error(linda:get( "empty"))
+	check_returned_cancel_error(linda:send( "empty", 42))
+	check_returned_cancel_error(linda:receive( "empty"))
+	check_returned_cancel_error(linda:limit( "empty", 5))
+	check_returned_cancel_error(linda:restrict( "empty", "set/get"))
 	assert( lanes.genlock( linda, "any", 1) == lanes.cancel_error)
 	assert( lanes.genatomic( linda, "any") == lanes.cancel_error)
 

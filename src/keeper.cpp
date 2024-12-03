@@ -73,6 +73,7 @@ class KeyUD
     int first{ 1 };
     int count{ 0 };
     LindaLimit limit{ -1 };
+    LindaRestrict restrict { LindaRestrict::None };
 
     // a fifo full userdata has one uservalue, the table that holds the actual fifo contents
     [[nodiscard]]
@@ -83,6 +84,8 @@ class KeyUD
 
     [[nodiscard]]
     bool changeLimit(LindaLimit limit_);
+    [[nodiscard]]
+    LindaRestrict changeRestrict(LindaRestrict restrict_);
     [[nodiscard]]
     static KeyUD* Create(KeeperState K_);
     [[nodiscard]]
@@ -110,6 +113,14 @@ bool KeyUD::changeLimit(LindaLimit const limit_)
     // set the new limit
     limit = limit_;
     return _newSlackAvailable;
+}
+
+// #################################################################################################
+
+[[nodiscard]]
+LindaRestrict KeyUD::changeRestrict(LindaRestrict const restrict_)
+{
+    return std::exchange(restrict, restrict_);
 }
 
 // #################################################################################################
@@ -280,7 +291,7 @@ bool KeyUD::reset(KeeperState const K_)
     LUA_ASSERT(K_, KeyUD::GetPtr(K_, kIdxTop) == this);
     STACK_CHECK_START_REL(K_, 0);
     bool const _wasFull{ (limit > 0) && (count >= limit) };
-    // empty the KeyUD: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
+    // empty the KeyUD: replace uservalue with a virgin table, reset counters, but leave limit and restrict unchanged!
     // if we have an actual limit, use it to preconfigure the table
     lua_createtable(K_, (limit <= 0) ? 0 : limit.value(), 0);                                      // K_: KeysDB key val... KeyUD {}
     lua_setiuservalue(K_, StackIndex{ -2 }, kContentsTableIndex);                                  // K_: KeysDB key val... KeyUD
@@ -408,7 +419,7 @@ int keepercall_destruct(lua_State* const L_)
 // #################################################################################################
 
 // in: linda_ud key [count]
-// out: bool + at most <count> values
+// out: N <N values>|kRestrictedChannel
 int keepercall_get(lua_State* const L_)
 {
     KeeperState const _K{ L_ };
@@ -423,7 +434,13 @@ int keepercall_get(lua_State* const L_)
     lua_remove(_K, 1);                                                                             // _K: KeyUD
     KeyUD const* const _key{ KeyUD::GetPtr(_K, kIdxTop) };
     if (_key != nullptr) {
-        _key->peek(_K, _count);                                                                    // _K: N val...
+        if (_key->restrict == LindaRestrict::SendReceive) { // can we use set/get?
+            lua_settop(_K, 0);                                                                     // _K:
+            kRestrictedChannel.pushKey(_K);                                                        // _K: kRestrictedChannel
+            return 1;
+        } else {
+            _key->peek(_K, _count);                                                                // _K: N val...
+        }
     } else {
         // no fifo was ever registered for this key, or it is empty
         lua_pop(_K, 1);                                                                            // _K:
@@ -492,6 +509,17 @@ int keepercall_receive(lua_State* const L_)
         lua_rawget(_K, 1);                                                                         // _K: KeysDB keys... KeyUD
         KeyUD* const _key{ KeyUD::GetPtr(_K, kIdxTop) };
         if (_key != nullptr) { // it's fine to attempt a read on a key that wasn't yet written to
+            if (_key->restrict == LindaRestrict::SetGet) { // can we use send/receive?
+                kRestrictedChannel.pushKey(_K);                                                    // _K: KeysDB keys... key[i] kRestrictedChannel
+                lua_replace(_K, 1);                                                                // _K: kRestrictedChannel keys... key[i]
+                lua_settop(_K, _keyIdx);                                                           // _K: kRestrictedChannel keys... key[i]
+                if (_keyIdx != 2) {
+                    lua_replace(_K, 2);                                                            // _K: kRestrictedChannel key[i] keys...
+                    lua_settop(_K, 2);                                                             // _K: kRestrictedChannel key[i]
+                }
+                lua_insert(_K, 1);                                                                 // _K: key kRestrictedChannel
+                return 2;
+            }
             int const _popped{ _key->pop(_K, 1, 1) };                                              // _K: KeysDB keys... val
             if (_popped > 0) {
                 lua_replace(_K, 1);                                                                // _K: val keys...
@@ -527,19 +555,89 @@ int keepercall_receive_batched(lua_State* const L_)
     lua_rawget(_K, 2);                                                                             // _K: key KeysDB KeyUD
     lua_remove(_K, 2);                                                                             // _K: key KeyUD
     KeyUD* const _key{ KeyUD::GetPtr(_K, kIdxTop) };
-    if (_key == nullptr || _key->pop(_K, _min_count, _max_count) == 0) {                           // _K: [key val...]|crap
-        // Lua will adjust the stack for us when we return
-        return 0;
-    } else {
-        // return whatever remains on the stack at that point: the key and the values we pulled from the fifo
-        return lua_gettop(_K);
+    if (!_key) {
+        return 0; // Lua will adjust the stack for us when we return
     }
+    if (_key->restrict == LindaRestrict::SetGet) { // can we use send/receive?
+        lua_settop(_K, 1);                                                                         // _K: key
+        kRestrictedChannel.pushKey(_K);                                                            // _K: key kRestrictedChannel
+        return 2;
+    }
+    if (_key->pop(_K, _min_count, _max_count) == 0) {                                              // _K: [key val...]|crap
+        return 0; // Lua will adjust the stack for us when we return
+    }
+    // return whatever remains on the stack at that point: the key and the values we pulled from the fifo
+    return lua_gettop(_K);
+}
+
+// #################################################################################################
+
+// in: linda key [mode]
+// out: mode
+int keepercall_restrict(lua_State* const L_)
+{
+    KeeperState const _K{ L_ };
+    STACK_CHECK_START_ABS(_K, lua_gettop(_K));
+    // no restriction to set, means we read and return the current restriction instead
+    bool const _reading{ lua_gettop(_K) == 2 };
+    auto _decodeRestrict = [_K, _reading]() {
+        if (_reading) {
+            return LindaRestrict::None;
+        }
+        std::string_view const _val{ luaG_tostring(_K, StackIndex{ 3 }) };
+        if (_val == "set/get") {
+            return LindaRestrict::SetGet;
+        }
+        if (_val == "send/receive") {
+            return LindaRestrict::SendReceive;
+        }
+        return LindaRestrict::None;
+    };
+    auto _encodeRestrict = [](LindaRestrict const val_) {
+        switch (val_) {
+        default:
+        case LindaRestrict::None:
+            return std::string_view{ "none" };
+        case LindaRestrict::SetGet:
+            return std::string_view{ "set/get" };
+        case LindaRestrict::SendReceive:
+            return std::string_view{ "send/receive" };
+        }
+    };
+    LindaRestrict const _rstrct{ _decodeRestrict() }; // if we read nil because the argument is absent
+    lua_settop(_K, 2);                                                                             // _K: linda key
+    PushKeysDB(_K, StackIndex{ 1 });                                                               // _K: linda key KeysDB
+    lua_replace(_K, 1);                                                                            // _K: KeysDB key
+    lua_pushvalue(_K, -1);                                                                         // _K: KeysDB key key
+    lua_rawget(_K, -3);                                                                            // _K: KeysDB key KeyUD|nil
+    KeyUD* _key{ KeyUD::GetPtr(_K, kIdxTop) };
+    if (_reading) {
+        // remove any clutter on the stack
+        lua_settop(_K, 0);                                                                         // _K:
+        auto const _prevRstrct{ _key ? _key->restrict : LindaRestrict::None };
+        // return a single value: the restrict mode of the key
+        luaG_pushstring(_K, _encodeRestrict(_prevRstrct));                                          // _K: _previous
+    } else {
+        if (_key == nullptr) {                                                                     // _K: KeysDB key nil
+            lua_pop(_K, 1);                                                                        // _K: KeysDB key
+            _key = KeyUD::Create(_K);                                                              // _K: KeysDB key KeyUD
+            lua_rawset(_K, -3);                                                                    // _K: KeysDB
+        }
+        // remove any clutter on the stack
+        lua_settop(_K, 0);                                                                         // _K:
+        // return true if we decide that blocked threads waiting to write on that key should be awakened
+        // this is the case if we detect the key was full but it is no longer the case
+        LindaRestrict const _previous{ _key->changeRestrict(_rstrct) };
+        luaG_pushstring(_K, _encodeRestrict(_previous));                                           // _K: _previous
+    }
+    STACK_CHECK(_K, 1);
+    return 1;
 }
 
 // #################################################################################################
 
 // in: linda, key, ...
-// out: true|false
+// out: true|false|kRestrictedChannel
 int keepercall_send(lua_State* const L_)
 {
     KeeperState const _K{ L_ };
@@ -561,7 +659,11 @@ int keepercall_send(lua_State* const L_)
     lua_pop(_K, 1);                                                                                // _K: linda KeyUD val...
     STACK_CHECK(_K, 0);
     KeyUD* const _key{ KeyUD::GetPtr(_K, StackIndex{ 2 }) };
-    if (_key && _key->push(_K, _n, true)) { // not enough room?
+    if (_key->restrict == LindaRestrict::SetGet) { // can we use send/receive?
+        lua_settop(_K, 0);                                                                         // _K:
+        kRestrictedChannel.pushKey(_K);                                                            // _K: kRestrictedChannel
+    }
+    else if (_key->push(_K, _n, true)) { // not enough room?
         lua_settop(_K, 0);                                                                         // _K:
         lua_pushboolean(_K, 1);                                                                    // _K: true
     } else {
@@ -575,7 +677,7 @@ int keepercall_send(lua_State* const L_)
 // #################################################################################################
 
 // in: linda key [val...]
-// out: true if the linda was full but it's no longer the case, else false
+// out: true if the linda was full but it's no longer the case, else false, or kRestrictedChannel if the key is restricted
 int keepercall_set(lua_State* const L_)
 {
     KeeperState const _K{ L_ };
@@ -588,11 +690,16 @@ int keepercall_set(lua_State* const L_)
     lua_pushvalue(_K, 2);                                                                          // _K: KeysDB key val... key
     lua_rawget(_K, 1);                                                                             // _K: KeysDB key val KeyUD|nil
     KeyUD* _key{ KeyUD::GetPtr(_K, kIdxTop) };
+    if (_key && _key->restrict == LindaRestrict::SendReceive) { // can we use send/receive?
+        lua_settop(_K, 0);                                                                         // _K:
+        kRestrictedChannel.pushKey(_K);                                                            // _K: kRestrictedChannel
+        return 1;
+    }
 
     if (lua_gettop(_K) == 3) { // no value to set                                                  // _K: KeysDB key KeyUD|nil
         // empty the KeyUD for the specified key: replace uservalue with a virgin table, reset counters, but leave limit unchanged!
         if (_key != nullptr) { // might be nullptr if we set a nonexistent key to nil              // _K: KeysDB key KeyUD
-            if (_key->limit < 0) { // KeyUD limit value is the default (unlimited): we can totally remove it
+            if (_key->limit < 0 && _key->restrict == LindaRestrict::None) { // KeyUD limit value and restrict mode are the default (unlimited/none): we can totally remove it
                 lua_pop(_K, 1);                                                                    // _K: KeysDB key
                 lua_pushnil(_K);                                                                   // _K: KeysDB key nil
                 lua_rawset(_K, -3);                                                                // _K: KeysDB
@@ -777,6 +884,20 @@ int Keeper::PushLindaStorage(Linda& linda_, DestState const L_)
         }
         STACK_CHECK(L_, 5);
         lua_setfield(L_, -3, "limit");                                                             // _K: KeysDB key                                     L_: out key keyout fifo
+        // keyout.restrict
+        switch (_key->restrict) {
+        case LindaRestrict::None:
+            luaG_pushstring(L_, "none");                                                           // _K: KeysDB key                                     L_: out key keyout fifo restrict
+            break;
+        case LindaRestrict::SetGet:
+            luaG_pushstring(L_, "set/get");                                                        // _K: KeysDB key                                     L_: out key keyout fifo restrict
+            break;
+        case LindaRestrict::SendReceive:
+            luaG_pushstring(L_, "send/receive");                                                   // _K: KeysDB key                                     L_: out key keyout fifo restrict
+            break;
+        }
+        STACK_CHECK(L_, 5);
+        lua_setfield(L_, -3, "restrict");                                                          // _K: KeysDB key                                     L_: out key keyout fifo
         // keyout.fifo
         lua_setfield(L_, -2, "fifo");                                                              // _K: KeysDB key                                     L_: out key keyout
         // out[key] = keyout

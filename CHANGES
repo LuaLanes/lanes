@@ -45,6 +45,7 @@ CHANGE 2: BGe 27-Nov-24
             - linda:deep() result no longer contains the raw C pointer of the Linda object.
             - linda :receive(), :send(), :get(), :set(), :limit() return nil, error in case of problem. Returned values in case of success change too.
             - linda:limit() can be used to read the value if no new limit is provided.
+            - linda:restrict() can restrain the use of send/receive or set/get on any key.
             - New __close metamethod that calls any suitable handler that was provided at Linda creation.
             - linda:dump() outputs <key>.limit as 'unlimited' instead of -1 for unlimited keys.
             - linda:wake() can wake up threads waiting for a Linda without doing any I/O on it.

@@ -272,6 +272,16 @@ LuaType luaG_getmodule(lua_State* L_, std::string_view const& name_);
 
 // #################################################################################################
 
+template<typename ENUM>
+requires std::is_enum_v<ENUM>
+[[nodiscard]]
+ENUM luaG_optenum(lua_State* const L_, StackIndex const idx_, ENUM const def_)
+{
+    return static_cast<ENUM>(luaL_optinteger(L_, idx_, static_cast<std::underlying_type_t<ENUM>>(def_)));
+}
+
+// #################################################################################################
+
 inline void luaG_registerlibfuncs(lua_State* L_, luaL_Reg const* funcs_)
 {
     // fake externs to make clang happy...

@@ -57,7 +57,7 @@ namespace {
 
             case LuaType::USERDATA:
                 if (!DeepFactory::IsDeepUserdata(L_, _i)) {
-                    raise_luaL_error(L_, "argument #%d: can't use non-deep userdata as a key", _i);
+                    raise_luaL_error(L_, "argument #%d: can't use non-deep userdata as a slot", _i);
                 }
                 break;
 
@@ -66,7 +66,7 @@ namespace {
                     static constexpr std::array<std::reference_wrapper<UniqueKey const>, 3> kKeysToCheck{ kLindaBatched, kCancelError, kNilSentinel };
                     for (UniqueKey const& _key : kKeysToCheck) {
                         if (_key.equals(L_, _i)) {
-                            raise_luaL_error(L_, "argument #%d: can't use %s as a key", _i, _key.debugName.data());
+                            raise_luaL_error(L_, "argument #%d: can't use %s as a slot", _i, _key.debugName.data());
                             break;
                         }
                     }
@@ -74,7 +74,7 @@ namespace {
                 break;
 
             default:
-                raise_luaL_error(L_, "argument #%d: invalid key type (not a boolean, string, number or light userdata)", _i);
+                raise_luaL_error(L_, "argument #%d: invalid slot type (not a boolean, string, number or light userdata)", _i);
             }
         }
         STACK_CHECK(L_, 0);
@@ -416,7 +416,7 @@ static LUAG_FUNC(linda_index)
 // #################################################################################################
 
 /*
- * [val] = linda_count( linda_ud, [key [, ...]])
+ * [val] = linda_count( linda_ud, [slot [, ...]])
  *
  * Get a count of the pending elements in the specified keys
  */
@@ -430,7 +430,7 @@ LUAG_FUNC(linda_count)
 
             Keeper* const _keeper{ _linda->whichKeeper() };
             KeeperCallResult const _pushed{ keeper_call(_keeper->K, KEEPER_API(count), L_, _linda, StackIndex{ 2 }) };
-            return OptionalValue(_pushed, L_, "tried to count an invalid key");
+            return OptionalValue(_pushed, L_, "Tried to count an invalid slot");
         }
     };
     return Linda::ProtectedCall(L_, _count);
@@ -487,13 +487,16 @@ LUAG_FUNC(linda_get)
             lua_Integer const _count{ luaL_optinteger(L_, 3, 1) };
             luaL_argcheck(L_, _count >= 1, 3, "count should be >= 1");
             luaL_argcheck(L_, lua_gettop(L_) <= 3, 4, "too many arguments");
-            // make sure the key is of a valid type (throws an error if not the case)
+            // make sure the slot is of a valid type (throws an error if not the case)
             CheckKeyTypes(L_, StackIndex{ 2 }, StackIndex{ 2 });
 
             KeeperCallResult _pushed;
             if (_linda->cancelStatus == Linda::Active) {
                 Keeper* const _keeper{ _linda->whichKeeper() };
                 _pushed = keeper_call(_keeper->K, KEEPER_API(get), L_, _linda, StackIndex{ 2 });
+                if (_pushed.has_value() && kRestrictedChannel.equals(L_, kIdxTop)) {
+                    raise_luaL_error(L_, "Key is restricted");
+                }
             } else { // linda is cancelled
                 // do nothing and return nil,lanes.cancel_error
                 lua_pushnil(L_);
@@ -511,7 +514,7 @@ LUAG_FUNC(linda_get)
 
 /*
  * [bool]|nil,cancel_error = linda:limit(key_num|str|bool|lightuserdata, [int])
- * "unlimited"|number = linda:limit(key)
+ * "unlimited"|number = linda:limit(slot)
  *
  * Read or set limit to 1 Linda keys.
  * Optionally wake threads waiting to write on the linda, in case the limit enables them to do so
@@ -522,7 +525,7 @@ LUAG_FUNC(linda_limit)
     static constexpr lua_CFunction _limit{
         +[](lua_State* const L_) {
             Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
-            // make sure we got 2 or 3 arguments: the linda, a key and optionally a limit
+            // make sure we got 2 or 3 arguments: the linda, a slot and optionally a limit
             int const _nargs{ lua_gettop(L_) };
             luaL_argcheck(L_, _nargs == 2 || _nargs == 3, 2, "wrong number of arguments");
             // make sure we got a numeric limit, or "unlimited", (or nothing)
@@ -531,7 +534,7 @@ LUAG_FUNC(linda_limit)
             if (_val < 0) {
                 raise_luaL_argerror(L_, StackIndex{ 3 }, "limit must be >= 0");
             }
-            // make sure the key is of a valid type
+            // make sure the slot is of a valid type
             CheckKeyTypes(L_, StackIndex{ 2 }, StackIndex{ 2 });
 
             KeeperCallResult _pushed;
@@ -539,8 +542,8 @@ LUAG_FUNC(linda_limit)
                 if (_unlimited) {
                     LUA_ASSERT(L_, lua_gettop(L_) == 3 && luaG_tostring(L_, StackIndex{ 3 }) == "unlimited");
                     // inside the Keeper, unlimited is signified with a -1 limit (can't use nil because of nil kNilSentinel conversions!)
-                    lua_pop(L_, 1);                                                                // L_: linda key
-                    lua_pushinteger(L_, -1);                                                       // L_: linda key nil
+                    lua_pop(L_, 1);                                                                // L_: linda slot
+                    lua_pushinteger(L_, -1);                                                       // L_: linda slot nil
                 }
                 Keeper* const _keeper{ _linda->whichKeeper() };
                 _pushed = keeper_call(_keeper->K, KEEPER_API(limit), L_, _linda, StackIndex{ 2 });
@@ -572,12 +575,12 @@ LUAG_FUNC(linda_limit)
 
 /*
  * 2 modes of operation
- * [val, key]= linda:receive([timeout_secs_num=nil], key_num|str|bool|lightuserdata [, ...] )
- * Consumes a single value from the Linda, in any key.
- * Returns: received value (which is consumed from the slot), and the key which had it
+ * [val, slot]= linda:receive([timeout_secs_num=nil], key_num|str|bool|lightuserdata [, ...] )
+ * Consumes a single value from the Linda, in any slot.
+ * Returns: received value (which is consumed from the slot), and the slot which had it
 
  * [val1, ... valCOUNT]= linda_receive( linda_ud, [timeout_secs_num=-1], linda.batched, key_num|str|bool|lightuserdata, min_COUNT[, max_COUNT])
- * Consumes between min_COUNT and max_COUNT values from the linda, from a single key.
+ * Consumes between min_COUNT and max_COUNT values from the linda, from a single slot.
  * returns the actual consumed values, or nil if there weren't enough values to consume
  */
 LUAG_FUNC(linda_receive)
@@ -585,7 +588,7 @@ LUAG_FUNC(linda_receive)
     static constexpr lua_CFunction _receive{
         +[](lua_State* const L_) {
             Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
-            StackIndex _key_i{ 2 }; // index of first key, if timeout not there
+            StackIndex _key_i{ 2 }; // index of first slot, if timeout not there
 
             std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
             if (luaG_type(L_, StackIndex{ 2 }) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
@@ -596,7 +599,7 @@ LUAG_FUNC(linda_receive)
                     raise_luaL_argerror(L_, StackIndex{ 2 }, "duration cannot be < 0");
                 }
                 ++_key_i;
-            } else if (lua_isnil(L_, 2)) { // alternate explicit "infinite timeout" by passing nil before the key
+            } else if (lua_isnil(L_, 2)) { // alternate explicit "infinite timeout" by passing nil before the slot
                 ++_key_i;
             }
 
@@ -616,7 +619,7 @@ LUAG_FUNC(linda_receive)
                     raise_luaL_argerror(L_, StackIndex{ _key_i + 1 }, "bad min count");
                 }
                 _expected_pushed_max = (int) luaL_optinteger(L_, _key_i + 2, _expected_pushed_min);
-                // don't forget to count the key in addition to the values
+                // don't forget to count the slot in addition to the values
                 ++_expected_pushed_min;
                 ++_expected_pushed_max;
                 if (_expected_pushed_min > _expected_pushed_max) {
@@ -627,7 +630,7 @@ LUAG_FUNC(linda_receive)
                 CheckKeyTypes(L_, _key_i, StackIndex{ lua_gettop(L_) });
                 // receive a single value, checking multiple slots
                 _selected_keeper_receive = KEEPER_API(receive);
-                // we expect a single (value, key) pair of returned values
+                // we expect a single (value, slot) pair of returned values
                 _expected_pushed_min = _expected_pushed_max = 2;
             }
 
@@ -660,6 +663,9 @@ LUAG_FUNC(linda_receive)
                 }
                 if (_pushed.value() > 0) {
                     LUA_ASSERT(L_, _pushed.value() >= _expected_pushed_min && _pushed.value() <= _expected_pushed_max);
+                    if (kRestrictedChannel.equals(L_, StackIndex{ kIdxTop })) {
+                        raise_luaL_error(L_, "Key is restricted");
+                    }
                     _linda->readHappened.notify_all();
                     break;
                 }
@@ -730,6 +736,49 @@ LUAG_FUNC(linda_receive)
 // #################################################################################################
 
 /*
+ * "string" = linda:restrict(key_num|str|bool|lightuserdata, [string])
+ * "string" = linda:restrict(slot)
+ *
+ * Read or set restrict mode to 1 Linda slot.
+ */
+LUAG_FUNC(linda_restrict)
+{
+    static constexpr lua_CFunction _rstrct{
+        +[](lua_State* const L_) {
+            Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
+            // make sure we got 2 or 3 arguments: the linda, a slot and optionally a restrict mode
+            int const _nargs{ lua_gettop(L_) };
+            luaL_argcheck(L_, _nargs == 2 || _nargs == 3, 2, "wrong number of arguments");
+            // make sure we got a known restrict mode, (or nothing)
+            std::string_view const _mode{ luaG_tostring(L_, StackIndex{ 3 }) };
+            if (!_mode.empty() && (_mode != "none" && _mode != "set/get" && _mode != "send/receive")) {
+                raise_luaL_argerror(L_, StackIndex{ 3 }, "unknown restrict mode");
+            }
+            // make sure the slot is of a valid type
+            CheckKeyTypes(L_, StackIndex{ 2 }, StackIndex{ 2 });
+
+            KeeperCallResult _pushed;
+            if (_linda->cancelStatus == Linda::Active) {
+                Keeper* const _keeper{ _linda->whichKeeper() };
+                _pushed = keeper_call(_keeper->K, KEEPER_API(restrict), L_, _linda, StackIndex{ 2 });
+                // we should get a single return value: the string describing the previous restrict mode
+                LUA_ASSERT(L_, _pushed.has_value() && (_pushed.value() == 1) && luaG_type(L_, kIdxTop) == LuaType::STRING);
+            } else { // linda is cancelled
+                // do nothing and return nil,lanes.cancel_error
+                lua_pushnil(L_);
+                kCancelError.pushKey(L_);
+                _pushed.emplace(2);
+            }
+            // propagate returned values
+            return _pushed.value();
+        }
+    };
+    return Linda::ProtectedCall(L_, _rstrct);
+}
+
+// #################################################################################################
+
+/*
  * bool= linda:linda_send([timeout_secs=nil,] key_num|str|bool|lightuserdata, ...)
  *
  * Send one or more values to a Linda. If there is a limit, all values must fit.
@@ -743,7 +792,7 @@ LUAG_FUNC(linda_send)
     static constexpr lua_CFunction _send{
         +[](lua_State* const L_) {
             Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
-            StackIndex _key_i{ 2 }; // index of first key, if timeout not there
+            StackIndex _key_i{ 2 }; // index of first slot, if timeout not there
 
             std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
             if (luaG_type(L_, StackIndex{ 2 }) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
@@ -754,11 +803,11 @@ LUAG_FUNC(linda_send)
                     raise_luaL_argerror(L_, StackIndex{ 2 }, "duration cannot be < 0");
                 }
                 ++_key_i;
-            } else if (lua_isnil(L_, 2)) { // alternate explicit "infinite timeout" by passing nil before the key
+            } else if (lua_isnil(L_, 2)) { // alternate explicit "infinite timeout" by passing nil before the slot
                 ++_key_i;
             }
 
-            // make sure the key is of a valid type
+            // make sure the slot is of a valid type
             CheckKeyTypes(L_, _key_i, _key_i);
 
             STACK_GROW(L_, 1);
@@ -799,6 +848,9 @@ LUAG_FUNC(linda_send)
                     }
                     LUA_ASSERT(L_, _pushed.value() == 1);
 
+                    if (kRestrictedChannel.equals(L_, StackIndex{ kIdxTop })) {
+                        raise_luaL_error(L_, "Key is restricted");
+                    }
                     _ret = lua_toboolean(L_, -1) ? true : false;
                     lua_pop(L_, 1);
 
@@ -884,7 +936,7 @@ LUAG_FUNC(linda_set)
         +[](lua_State* const L_) {
             Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
             bool const _has_data{ lua_gettop(L_) > 2 };
-            // make sure the key is of a valid type (throws an error if not the case)
+            // make sure the slot is of a valid type (throws an error if not the case)
             CheckKeyTypes(L_, StackIndex{ 2 }, StackIndex{ 2 });
 
             KeeperCallResult _pushed;
@@ -892,6 +944,9 @@ LUAG_FUNC(linda_set)
                 Keeper* const _keeper{ _linda->whichKeeper() };
                 _pushed = keeper_call(_keeper->K, KEEPER_API(set), L_, _linda, StackIndex{ 2 });
                 if (_pushed.has_value()) { // no error?
+                    if (kRestrictedChannel.equals(L_, kIdxTop)) {
+                        raise_luaL_error(L_, "Key is restricted");
+                    }
                     LUA_ASSERT(L_, _pushed.value() == 2 && luaG_type(L_, kIdxTop) == LuaType::STRING && luaG_type(L_, StackIndex{ -2 }) == LuaType::BOOLEAN);
 
                     if (_has_data) {
@@ -899,7 +954,7 @@ LUAG_FUNC(linda_set)
                         _linda->writeHappened.notify_all(); // To be done from within the 'K' locking area
                     }
                     if (lua_toboolean(L_, -2)) {
-                        // the key was full, but it is no longer the case, tell writers they should wake
+                        // the slot was full, but it is no longer the case, tell writers they should wake
                         _linda->readHappened.notify_all(); // To be done from within the 'K' locking area
                     }
                 }
@@ -992,6 +1047,7 @@ namespace {
             { "get", LG_linda_get },
             { "limit", LG_linda_limit },
             { "receive", LG_linda_receive },
+            { "restrict", LG_linda_restrict },
             { "send", LG_linda_send },
             { "set", LG_linda_set },
             { "wake", LG_linda_wake },

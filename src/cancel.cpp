@@ -164,7 +164,7 @@ LUAG_FUNC(lane_cancel)
             raise_luaL_argerror(L_, StackIndex{ 2 }, "duration cannot be < 0");
         }
         lua_remove(L_, 2); // argument is processed, remove it
-    } else if (lua_isnil(L_, 2)) { // alternate explicit "infinite timeout" by passing nil before the key
+    } else if (lua_isnil(L_, 2)) { // alternate explicit "infinite timeout" by passing nil
         lua_remove(L_, 2); // argument is processed, remove it
     }
 

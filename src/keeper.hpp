@@ -13,6 +13,15 @@ DECLARE_UNIQUE_TYPE(KeeperIndex, int);
 
 // #################################################################################################
 
+enum class LindaRestrict
+{
+    None,
+    SetGet,
+    SendReceive
+};
+
+// #################################################################################################
+
 struct Keeper
 {
     std::mutex mutex;
@@ -79,6 +88,9 @@ DECLARE_UNIQUE_TYPE(KeeperCallResult, std::optional<int>);
 // xxh64 of string "kNilSentinel" generated at https://www.pelock.com/products/hash-calculator
 static constexpr UniqueKey kNilSentinel{ 0xC457D4EDDB05B5E4ull, "lanes.null" };
 
+// xxh64 of string "kRestrictedChannel" generated at https://www.pelock.com/products/hash-calculator
+static constexpr UniqueKey kRestrictedChannel{ 0x4C8B879ECDE110F7ull };
+
 using keeper_api_t = lua_CFunction;
 #define KEEPER_API(_op) keepercall_##_op
 
@@ -95,6 +107,8 @@ int keepercall_limit(lua_State* L_);
 int keepercall_receive(lua_State* L_);
 [[nodiscard]]
 int keepercall_receive_batched(lua_State* L_);
+[[nodiscard]]
+int keepercall_restrict(lua_State* L_);
 [[nodiscard]]
 int keepercall_send(lua_State* L_);
 [[nodiscard]]

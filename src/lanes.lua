@@ -448,6 +448,7 @@ local configure_timers = function()
 
     -- Timer lane; initialize only on the first 'require "lanes"' instance (which naturally has 'table' always declared)
     local first_time_key = "first time"
+    timerLinda:restrict(first_time_key, "set/get")
     local _, _first_time_val = timerLinda:get(first_time_key)
     local first_time = (_first_time_val == nil)
     timerLinda:set(first_time_key, true)

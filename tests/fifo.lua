@@ -60,7 +60,7 @@ for key,count in pairs(fifo_linda:count("unknown key", A.channel, "unknown key",
 end
 print "Dumping linda stats.. [4]" -- count everything
 for key,contents in pairs(fifo_linda:dump()) do
-    print("channel " .. key .. ": limit=".. contents.limit, " first=" .. contents.first, " count=" .. contents.count)
+    print("channel " .. key .. ": limit=".. contents.limit, " first=" .. contents.first, " count=" .. contents.count .. " restrict=" .. contents.restrict)
     for k,v in pairs(contents.fifo) do
         print("[".. k.."] = " .. v)
     end
