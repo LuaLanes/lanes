@@ -417,9 +417,9 @@ LUAG_FUNC(universe_gc)
 
     // attempt to terminate all lanes with increasingly stronger cancel methods
     bool const _allLanesTerminated{ 
-        _U->terminateFreeRunningLanes(_shutdown_timeout, CancelOp::Soft)
-        || _U->terminateFreeRunningLanes(_shutdown_timeout, CancelOp::Hard)
-        || _U->terminateFreeRunningLanes(_shutdown_timeout, CancelOp::MaskAll)
+        _U->terminateFreeRunningLanes(_shutdown_timeout, { CancelRequest::Soft, LuaHookMask::None })
+        || _U->terminateFreeRunningLanes(_shutdown_timeout, { CancelRequest::Hard, LuaHookMask::None })
+        || _U->terminateFreeRunningLanes(_shutdown_timeout, { CancelRequest::Hard, LuaHookMask::All })
     };
 
     // invoke the function installed by lanes.finally()

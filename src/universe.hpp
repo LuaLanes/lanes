@@ -1,6 +1,7 @@
 #pragma once
 
 #include "allocator.hpp"
+#include "cancel.hpp"
 #include "keeper.hpp"
 #include "lanesconf.h"
 #include "tracker.hpp"
@@ -9,7 +10,6 @@
 // #################################################################################################
 
 // forwards
-enum class CancelOp;
 struct DeepPrelude;
 class Lane;
 

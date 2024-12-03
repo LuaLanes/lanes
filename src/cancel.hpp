@@ -6,35 +6,24 @@
 // #################################################################################################
 
 // Lane cancellation request modes
-enum class CancelRequest
+enum class CancelRequest : uint8_t
 {
     None, // no pending cancel request
     Soft, // user wants the lane to cancel itself manually on cancel_test()
     Hard // user wants the lane to be interrupted (meaning code won't return from those functions) from inside linda:send/receive calls
 };
 
-enum class CancelResult
+struct CancelOp
+{
+    CancelRequest mode;
+    LuaHookMask hookMask;
+};
+
+enum class CancelResult : uint8_t
 {
     Timeout,
     Cancelled
 };
-
-enum class CancelOp
-{
-    Invalid = -2,
-    Hard = -1,
-    Soft = 0,
-    MaskCall = LUA_MASKCALL,
-    MaskRet = LUA_MASKRET,
-    MaskLine = LUA_MASKLINE,
-    MaskCount = LUA_MASKCOUNT,
-    MaskAll = LUA_MASKCALL | LUA_MASKRET | LUA_MASKLINE | LUA_MASKCOUNT
-};
-
-inline auto operator<=>(CancelOp const a_, CancelOp const b_)
-{
-    return static_cast<std::underlying_type_t<CancelOp>>(a_) <=> static_cast<std::underlying_type_t<CancelOp>>(b_);
-}
 
 // xxh64 of string "kCancelError" generated at https://www.pelock.com/products/hash-calculator
 static constexpr UniqueKey kCancelError{ 0x0630345FEF912746ull, "lanes.cancel_error" }; // 'raise_cancel_error' sentinel
@@ -43,8 +32,6 @@ static constexpr UniqueKey kCancelError{ 0x0630345FEF912746ull, "lanes.cancel_er
 
 [[nodiscard]]
 CancelRequest CheckCancelRequest(lua_State* L_);
-[[nodiscard]]
-CancelOp WhichCancelOp(std::string_view const& opString_);
 
 // #################################################################################################
 

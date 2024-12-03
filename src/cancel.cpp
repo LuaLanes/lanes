@@ -81,25 +81,24 @@ CancelRequest CheckCancelRequest(lua_State* const L_)
 // #################################################################################################
 // #################################################################################################
 
-CancelOp WhichCancelOp(std::string_view const& opString_)
+static std::optional<CancelOp> WhichCancelOp(std::string_view const& opString_)
 {
-    auto _op{ CancelOp::Invalid };
-    if (opString_ == "hard") {
-        _op = CancelOp::Hard;
-    } else if (opString_ == "soft") {
-        _op = CancelOp::Soft;
+    if (opString_ == "soft") {
+        return std::make_optional<CancelOp>(CancelRequest::Soft, LuaHookMask::None);
+    } else if (opString_ == "hard") {
+        return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::None);
     } else if (opString_== "call") {
-        _op = CancelOp::MaskCall;
+        return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::Call);
     } else if (opString_ == "ret") {
-        _op = CancelOp::MaskRet;
+        return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::Ret);
     } else if (opString_ == "line") {
-        _op = CancelOp::MaskLine;
+        return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::Line);
     } else if (opString_ == "count") {
-        _op = CancelOp::MaskCount;
+        return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::Count);
     } else if (opString_ == "all") {
-        _op = CancelOp::MaskAll;
+        return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::All);
     }
-    return _op;
+    return std::nullopt;
 }
 
 // #################################################################################################
@@ -109,14 +108,14 @@ static CancelOp WhichCancelOp(lua_State* const L_, StackIndex const idx_)
 {
     if (luaG_type(L_, idx_) == LuaType::STRING) {
         std::string_view const _str{ luaG_tostring(L_, idx_) };
-        CancelOp _op{ WhichCancelOp(_str) };
+        auto const _op{ WhichCancelOp(_str) };
         lua_remove(L_, idx_); // argument is processed, remove it
-        if (_op == CancelOp::Invalid) {
-            raise_luaL_error(L_, "invalid hook option %s", _str.data());
+        if (!_op.has_value()) {
+            raise_luaL_error(L_, "Invalid cancel option %s", _str.data());
         }
-        return _op;
+        return _op.value();
     }
-    return CancelOp::Hard;
+    return CancelOp{ CancelRequest::Hard, LuaHookMask::None };
 }
 
 // #################################################################################################
@@ -133,7 +132,7 @@ static CancelOp WhichCancelOp(lua_State* const L_, StackIndex const idx_)
 //
 LUAG_FUNC(cancel_test)
 {
-    CancelRequest _test{ CheckCancelRequest(L_) };
+    CancelRequest const _test{ CheckCancelRequest(L_) };
     lua_pushboolean(L_, _test != CancelRequest::None);
     return 1;
 }
@@ -146,14 +145,17 @@ LUAG_FUNC(lane_cancel)
     Lane* const _lane{ ToLane(L_, StackIndex{ 1 }) };
     CancelOp const _op{ WhichCancelOp(L_, StackIndex{ 2 }) }; // this removes the cancel_op string from the stack
 
-    int _hook_count{ 0 };
-    if (_op > CancelOp::Soft) { // hook is requested
-        _hook_count = static_cast<int>(luaL_checkinteger(L_, 2));
+    int const _hook_count = std::invoke([_op, L_]() {
+        if (_op.hookMask == LuaHookMask::None) {
+            return 0;
+        }
+        auto const _hook_count{ static_cast<int>(luaL_checkinteger(L_, 2)) };
         lua_remove(L_, 2); // argument is processed, remove it
         if (_hook_count < 1) {
-            raise_luaL_error(L_, "hook count cannot be < 1");
+            raise_luaL_error(L_, "Hook count cannot be < 1");
         }
-    }
+        return _hook_count;
+    });
 
     std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
     if (luaG_type(L_, StackIndex{ 2 }) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
@@ -169,7 +171,7 @@ LUAG_FUNC(lane_cancel)
     }
 
     // we wake by default in "hard" mode (remember that hook is hard too), but this can be turned off if desired
-    WakeLane _wake_lane{ _op != CancelOp::Soft ? WakeLane::Yes : WakeLane::No };
+    WakeLane _wake_lane{ (_op.mode == CancelRequest::Hard) ? WakeLane::Yes : WakeLane::No };
     if (lua_gettop(L_) >= 2) {
         if (!lua_isboolean(L_, 2)) {
             raise_luaL_error(L_, "wake_lane argument is not a boolean");

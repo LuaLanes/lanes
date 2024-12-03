@@ -49,6 +49,16 @@ enum class LuaType
     CDATA = 10 // LuaJIT CDATA
 };
 
+enum class LuaHookMask
+{
+    None = 0,
+    Call = LUA_MASKCALL,
+    Ret = LUA_MASKRET,
+    Line = LUA_MASKLINE,
+    Count = LUA_MASKCOUNT,
+    All = LUA_MASKCALL | LUA_MASKRET | LUA_MASKLINE | LUA_MASKCOUNT
+};
+
 // #################################################################################################
 
 // add some Lua 5.3-style API when building for Lua 5.1

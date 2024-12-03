@@ -930,10 +930,10 @@ CancelResult Lane::cancel(CancelOp const op_, std::chrono::time_point<std::chron
 
     // signal the linda to wake up the thread so that it can react to the cancel query
     // let us hope we never land here with a pointer on a linda that has been destroyed...
-    if (op_ == CancelOp::Soft) {
+    if (op_.mode == CancelRequest::Soft) {
         return internalCancel(CancelRequest::Soft, until_, wakeLane_);
-    } else if (op_ > CancelOp::Soft) {
-        lua_sethook(L, _cancelHook, static_cast<int>(op_), hookCount_);
+    } else if (op_.hookMask != LuaHookMask::None) {
+        lua_sethook(L, _cancelHook, static_cast<int>(op_.hookMask), hookCount_);
     }
 
     return internalCancel(CancelRequest::Hard, until_, wakeLane_);
