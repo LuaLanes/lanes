@@ -934,6 +934,7 @@ CancelResult Lane::cancel(CancelOp const op_, std::chrono::time_point<std::chron
         return internalCancel(CancelRequest::Soft, until_, wakeLane_);
     } else if (op_.hookMask != LuaHookMask::None) {
         lua_sethook(L, _cancelHook, static_cast<int>(op_.hookMask), hookCount_);
+        // TODO: maybe we should wake the lane here too, because the hook won't do much if the lane is blocked on a linda
     }
 
     return internalCancel(CancelRequest::Hard, until_, wakeLane_);

@@ -111,7 +111,7 @@ static CancelOp WhichCancelOp(lua_State* const L_, StackIndex const idx_)
         auto const _op{ WhichCancelOp(_str) };
         lua_remove(L_, idx_); // argument is processed, remove it
         if (!_op.has_value()) {
-            raise_luaL_error(L_, "Invalid cancel option %s", _str.data());
+            raise_luaL_error(L_, "Invalid cancel operation '%s'", _str.data());
         }
         return _op.value();
     }
@@ -142,20 +142,24 @@ LUAG_FUNC(cancel_test)
 // bool[,reason] = lane_h:cancel( [cancel_op, hookcount] [, timeout] [, wake_lane])
 LUAG_FUNC(lane_cancel)
 {
-    Lane* const _lane{ ToLane(L_, StackIndex{ 1 }) };
-    CancelOp const _op{ WhichCancelOp(L_, StackIndex{ 2 }) }; // this removes the cancel_op string from the stack
+    Lane* const _lane{ ToLane(L_, StackIndex{ 1 }) };                                              // L_: lane [cancel_op, hookcount] [, timeout] [, wake_lane]
+    CancelOp const _op{ WhichCancelOp(L_, StackIndex{ 2 }) };                                      // L_: lane [hookcount] [, timeout] [, wake_lane]
 
-    int const _hook_count = std::invoke([_op, L_]() {
+    int const _hook_count{ std::invoke([_op, L_]() {
         if (_op.hookMask == LuaHookMask::None) {
+            // the caller shouldn't have provided a hook count in that case
             return 0;
         }
-        auto const _hook_count{ static_cast<int>(luaL_checkinteger(L_, 2)) };
-        lua_remove(L_, 2); // argument is processed, remove it
+        if (luaG_type(L_, StackIndex{ 2 }) != LuaType::NUMBER) {
+            raise_luaL_error(L_, "Hook count expected");
+        }
+        auto const _hook_count{ static_cast<int>(lua_tointeger(L_, 2)) };
+        lua_remove(L_, 2); // argument is processed, remove it                                     // L_: lane [timeout] [, wake_lane]
         if (_hook_count < 1) {
             raise_luaL_error(L_, "Hook count cannot be < 1");
         }
         return _hook_count;
-    });
+    }) };
 
     std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
     if (luaG_type(L_, StackIndex{ 2 }) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
@@ -163,36 +167,43 @@ LUAG_FUNC(lane_cancel)
         if (duration.count() >= 0.0) {
             _until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration);
         } else {
-            raise_luaL_argerror(L_, StackIndex{ 2 }, "duration cannot be < 0");
+            raise_luaL_error(L_, "Duration cannot be < 0");
         }
-        lua_remove(L_, 2); // argument is processed, remove it
+        lua_remove(L_, 2); // argument is processed, remove it                                     // L_: lane [wake_lane]
     } else if (lua_isnil(L_, 2)) { // alternate explicit "infinite timeout" by passing nil
-        lua_remove(L_, 2); // argument is processed, remove it
+        lua_remove(L_, 2); // argument is processed, remove it                                     // L_: lane [wake_lane]
     }
 
     // we wake by default in "hard" mode (remember that hook is hard too), but this can be turned off if desired
     WakeLane _wake_lane{ (_op.mode == CancelRequest::Hard) ? WakeLane::Yes : WakeLane::No };
     if (lua_gettop(L_) >= 2) {
         if (!lua_isboolean(L_, 2)) {
-            raise_luaL_error(L_, "wake_lane argument is not a boolean");
+            raise_luaL_error(L_, "Boolean expected for wake_lane argument, got %s", luaG_typename(L_, StackIndex{ 2 }).data());
         }
         _wake_lane = lua_toboolean(L_, 2) ? WakeLane::Yes : WakeLane::No;
-        lua_remove(L_, 2); // argument is processed, remove it
+        lua_remove(L_, 2); // argument is processed, remove it                                     // L_: lane
     }
-    STACK_CHECK_START_REL(L_, 0);
+
+    // if the caller didn't fumble, we should have removed everything from the stack but the lane itself
+    if (lua_gettop(L_) > 1) {
+        raise_luaL_error(L_, "Too many arguments");
+    }
+    lua_pop(L_, 1);                                                                                // L_:
+
+    STACK_CHECK_START_ABS(L_, 0);
     switch (_lane->cancel(_op, _until, _wake_lane, _hook_count)) {
     default: // should never happen unless we added a case and forgot to handle it
-        raise_luaL_error(L_, "should not get here!");
+        raise_luaL_error(L_, "Should not get here!");
         break;
 
     case CancelResult::Timeout:
-        lua_pushboolean(L_, 0);                                                                    // false
-        luaG_pushstring(L_, "timeout");                                                            // false "timeout"
+        lua_pushboolean(L_, 0);                                                                    // L_: false
+        luaG_pushstring(L_, "timeout");                                                            // L_: false "timeout"
         break;
 
     case CancelResult::Cancelled:
-        lua_pushboolean(L_, 1);                                                                    // true
-        _lane->pushStatusString(L_);                                                               // true "<status>"
+        lua_pushboolean(L_, 1);                                                                    // L_: true
+        _lane->pushStatusString(L_);                                                               // L_: true "<status>"
         break;
     }
     STACK_CHECK(L_, 2);
