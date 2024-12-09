@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include "intercopycontext.hpp"
 #include "keeper.hpp"
 #include "lane.hpp"
+#include "linda.hpp"
 #include "state.hpp"
 
 extern LUAG_FUNC(linda);
@@ -147,7 +148,7 @@ Universe* Universe::Create(lua_State* const L_)
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
     lua_createtable(L_, 0, 1);                                                                     // L_: settings universe {mt}
     std::ignore = luaG_getfield(L_, kIdxSettings, "shutdown_timeout");                             // L_: settings universe {mt} shutdown_timeout
-    lua_pushcclosure(L_, LG_universe_gc, 1);                                                       // L_: settings universe {mt} LG_universe_gc
+    lua_pushcclosure(L_, UniverseGC, 1);                                                           // L_: settings universe {mt} UniverseGC
     lua_setfield(L_, -2, "__gc");                                                                  // L_: settings universe {mt}
     lua_setmetatable(L_, -2);                                                                      // L_: settings universe
     lua_pop(L_, 1);                                                                                // L_: settings
@@ -175,18 +176,7 @@ Universe* Universe::Create(lua_State* const L_)
     STACK_CHECK(L_, 0);
 
     // Initialize 'timerLinda'; a common Linda object shared by all states
-    lua_pushcfunction(L_, LG_linda);                                                               // L_: settings lanes.linda
-    luaG_pushstring(L_, "lanes-timer");                                                            // L_: settings lanes.linda "lanes-timer"
-    lua_pushinteger(L_, 0);                                                                        // L_: settings lanes.linda "lanes-timer" 0
-    lua_call(L_, 2, 1);                                                                            // L_: settings linda
-    STACK_CHECK(L_, 1);
-
-    // Proxy userdata contents is only a 'DeepPrelude*' pointer
-    _U->timerLinda = *luaG_tofulluserdata<DeepPrelude*>(L_, kIdxTop);
-    // increment refcount so that this linda remains alive as long as the universe exists.
-    _U->timerLinda->refcount.fetch_add(1, std::memory_order_relaxed);
-    lua_pop(L_, 1);                                                                                // L_: settings
-    STACK_CHECK(L_, 0);
+    _U->timerLinda = Linda::CreateTimerLinda(L_, PK);
     return _U;
 }
 
@@ -409,7 +399,7 @@ bool Universe::terminateFreeRunningLanes(lua_Duration const shutdownTimeout_, Ca
 // #################################################################################################
 
 // process end: cancel any still free-running threads
-LUAG_FUNC(universe_gc)
+int Universe::UniverseGC(lua_State* const L_)
 {
     lua_Duration const _shutdown_timeout{ lua_tonumber(L_, lua_upvalueindex(1)) };
     STACK_CHECK_START_ABS(L_, 1);
@@ -444,12 +434,7 @@ LUAG_FUNC(universe_gc)
     }
 
     // no need to mutex-protect this as all lanes in the universe are gone at that point
-    if (_U->timerLinda != nullptr) { // test in case some early internal error prevented Lanes from creating the deep timer
-        [[maybe_unused]] int const _prev_ref_count{ _U->timerLinda->refcount.fetch_sub(1, std::memory_order_relaxed) };
-        LUA_ASSERT(L_, _prev_ref_count == 1); // this should be the last reference
-        DeepFactory::DeleteDeepObject(L_, _U->timerLinda);
-        _U->timerLinda = nullptr;
-    }
+    Linda::DeleteTimerLinda(L_, std::exchange(_U->timerLinda, nullptr), PK);
 
     _U->keepers.close();
 

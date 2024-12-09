@@ -47,3 +47,16 @@ typename T::value_type const& OptionalValue(T const& x_, Ts... args_)
     }
     return x_.value();
 }
+
+// #################################################################################################
+
+struct PasskeyToken {};
+constexpr PasskeyToken PK{};
+template <typename T>
+class Passkey
+{
+    private:
+    friend T;
+    Passkey(PasskeyToken) {}
+    // rule of 5 ignored out of laziness here
+};

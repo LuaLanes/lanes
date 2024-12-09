@@ -10,8 +10,8 @@
 // #################################################################################################
 
 // forwards
-struct DeepPrelude;
 class Lane;
+class Linda;
 
 // #################################################################################################
 
@@ -99,7 +99,7 @@ class Universe
 
     // Initialized by 'init_once_LOCKED()': the deep userdata Linda object
     // used for timers (each lane will get a proxy to this)
-    DeepPrelude* timerLinda{ nullptr };
+    Linda* timerLinda{ nullptr };
 
     LaneTracker tracker;
 
@@ -121,6 +121,9 @@ class Universe
     // After a lane has removed itself from the chain, it still performs some processing.
     // The terminal desinit sequence should wait for all such processing to terminate before force-killing threads
     std::atomic<int> selfdestructingCount{ 0 };
+
+    private:
+    static int UniverseGC(lua_State* L_);
 
     public:
     [[nodiscard]]
@@ -171,7 +174,3 @@ inline void Universe::Store(lua_State* L_, Universe* U_)
     kUniverseLightRegKey.setValue(L_, [U = U_](lua_State* L_) { U ? lua_pushlightuserdata(L_, U) : lua_pushnil(L_); });
     STACK_CHECK(L_, 0);
 }
-
-// #################################################################################################
-
-LUAG_FUNC(universe_gc);

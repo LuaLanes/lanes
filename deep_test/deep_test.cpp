@@ -27,13 +27,17 @@ struct MyDeepUserdata : public DeepPrelude // Deep userdata MUST start with a De
 {
     std::atomic<int> inUse{};
     lua_Integer val{ 0 };
+    MyDeepUserdata()
+    : DeepPrelude{ MyDeepFactory::Instance }
+    {
+    }
 };
 
 // #################################################################################################
 
 DeepPrelude* MyDeepFactory::newDeepObjectInternal(lua_State* const L_) const
 {
-    MyDeepUserdata* const _deep_test{ new MyDeepUserdata{ MyDeepFactory::Instance } };
+    MyDeepUserdata* const _deep_test{ new MyDeepUserdata };
     return _deep_test;
 }
 

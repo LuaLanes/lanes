@@ -20,19 +20,26 @@ static constexpr UniqueKey kDeepVersion{ 0x91171AEC6641E9DBull, "kDeepVersion" }
 
 // should be used as header for deep userdata
 // a deep userdata is a full userdata that stores a single pointer to the actual DeepPrelude-derived object
-struct DeepPrelude
+class DeepPrelude
 {
+    friend class DeepFactory;
+
+    private:
     UniqueKey const magic{ kDeepVersion };
     // when stored in a keeper state, the full userdata doesn't have a metatable, so we need direct access to the factory
     DeepFactory& factory;
+
+    protected:
     // data is destroyed when refcount is 0
     std::atomic<int> refcount{ 0 };
 
+    protected:
     DeepPrelude(DeepFactory& factory_)
     : factory{ factory_ }
     {
     }
 
+    public:
     void push(lua_State* L_) const;
 };
 
@@ -63,6 +70,8 @@ class DeepFactory
     virtual std::string_view moduleName() const = 0;
 
     private:
+    [[nodiscard]]
+    static int DeepGC(lua_State* L_);
     void storeDeepLookup(lua_State* L_) const;
 
     public:

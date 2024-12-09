@@ -130,6 +130,8 @@ namespace {
 // #################################################################################################
 // #################################################################################################
 
+LUAG_FUNC(linda);
+
 // #################################################################################################
 // #################################################################################################
 // #################################### Linda implementation #######################################
@@ -161,6 +163,38 @@ Keeper* Linda::acquireKeeper() const
         _keeper->mutex.lock();
     }
     return _keeper;
+}
+
+// #################################################################################################
+
+Linda* Linda::CreateTimerLinda(lua_State* const L_)
+{
+    STACK_CHECK_START_REL(L_, 0);                                                                  // L_:
+    // Initialize 'timerLinda'; a common Linda object shared by all states
+    lua_pushcfunction(L_, LG_linda);                                                               // L_: lanes.linda
+    luaG_pushstring(L_, "lanes-timer");                                                            // L_: lanes.linda "lanes-timer"
+    lua_pushinteger(L_, 0);                                                                        // L_: lanes.linda "lanes-timer" 0
+    lua_call(L_, 2, 1);                                                                            // L_: linda
+    STACK_CHECK(L_, 1);
+
+    // Proxy userdata contents is only a 'DeepPrelude*' pointer
+    auto const _timerLinda{ *luaG_tofulluserdata<Linda*>(L_, kIdxTop) };
+    // increment refcount so that this linda remains alive as long as the universe exists.
+    _timerLinda->refcount.fetch_add(1, std::memory_order_relaxed);
+    lua_pop(L_, 1);                                                                                // L_:
+    STACK_CHECK(L_, 0);
+    return _timerLinda;
+}
+
+// #################################################################################################
+
+void Linda::DeleteTimerLinda(lua_State* const L_, Linda* const linda_)
+{
+    if (linda_ != nullptr) { // test in case some early internal error prevented Lanes from creating the deep timer
+        [[maybe_unused]] auto const _prev_ref_count{ linda_->refcount.fetch_sub(1, std::memory_order_relaxed) };
+        LUA_ASSERT(L_, _prev_ref_count == 1); // this should be the last reference
+        DeepFactory::DeleteDeepObject(L_, linda_);
+    }
 }
 
 // #################################################################################################

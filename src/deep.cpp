@@ -62,37 +62,6 @@ namespace {
     // #############################################################################################
     // #############################################################################################
 
-    /*
-     * void= mt.__gc( proxy_ud )
-     *
-     * End of life for a proxy object; reduce the deep reference count and clean it up if reaches 0.
-     *
-     */
-    [[nodiscard]]
-    static int DeepGC(lua_State* const L_)
-    {
-        DeepPrelude* const* const _proxy{ luaG_tofulluserdata<DeepPrelude*>(L_, StackIndex{ 1 }) };
-        DeepPrelude* const _p{ *_proxy };
-
-        // can work without a universe if creating a deep userdata from some external C module when Lanes isn't loaded
-        // in that case, we are not multithreaded and locking isn't necessary anyway
-        bool const _isLastRef{ _p->refcount.fetch_sub(1, std::memory_order_relaxed) == 1 };
-
-        if (_isLastRef) {
-            // retrieve wrapped __gc, if any
-            lua_pushvalue(L_, lua_upvalueindex(1));                                                // L_: self __gc?
-            if (!lua_isnil(L_, -1)) {
-                lua_insert(L_, -2);                                                                // L_: __gc self
-                lua_call(L_, 1, 0);                                                                // L_:
-            } else {
-                // need an empty stack in case we are GC_ing from a Keeper, so that empty stack checks aren't triggered
-                lua_pop(L_, 2);                                                                    // L_:
-            }
-            DeepFactory::DeleteDeepObject(L_, _p);
-        }
-        return 0;
-    }
-
     // #############################################################################################
 
     // Pops the key (metatable or factory) off the stack, and replaces with the deep lookup value (factory/metatable/nil).
@@ -119,6 +88,39 @@ namespace {
 // #################################################################################################
 // ####################################### DeepFactory #############################################
 // #################################################################################################
+// #################################################################################################
+
+/*
+    * void= mt.__gc( proxy_ud )
+    *
+    * End of life for a proxy object; reduce the deep reference count and clean it up if reaches 0.
+    *
+    */
+[[nodiscard]]
+int DeepFactory::DeepGC(lua_State* const L_)
+{
+    DeepPrelude* const* const _proxy{ luaG_tofulluserdata<DeepPrelude*>(L_, StackIndex{ 1 }) };
+    DeepPrelude* const _p{ *_proxy };
+
+    // can work without a universe if creating a deep userdata from some external C module when Lanes isn't loaded
+    // in that case, we are not multithreaded and locking isn't necessary anyway
+    bool const _isLastRef{ _p->refcount.fetch_sub(1, std::memory_order_relaxed) == 1 };
+
+    if (_isLastRef) {
+        // retrieve wrapped __gc, if any
+        lua_pushvalue(L_, lua_upvalueindex(1));                                                // L_: self __gc?
+        if (!lua_isnil(L_, -1)) {
+            lua_insert(L_, -2);                                                                // L_: __gc self
+            lua_call(L_, 1, 0);                                                                // L_:
+        } else {
+            // need an empty stack in case we are GC_ing from a Keeper, so that empty stack checks aren't triggered
+            lua_pop(L_, 2);                                                                    // L_:
+        }
+        DeepFactory::DeleteDeepObject(L_, _p);
+    }
+    return 0;
+}
+
 // #################################################################################################
 
 // NEVER call deleteDeepObjectInternal by itself, ALWAYS go through DeleteDeepObject()
@@ -381,7 +383,7 @@ DeepPrelude* DeepFactory::toDeep(lua_State* const L_, StackIndex const index_) c
 
 // #################################################################################################
 
-void DeepPrelude::push(lua_State* L_) const
+void DeepPrelude::push(lua_State* const L_) const
 {
     STACK_CHECK_START_REL(L_, 0);
     kDeepProxyCacheRegKey.getSubTableMode(L_, "v");                                                // L_: DPC

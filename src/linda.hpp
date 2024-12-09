@@ -82,12 +82,18 @@ class Linda
     Linda& operator=(Linda const&&) = delete;
 
     private:
+    [[nodiscard]]
+    static Linda* CreateTimerLinda(lua_State* L_);
+    static void DeleteTimerLinda(lua_State* L_, Linda* linda_);
     void freeAllocatedName();
     void setName(std::string_view const& name_);
 
     public:
     [[nodiscard]]
     Keeper* acquireKeeper() const;
+    [[nodiscard]]
+    static Linda* CreateTimerLinda(lua_State* const L_, Passkey<Universe>) { return CreateTimerLinda(L_); }
+    static void DeleteTimerLinda(lua_State* const L_, Linda* const linda_, Passkey<Universe>) { DeleteTimerLinda(L_, linda_); }
     [[nodiscard]]
     std::string_view getName() const;
     [[nodiscard]]

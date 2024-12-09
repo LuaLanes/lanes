@@ -86,6 +86,7 @@ THE SOFTWARE.
 #include "intercopycontext.hpp"
 #include "keeper.hpp"
 #include "lane.hpp"
+#include "linda.hpp"
 #include "nameof.hpp"
 #include "state.hpp"
 #include "threading.hpp"
