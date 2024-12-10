@@ -47,8 +47,8 @@ THE SOFTWARE.
  *   metatable   ->  factory
  *   factory      ->  metatable
  */
-// xxh64 of string "kDeepLookupRegKey" generated at https://www.pelock.com/products/hash-calculator
-static constexpr RegistryUniqueKey kDeepLookupRegKey{ 0xC6788345703C6059ull };
+// xxh64 of string "kDeepFactoryMetatableBijectionRegKey" generated at https://www.pelock.com/products/hash-calculator
+static constexpr RegistryUniqueKey kDeepFactoryMetatableBijectionRegKey{ 0xB4E223E56BF0BCD6ull };
 
 /*
  * The deep proxy cache is a weak valued table listing all deep UD proxies indexed by the deep UD that they are proxying
@@ -65,16 +65,20 @@ namespace {
     // #############################################################################################
 
     // Pops the key (metatable or factory) off the stack, and replaces with the deep lookup value (factory/metatable/nil).
-    static void LookupDeep(lua_State* const L_)
+    static void LookupDeep(lua_State* const L_, LuaType const expectedType_)
     {
         STACK_GROW(L_, 1);
         STACK_CHECK_START_REL(L_, 1);                                                              // L_: a
-        kDeepLookupRegKey.pushValue(L_);                                                           // L_: a {}
+        kDeepFactoryMetatableBijectionRegKey.pushValue(L_);                                        // L_: a {}
         if (!lua_isnil(L_, -1)) {
             lua_insert(L_, -2);                                                                    // L_: {} a
             lua_rawget(L_, -2);                                                                    // L_: {} b
         }
         lua_remove(L_, -2);                                                                        // L_: a|b
+        LuaType const _type{ luaG_type(L_, kIdxTop) };
+        if (_type != LuaType::NIL && _type != expectedType_) {
+            raise_luaL_error(L_, "INTERNAL ERROR: Unexpected value.");
+        }
         STACK_CHECK(L_, 1);
     }
 
@@ -160,7 +164,7 @@ DeepFactory* DeepFactory::LookupFactory(lua_State* const L_, StackIndex const in
         }
 
         // replace metatable with the factory pointer, if it is actually a deep userdata
-        LookupDeep(L_);                                                                            // L_: deep ... factory|nil
+        LookupDeep(L_, LuaType::LIGHTUSERDATA);                                                    // L_: deep ... factory|nil
 
         DeepFactory* const _ret{ luaG_tolightuserdata<DeepFactory>(L_, kIdxTop) }; // nullptr if not a userdata
         lua_pop(L_, 1);
@@ -206,7 +210,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
     // Get/create metatable for 'factory' (in this state)
     DeepFactory& _factory = prelude_->factory;
     lua_pushlightuserdata(L_, std::bit_cast<void*>(&_factory));                                    // L_: DPC proxy _factory
-    LookupDeep(L_);                                                                                // L_: DPC proxy metatable|nil
+    LookupDeep(L_, LuaType::TABLE);                                                                // L_: DPC proxy metatable|nil
 
     if (lua_isnil(L_, -1)) { // No metatable yet.
         lua_pop(L_, 1);                                                                            // L_: DPC proxy
@@ -345,7 +349,7 @@ void DeepFactory::storeDeepLookup(lua_State* const L_) const
     // the deep metatable is at the top of the stack                                               // L_: mt
     STACK_GROW(L_, 3);
     STACK_CHECK_START_REL(L_, 0);                                                                  // L_: mt
-    std::ignore = kDeepLookupRegKey.getSubTable(L_, NArr{ 0 }, NRec{ 0 });                         // L_: mt {}
+    std::ignore = kDeepFactoryMetatableBijectionRegKey.getSubTable(L_, NArr{ 0 }, NRec{ 0 });      // L_: mt {}
     lua_pushvalue(L_, -2);                                                                         // L_: mt {} mt
     lua_pushlightuserdata(L_, std::bit_cast<void*>(this));                                         // L_: mt {} mt factory
     lua_rawset(L_, -3);                                                                            // L_: mt {}
