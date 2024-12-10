@@ -56,7 +56,7 @@ static int deep_gc(lua_State* const L_)
 {
     MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L_, StackIndex{ 1 })) };
     luaL_argcheck(L_, 1, !_self->inUse.load(), "being collected while in use!");
-    if (lua_getiuservalue(L_, -1, 1) == LUA_TFUNCTION) {
+    if (lua_getiuservalue(L_, kIdxTop, UserValueIndex{ 1 }) == LUA_TFUNCTION) {
         lua_call(L_, 0, 0);
     }
     return 0;
@@ -240,7 +240,7 @@ static int clonable_tostring(lua_State* L)
 static int clonable_gc(lua_State* const L_)
 {
     MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L_, 1));
-    if (lua_getiuservalue(L_, -1, 1) == LUA_TFUNCTION) {
+    if (lua_getiuservalue(L_, kIdxTop, UserValueIndex{ 1 }) == LUA_TFUNCTION) {
         lua_call(L_, 0, 0);
     }
     return 0;
