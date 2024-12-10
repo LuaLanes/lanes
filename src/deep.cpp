@@ -116,7 +116,7 @@ int DeepFactory::DeepGC(lua_State* const L_)
             // need an empty stack in case we are GC_ing from a Keeper, so that empty stack checks aren't triggered
             lua_pop(L_, 2);                                                                    // L_:
         }
-        DeepFactory::DeleteDeepObject(L_, _p);
+        DeleteDeepObject(L_, _p);
     }
     return 0;
 }

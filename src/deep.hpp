@@ -41,6 +41,8 @@ class DeepPrelude
 
     public:
     void push(lua_State* L_) const;
+    [[nodiscard]]
+    int getRefcount() const { return refcount.load(std::memory_order_relaxed); }
 };
 
 // #################################################################################################

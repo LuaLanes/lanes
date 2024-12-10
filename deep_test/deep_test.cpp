@@ -52,11 +52,24 @@ void MyDeepFactory::deleteDeepObjectInternal(lua_State* const L_, DeepPrelude* c
 // #################################################################################################
 
 [[nodiscard]]
-static int deep_gc(lua_State* L)
+static int deep_gc(lua_State* const L_)
 {
-    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, StackIndex{ 1 })) };
-    luaL_argcheck(L, 1, !_self->inUse.load(), "being collected while in use!");
+    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L_, StackIndex{ 1 })) };
+    luaL_argcheck(L_, 1, !_self->inUse.load(), "being collected while in use!");
+    if (lua_getiuservalue(L_, -1, 1) == LUA_TFUNCTION) {
+        lua_call(L_, 0, 0);
+    }
     return 0;
+}
+
+// #################################################################################################
+
+[[nodiscard]]
+static int deep_get(lua_State* const L_)
+{
+    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L_, StackIndex{ 1 })) };
+    lua_pushinteger(L_, _self->val);
+    return 1;
 }
 
 // #################################################################################################
@@ -101,6 +114,16 @@ static int deep_invoke(lua_State* L)
 // #################################################################################################
 
 [[nodiscard]]
+static int deep_refcount(lua_State* const L_)
+{
+    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L_, StackIndex{ 1 })) };
+    lua_pushinteger(L_, _self->getRefcount());
+    return 1;
+}
+
+// #################################################################################################
+
+[[nodiscard]]
 static int deep_set(lua_State* const L_)
 {
     MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L_, StackIndex{ 1 })) };
@@ -130,8 +153,10 @@ static int deep_setuv(lua_State* L)
 static luaL_Reg const deep_mt[] = {
     { "__gc", deep_gc },
     { "__tostring", deep_tostring },
+    { "get", deep_get },
     { "getuv", deep_getuv },
     { "invoke", deep_invoke },
+    { "refcount", deep_refcount },
     { "set", deep_set },
     { "setuv", deep_setuv },
     { nullptr, nullptr }
@@ -154,6 +179,16 @@ struct MyClonableUserdata
 {
     lua_Integer val;
 };
+
+// #################################################################################################
+
+[[nodiscard]]
+static int clonable_get(lua_State* const L_)
+{
+    MyClonableUserdata* const _self{ static_cast<MyClonableUserdata*>(lua_touserdata(L_, 1)) };
+    lua_pushinteger(L_, _self->val);
+    return 1;
+}
 
 // #################################################################################################
 
@@ -202,9 +237,12 @@ static int clonable_tostring(lua_State* L)
 // #################################################################################################
 
 [[nodiscard]]
-static int clonable_gc(lua_State* L)
+static int clonable_gc(lua_State* const L_)
 {
-    MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
+    MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L_, 1));
+    if (lua_getiuservalue(L_, -1, 1) == LUA_TFUNCTION) {
+        lua_call(L_, 0, 0);
+    }
     return 0;
 }
 
@@ -234,9 +272,10 @@ static int clonable_lanesclone(lua_State* L)
 // #################################################################################################
 
 static luaL_Reg const clonable_mt[] = {
-    { "__tostring", clonable_tostring },
     { "__gc", clonable_gc },
     { "__lanesclone", clonable_lanesclone },
+    { "__tostring", clonable_tostring },
+    { "get", clonable_get }, 
     { "set", clonable_set },
     { "setuv", clonable_setuv },
     { "getuv", clonable_getuv },
