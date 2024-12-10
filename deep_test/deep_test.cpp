@@ -8,6 +8,8 @@ class MyDeepFactory : public DeepFactory
     static MyDeepFactory Instance;
 
     private:
+
+    private:
     void createMetatable(lua_State* const L_) const override
     {
         luaL_getmetatable(L_, "deep");
@@ -164,6 +166,14 @@ static luaL_Reg const deep_mt[] = {
 
 // #################################################################################################
 
+int luaD_get_deep_count(lua_State* const L_)
+{
+    lua_pushinteger(L_, MyDeepFactory::Instance.getObjectCount());
+    return 1;
+}
+
+// #################################################################################################
+
 int luaD_new_deep(lua_State* L)
 {
     UserValueCount const _nuv{ static_cast<int>(luaL_optinteger(L, 1, 0)) };
@@ -296,6 +306,7 @@ int luaD_new_clonable(lua_State* L)
 // #################################################################################################
 
 static luaL_Reg const deep_module[] = {
+    { "get_deep_count", luaD_get_deep_count }, 
     { "new_deep", luaD_new_deep },
     { "new_clonable", luaD_new_clonable },
     { nullptr, nullptr }

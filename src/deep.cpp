@@ -131,6 +131,7 @@ int DeepFactory::DeepGC(lua_State* const L_)
 void DeepFactory::DeleteDeepObject(lua_State* const L_, DeepPrelude* const o_)
 {
     STACK_CHECK_START_REL(L_, 0);
+    o_->factory.deepObjectCount.fetch_sub(1, std::memory_order_relaxed);
     o_->factory.deleteDeepObjectInternal(L_, o_);
     STACK_CHECK(L_, 0);
 }
@@ -318,6 +319,7 @@ void DeepFactory::pushDeepUserdata(DestState const L_, UserValueCount const nuv_
     if (_prelude == nullptr) {
         raise_luaL_error(L_, "DeepFactory::newDeepObjectInternal failed to create deep userdata (out of memory)");
     }
+    deepObjectCount.fetch_add(1, std::memory_order_relaxed);
 
     if (_prelude->magic != kDeepVersion) {
         // just in case, don't leak the newly allocated deep userdata object

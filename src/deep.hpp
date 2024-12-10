@@ -50,6 +50,10 @@ class DeepPrelude
 // external C modules should create a single object implementing that interface for each Deep userdata class they want to expose
 class DeepFactory
 {
+    private:
+    // the current count of deep object instances
+    mutable std::atomic<int> deepObjectCount{};
+
     protected:
     // protected non-virtual destructor: Lanes won't manage the Factory's lifetime
     DeepFactory() = default;
@@ -79,6 +83,8 @@ class DeepFactory
     public:
     // NVI: public interface
     static void DeleteDeepObject(lua_State* L_, DeepPrelude* o_);
+    [[nodiscard]]
+    int getObjectCount() const { return deepObjectCount.load(std::memory_order_relaxed); }
     [[nodiscard]]
     static bool IsDeepUserdata(lua_State* const L_, StackIndex const idx_);
     [[nodiscard]]
