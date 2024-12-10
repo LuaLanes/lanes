@@ -649,6 +649,7 @@ extern LUAG_FUNC(linda);
 namespace {
     namespace local {
         static struct luaL_Reg const sLanesFunctions[] = {
+            { "collectgarbage", LG_collectgarbage }, 
             { Universe::kFinally, Universe::InitializeFinalizer },
             { "linda", LG_linda },
             { "nameof", LG_nameof },

@@ -337,6 +337,16 @@ static void PushKeysDB(KeeperState const K_, StackIndex const idx_)
 // #################################################################################################
 // #################################################################################################
 
+// in: linda
+// out: nothing
+int keepercall_collectgarbage(lua_State* const L_)
+{
+    lua_gc(L_, LUA_GCCOLLECT, 0);
+    return 0;
+}
+
+// #################################################################################################
+
 // in: linda [, key [, ...]]
 int keepercall_count(lua_State* const L_)
 {
@@ -926,6 +936,42 @@ void Keepers::DeleteKV::operator()(Keeper* const k_) const
 
 // #################################################################################################
 
+void Keepers::collectGarbage()
+{
+    if (isClosing.test(std::memory_order_acquire)) {
+        assert(false); // should never close more than once in practice
+        return;
+    }
+
+    if (std::holds_alternative<std::monostate>(keeper_array)) {
+        return;
+    }
+
+    auto _gcOneKeeper = [](Keeper& keeper_) {
+        std::lock_guard<std::mutex> _guard(keeper_.mutex);
+        if (keeper_.K) {
+            lua_gc(keeper_.K, LUA_GCCOLLECT, 0);
+        }
+    };
+
+    if (std::holds_alternative<Keeper>(keeper_array)) {
+        _gcOneKeeper(std::get<Keeper>(keeper_array));
+    } else {
+        KV& _kv = std::get<KV>(keeper_array);
+
+        // NOTE: imagine some keeper state N+1 currently holds a linda that uses another keeper N, and a _gc that will make use of it
+        // when keeper N+1 is closed, object is GCed, linda operation is called, which attempts to acquire keeper N, whose Lua state no longer exists
+        // in that case, the linda operation should do nothing. which means that these operations must check for keeper acquisition success
+        // which is early-outed with a keepers->nbKeepers null-check
+        for (size_t const _i : std::ranges::iota_view{ size_t{ 0 }, _kv.nbKeepers }) {
+            _gcOneKeeper(_kv.keepers[_i]);
+        }
+    }
+}
+
+// #################################################################################################
+
+
 void Keepers::close()
 {
     if (isClosing.test_and_set(std::memory_order_release)) {
@@ -1102,4 +1148,13 @@ void Keepers::initialize(Universe& U_, lua_State* L_, size_t const nbKeepers_, i
             _initOneKeeper(_kv.keepers[_i], static_cast<int>(_i));
         }
     }
+}
+
+// #################################################################################################
+
+LUAG_FUNC(collectgarbage)
+{
+    Universe* const _U{ Universe::Get(L_) };
+    _U->keepers.collectGarbage();
+    return 0;
 }

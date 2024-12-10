@@ -453,6 +453,20 @@
 	</tr>
 </table>
 
+<p id="collectgarbage">
+	A full GC cycle can be triggered on all keeper states with <tt>lanes.collectgarbage()</tt>. This can force the collection of stale storage data for a collected Linda.
+</p>
+
+<p>
+	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
+		<tr>
+			<td>
+				<pre>	lanes.collectgarbage()</pre>
+			</td>
+		</tr>
+	</table>
+</p>
+
 <p id="finally">
 	It is also possible to install a function that will be called when Lanes is shutdown (that is, when the first state that required Lanes is closed).
 </p>
@@ -1392,6 +1406,15 @@
 
 <p>
 	Trying to send or receive data through a cancelled linda does nothing and returns <tt>lanes.cancel_error</tt>.
+</p>
+
+<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
+	linda_h:collectgarbage()
+</pre></td></tr></table>
+
+<p>
+	Forces a full garbage collect cycle inside the Keeper state assigned to the Linda (same as <tt>lua_gc(L, LUA_GCCOLLECT)</tt>).<br />
+	Can be useful to clean stale storage after some keys are cleaned.
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>

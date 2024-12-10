@@ -851,6 +851,7 @@ local configure = function(settings_)
 
     -- activate full interface
     lanes.cancel_error = core.cancel_error
+    lanes.collectgarbage = core.collectgarbage
     lanes.finally = core.finally
     lanes.linda = core.linda
     lanes.nameof = core.nameof

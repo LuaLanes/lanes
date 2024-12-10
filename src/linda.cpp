@@ -450,6 +450,29 @@ static LUAG_FUNC(linda_index)
 // #################################################################################################
 
 /*
+ * (void) = linda_collectgarbage( linda_ud)
+ *
+ * Force a GC cycle in the keeper assigned to the Linda
+ */
+LUAG_FUNC(linda_collectgarbage)
+{
+    static constexpr lua_CFunction _collectgarbage{
+        +[](lua_State* const L_) {
+            Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
+            if (lua_gettop(L_) > 1) {
+                raise_luaL_argerror(L_, StackIndex{ 2 }, "Unexpected extra argument");
+            }
+            Keeper* const _keeper{ _linda->whichKeeper() };
+            KeeperCallResult const _pushed{ keeper_call(_keeper->K, KEEPER_API(collectgarbage), L_, _linda, StackIndex{ 0 }) };
+            return OptionalValue(_pushed, L_, "Unexpected error");
+        }
+    };
+    return Linda::ProtectedCall(L_, _collectgarbage);
+}
+
+// #################################################################################################
+
+/*
  * [val] = linda_count( linda_ud, [slot [, ...]])
  *
  * Get a count of the pending elements in the specified keys
@@ -1075,6 +1098,7 @@ namespace {
             { "__towatch", LG_linda_towatch }, // Decoda __towatch support
 #endif // HAVE_DECODA_SUPPORT()
             { "cancel", LG_linda_cancel },
+            { "collectgarbage", LG_linda_collectgarbage },
             { "count", LG_linda_count },
             { "deep", LG_linda_deep },
             { "dump", LG_linda_dump },

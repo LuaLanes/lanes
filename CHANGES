@@ -13,6 +13,7 @@ CHANGE 2: BGe 27-Nov-24
             - lanes.sleep() accepts a new argument "indefinitely" to block forever (until hard cancellation is received).
             - function set_debug_threadname() available inside a Lane is renamed lane_threadname(); can now both read and write the name.
             - new function lanes.finally(). Installs a function that gets called at Lanes shutdown after attempting to terminate all lanes.
+            - new function lanes.collectgarbage(), to force a full GC cycle in the keeper states.
               If some lanes still run after the finalizer, Lanes with throw an exception or freeze, depending on its return value.
             - Configuration settings:
                 - Boolean parameters only accept boolean values.
@@ -50,6 +51,7 @@ CHANGE 2: BGe 27-Nov-24
             - linda:dump() outputs <key>.limit as 'unlimited' instead of -1 for unlimited keys.
             - linda:wake() can wake up threads waiting for a Linda without doing any I/O on it.
             - linda.status reads the cancel status of the Linda.
+            - new function linda:collectgarbage() to force collection of all stale data in the associated keeper.
             - Deep userdata are an acceptable key to send data into (for example, another linda).
         - Full userdata conversion:
             - __lanesconvert added.

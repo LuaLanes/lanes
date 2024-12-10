@@ -73,6 +73,7 @@ struct Keepers
     static void* operator new(size_t size_) = delete;
 
     Keepers() = default;
+    void collectGarbage();
     void close();
     [[nodiscard]]
     Keeper* getKeeper(KeeperIndex idx_);
@@ -96,6 +97,8 @@ using keeper_api_t = lua_CFunction;
 
 // lua_Cfunctions to run inside a keeper state
 [[nodiscard]]
+int keepercall_collectgarbage(lua_State* L_);
+[[nodiscard]]
 int keepercall_count(lua_State* L_);
 [[nodiscard]]
 int keepercall_destruct(lua_State* L_);
@@ -116,3 +119,5 @@ int keepercall_set(lua_State* L_);
 
 [[nodiscard]]
 KeeperCallResult keeper_call(KeeperState K_, keeper_api_t func_, lua_State* L_, Linda* linda_, StackIndex starting_index_);
+
+LUAG_FUNC(collectgarbage);
