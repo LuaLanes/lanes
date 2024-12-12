@@ -486,7 +486,7 @@
 	Only the last registered finalizer is kept. It can be cleared by passing <tt>nil</tt> or nothing.<br />
 	The finalizer is called unprotected from inside <tt>__gc</tt> metamethod of Lanes's Universe. Therefore, if your finalizer raises an error, Lua rules regarding errors in finalizers apply normally.<br />
 	The installed function is called after all free-running lanes got a chance to terminate (see <a href="#shutdown_timeout"><tt>shutdown_timeout</tt></a>), but before lindas become unusable.<br />
-	The finalizer receives a single argument, a <tt>bool</tt> indicating whether some Lanes are still running or not at that point. It is possible to inspect them with <a href="#tracking">tracking</a>.<br />
+	The finalizer receives a single argument, a <tt>bool</tt> indicating whether all Lanes are successfully terminated at that point. It is possible to inspect them with <a href="#tracking">tracking</a>.<br />
 	If there are still running lanes when the finalizer returns: Lanes will throw a C++ <tt>std::logic_error</tt> if the finalizer returned <tt>"throw"</tt>. Any other value will cause Lanes to freeze forever.
 </p>
 
