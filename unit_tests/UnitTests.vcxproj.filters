@@ -1,0 +1,99 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="legacy_tests.cpp" />
+    <ClCompile Include="linda_tests.cpp" />
+    <ClCompile Include="shared.cpp" />
+    <ClCompile Include="init_and_shutdown.cpp" />
+    <ClCompile Include="_pch.cpp" />
+    <ClCompile Include="lane_tests.cpp" />
+    <ClCompile Include="..\src\compat.cpp">
+      <Filter>Lanes</Filter>
+    </ClCompile>
+    <ClCompile Include="embedded_tests.cpp" />
+    <ClCompile Include="deep_tests.cpp" />
+    <ClCompile Include="..\src\deep.cpp">
+      <Filter>Lanes</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="_pch.hpp" />
+    <ClInclude Include="shared.h" />
+    <ClInclude Include="..\src\deep.hpp">
+      <Filter>Lanes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\compat.hpp">
+      <Filter>Lanes</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Scripts">
+      <UniqueIdentifier>{06101607-f449-40ce-970a-55fc8387aa97}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scripts\linda">
+      <UniqueIdentifier>{309f0ee2-05fe-42f8-9011-7d896e58b1d3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Lanes">
+      <UniqueIdentifier>{dc01ee0b-82d1-4a12-9bcd-d9caee1b064c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scripts\lane">
+      <UniqueIdentifier>{fb19e619-8de3-4d82-84d0-21e80d63331d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scripts\coro">
+      <UniqueIdentifier>{3cf4f618-1863-4de0-8761-5fca21e6b07c}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="scripts\linda\send_receive.lua">
+      <Filter>Scripts\linda</Filter>
+    </None>
+    <None Include="scripts\linda\multiple_keepers.lua">
+      <Filter>Scripts\linda</Filter>
+    </None>
+    <None Include="scripts\lane\cooperative_shutdown.lua">
+      <Filter>Scripts\lane</Filter>
+    </None>
+    <None Include="scripts\lane\uncooperative_shutdown.lua">
+      <Filter>Scripts\lane</Filter>
+    </None>
+    <None Include="scripts\lane\tasking_basic.lua">
+      <Filter>Scripts\lane</Filter>
+    </None>
+    <None Include="scripts\_assert.lua">
+      <Filter>Scripts</Filter>
+    </None>
+    <None Include="scripts\_utils.lua">
+      <Filter>Scripts</Filter>
+    </None>
+    <None Include="scripts\lane\tasking_cancelling.lua">
+      <Filter>Scripts\lane</Filter>
+    </None>
+    <None Include="scripts\lane\tasking_communications.lua">
+      <Filter>Scripts\lane</Filter>
+    </None>
+    <None Include="scripts\lane\stdlib_naming.lua">
+      <Filter>Scripts\lane</Filter>
+    </None>
+    <None Include="scripts\lane\tasking_comms_criss_cross.lua">
+      <Filter>Scripts\lane</Filter>
+    </None>
+    <None Include="scripts\lane\tasking_send_receive_code.lua">
+      <Filter>Scripts\lane</Filter>
+    </None>
+    <None Include="scripts\lane\tasking_join_test.lua">
+      <Filter>Scripts\lane</Filter>
+    </None>
+    <None Include="scripts\coro\basics.lua">
+      <Filter>Scripts\coro</Filter>
+    </None>
+    <None Include="scripts\coro\error_handling.lua">
+      <Filter>Scripts\coro</Filter>
+    </None>
+    <None Include="scripts\lane\tasking_error.lua">
+      <Filter>Scripts\lane</Filter>
+    </None>
+    <None Include="scripts\linda\send_registered_userdata.lua">
+      <Filter>Scripts\linda</Filter>
+    </None>
+  </ItemGroup>
+</Project>
