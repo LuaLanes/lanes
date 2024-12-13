@@ -90,7 +90,8 @@ static LUAG_FUNC(lane_threadname)
     if (lua_gettop(L_) == 1) {
     lua_settop(L_, 1);
     STACK_CHECK_START_REL(L_, 0);
-    _lane->changeDebugName(kIdxTop);
+    _lane->storeDebugName(luaG_tostring(L_, kIdxTop));
+    _lane->applyDebugName();
     STACK_CHECK(L_, 0);
     return 0;
     } else if (lua_gettop(L_) == 0) {
@@ -708,6 +709,7 @@ static void lane_main(Lane* const lane_)
     }
 #endif // __PROSPERO__
 
+    lane_->applyDebugName();
     lua_State* const _L{ lane_->L };
     LuaError _rc{ LuaError::ERRRUN };
     if (lane_->status.load(std::memory_order_acquire) == Lane::Pending) { // nothing wrong happened during preparation, we can work
@@ -908,6 +910,19 @@ Lane::~Lane()
 
 // #################################################################################################
 
+void Lane::applyDebugName() const
+{
+    if constexpr (HAVE_DECODA_SUPPORT()) {
+        // to see VM name in Decoda debugger Virtual Machine window
+        luaG_pushstring(L, debugName);                                                             // L: ... "name"
+        lua_setglobal(L, "decoda_name");                                                           // L: ...
+    }
+    // and finally set the OS thread name
+    THREAD_SETNAME(debugName);
+}
+
+// #################################################################################################
+
 CancelResult Lane::cancel(CancelOp const op_, std::chrono::time_point<std::chrono::steady_clock> const until_, WakeLane const wakeLane_, int const hookCount_)
 {
     // this is a hook installed with lua_sethook: can't capture anything to be convertible to lua_Hook
@@ -959,30 +974,6 @@ CancelResult Lane::internalCancel(CancelRequest const rq_, std::chrono::time_poi
     // wait until the lane stops working with its state (either Suspended or Done+)
     CancelResult const result{ waitForCompletion(until_) ? CancelResult::Cancelled : CancelResult::Timeout };
     return result;
-}
-
-// #################################################################################################
-
-void Lane::changeDebugName(StackIndex const nameIdx_)
-{
-    StackIndex const _nameIdx{ luaG_absindex(L, nameIdx_) };
-    luaL_checktype(L, _nameIdx, LUA_TSTRING);                                                      // L: ... "name" ...
-    STACK_CHECK_START_REL(L, 0);
-    // store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...
-    kLaneNameRegKey.setValue(L, [idx = _nameIdx](lua_State* L_) { lua_pushvalue(L_, idx); });      // L: ... "name" ...
-    // keep a direct pointer on the string
-    {
-        std::lock_guard<std::mutex> _guard{ debugNameMutex };
-    debugName = luaG_tostring(L, _nameIdx);
-    }
-    if constexpr (HAVE_DECODA_SUPPORT()) {
-        // to see VM name in Decoda debugger Virtual Machine window
-        lua_pushvalue(L, _nameIdx);                                                                // L: ... "name" ... "name"
-        lua_setglobal(L, "decoda_name");                                                           // L: ... "name" ...
-    }
-    // and finally set the OS thread name
-    THREAD_SETNAME(debugName.data());
-    STACK_CHECK(L, 0);
 }
 
 // #################################################################################################
@@ -1179,6 +1170,24 @@ void Lane::startThread(int const priority_)
     if (priority_ != kThreadPrioDefault) {
         THREAD_SET_PRIORITY(thread, priority_, U->sudo);
     }
+}
+
+// #################################################################################################
+
+void Lane::storeDebugName(std::string_view const& name_)
+{
+    STACK_CHECK_START_REL(L, 0);
+    // store a hidden reference in the registry to make sure the string is kept around even if a lane decides to manually change the "decoda_name" global...
+    kLaneNameRegKey.setValue(L, [name = name_](lua_State* L_) { luaG_pushstring(L_, name); });
+    STACK_CHECK(L, 0);
+    kLaneNameRegKey.pushValue(L);                                                                       // L: ... "name" ...
+    // keep a direct view on the stored string
+    {
+        std::lock_guard<std::mutex> _guard{ debugNameMutex };
+        debugName = luaG_tostring(L, kIdxTop);
+    }
+    lua_pop(L, 1);
+    STACK_CHECK(L, 0);
 }
 
 // #################################################################################################

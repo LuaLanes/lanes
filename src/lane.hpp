@@ -162,8 +162,8 @@ class Lane
 
     public:
 
+    void applyDebugName() const;
     CancelResult cancel(CancelOp op_, std::chrono::time_point<std::chrono::steady_clock> until_, WakeLane wakeLane_, int hookCount_);
-    void changeDebugName(StackIndex nameIdx_);
     void closeState()
     {
         lua_State* const _L{ S };
@@ -202,6 +202,7 @@ class Lane
     bool selfdestructRemove();
     void securizeDebugName(lua_State* L_);
     void startThread(int priority_);
+    void storeDebugName( std::string_view const& name_);
     [[nodiscard]]
     int storeResults(lua_State* L_);
     [[nodiscard]]

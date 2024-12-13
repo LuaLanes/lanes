@@ -356,24 +356,20 @@ LUAG_FUNC(lane_new)
             // store the uservalue in the Lane full userdata
             lua_setiuservalue(L, StackIndex{ -2 }, UserValueIndex{ 1 });                           // L: ... lane
 
-            lua_State* const _L2{ lane->L };
-            STACK_CHECK_START_REL(_L2, 0);
             StackIndex const _name_idx{ lua_isnoneornil(L, kNameIdx) ? kIdxNone : kNameIdx };
-            std::string_view const _debugName{ (_name_idx > 0) ? luaG_tostring(L, _name_idx) : std::string_view{} };
+            std::string_view _debugName{ (_name_idx > 0) ? luaG_tostring(L, _name_idx) : std::string_view{} };
             if (!_debugName.empty())
             {
-                if (_debugName != "auto") {
-                    luaG_pushstring(_L2, _debugName);                                              // L: ... lane                                    L2: "<name>"
-                } else {
+                if (_debugName == "auto") {
                     lua_Debug _ar;
                     lua_pushvalue(L, kFuncIdx);                                                    // L: ... lane func
                     lua_getinfo(L, ">S", &_ar);                                                    // L: ... lane
-                    luaG_pushstring(_L2, "%s:%d", _ar.short_src, _ar.linedefined);                 // L: ... lane                                    L2: "<name>"
+                    luaG_pushstring(L, "%s:%d", _ar.short_src, _ar.linedefined);                   // L: ... lane "<name>"
+                    lua_replace(L, _name_idx);                                                     // L: ... lane
+                    _debugName = luaG_tostring(L, _name_idx);
                 }
-                lane->changeDebugName(kIdxTop);
-                lua_pop(_L2, 1);                                                                   // L: ... lane                                    L2:
+                lane->storeDebugName(_debugName);
             }
-            STACK_CHECK(_L2, 0);
             STACK_CHECK(L, 1);
         }
 
