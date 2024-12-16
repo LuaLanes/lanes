@@ -104,23 +104,74 @@ TEST_F(LaneTests, UncooperativeShutdown)
     lua_pushcfunction(S, _finallyCB);
     lua_setglobal(S, "finallyCB");
     // start a lane that lasts a long time
-    std::string_view const script{
+    std::string_view const _script{
         " lanes.finally(finallyCB)"
-        " print ('in Master')"
-        " f = lanes.gen('*',"
+        " g = lanes.gen('*',"
         "     {name = 'auto'},"
         "     function()"
         "         for i = 1,1e37 do end" // no cooperative cancellation checks here!
         "     end)"
-        " f()"
+        " g()"
     };
-    ASSERT_EQ(S.doString(script), LuaError::OK) << S;
+    ASSERT_EQ(S.doString(_script), LuaError::OK) << S;
     // close the state before the lane ends.
     // since we don't wait at all, it is possible that the OS thread for the lane hasn't even started at that point
     S.close();
     // the finally handler should have been called, and told all lanes are stopped
     ASSERT_EQ(_wasCalled, true) << S;
     ASSERT_EQ(_allLanesTerminated, true) << S;
+}
+
+// #################################################################################################
+
+TEST_F(LaneTests, DefaultThreadNameIsUnnamed)
+{
+    std::string_view const _script{
+        " g = lanes.gen('*',"
+        "     function()"
+        "         return lane_threadname()"
+        "     end)"
+        " h = g()"
+        " local tn = h[1]"
+        " assert(tn == h:get_threadname())"
+        " return tn"
+    };
+    ASSERT_EQ(S.doStringAndRet(_script), "<unnamed>") << S;
+}
+
+// #################################################################################################
+
+TEST_F(LaneTests, UserThreadNameFromGenerator)
+{
+    std::string_view const _script{
+        " g = lanes.gen('*',"
+        "     { name = 'user name'},"
+        "     function()"
+        "         return lane_threadname()"
+        "     end)"
+        " h = g()"
+        " local tn = h[1]"
+        " assert(tn == h:get_threadname())"
+        " return tn"
+    };
+    ASSERT_EQ(S.doStringAndRet(_script), "user name") << S;
+}
+
+// #################################################################################################
+
+TEST_F(LaneTests, UserThreadNameFromInside)
+{
+    std::string_view const _script{
+        " g = lanes.gen('*',"
+        "     function()"
+        "         lane_threadname('user name')"
+        "         return true"
+        "     end)"
+        " h = g()"
+        " h:join()"
+        " return h:get_threadname()"
+    };
+    ASSERT_EQ(S.doStringAndRet(_script), "user name") << S;
 }
 
 // #################################################################################################

@@ -88,12 +88,12 @@ static LUAG_FUNC(lane_threadname)
     Lane* const _lane{ luaG_tolightuserdata<Lane>(L_, StackIndex{ lua_upvalueindex(1) }) };
     LUA_ASSERT(L_, L_ == _lane->L); // this function is exported in a lane's state, therefore it is callable only from inside the Lane's state
     if (lua_gettop(L_) == 1) {
-    lua_settop(L_, 1);
-    STACK_CHECK_START_REL(L_, 0);
-    _lane->storeDebugName(luaG_tostring(L_, kIdxTop));
-    _lane->applyDebugName();
-    STACK_CHECK(L_, 0);
-    return 0;
+        lua_settop(L_, 1);
+        STACK_CHECK_START_REL(L_, 0);
+        _lane->storeDebugName(luaG_tostring(L_, kIdxTop));
+        _lane->applyDebugName();
+        STACK_CHECK(L_, 0);
+        return 0;
     } else if (lua_gettop(L_) == 0) {
         luaG_pushstring(L_, _lane->getDebugName());
         return 1;
