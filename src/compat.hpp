@@ -68,9 +68,9 @@ inline size_t lua_rawlen(lua_State* L_, StackIndex idx_)
 {
     return lua_objlen(L_, idx_);
 }
-void luaL_requiref(lua_State* L_, const char* modname_, lua_CFunction openf_, int glb_); // implementation copied from Lua 5.2 sources
+void luaL_requiref(lua_State* L_, char const* modname_, lua_CFunction openf_, int glb_); // implementation copied from Lua 5.2 sources
 
-int luaL_getsubtable(lua_State* L_, StackIndex idx_, const char* fname_);
+int luaL_getsubtable(lua_State* L_, StackIndex idx_, char const* fname_);
 
 #endif // LUA_VERSION_NUM == 501
 
@@ -292,7 +292,7 @@ ENUM luaG_optenum(lua_State* const L_, StackIndex const idx_, ENUM const def_)
 
 // #################################################################################################
 
-inline void luaG_registerlibfuncs(lua_State* L_, luaL_Reg const* funcs_)
+inline void luaG_registerlibfuncs(lua_State* const L_, luaL_Reg const* funcs_)
 {
     // fake externs to make clang happy...
     extern void luaL_register(lua_State*, char const*, luaL_Reg const*); // Lua 5.1
@@ -396,7 +396,7 @@ inline void luaG_pushglobaltable(lua_State* const L_)
 
 // #################################################################################################
 
-inline void luaG_setfield(lua_State* const L_, StackIndex const idx_, char const* k_) = delete;
+inline void luaG_setfield(lua_State* const L_, StackIndex const idx_, char const* const k_) = delete;
 inline void luaG_setfield(lua_State* const L_, StackIndex const idx_, std::string_view const& k_)
 {
     lua_setfield(L_, idx_, k_.data());

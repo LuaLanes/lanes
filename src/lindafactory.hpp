@@ -8,7 +8,7 @@ class LindaFactory
 : public DeepFactory
 {
     public:
-    // I'm not totally happy with having a 'global' variable. Maybe it should be dynamically created and stored somewhere in the universe?
+    // TODO: I'm not totally happy with having a 'global' variable. Maybe it should be dynamically created and stored somewhere in the universe?
     static LindaFactory Instance;
 
     LindaFactory(luaL_Reg const lindaMT_[])

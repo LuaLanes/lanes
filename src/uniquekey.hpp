@@ -64,6 +64,7 @@ class RegistryUniqueKey
     }
     // ---------------------------------------------------------------------------------------------
     template <typename OP>
+    // TODO: add a requirement clause here for operation_ to be callable on L_
     void setValue(lua_State* const L_, OP operation_) const
     {
         // Note we can't check stack consistency because operation is not always a push (could be insert, replace, whatever)

@@ -70,7 +70,7 @@ struct Keepers
 
     public:
     // can only be instanced as a data member
-    static void* operator new(size_t size_) = delete;
+    static void* operator new(size_t const size_) = delete;
 
     Keepers() = default;
     void collectGarbage();

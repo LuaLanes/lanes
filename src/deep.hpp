@@ -86,7 +86,7 @@ class DeepFactory
     [[nodiscard]]
     int getObjectCount() const { return deepObjectCount.load(std::memory_order_relaxed); }
     [[nodiscard]]
-    static bool IsDeepUserdata(lua_State* const L_, StackIndex const idx_);
+    static bool IsDeepUserdata(lua_State* L_, StackIndex idx_);
     [[nodiscard]]
     static DeepFactory* LookupFactory(lua_State* L_, StackIndex index_, LookupMode mode_);
     static void PushDeepProxy(DestState L_, DeepPrelude* o_, UserValueCount nuv_, LookupMode mode_, lua_State* errL_);

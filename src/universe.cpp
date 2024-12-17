@@ -186,7 +186,7 @@ Universe* Universe::Create(lua_State* const L_)
 
 // same as PUC-Lua l_alloc
 [[nodiscard]]
-static void* libc_lua_Alloc([[maybe_unused]] void* ud_, [[maybe_unused]] void* ptr_, [[maybe_unused]] size_t osize_, size_t nsize_)
+static void* libc_lua_Alloc([[maybe_unused]] void* const ud_, [[maybe_unused]] void* const ptr_, [[maybe_unused]] size_t const osize_, size_t const nsize_)
 {
     if (nsize_ == 0) {
         free(ptr_);

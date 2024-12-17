@@ -166,11 +166,9 @@ class Lane
     CancelResult cancel(CancelOp op_, std::chrono::time_point<std::chrono::steady_clock> until_, WakeLane wakeLane_, int hookCount_);
     void closeState()
     {
-        lua_State* const _L{ S };
-        S = nullptr;
         L = nullptr;
         nresults = 0;
-        lua_close(_L); // this collects our coroutine thread at the same time
+        lua_close(std::exchange(S, nullptr)); // this collects our coroutine thread at the same time
     }
     [[nodiscard]]
     std::string_view errorTraceLevelString() const;
