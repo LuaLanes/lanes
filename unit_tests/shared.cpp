@@ -389,6 +389,18 @@ TEST_CASE("LuaState.doString")
 FileRunner::FileRunner(std::string_view const& where_)
 : LuaState{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } }
 {
+    // _G.print = _nullprint
+    // because the VS Test Explorer doesn't appreciate the text output of some scripts, so absorb them
+    if constexpr (1) {
+        auto const _nullprint = +[](lua_State* const L_) { return 0; };
+        luaG_pushglobaltable(L);
+        lua_pushcfunction(L, _nullprint);
+        luaG_setfield(L, StackIndex{ -2 }, std::string_view{ "print" });
+        lua_pop(L, 1);
+        stackCheck(0);
+    }
+    // TODO: do the same with io.stderr:write?
+
     [[maybe_unused]] std::filesystem::path const _current{ std::filesystem::current_path() };
     std::filesystem::path _path{ where_ };
     root = std::filesystem::canonical(_path).generic_string();

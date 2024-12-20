@@ -22,9 +22,6 @@
 		<!-- Combine: A single test executable is started to run multiple test cases. (Single: instance per test case) -->
 		<ExecutionMode>Combine</ExecutionMode>
 
-		<!-- In Milliseconds -->
-		<TestCaseTimeout>10000</TestCaseTimeout>
-
 		<!-- Working directory -->
 		<WorkingDirectoryRoot>Solution</WorkingDirectoryRoot>
 		<WorkingDirectory>Lanes</WorkingDirectory>

@@ -1,9 +1,19 @@
 --
 -- Error reporting
 --
+local function PRINT(...)
+    local str=""
+    for i=1,select('#',...) do
+        str= str..tostring(select(i,...)).."\t"
+    end
+    if io then
+        io.stderr:write(str.."\n")
+    end
+end
+
 local which_tests, remaining_tests = {}, {}
 for k,v in ipairs{...} do
-    print("got arg:", type(v), tostring(v))
+    PRINT("got arg:", type(v), tostring(v))
     which_tests[v] = true
     remaining_tests[v] = true
 end
@@ -27,7 +37,7 @@ local WR = function(...)
         if type(v) == "function" then
             local infos = debug.getinfo(v)
             --[[for k,v in pairs(infos) do
-                print(k,v)
+                PRINT(k,v)
             end]]
             v = infos.source..":"..infos.linedefined
         end
@@ -115,7 +125,7 @@ local configure_tests = function()
             (lane_error and tostring(lane_error) or "no error") .. " in lane",
             (finalizer and "with" or "without").. " finalizer" .. ((finalizer and finalizer_error) and " raising " .. tostring(finalizer_error) or "")
         }, ", ")
-        print(test_header)
+        PRINT(test_header)
         test_settings[test_header] = { level, lane_error, finalizer, finalizer_error }
     end
     -- can't store nil in tables, use null instead
@@ -240,4 +250,4 @@ end
 local unknown_test, val = next(remaining_tests)
 assert(not unknown_test, tostring(unknown_test) .. " test is unknown")
 
-print "\nTHE END"
+PRINT "\nTHE END"
