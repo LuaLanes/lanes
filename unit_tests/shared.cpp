@@ -98,14 +98,14 @@ namespace
 // #################################################################################################
 // #################################################################################################
 
-TEST(Internals, StackChecker)
+TEST_CASE("stack checker")
 {
     LuaState _L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
     StackChecker::CallsCassert = false;
 
     auto _doStackCheckerTest = [&_L](lua_CFunction const _f, LuaError const _expected) {
         lua_pushcfunction(_L, _f);
-        ASSERT_EQ(ToLuaError(lua_pcall(_L, 0, 0, 0)), _expected);
+        REQUIRE(ToLuaError(lua_pcall(_L, 0, 0, 0)) == _expected);
     };
 
     // function where the StackChecker detects something wrong with the stack
@@ -289,6 +289,66 @@ LuaError LuaState::loadFile(std::filesystem::path const& root_, std::string_view
 
 // #################################################################################################
 
+void LuaState::requireFailure(std::string_view const& script_)
+{
+    auto const _result{ doString(script_) };
+    REQUIRE(_result != LuaError::OK);
+    if (_result == LuaError::OK) {
+        INFO(luaG_tostring(L, kIdxTop));
+    }
+    lua_settop(L, 0);
+}
+
+// #################################################################################################
+
+void LuaState::requireNotReturnedString(std::string_view const& script_, std::string_view const& unexpected_)
+{
+    auto const _result{ doStringAndRet(script_) };
+    REQUIRE(_result != unexpected_);
+    if (_result == unexpected_) {
+        INFO(_result);
+    }
+    lua_settop(L, 0);
+}
+
+// #################################################################################################
+
+void LuaState::requireReturnedString(std::string_view const& script_, std::string_view const& expected_)
+{
+    auto const _result{ doStringAndRet(script_) };
+    REQUIRE(_result == expected_);
+    if (_result != expected_) {
+        INFO(_result);
+    }
+    lua_settop(L, 0);
+}
+
+// #################################################################################################
+
+void LuaState::requireSuccess(std::string_view const& script_)
+{
+    auto const _result{ doString(script_) };
+    REQUIRE(_result == LuaError::OK);
+    if (_result != LuaError::OK) {
+        INFO(luaG_tostring(L, kIdxTop));
+    }
+    lua_settop(L, 0);
+}
+
+// #################################################################################################
+
+void LuaState::requireSuccess(std::filesystem::path const& root_, std::string_view const& path_)
+{
+    auto const _result{ doFile(root_, path_) };
+    REQUIRE(_result == LuaError::OK);
+    if (_result != LuaError::OK) {
+        INFO(luaG_tostring(L, kIdxTop));
+    }
+    lua_settop(L, 0);
+}
+
+// #################################################################################################
+
 LuaError LuaState::runChunk() const
 {
     STACK_CHECK_START_ABS(L, 1); // we must start with the chunk on the stack (or an error string if it failed to load)
@@ -300,61 +360,61 @@ LuaError LuaState::runChunk() const
 // #################################################################################################
 // #################################################################################################
 
-TEST(LuaState, DoString)
+TEST_CASE("LuaState::doString")
 {
     LuaState _L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
     // if the script fails to load, we should find the error message at the top of the stack
-    ASSERT_TRUE([&L = _L]() { std::ignore = L.doString("function end"); return lua_gettop(L) == 1 && luaG_type(L, StackIndex{1}) == LuaType::STRING; }());
+    REQUIRE([&L = _L]() { std::ignore = L.doString("function end"); return lua_gettop(L) == 1 && luaG_type(L, StackIndex{1}) == LuaType::STRING; }());
 
     // if the script runs, the stack should contain its return value
-    ASSERT_TRUE([&L = _L]() { std::ignore = L.doString("return true"); return lua_gettop(L) == 1 && luaG_type(L, StackIndex{1}) == LuaType::BOOLEAN; }());
-    ASSERT_TRUE([&L = _L]() { std::ignore = L.doString("return 'hello'"); return lua_gettop(L) == 1 && luaG_tostring(L, StackIndex{1}) == "hello"; }());
+    REQUIRE([&L = _L]() { std::ignore = L.doString("return true"); return lua_gettop(L) == 1 && luaG_type(L, StackIndex{1}) == LuaType::BOOLEAN; }());
+    REQUIRE([&L = _L]() { std::ignore = L.doString("return 'hello'"); return lua_gettop(L) == 1 && luaG_tostring(L, StackIndex{1}) == "hello"; }());
     // or nil if it didn't return anything
-    ASSERT_TRUE([&L = _L]() { std::ignore = L.doString("return"); return lua_gettop(L) == 1 && luaG_type(L, StackIndex{1}) == LuaType::NIL; }());
+    REQUIRE([&L = _L]() { std::ignore = L.doString("return"); return lua_gettop(L) == 1 && luaG_type(L, StackIndex{1}) == LuaType::NIL; }());
 
     // on failure, doStringAndRet returns "", and the error message is on the stack
-    ASSERT_TRUE([&L = _L]() { return L.doStringAndRet("function end") == "" && lua_gettop(L) == 1 && luaG_type(L, StackIndex{1}) == LuaType::STRING && luaG_tostring(L, StackIndex{1}) != ""; }());
+    REQUIRE([&L = _L]() { return L.doStringAndRet("function end") == "" && lua_gettop(L) == 1 && luaG_type(L, StackIndex{ 1 }) == LuaType::STRING && luaG_tostring(L, StackIndex{ 1 }) != ""; }());
     // on success doStringAndRet returns the string returned by the script, that is also at the top of the stack
-    ASSERT_TRUE([&L = _L]() { return L.doStringAndRet("return 'hello'") == "hello" && lua_gettop(L) == 1 && luaG_type(L, StackIndex{1}) == LuaType::STRING && luaG_tostring(L, StackIndex{1}) == "hello"; }());
+    REQUIRE([&L = _L]() { return L.doStringAndRet("return 'hello'") == "hello" && lua_gettop(L) == 1 && luaG_type(L, StackIndex{ 1 }) == LuaType::STRING && luaG_tostring(L, StackIndex{ 1 }) == "hello"; }());
     // if the returned value is not (convertible to) a string, we should get an empty string out of doStringAndRet
-    ASSERT_TRUE([&L = _L]() { return L.doStringAndRet("return function() end") == "" && lua_gettop(L) == 1 && luaG_type(L, StackIndex{1}) == LuaType::FUNCTION && luaG_tostring(L, StackIndex{1}) == ""; }());
+    REQUIRE([&L = _L]() { return L.doStringAndRet("return function() end") == "" && lua_gettop(L) == 1 && luaG_type(L, StackIndex{ 1 }) == LuaType::FUNCTION && luaG_tostring(L, StackIndex{ 1 }) == ""; }());
 }
 
 // #################################################################################################
 // #################################################################################################
-// UnitTestRunner
+// FileRunner
 // #################################################################################################
 // #################################################################################################
 
-UnitTestRunner::UnitTestRunner()
+FileRunner::FileRunner(std::string_view const& where_)
+: LuaState{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } }
 {
     [[maybe_unused]] std::filesystem::path const _current{ std::filesystem::current_path() };
-    std::filesystem::path _assertPath{ R"(.\lanes\unit_tests\scripts)" };
+    std::filesystem::path _path{ where_ };
+    root = std::filesystem::canonical(_path).generic_string();
     // I need to append that path to the list of locations where modules can be required
-    // so that the scripts can require "_assert" and find _assert.lua (same with "_utils.lua")
+    // so that the legacy scripts can require"assert" and find assert.lua
     std::string _script{ "package.path = package.path.." };
     _script += "';";
-    _script += std::filesystem::canonical(_assertPath).generic_string();
+    _script += root;
     _script += "/?.lua'";
-    std::ignore = L.doString(_script.c_str());
-
-    root = std::filesystem::canonical(R"(.\lanes\unit_tests\scripts)").generic_string();
+    std::ignore = doString(_script.c_str());
 }
 
 // #################################################################################################
 
-TEST_P(UnitTestRunner, ScriptedTest)
+void FileRunner::performTest(FileRunnerParam const& testParam_)
 {
-    FileRunnerParam const& _param = GetParam();
-    switch (_param.test) {
+    INFO(testParam_.script);
+    switch (testParam_.test) {
     case TestType::AssertNoLuaError:
-        ASSERT_EQ(L.doFile(root, _param.script), LuaError::OK) << L;
+        requireSuccess(root, testParam_.script);
         break;
     case TestType::AssertNoThrow:
-        ASSERT_NO_THROW((std::ignore = L.doFile(root, _param.script), L.close())) << L;
+        REQUIRE_NOTHROW((std::ignore = doFile(root, testParam_.script), close()));
         break;
     case TestType::AssertThrows:
-        ASSERT_THROW((std::ignore = L.doFile(root, _param.script), L.close()), std::logic_error) << L;
+        REQUIRE_THROWS_AS((std::ignore = doFile(root, testParam_.script), close()), std::logic_error);
         break;
     }
 }

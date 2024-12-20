@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cassert>
 #include <filesystem>
 #include <source_location>
 #include <mutex>
 #include <variant>
 
-#include "gtest/gtest.h"
+#include "catch_amalgamated.hpp"
 
 #ifdef __cplusplus
 extern "C"

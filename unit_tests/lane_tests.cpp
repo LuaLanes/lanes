@@ -4,257 +4,271 @@
 // #################################################################################################
 // #################################################################################################
 
-class LaneTests : public ::testing::Test
+TEST_CASE("lanes.gen")
 {
-    protected:
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+    S.requireSuccess("lanes = require 'lanes'.configure()");
 
-    void SetUp() override
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("argument checks")
     {
-        std::ignore = S.doString("lanes = require 'lanes'.configure()");
-    }
-};
+        // no parameter is bad
+        S.requireFailure("lanes.gen()");
 
-// #################################################################################################
+        // minimal generator needs a function
+        S.requireSuccess("lanes.gen(function() end)");
 
-TEST_F(LaneTests, GeneratorCreation)
-{
-    // no parameter is bad
-    EXPECT_NE(S.doString("lanes.gen()"), LuaError::OK);
+        // acceptable parameters for the generator are strings, tables, nil, followed by the function body
+        S.requireSuccess("lanes.gen(nil, function() end)");
+        S.requireSuccess("lanes.gen('', function() end)");
+        S.requireSuccess("lanes.gen({}, function() end)");
+        S.requireSuccess("lanes.gen('', {}, function() end)");
+        S.requireSuccess("lanes.gen({}, '', function() end)");
+        S.requireSuccess("lanes.gen('', '', function() end)");
+        S.requireSuccess("lanes.gen({}, {}, function() end)");
 
-    // minimal generator needs a function
-    EXPECT_EQ(S.doString("lanes.gen(function() end)"), LuaError::OK) << S;
+        // anything different should fail: booleans, numbers, any userdata
+        S.requireFailure("lanes.gen(false, function() end)");
+        S.requireFailure("lanes.gen(true, function() end)");
+        S.requireFailure("lanes.gen(42, function() end)");
+        S.requireFailure("lanes.gen(io.stdin, function() end)");
+        S.requireFailure("lanes.gen(lanes.linda(), function() end)");
+        S.requireFailure("lanes.gen(lanes.linda():deep(), function() end)");
 
-    // acceptable parameters for the generator are strings, tables, nil, followed by the function body
-    EXPECT_EQ(S.doString("lanes.gen(nil, function() end)"), LuaError::OK) << S;
-    EXPECT_EQ(S.doString("lanes.gen('', function() end)"), LuaError::OK) << S;
-    EXPECT_EQ(S.doString("lanes.gen({}, function() end)"), LuaError::OK) << S;
-    EXPECT_EQ(S.doString("lanes.gen('', {}, function() end)"), LuaError::OK) << S;
-    EXPECT_EQ(S.doString("lanes.gen({}, '', function() end)"), LuaError::OK) << S;
-    EXPECT_EQ(S.doString("lanes.gen('', '', function() end)"), LuaError::OK) << S;
-    EXPECT_EQ(S.doString("lanes.gen({}, {}, function() end)"), LuaError::OK) << S;
+        // even if parameter types are correct, the function must come last
+        S.requireFailure("lanes.gen(function() end, '')");
 
-    // anything different should fail: booleans, numbers, any userdata
-    EXPECT_NE(S.doString("lanes.gen(false, function() end)"), LuaError::OK);
-    EXPECT_NE(S.doString("lanes.gen(true, function() end)"), LuaError::OK);
-    EXPECT_NE(S.doString("lanes.gen(42, function() end)"), LuaError::OK);
-    EXPECT_NE(S.doString("lanes.gen(io.stdin, function() end)"), LuaError::OK);
-    EXPECT_NE(S.doString("lanes.gen(lanes.linda(), function() end)"), LuaError::OK);
-    EXPECT_NE(S.doString("lanes.gen(lanes.linda():deep(), function() end)"), LuaError::OK);
+        // the strings should only list "known base libraries", in any order, or "*"
+        // if the particular Lua flavor we build for doesn't support them, they raise an error unless postfixed by '?'
+        S.requireSuccess("lanes.gen('base', function() end)");
 
-    // even if parameter types are correct, the function must come last
-    EXPECT_NE(S.doString("lanes.gen(function() end, '')"), LuaError::OK);
-
-    // the strings should only list "known base libraries", in any order, or "*"
-    // if the particular Lua flavor we build for doesn't support them, they raise an error unless postfixed by '?'
-    EXPECT_EQ(S.doString("lanes.gen('base', function() end)"), LuaError::OK) << S;
-
-    // bit, ffi, jit are LuaJIT-specific
+        // bit, ffi, jit are LuaJIT-specific
 #if LUAJIT_FLAVOR() == 0
-    EXPECT_NE(S.doString("lanes.gen('bit,ffi,jit', function() end)"), LuaError::OK);
-    EXPECT_EQ(S.doString("lanes.gen('bit?,ffi?,jit?', function() end)"), LuaError::OK) << S;
+        S.requireFailure("lanes.gen('bit,ffi,jit', function() end)");
+        S.requireSuccess("lanes.gen('bit?,ffi?,jit?', function() end)");
 #endif // LUAJIT_FLAVOR()
 
-    // bit32 library existed only in Lua 5.2, there is still a loader that will raise an error in Lua 5.3
+        // bit32 library existed only in Lua 5.2, there is still a loader that will raise an error in Lua 5.3
 #if LUA_VERSION_NUM == 502 || LUA_VERSION_NUM == 503
-    EXPECT_EQ(S.doString("lanes.gen('bit32', function() end)"), LuaError::OK) << S;
+        S.requireSuccess("lanes.gen('bit32', function() end)");
 #else // LUA_VERSION_NUM == 502 || LUA_VERSION_NUM == 503
-    EXPECT_NE(S.doString("lanes.gen('bit32', function() end)"), LuaError::OK);
-    EXPECT_EQ(S.doString("lanes.gen('bit32?', function() end)"), LuaError::OK) << S;
+        S.requireFailure("lanes.gen('bit32', function() end)");
+        S.requireSuccess("lanes.gen('bit32?', function() end)");
 #endif // LUA_VERSION_NUM == 502 || LUA_VERSION_NUM == 503
 
-    // coroutine library appeared with Lua 5.2
+        // coroutine library appeared with Lua 5.2
 #if LUA_VERSION_NUM == 501
-    EXPECT_NE(S.doString("lanes.gen('coroutine', function() end)"), LuaError::OK);
-    EXPECT_EQ(S.doString("lanes.gen('coroutine?', function() end)"), LuaError::OK) << S;
+        S.requireFailure("lanes.gen('coroutine', function() end)");
+        S.requireSuccess("lanes.gen('coroutine?', function() end)");
 #endif // LUA_VERSION_NUM == 501
 
-    EXPECT_EQ(S.doString("lanes.gen('debug', function() end)"), LuaError::OK) << S;
-    EXPECT_EQ(S.doString("lanes.gen('io', function() end)"), LuaError::OK) << S;
-    EXPECT_EQ(S.doString("lanes.gen('math', function() end)"), LuaError::OK) << S;
-    EXPECT_EQ(S.doString("lanes.gen('os', function() end)"), LuaError::OK) << S;
-    EXPECT_EQ(S.doString("lanes.gen('package', function() end)"), LuaError::OK) << S;
-    EXPECT_EQ(S.doString("lanes.gen('string', function() end)"), LuaError::OK) << S;
-    EXPECT_EQ(S.doString("lanes.gen('table', function() end)"), LuaError::OK) << S;
+        S.requireSuccess("lanes.gen('debug', function() end)");
+        S.requireSuccess("lanes.gen('io', function() end)");
+        S.requireSuccess("lanes.gen('math', function() end)");
+        S.requireSuccess("lanes.gen('os', function() end)");
+        S.requireSuccess("lanes.gen('package', function() end)");
+        S.requireSuccess("lanes.gen('string', function() end)");
+        S.requireSuccess("lanes.gen('table', function() end)");
 
-    // utf8 library appeared with Lua 5.3
+        // utf8 library appeared with Lua 5.3
 #if LUA_VERSION_NUM < 503
-    EXPECT_NE(S.doString("lanes.gen('utf8', function() end)"), LuaError::OK);
-    EXPECT_EQ(S.doString("lanes.gen('utf8?', function() end)"), LuaError::OK) << S;
+        S.requireFailure("lanes.gen('utf8', function() end)");
+        S.requireSuccess("lanes.gen('utf8?', function() end)");
 #endif // LUA_VERSION_NUM < 503
 
-    EXPECT_EQ(S.doString("lanes.gen('lanes.core', function() end)"), LuaError::OK) << S;
-    // "*" repeated or combined with anything else is forbidden
-    EXPECT_NE(S.doString("lanes.gen('*', '*', function() end)"), LuaError::OK);
-    EXPECT_NE(S.doString("lanes.gen('base', '*', function() end)"), LuaError::OK);
-    // unknown names are forbidden
-    EXPECT_NE(S.doString("lanes.gen('Base', function() end)"), LuaError::OK);
-    // repeating the same library more than once is forbidden
-    EXPECT_NE(S.doString("lanes.gen('base,base', function() end)"), LuaError::OK);
+        S.requireSuccess("lanes.gen('lanes.core', function() end)");
+        // "*" repeated or combined with anything else is forbidden
+        S.requireFailure("lanes.gen('*', '*', function() end)");
+        S.requireFailure("lanes.gen('base', '*', function() end)");
+        // unknown names are forbidden
+        S.requireFailure("lanes.gen('Base', function() end)");
+        // repeating the same library more than once is forbidden
+        S.requireFailure("lanes.gen('base,base', function() end)");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("lanes.finally") // TODO: move this section somewhere else, in a dedicated finally TEST_CASE
+    {
+        // prepare a callback for lanes.finally()
+        static bool _wasCalled{};
+        static bool _allLanesTerminated{};
+        auto _finallyCB{ +[](lua_State* const L_) { _wasCalled = true; _allLanesTerminated = lua_toboolean(L_, 1); return 0; } };
+        lua_pushcfunction(S, _finallyCB);
+        lua_setglobal(S, "finallyCB");
+        // start a lane that lasts a long time
+        std::string_view const _script{
+            " lanes.finally(finallyCB)"
+            " g = lanes.gen('*',"
+            "     {name = 'auto'},"
+            "     function()"
+            "         for i = 1,1e37 do end" // no cooperative cancellation checks here!
+            "     end)"
+            " g()"
+        };
+        S.requireSuccess(_script);
+        // close the state before the lane ends.
+        // since we don't wait at all, it is possible that the OS thread for the lane hasn't even started at that point
+        S.close();
+        // the finally handler should have been called, and told all lanes are stopped
+        REQUIRE(_wasCalled);
+        REQUIRE(_allLanesTerminated);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("default thread name is '<unnamed>'")
+    {
+        std::string_view const _script{
+            " g = lanes.gen('*',"
+            "     function()"
+            "         return lane_threadname()"
+            "     end)"
+            " h = g()"
+            " local tn = h[1]"
+            " assert(tn == h:get_threadname())"
+            " assert(tn == '<unnamed>')"
+        };
+        S.requireSuccess(_script);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("set thread name from generator settings")
+    {
+        std::string_view const _script{
+            " g = lanes.gen('*',"
+            "     { name = 'user name'},"
+            "     function()"
+            "         return lane_threadname()"
+            "     end)"
+            " h = g()"
+            " local tn = h[1]"
+            " assert(tn == h:get_threadname())"
+            " assert(tn == 'user name')"
+        };
+        S.requireSuccess(_script);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("set thread name from lane body")
+    {
+        std::string_view const _script{
+            " g = lanes.gen('*',"
+            "     function()"
+            "         lane_threadname('user name')"
+            "         return true"
+            "     end)"
+            " h = g()"
+            " h:join()"
+            " assert(h:get_threadname() == 'user name')"
+        };
+        S.requireSuccess(_script);
+    }
 }
 
 // #################################################################################################
-
-TEST_F(LaneTests, UncooperativeShutdown)
-{
-    // prepare a callback for lanes.finally()
-    static bool _wasCalled{};
-    static bool _allLanesTerminated{};
-    auto _finallyCB{ +[](lua_State* const L_) { _wasCalled = true; _allLanesTerminated = lua_toboolean(L_, 1); return 0; } };
-    lua_pushcfunction(S, _finallyCB);
-    lua_setglobal(S, "finallyCB");
-    // start a lane that lasts a long time
-    std::string_view const _script{
-        " lanes.finally(finallyCB)"
-        " g = lanes.gen('*',"
-        "     {name = 'auto'},"
-        "     function()"
-        "         for i = 1,1e37 do end" // no cooperative cancellation checks here!
-        "     end)"
-        " g()"
-    };
-    ASSERT_EQ(S.doString(_script), LuaError::OK) << S;
-    // close the state before the lane ends.
-    // since we don't wait at all, it is possible that the OS thread for the lane hasn't even started at that point
-    S.close();
-    // the finally handler should have been called, and told all lanes are stopped
-    ASSERT_EQ(_wasCalled, true) << S;
-    ASSERT_EQ(_allLanesTerminated, true) << S;
-}
-
 // #################################################################################################
 
-TEST_F(LaneTests, DefaultThreadNameIsUnnamed)
+TEST_CASE("lane:cancel")
 {
-    std::string_view const _script{
-        " g = lanes.gen('*',"
-        "     function()"
-        "         return lane_threadname()"
-        "     end)"
-        " h = g()"
-        " local tn = h[1]"
-        " assert(tn == h:get_threadname())"
-        " return tn"
-    };
-    ASSERT_EQ(S.doStringAndRet(_script), "<unnamed>") << S;
-}
-
-// #################################################################################################
-
-TEST_F(LaneTests, UserThreadNameFromGenerator)
-{
-    std::string_view const _script{
-        " g = lanes.gen('*',"
-        "     { name = 'user name'},"
-        "     function()"
-        "         return lane_threadname()"
-        "     end)"
-        " h = g()"
-        " local tn = h[1]"
-        " assert(tn == h:get_threadname())"
-        " return tn"
-    };
-    ASSERT_EQ(S.doStringAndRet(_script), "user name") << S;
-}
-
-// #################################################################################################
-
-TEST_F(LaneTests, UserThreadNameFromInside)
-{
-    std::string_view const _script{
-        " g = lanes.gen('*',"
-        "     function()"
-        "         lane_threadname('user name')"
-        "         return true"
-        "     end)"
-        " h = g()"
-        " h:join()"
-        " return h:get_threadname()"
-    };
-    ASSERT_EQ(S.doStringAndRet(_script), "user name") << S;
-}
-
-// #################################################################################################
-// #################################################################################################
-
-class LaneCancel : public ::testing::Test
-{
-    protected:
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
 
-    void SetUp() override
-    {
-        // need the timers so that there is a lane running on which we can operate
-        std::ignore = S.doString("timer_lane = require 'lanes'.configure{with_timers = true}.timer_lane");
-    }
-};
-
-// #################################################################################################
-
-TEST_F(LaneCancel, FailsOnBadArguments)
-{
-    //FAIL() << "Make sure the failures fail the way we expect them";
-    // make sure we have the timer lane and its cancel method handy
-    ASSERT_EQ(S.doString("assert(timer_lane and timer_lane.cancel)"), LuaError::OK);
+    // need the timers so that there is a lane running on which we can operate
+    S.requireSuccess("timer_lane = require 'lanes'.configure{with_timers = true}.timer_lane");
+    //  make sure we have the timer lane and its cancel method handy
+    S.requireSuccess("assert(timer_lane and timer_lane.cancel)");
     // as well as the fixture module
-    ASSERT_EQ(S.doString("fixture = require 'fixture'"), LuaError::OK) << S;
+    S.requireSuccess("fixture = require 'fixture'");
 
-    // cancel operation must be a known string
-    ASSERT_NE(S.doString("timer_lane:cancel('gleh')"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel(function() end)"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel({})"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel(fixture.newuserdata())"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel(fixture.newlightuserdata())"), LuaError::OK);
+    // ---------------------------------------------------------------------------------------------
 
-    // cancel doesn't expect additional non-number/bool arguments after the mode
-    ASSERT_NE(S.doString("timer_lane:cancel('soft', 'gleh')"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel('soft', function() end)"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel('soft', {})"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel('soft', fixture.newuserdata())"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel('soft', fixture.newlightuserdata())"), LuaError::OK);
+    SECTION("cancel operation must be a known string")
+    {
+        // cancel operation must be a known string
+        S.requireFailure("timer_lane:cancel('gleh')");
+        S.requireFailure("timer_lane:cancel(function() end)");
+        S.requireFailure("timer_lane:cancel({})");
+        S.requireFailure("timer_lane:cancel(fixture.newuserdata())");
+        S.requireFailure("timer_lane:cancel(fixture.newlightuserdata())");
+    }
 
-    // hook-based cancellation expects a number for the count. IOW, a bool is not valid
-    ASSERT_NE(S.doString("timer_lane:cancel('call', true)"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel('ret', true)"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel('line', true)"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel('count', true)"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel('all', true)"), LuaError::OK);
+    // ---------------------------------------------------------------------------------------------
 
-    // non-hook should only have one number after the mode (the timeout), else it means we have a count
-    ASSERT_NE(S.doString("timer_lane:cancel('hard', 10, 10)"), LuaError::OK);
+    SECTION("cancel doesn't expect additional non-number/bool arguments after the mode")
+    {
+        S.requireFailure("timer_lane:cancel('soft', 'gleh')");
+        S.requireFailure("timer_lane:cancel('soft', function() end)");
+        S.requireFailure("timer_lane:cancel('soft', {})");
+        S.requireFailure("timer_lane:cancel('soft', fixture.newuserdata())");
+        S.requireFailure("timer_lane:cancel('soft', fixture.newlightuserdata())");
+    }
 
-    // extra arguments are not accepted either
-    ASSERT_NE(S.doString("timer_lane:cancel('hard', 10, true, 10)"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel('call', 10, 10, 10)"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel('line', 10, 10, true, 10)"), LuaError::OK);
+    // ---------------------------------------------------------------------------------------------
 
-    // out-of-range hook count is not valid
-    ASSERT_NE(S.doString("timer_lane:cancel('call', -1)"), LuaError::OK);
-    ASSERT_NE(S.doString("timer_lane:cancel('call', 0)"), LuaError::OK);
+    SECTION("hook-based cancellation expects a number for the count. IOW, a bool is not valid")
+    {
+        S.requireFailure("timer_lane:cancel('call', true)");
+        S.requireFailure("timer_lane:cancel('ret', true)");
+        S.requireFailure("timer_lane:cancel('line', true)");
+        S.requireFailure("timer_lane:cancel('count', true)");
+        S.requireFailure("timer_lane:cancel('all', true)");
+    }
 
-    // out-of-range duration is not valid
-    ASSERT_NE(S.doString("timer_lane:cancel('soft', -1)"), LuaError::OK);
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("non-hook should only have one number after the mode (the timeout), else it means we have a count")
+    {
+        S.requireFailure("timer_lane:cancel('hard', 10, 10)");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("extra arguments are not accepted either")
+    {
+        S.requireFailure("timer_lane:cancel('hard', 10, true, 10)");
+        S.requireFailure("timer_lane:cancel('call', 10, 10, 10)");
+        S.requireFailure("timer_lane:cancel('line', 10, 10, true, 10)");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("out-of-range hook count is not valid")
+    {
+        S.requireFailure("timer_lane:cancel('call', -1)");
+        S.requireFailure("timer_lane:cancel('call', 0)");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("out-of-range duration is not valid")
+    {
+        S.requireFailure("timer_lane:cancel('soft', -1)");
+    }
 }
 
 // #################################################################################################
 // #################################################################################################
 
-INSTANTIATE_TEST_CASE_P(
-    LaneScriptedTests,
-    UnitTestRunner,
-    ::testing::Values(
-        FileRunnerParam{ PUC_LUA_ONLY("lane/cooperative_shutdown"), TestType::AssertNoLuaError },  // 0
+TEST_CASE("lane scripted tests")
+{
+    auto const& _testParam = GENERATE(
+        FileRunnerParam{ PUC_LUA_ONLY("lane/cooperative_shutdown"), TestType::AssertNoLuaError }, // 0
         FileRunnerParam{ "lane/uncooperative_shutdown", TestType::AssertThrows },
-        FileRunnerParam{ "lane/tasking_basic", TestType::AssertNoLuaError },                       // 2
-        FileRunnerParam{ "lane/tasking_cancelling", TestType::AssertNoLuaError },                  // 3
-        FileRunnerParam{ "lane/tasking_comms_criss_cross", TestType::AssertNoLuaError },           // 4
+        FileRunnerParam{ "lane/tasking_basic", TestType::AssertNoLuaError }, // 2
+        FileRunnerParam{ "lane/tasking_cancelling", TestType::AssertNoLuaError }, // 3
+        FileRunnerParam{ "lane/tasking_comms_criss_cross", TestType::AssertNoLuaError }, // 4
         FileRunnerParam{ "lane/tasking_communications", TestType::AssertNoLuaError },
-        FileRunnerParam{ "lane/tasking_error", TestType::AssertNoLuaError },                       // 6
-        FileRunnerParam{ "lane/tasking_join_test", TestType::AssertNoLuaError },                   // 7
+        FileRunnerParam{ "lane/tasking_error", TestType::AssertNoLuaError }, // 6
+        FileRunnerParam{ "lane/tasking_join_test", TestType::AssertNoLuaError }, // 7
         FileRunnerParam{ "lane/tasking_send_receive_code", TestType::AssertNoLuaError },
         FileRunnerParam{ "lane/stdlib_naming", TestType::AssertNoLuaError },
-        FileRunnerParam{ "coro/basics", TestType::AssertNoLuaError },                              // 10
+        FileRunnerParam{ "coro/basics", TestType::AssertNoLuaError }, // 10
         FileRunnerParam{ "coro/error_handling", TestType::AssertNoLuaError }
-    )
-    //,[](::testing::TestParamInfo<FileRunnerParam> const& info_) { return std::string{  info_.param.script  };}
-);
+    );
+
+    FileRunner _runner(R"(.\lanes\unit_tests\scripts)");
+    _runner.performTest(_testParam);
+}

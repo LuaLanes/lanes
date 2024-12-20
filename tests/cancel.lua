@@ -165,7 +165,7 @@ if not next(which_tests) or which_tests.linda then
 	SLEEP(1)
 
 	-- linda cancel: linda:receive() returns nil,cancel_error immediately
-	print "cancelling"
+	print "cancelling - both"
 	linda:cancel("both")
 
 	-- wait until cancellation is effective.
@@ -192,7 +192,7 @@ if not next(which_tests) or which_tests.soft then
 	waitCancellation(h, "waiting")
 
 	-- soft cancel, this time awakens waiting linda operations, which returns cancel_error immediately, no timeout.
-	print "cancelling"
+	print "cancelling - soft"
 	h:cancel("soft", true)
 
 	-- wait until cancellation is effective. the lane will interrupt its loop and print the exit message
@@ -209,7 +209,7 @@ if not next(which_tests) or which_tests.hook then
 	SLEEP(2)
 
 	-- count hook cancel after some instruction instructions
-	print "cancelling"
+	print "cancelling - line"
 	h:cancel("line", 300, 5.0)
 
 	-- wait until cancellation is effective. the lane will interrupt its loop and print the exit message
@@ -228,7 +228,7 @@ if not next(which_tests) or which_tests.hard then
 	SLEEP(2)
 
 	-- hard cancel: the lane will be interrupted from inside its current linda:receive() and won't return from it
-	print "cancelling"
+	print "cancelling - hard"
 	h:cancel()
 
 	-- wait until cancellation is effective. the lane will be stopped by the linda operation throwing an error
@@ -247,7 +247,7 @@ if not next(which_tests) or which_tests.hard_unprotected then
 	SLEEP(2)
 
 	-- hard cancel: the lane will be interrupted from inside its current linda:receive() and won't return from it
-	print "cancelling"
+	print "cancelling - hard"
 	h:cancel()
 
 	-- wait until cancellation is effective. the lane will be stopped by the linda operation throwing an error

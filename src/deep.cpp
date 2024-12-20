@@ -112,13 +112,13 @@ int DeepFactory::DeepGC(lua_State* const L_)
 
     if (_isLastRef) {
         // retrieve wrapped __gc, if any
-        lua_pushvalue(L_, lua_upvalueindex(1));                                                // L_: self __gc?
+        lua_pushvalue(L_, lua_upvalueindex(1));                                                    // L_: self __gc?
         if (!lua_isnil(L_, -1)) {
-            lua_insert(L_, -2);                                                                // L_: __gc self
-            lua_call(L_, 1, 0);                                                                // L_:
+            lua_insert(L_, -2);                                                                    // L_: __gc self
+            lua_call(L_, 1, 0);                                                                    // L_:
         } else {
             // need an empty stack in case we are GC_ing from a Keeper, so that empty stack checks aren't triggered
-            lua_pop(L_, 2);                                                                    // L_:
+            lua_pop(L_, 2);                                                                        // L_:
         }
         DeleteDeepObject(L_, _p);
     }

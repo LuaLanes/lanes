@@ -20,6 +20,8 @@ class LuaState
 
     LuaState(LuaState&& rhs_) = default;
 
+    public:
+
     operator lua_State*() const { return L; }
 
     void stackCheck(int delta_) { STACK_CHECK(L, delta_); }
@@ -35,6 +37,11 @@ class LuaState
     LuaError loadString(std::string_view const& str_) const;
     [[nodiscard]]
     LuaError loadFile(std::filesystem::path const& root_, std::string_view const& str_) const;
+    void requireFailure(std::string_view const& script_);
+    void requireNotReturnedString(std::string_view const& script_, std::string_view const& unexpected_);
+    void requireReturnedString(std::string_view const& script_, std::string_view const& expected_);
+    void requireSuccess(std::string_view const& script_);
+    void requireSuccess(std::filesystem::path const& root_, std::string_view const& path_);
     [[nodiscard]]
     LuaError runChunk() const;
 
@@ -44,9 +51,6 @@ class LuaState
         return os_;
     }
 };
-
-#define LUA_EXPECT_SUCCESS(S_, WHAT_) { LuaState S{ std::move(S_) }; EXPECT_EQ(S.WHAT_, LuaError::OK) << S; }
-#define LUA_EXPECT_FAILURE(S_, WHAT_) { LuaState S{ std::move(S_) }; EXPECT_NE(S.WHAT_, LuaError::OK) << S; }
 
 // #################################################################################################
 
@@ -63,33 +67,17 @@ struct FileRunnerParam
     TestType test;
 };
 
-class FileRunner : public ::testing::TestWithParam<FileRunnerParam>
+class FileRunner : private LuaState
 {
-    protected:
-    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
+    private:
+
     std::string root;
 
-    ~FileRunner() override
-    {
-        lua_settop(L, 0);
-    }
-    void SetUp() override
-    {
-        lua_settop(L, 0);
-    }
-
-    void TearDown() override
-    {
-        lua_settop(L, 0);
-    }
-};
-
-// #################################################################################################
-
-class UnitTestRunner : public FileRunner
-{
     public:
-    UnitTestRunner();
+
+    FileRunner(std::string_view const& where_);
+
+    void performTest(FileRunnerParam const& testParam_);
 };
 
 // #################################################################################################

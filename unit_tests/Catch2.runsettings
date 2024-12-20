@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- https://github.com/JohnnyHendriks/TestAdapter_Catch2/blob/main/Docs/Settings.md -->
+<RunSettings>
+	<Catch2Adapter>
+		<DiscoverCommandLine>--list-tests --verbosity high</DiscoverCommandLine>
+		<DiscoverTimeout>300000</DiscoverTimeout>
+
+		<!-- Executable Filename
+			Discover filenames with ... (must not include the .exe extension)
+			Regex breakdown: ^scimitar(_(.+))+(p|r|d)(_?(.+))x*$
+			- ^scimitar : find file that starts with scimitar
+			- (_(.+))+ : follows with a number of elements starting with _ (_foo_bar_dll)
+			- (r|d|p) : contains a word with one of these letters : r (release), d (debug), p (profile).
+			- (_?(.+)): optionally follow with underscores.
+			- x*$ end of line
+		-->
+		<FilenameFilter>UnitTests</FilenameFilter>
+
+		<!-- Enable breaking on failure -->
+		<DebugBreak>on</DebugBreak>
+
+		<!-- Combine: A single test executable is started to run multiple test cases. (Single: instance per test case) -->
+		<ExecutionMode>Combine</ExecutionMode>
+
+		<!-- In Milliseconds -->
+		<TestCaseTimeout>10000</TestCaseTimeout>
+
+		<!-- Working directory -->
+		<WorkingDirectoryRoot>Solution</WorkingDirectoryRoot>
+		<WorkingDirectory>Lanes</WorkingDirectory>
+	</Catch2Adapter>
+</RunSettings>

@@ -15,6 +15,9 @@
     <ClCompile Include="..\src\deep.cpp">
       <Filter>Lanes</Filter>
     </ClCompile>
+    <ClCompile Include="catch_amalgamated.cpp">
+      <Filter>Catch2</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="_pch.hpp" />
@@ -24,6 +27,9 @@
     </ClInclude>
     <ClInclude Include="..\src\compat.hpp">
       <Filter>Lanes</Filter>
+    </ClInclude>
+    <ClInclude Include="catch_amalgamated.hpp">
+      <Filter>Catch2</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -41,6 +47,9 @@
     </Filter>
     <Filter Include="Scripts\coro">
       <UniqueIdentifier>{3cf4f618-1863-4de0-8761-5fca21e6b07c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Catch2">
+      <UniqueIdentifier>{2e1bf85c-7722-42ba-86f8-ac0f5a494ac5}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -94,6 +103,9 @@
     </None>
     <None Include="scripts\linda\send_registered_userdata.lua">
       <Filter>Scripts\linda</Filter>
+    </None>
+    <None Include="Catch2.runsettings">
+      <Filter>Catch2</Filter>
     </None>
   </ItemGroup>
 </Project>

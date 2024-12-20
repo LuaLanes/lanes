@@ -5,75 +5,43 @@
 #if RUN_LEGACY_TESTS
 
 // #################################################################################################
+// #################################################################################################
 
-class LegacyTestRunner : public FileRunner
+TEST_CASE("legacy scripted tests")
 {
-    public:
-    LegacyTestRunner()
-    {
-        [[maybe_unused]] std::filesystem::path const _current{ std::filesystem::current_path() };
-        std::filesystem::path _path{ R"(.\lanes\tests\)" };
-        root = std::filesystem::canonical(_path).generic_string();
-        // I need to append that path to the list of locations where modules can be required
-        // so that the legacy scripts can require"assert" and find assert.lua
-        std::string _script{"package.path = package.path.."};
-        _script += "';";
-        _script += root;
-        _script += "/?.lua'";
-        std::ignore = L.doString(_script.c_str());
-    }
-};
+    auto const& _testParam = GENERATE(
+          FileRunnerParam{ "appendud", TestType::AssertNoLuaError } // 0
+        , FileRunnerParam{ "atexit", TestType::AssertNoLuaError } // 1
+        , FileRunnerParam{ "atomic", TestType::AssertNoLuaError } // 2
+        , FileRunnerParam{ "basic", TestType::AssertNoLuaError } // 3
+        , FileRunnerParam{ "cancel", TestType::AssertNoLuaError } // 4
+        , FileRunnerParam{ "cyclic", TestType::AssertNoLuaError } // 5
+        , FileRunnerParam{ "deadlock", TestType::AssertNoLuaError } // 6
+        , FileRunnerParam{ "errhangtest", TestType::AssertNoLuaError } // 7
+        , FileRunnerParam{ "error", TestType::AssertNoLuaError } // 8
+        , FileRunnerParam{ "fibonacci", TestType::AssertNoLuaError } // 9
+        , FileRunnerParam{ "fifo", TestType::AssertNoLuaError } // 10
+        , FileRunnerParam{ "finalizer", TestType::AssertNoLuaError } // 11
+        , FileRunnerParam{ "func_is_string", TestType::AssertNoLuaError } // 12
+        , FileRunnerParam{ "irayo_closure", TestType::AssertNoLuaError } // 13
+        , FileRunnerParam{ "irayo_recursive", TestType::AssertNoLuaError } // 14
+        , FileRunnerParam{ "keeper", TestType::AssertNoLuaError } // 15
+      //, FileRunnerParam{ "linda_perf", TestType::AssertNoLuaError }
+        , FileRunnerParam{ LUA54_ONLY("manual_register"), TestType::AssertNoLuaError } // 16: uses lfs module, currently not available for non-5.4 flavors
+        , FileRunnerParam{ "nameof", TestType::AssertNoLuaError } // 17
+        , FileRunnerParam{ "objects", TestType::AssertNoLuaError } // 18
+        , FileRunnerParam{ "package", TestType::AssertNoLuaError } // 19
+        , FileRunnerParam{ "pingpong", TestType::AssertNoLuaError } // 20
+        , FileRunnerParam{ "recursive", TestType::AssertNoLuaError } // 21
+        , FileRunnerParam{ "require", TestType::AssertNoLuaError } // 22
+        , FileRunnerParam{ "rupval", TestType::AssertNoLuaError } // 23
+        , FileRunnerParam{ "timer", TestType::AssertNoLuaError } // 24
+        , FileRunnerParam{ LUA54_ONLY("tobeclosed"), TestType::AssertNoLuaError } // 25
+        , FileRunnerParam{ "track_lanes", TestType::AssertNoLuaError } // 26
+    );
 
-TEST_P(LegacyTestRunner, LegacyTest)
-{
-    FileRunnerParam const& _param = GetParam();
-    switch (_param.test) {
-    case TestType::AssertNoLuaError:
-        ASSERT_EQ(L.doFile(root, _param.script), LuaError::OK) << L;
-        break;
-    case TestType::AssertNoThrow:
-        ASSERT_NO_THROW((std::ignore = L.doFile(root, _param.script), L.close())) << L;
-        break;
-    case TestType::AssertThrows:
-        ASSERT_THROW((std::ignore = L.doFile(root, _param.script), L.close()), std::logic_error) << L;
-        break;
-    }
+    FileRunner _runner(R"(.\lanes\tests\)");
+    _runner.performTest(_testParam);
 }
-
-INSTANTIATE_TEST_CASE_P(
-    LegacyTests,
-    LegacyTestRunner,
-    ::testing::Values(
-        "appendud" // 0
-        , "atexit" // 1
-        , "atomic" // 2
-        , "basic" // 3
-        , "cancel" // 4
-        , "cyclic" // 5
-        , "deadlock" // 6
-        , "errhangtest" // 7
-        , "error" // 8
-        , "fibonacci" // 9
-        , "fifo" // 10
-        , "finalizer" // 11
-        , "func_is_string" // 12
-        , "irayo_closure" // 13
-        , "irayo_recursive" // 14
-        , "keeper" // 15
-        //, "linda_perf"
-        , LUA54_ONLY("manual_register") // 16: uses lfs module, currently not available for non-5.4 flavors
-        , "nameof" // 17
-        , "objects" // 18
-        , "package" // 19
-        , "pingpong" // 20
-        , "recursive" // 21
-        , "require" // 22
-        , "rupval" // 23
-        , "timer" // 24
-        , LUA54_ONLY("tobeclosed") // 25
-        , "track_lanes" // 26
-    )
-    //, [](::testing::TestParamInfo<FileRunnerParam> const& info_) { return info_.param.script.empty() ? "N/A": std::string{ info_.param.script }; }
-);
 
 #endif // RUN_LEGACY_TESTS
