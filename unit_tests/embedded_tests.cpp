@@ -23,7 +23,7 @@ namespace
 
 // #################################################################################################
 
-TEST_CASE("embedding")
+TEST_CASE("lanes.embedding")
 {
     LuaState S{ LuaState::WithBaseLibs{ false }, LuaState::WithFixture{ false } };
 

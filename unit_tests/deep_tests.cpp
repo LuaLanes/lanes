@@ -8,7 +8,7 @@
 // #################################################################################################
 // #################################################################################################
 
-TEST_CASE("deep_test")
+TEST_CASE("misc.deep_test")
 {
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
     S.requireSuccess(

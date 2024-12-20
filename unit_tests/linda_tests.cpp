@@ -3,7 +3,7 @@
 
 // #################################################################################################
 
-TEST_CASE("single Keeper Lindas")
+TEST_CASE("linda.single Keeper")
 {
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
     S.requireSuccess("lanes = require 'lanes'");
@@ -306,7 +306,7 @@ TEST_CASE("single Keeper Lindas")
 // #################################################################################################
 // #################################################################################################
 
-TEST_CASE("multi Keeper Lindas")
+TEST_CASE("linda.multi Keeper")
 {
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
 
@@ -323,7 +323,22 @@ TEST_CASE("multi Keeper Lindas")
 // #################################################################################################
 // #################################################################################################
 
-TEST_CASE("linda scripted tests")
+// unfortunately, VS Test adapter does not list individual sections,
+// so let's create a separate test case for each file with an ugly macro...
+
+#define MAKE_TEST_CASE(DIR, FILE) \
+TEST_CASE("scripted tests." #DIR "." #FILE) \
+{ \
+    FileRunner _runner(R"(.\lanes\unit_tests\scripts)"); \
+    _runner.performTest(FileRunnerParam{ #DIR "/" #FILE, TestType::AssertNoLuaError }); \
+}
+
+MAKE_TEST_CASE(linda, send_receive)
+MAKE_TEST_CASE(linda, send_registered_userdata)
+MAKE_TEST_CASE(linda, multiple_keepers)
+
+/*
+TEST_CASE("linda.scripted tests")
 {
     auto const& _testParam = GENERATE(
         FileRunnerParam{ "linda/send_receive", TestType::AssertNoLuaError },
@@ -334,3 +349,4 @@ TEST_CASE("linda scripted tests")
     FileRunner _runner(R"(.\lanes\unit_tests\scripts)");
     _runner.performTest(_testParam);
 }
+*/

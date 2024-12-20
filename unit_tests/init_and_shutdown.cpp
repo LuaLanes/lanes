@@ -3,7 +3,7 @@
 
 // #################################################################################################
 
-TEST_CASE("require 'lanes'")
+TEST_CASE("lanes.require 'lanes'")
 {
     LuaState L{ LuaState::WithBaseLibs{ false }, LuaState::WithFixture{ false } };
 
@@ -668,7 +668,7 @@ TEST_CASE("lanes.finally")
     {
         LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
         // we need Lanes to be up. Since we run several 'scripts', we store it as a global
-        S.requireSuccess("lanes = require 'lanes'");
+        S.requireSuccess("lanes = require 'lanes'.configure()");
         // we can set a function
         S.requireSuccess("lanes.finally(function() end)");
         // we can clear it
@@ -689,7 +689,7 @@ TEST_CASE("lanes.finally")
         LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
 
         // we need Lanes to be up. Since we run several 'scripts', we store it as a global
-        S.requireSuccess("lanes = require 'lanes'");
+        S.requireSuccess("lanes = require 'lanes'.configure()");
         // works because we have package.preload.fixture = luaopen_fixture
         S.requireSuccess("fixture = require 'fixture'");
         // set our detectable finalizer
@@ -698,6 +698,38 @@ TEST_CASE("lanes.finally")
         REQUIRE_NOTHROW(S.close());
         // the finalizer should be called
         REQUIRE(S.finalizerWasCalled);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("shutdown with an uncooperative lane")
+    {
+        LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
+        S.requireSuccess("lanes = require 'lanes'.configure()");
+
+        // prepare a callback for lanes.finally()
+        static bool _wasCalled{};
+        static bool _allLanesTerminated{};
+        auto _finallyCB{ +[](lua_State* const L_) { _wasCalled = true; _allLanesTerminated = lua_toboolean(L_, 1); return 0; } };
+        lua_pushcfunction(S, _finallyCB);
+        lua_setglobal(S, "finallyCB");
+        // start a lane that lasts a long time
+        std::string_view const _script{
+            " lanes.finally(finallyCB)"
+            " g = lanes.gen('*',"
+            "     {name = 'auto'},"
+            "     function()"
+            "         for i = 1,1e37 do end" // no cooperative cancellation checks here!
+            "     end)"
+            " g()"
+        };
+        S.requireSuccess(_script);
+        // close the state before the lane ends.
+        // since we don't wait at all, it is possible that the OS thread for the lane hasn't even started at that point
+        S.close();
+        // the finally handler should have been called, and told all lanes are stopped
+        REQUIRE(_wasCalled);
+        REQUIRE(_allLanesTerminated);
     }
 }
 
@@ -719,7 +751,7 @@ namespace
 
 // #################################################################################################
 
-TEST_CASE("on_state_create setting")
+TEST_CASE("lanes.on_state_create setting")
 {
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
 

@@ -7,7 +7,51 @@
 // #################################################################################################
 // #################################################################################################
 
-TEST_CASE("legacy scripted tests")
+// unfortunately, VS Test adapter does not list individual sections,
+// so let's create a separate test case for each file with an ugly macro...
+
+#define MAKE_TEST_CASE(FILE) \
+TEST_CASE("scripted tests.legacy." #FILE) \
+{ \
+    FileRunner _runner(R"(.\lanes\tests\)"); \
+    _runner.performTest(FileRunnerParam{ #FILE, TestType::AssertNoLuaError }); \
+}
+
+MAKE_TEST_CASE(appendud)
+MAKE_TEST_CASE(atexit)
+MAKE_TEST_CASE(atomic)
+MAKE_TEST_CASE(basic)
+MAKE_TEST_CASE(cancel)
+MAKE_TEST_CASE(cyclic)
+MAKE_TEST_CASE(deadlock)
+MAKE_TEST_CASE(errhangtest)
+MAKE_TEST_CASE(error)
+MAKE_TEST_CASE(fibonacci)
+MAKE_TEST_CASE(fifo)
+MAKE_TEST_CASE(finalizer)
+MAKE_TEST_CASE(func_is_string)
+MAKE_TEST_CASE(irayo_closure)
+MAKE_TEST_CASE(irayo_recursive)
+MAKE_TEST_CASE(keeper)
+//MAKE_TEST_CASE(linda_perf)
+#if LUA_VERSION_NUM == 504
+MAKE_TEST_CASE(manual_register)
+#endif // LUA_VERSION_NUM
+MAKE_TEST_CASE(nameof)
+MAKE_TEST_CASE(objects)
+MAKE_TEST_CASE(package)
+MAKE_TEST_CASE(pingpong)
+MAKE_TEST_CASE(recursive)
+MAKE_TEST_CASE(require)
+MAKE_TEST_CASE(rupval)
+MAKE_TEST_CASE(timer)
+#if LUA_VERSION_NUM == 504
+MAKE_TEST_CASE(tobeclosed)
+#endif // LUA_VERSION_NUM
+MAKE_TEST_CASE(track_lanes)
+
+/*
+TEST_CASE("lanes.legacy scripted tests")
 {
     auto const& _testParam = GENERATE(
           FileRunnerParam{ "appendud", TestType::AssertNoLuaError } // 0
@@ -43,5 +87,6 @@ TEST_CASE("legacy scripted tests")
     FileRunner _runner(R"(.\lanes\tests\)");
     _runner.performTest(_testParam);
 }
+*/
 
 #endif // RUN_LEGACY_TESTS

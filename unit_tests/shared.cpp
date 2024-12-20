@@ -98,7 +98,7 @@ namespace
 // #################################################################################################
 // #################################################################################################
 
-TEST_CASE("stack checker")
+TEST_CASE("lanes.stack checker")
 {
     LuaState _L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
     StackChecker::CallsCassert = false;
@@ -292,10 +292,10 @@ LuaError LuaState::loadFile(std::filesystem::path const& root_, std::string_view
 void LuaState::requireFailure(std::string_view const& script_)
 {
     auto const _result{ doString(script_) };
-    REQUIRE(_result != LuaError::OK);
     if (_result == LuaError::OK) {
-        INFO(luaG_tostring(L, kIdxTop));
+        WARN(luaG_tostring(L, kIdxTop));
     }
+    REQUIRE(_result != LuaError::OK);
     lua_settop(L, 0);
 }
 
@@ -304,10 +304,10 @@ void LuaState::requireFailure(std::string_view const& script_)
 void LuaState::requireNotReturnedString(std::string_view const& script_, std::string_view const& unexpected_)
 {
     auto const _result{ doStringAndRet(script_) };
-    REQUIRE(_result != unexpected_);
     if (_result == unexpected_) {
-        INFO(_result);
+        WARN(_result);
     }
+    REQUIRE(_result != unexpected_);
     lua_settop(L, 0);
 }
 
@@ -316,10 +316,10 @@ void LuaState::requireNotReturnedString(std::string_view const& script_, std::st
 void LuaState::requireReturnedString(std::string_view const& script_, std::string_view const& expected_)
 {
     auto const _result{ doStringAndRet(script_) };
-    REQUIRE(_result == expected_);
     if (_result != expected_) {
-        INFO(_result);
+        WARN(_result);
     }
+    REQUIRE(_result == expected_);
     lua_settop(L, 0);
 }
 
@@ -328,10 +328,10 @@ void LuaState::requireReturnedString(std::string_view const& script_, std::strin
 void LuaState::requireSuccess(std::string_view const& script_)
 {
     auto const _result{ doString(script_) };
-    REQUIRE(_result == LuaError::OK);
     if (_result != LuaError::OK) {
-        INFO(luaG_tostring(L, kIdxTop));
+        WARN(luaG_tostring(L, kIdxTop));
     }
+    REQUIRE(_result == LuaError::OK);
     lua_settop(L, 0);
 }
 
@@ -340,10 +340,10 @@ void LuaState::requireSuccess(std::string_view const& script_)
 void LuaState::requireSuccess(std::filesystem::path const& root_, std::string_view const& path_)
 {
     auto const _result{ doFile(root_, path_) };
-    REQUIRE(_result == LuaError::OK);
     if (_result != LuaError::OK) {
-        INFO(luaG_tostring(L, kIdxTop));
+        WARN(luaG_tostring(L, kIdxTop));
     }
+    REQUIRE(_result == LuaError::OK);
     lua_settop(L, 0);
 }
 
@@ -360,7 +360,7 @@ LuaError LuaState::runChunk() const
 // #################################################################################################
 // #################################################################################################
 
-TEST_CASE("LuaState::doString")
+TEST_CASE("LuaState.doString")
 {
     LuaState _L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
     // if the script fails to load, we should find the error message at the top of the stack

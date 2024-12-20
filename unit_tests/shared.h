@@ -67,6 +67,17 @@ struct FileRunnerParam
     TestType test;
 };
 
+// Define a specialization for FileRunnerParam in Catch::Detail::stringify
+namespace Catch {
+    namespace Detail {
+        template <>
+        inline std::string stringify(FileRunnerParam const& param_)
+        {
+            return std::string{ param_.script };
+        }
+    } // namespace Detail
+} // namespace Catch
+
 class FileRunner : private LuaState
 {
     private:
