@@ -350,10 +350,9 @@ void InterCopyContext::lookupNativeFunction() const
             lua_pop(L2, 1);                                                                        //                                                L2: {} f
             raise_luaL_error(
                 getErrL(),
-                "%s%s: %s '%s' not found in %s destination transfer database.",
+                "%s%s: '%s' not found in %s destination transfer database.",
                 lua_isnil(L2, -1) ? "" : "INTERNAL ERROR IN ",
                 _from.empty() ? "main" : _from.data(),
-                luaG_typename(L2, _objType),
                 _fqn.data(),
                 _to.empty() ? "main" : _to.data());
             return;
