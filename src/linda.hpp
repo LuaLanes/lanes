@@ -15,11 +15,11 @@ static constexpr UniqueKey kLindaBatched{ 0xB8234DF772646567ull, "linda.batched"
 
 DECLARE_UNIQUE_TYPE(LindaGroup, int);
 
-class Linda
+class Linda final
 : public DeepPrelude // Deep userdata MUST start with this header
 {
     public:
-    class [[nodiscard]] KeeperOperationInProgress
+    class [[nodiscard]] KeeperOperationInProgress final
     {
         private:
         Linda& linda;

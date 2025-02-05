@@ -1279,7 +1279,7 @@ InterCopyResult InterCopyContext::interCopyPackage() const
 {
     DEBUGSPEW_CODE(DebugSpew(U) << "InterCopyContext::interCopyPackage()" << std::endl);
 
-    class OnExit
+    class OnExit final
     {
         private:
         lua_State* const L2;

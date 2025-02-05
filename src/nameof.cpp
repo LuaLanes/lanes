@@ -33,7 +33,7 @@ THE SOFTWARE.
 
 // Return some name helping to identify an object
 [[nodiscard]]
-static int DiscoverObjectNameRecur(lua_State* L_, int shortest_, int depth_)
+static int DiscoverObjectNameRecur(lua_State* const L_, int shortest_, TableIndex depth_)
 {
     static constexpr StackIndex kWhat{ 1 }; // the object to investigate                           // L_: o "r" {c} {fqn} ... {?}
     static constexpr StackIndex kResult{ 2 }; // where the result string is stored
@@ -193,13 +193,13 @@ LUAG_FUNC(nameof)
     lua_rawseti(L_, -2, 1);                                                                        // L_: o nil {c} {fqn}
     // this is where we start the search
     luaG_pushglobaltable(L_);                                                                      // L_: o nil {c} {fqn} _G
-    std::ignore = DiscoverObjectNameRecur(L_, std::numeric_limits<int>::max(), 1);
+    std::ignore = DiscoverObjectNameRecur(L_, std::numeric_limits<int>::max(), TableIndex{ 1 });
     if (lua_isnil(L_, 2)) { // try again with registry, just in case...
         lua_pop(L_, 1);                                                                            // L_: o nil {c} {fqn}
         luaG_pushstring(L_, "_R");                                                                 // L_: o nil {c} {fqn} "_R"
         lua_rawseti(L_, -2, 1);                                                                    // L_: o nil {c} {fqn}
         lua_pushvalue(L_, kIdxRegistry);                                                           // L_: o nil {c} {fqn} _R
-        std::ignore = DiscoverObjectNameRecur(L_, std::numeric_limits<int>::max(), 1);
+        std::ignore = DiscoverObjectNameRecur(L_, std::numeric_limits<int>::max(), TableIndex{ 1 });
     }
     lua_pop(L_, 3);                                                                                // L_: o "result"
     STACK_CHECK(L_, 1);

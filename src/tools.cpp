@@ -47,7 +47,7 @@ static constexpr RegistryUniqueKey kLookupCacheRegKey{ 0x9BF75F84E54B691Bull };
 
 static constexpr int kWriterReturnCode{ 666 };
 [[nodiscard]]
-static int dummy_writer([[maybe_unused]] lua_State* L_, [[maybe_unused]] void const* p_, [[maybe_unused]] size_t sz_, [[maybe_unused]] void* ud_)
+static int dummy_writer([[maybe_unused]] lua_State* const L_, [[maybe_unused]] void const* p_, [[maybe_unused]] size_t sz_, [[maybe_unused]] void* ud_)
 {
     // always fail with this code
     return kWriterReturnCode;
@@ -93,13 +93,13 @@ FuncSubType luaG_getfuncsubtype(lua_State* const L_, StackIndex const i_)
 namespace tools {
 
     // inspired from tconcat() in ltablib.c
-    std::string_view PushFQN(lua_State* const L_, StackIndex const t_, int const last_)
+    std::string_view PushFQN(lua_State* const L_, StackIndex const t_, TableIndex const last_)
     {
         STACK_CHECK_START_REL(L_, 0);
         // Lua 5.4 pushes &b as light userdata on the stack. be aware of it...
         luaL_Buffer _b;
         luaL_buffinit(L_, &_b);                                                                    // L_: ... {} ... &b?
-        int _i{ 1 };
+        TableIndex _i{ 1 };
         for (; _i < last_; ++_i) {
             lua_rawgeti(L_, t_, _i);
             luaL_addvalue(&_b);
@@ -127,7 +127,7 @@ namespace tools {
  * if we already had an entry of type [o] = ..., replace the name if the new one is shorter
  * pops the processed object from the stack
  */
-static void update_lookup_entry(lua_State* const L_, StackIndex const ctxBase_, int const depth_)
+static void update_lookup_entry(lua_State* const L_, StackIndex const ctxBase_, TableIndex const depth_)
 {
     // slot 1 in the stack contains the table that receives everything we found
     StackIndex const _dest{ ctxBase_ };
@@ -146,7 +146,7 @@ static void update_lookup_entry(lua_State* const L_, StackIndex const ctxBase_, 
     // push name in fqn stack (note that concatenation will crash if name is a not string or a number)
     lua_pushvalue(L_, -3);                                                                         // L_: ... {bfc} k o name? k
     LUA_ASSERT(L_, luaG_type(L_, kIdxTop) == LuaType::NUMBER || luaG_type(L_, kIdxTop) == LuaType::STRING);
-    int const _deeper{ depth_ + 1 };
+    TableIndex const _deeper{ depth_ + 1 };
     lua_rawseti(L_, _fqn, _deeper);                                                                // L_: ... {bfc} k o name?
     // generate name
     std::string_view const _newName{ tools::PushFQN(L_, _fqn, _deeper) };                          // L_: ... {bfc} k o name? "f.q.n"
@@ -155,10 +155,10 @@ static void update_lookup_entry(lua_State* const L_, StackIndex const ctxBase_, 
     // Also, when Lua is built with compatibility options (such as LUA_COMPAT_ALL), some base libraries register functions under multiple names.
     // This, with the randomizer, can cause the first generated name of an object to be different on different VMs, which breaks function transfer.
     // Also, nothing prevents any external module from exposing a given object under several names, so...
-    // Therefore, when we encounter an object for which a name was previously registered, we need to select the a single name
+    // Therefore, when we encounter an object for which a name was previously registered, we need to select a single name
     // based on some sorting order so that we end up with the same name in all databases whatever order the table walk yielded
     if (!_prevName.empty() && ((_prevName.size() < _newName.size()) || (_prevName <= _newName))) {
-        DEBUGSPEW_CODE(DebugSpew(_U) << luaG_typename(L_, -3) << " '" << _newName << "' remains named '" << _prevName << "'" << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(_U) << luaG_typename(L_, StackIndex{ -3 }) << " '" << _newName << "' remains named '" << _prevName << "'" << std::endl);
         // the previous name is 'smaller' than the one we just generated: keep it!
         lua_pop(L_, 3);                                                                            // L_: ... {bfc} k
     } else {
@@ -172,7 +172,7 @@ static void update_lookup_entry(lua_State* const L_, StackIndex const ctxBase_, 
         } else {
             lua_remove(L_, -2);                                                                    // L_: ... {bfc} k o "f.q.n"
         }
-        DEBUGSPEW_CODE(DebugSpew(_U) << luaG_typename(L_, -2) << " '" << _newName << "'" << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(_U) << luaG_typename(L_, StackIndex{ -2 }) << " '" << _newName << "'" << std::endl);
         // prepare the stack for database feed
         lua_pushvalue(L_, -1);                                                                     // L_: ... {bfc} k o "f.q.n" "f.q.n"
         lua_pushvalue(L_, -3);                                                                     // L_: ... {bfc} k o "f.q.n" "f.q.n" o
@@ -191,7 +191,7 @@ static void update_lookup_entry(lua_State* const L_, StackIndex const ctxBase_, 
 
 // #################################################################################################
 
-static void populate_lookup_table_recur(lua_State* const L_, StackIndex const dbIdx_, StackIndex const i_, int const depth_)
+static void populate_lookup_table_recur(lua_State* const L_, StackIndex const dbIdx_, StackIndex const i_, TableIndex const depth_)
 {
     // slot dbIdx_ contains the lookup database table
     // slot dbIdx_ + 1 contains a table that, when concatenated, produces the fully qualified name of scanned elements in the table provided at slot i_
@@ -267,10 +267,10 @@ static void populate_lookup_table_recur(lua_State* const L_, StackIndex const db
         STACK_CHECK(L_, 2);
     }
     // now process the tables we encountered at that depth
-    int const _deeper{ depth_ + 1 };
+    TableIndex const _deeper{ depth_ + 1 };
     lua_pushnil(L_);                                                                               // L_: ... {i_} {bfc} nil
     while (lua_next(L_, _breadthFirstCache) != 0) {                                                // L_: ... {i_} {bfc} k {}
-        DEBUGSPEW_CODE(std::string_view const _key{ (luaG_type(L_, -2) == LuaType::STRING) ? luaG_tostring(L_, -2) : std::string_view{ "<not a string>" } });
+        DEBUGSPEW_CODE(std::string_view const _key{ (luaG_type(L_, StackIndex{ -2 }) == LuaType::STRING) ? luaG_tostring(L_, StackIndex{ -2 }) : std::string_view{ "<not a string>" } });
         DEBUGSPEW_CODE(DebugSpew(_U) << "table '"<< _key <<"'" << std::endl);
         DEBUGSPEW_CODE(DebugSpewIndentScope _scope2{ _U });
         // un-visit this table in case we do need to process it
@@ -334,7 +334,7 @@ namespace tools {
             lua_pop(L_, 1);                                                                        // L_:
         } else if (luaG_type(L_, _in_base) == LuaType::TABLE) {
             lua_newtable(L_);                                                                      // L_: {} {fqn}
-            int _startDepth{ 0 };
+            TableIndex _startDepth{ 0 };
             if (!_name.empty()) {
                 STACK_CHECK(L_, 2);
                 luaG_pushstring(L_, _name);                                                        // L_: {} {fqn} "name"

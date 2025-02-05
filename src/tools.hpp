@@ -13,14 +13,13 @@ enum class LookupMode
 
 // #################################################################################################
 
-enum class FuncSubType
+enum class [[nodiscard]] FuncSubType
 {
     Bytecode,
     Native,
     FastJIT
 };
 
-[[nodiscard]]
 FuncSubType luaG_getfuncsubtype(lua_State* L_, StackIndex i_);
 
 // #################################################################################################
@@ -36,6 +35,6 @@ static constexpr RegistryUniqueKey kLookupRegKey{ 0xBF1FC5CF3C6DD47Bull }; // re
 namespace tools {
     void PopulateFuncLookupTable(lua_State* L_, StackIndex i_, std::string_view const& name_);
     [[nodiscard]]
-    std::string_view PushFQN(lua_State* L_, StackIndex t_, int last_);
+    std::string_view PushFQN(lua_State* L_, StackIndex t_, TableIndex last_);
     void SerializeRequire(lua_State* L_);
 } // namespace tools

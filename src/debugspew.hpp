@@ -7,7 +7,7 @@
 
 #if USE_DEBUG_SPEW()
 
-class DebugSpewIndentScope
+class DebugSpewIndentScope final
 {
     private:
     Universe* const U{};

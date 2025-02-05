@@ -188,7 +188,7 @@ static LUAG_FUNC(lane_join)
         break;
 
     default:
-        DEBUGSPEW_CODE(DebugSpew(nullptr) << "Unknown Lane status: " << static_cast<int>(_lane->status) << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(nullptr) << "Unknown Lane status: " << static_cast<int>(_lane->status.load(std::memory_order_relaxed)) << std::endl);
         LUA_ASSERT(L_, false);
         _ret = 0;
     }
@@ -766,7 +766,7 @@ static void lane_main(Lane* const lane_)
         // in case of error and if it exists, fetch stack trace from registry and push it
         lane_->nresults += PushStackTrace(_L, lane_->errorTraceLevel, _rc, StackIndex{ 1 });       // L: retvals|error [trace]
 
-        DEBUGSPEW_CODE(DebugSpew(lane_->U) << "Lane " << _L << " body: " << GetErrcodeName(_rc) << " (" << (kCancelError.equals(_L, 1) ? "cancelled" : luaG_typename(_L, 1)) << ")" << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(lane_->U) << "Lane " << _L << " body: " << GetErrcodeName(_rc) << " (" << (kCancelError.equals(_L, StackIndex{ 1 }) ? "cancelled" : luaG_typename(_L, StackIndex{ 1 })) << ")" << std::endl);
         // Call finalizers, if the script has set them up.
         // If the lane is not a coroutine, there is only a regular state, so everything is the same whether we use S or L.
         // If the lane is a coroutine, this has to be done from the master state (S), not the thread (L), because we can't lua_pcall in a thread state

@@ -16,7 +16,7 @@ class Linda;
 // #################################################################################################
 
 // mutex-protected allocator for use with Lua states that share a non-threadsafe allocator
-class ProtectedAllocator
+class ProtectedAllocator final
 : public lanes::AllocatorDefinition
 {
     private:
@@ -67,7 +67,7 @@ static constexpr RegistryUniqueKey kUniverseLightRegKey{ 0x48BBE9CEAB0BA04Full }
 
 // everything regarding the Lanes universe is stored in that global structure
 // held as a full userdata in the master Lua state that required it for the first time
-class Universe
+class Universe final
 {
     public:
     static constexpr char const* kFinally{ "finally" }; // update lanes.lua if the name changes!

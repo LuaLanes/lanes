@@ -299,7 +299,7 @@ namespace state {
                 lua_pushvalue(_L, -5);                                                             // L: {} k v "[" 'k' "] = " tostring v
                 lua_call(_L, 1, 1);                                                                // L: {} k v "[" 'k' "] = " 'v'
                 lua_concat(_L, 4);                                                                 // L: {} k v "[k] = v"
-                DEBUGSPEW_CODE(DebugSpew(U_) << luaG_tostring(_L, -1) << std::endl);
+                DEBUGSPEW_CODE(DebugSpew(U_) << luaG_tostring(_L, kIdxTop) << std::endl);
                 lua_pop(_L, 2);                                                                    // L: {} k
             } // lua_next()                                                                        // L: {}
             lua_pop(_L, 1);                                                                        // L:

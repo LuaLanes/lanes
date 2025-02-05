@@ -50,7 +50,7 @@ enum class WakeLane
     Yes
 };
 
-class Lane
+class Lane final
 {
     public:
     /*

@@ -286,7 +286,7 @@ LUAG_FUNC(lane_new)
         raise_luaL_error(L_, "could not create lane: out of memory");
     }
 
-    class OnExit
+    class OnExit final
     {
         private:
         lua_State* const L;

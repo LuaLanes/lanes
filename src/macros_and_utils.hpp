@@ -53,7 +53,7 @@ typename T::value_type const& OptionalValue(T const& x_, Ts... args_)
 struct PasskeyToken {};
 constexpr PasskeyToken PK{};
 template <typename T>
-class Passkey
+class Passkey final
 {
     private:
     friend T;

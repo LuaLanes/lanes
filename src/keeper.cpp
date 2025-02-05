@@ -60,7 +60,7 @@ namespace {
 // #################################################################################################
 
 // the full userdata associated to a given Linda key to store its contents
-class KeyUD
+class KeyUD final
 {
     private:
     static constexpr UserValueIndex kContentsTableIndex{ 1 };

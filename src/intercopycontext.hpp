@@ -25,7 +25,7 @@ enum class InterCopyResult
 
 DECLARE_UNIQUE_TYPE(CacheIndex, StackIndex);
 DECLARE_UNIQUE_TYPE(SourceIndex, StackIndex);
-class InterCopyContext
+class InterCopyContext final
 {
     public:
     Universe* const U;

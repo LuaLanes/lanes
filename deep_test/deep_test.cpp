@@ -2,12 +2,13 @@
 #include "lanes/src/deep.hpp"
 #include "lanes/src/compat.hpp"
 
-class MyDeepFactory : public DeepFactory
+class MyDeepFactory final : public DeepFactory
 {
     public:
     static MyDeepFactory Instance;
 
     private:
+    ~MyDeepFactory() override = default;
 
     private:
     void createMetatable(lua_State* const L_) const override
@@ -77,11 +78,11 @@ static int deep_get(lua_State* const L_)
 // #################################################################################################
 
 [[nodiscard]]
-static int deep_tostring(lua_State* L)
+static int deep_tostring(lua_State* const L_)
 {
-    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L, StackIndex{ 1 })) };
+    MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L_, StackIndex{ 1 })) };
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
-    luaG_pushstring(L, "%p:deep(%d)", _self, _self->val);
+    luaG_pushstring(L_, "%p:deep(%d)", _self, _self->val);
     _self->inUse.fetch_sub(1, std::memory_order_seq_cst);
     return 1;
 }

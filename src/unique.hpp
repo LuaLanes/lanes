@@ -78,7 +78,7 @@ class [[nodiscard]] Unique<T, TAG, std::enable_if_t<!std::is_scalar_v<T>>>
     using self = Unique<T, TAG, void>;
     using type = T;
     using T::T;
-    explicit Unique(T const& b_)
+    constexpr explicit Unique(T const& b_)
     : T{ b_ }
     {
     }

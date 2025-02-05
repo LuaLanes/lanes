@@ -48,7 +48,7 @@ class UniqueKey
 DECLARE_UNIQUE_TYPE(NArr, int);
 DECLARE_UNIQUE_TYPE(NRec, int);
 
-class RegistryUniqueKey
+class RegistryUniqueKey final
 : public UniqueKey
 {
     public:

@@ -4,13 +4,14 @@
 
 // #################################################################################################
 
-class LindaFactory
+class LindaFactory final
 : public DeepFactory
 {
     public:
     // TODO: I'm not totally happy with having a 'global' variable. Maybe it should be dynamically created and stored somewhere in the universe?
     static LindaFactory Instance;
 
+    ~LindaFactory() override = default;
     LindaFactory(luaL_Reg const lindaMT_[])
     : mLindaMT{ lindaMT_ }
     {
