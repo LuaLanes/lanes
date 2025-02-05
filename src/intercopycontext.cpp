@@ -156,7 +156,7 @@ static constexpr RegistryUniqueKey kMtIdRegKey{ 0xA8895DCF4EC3FE3Cull };
 
 // get a unique ID for metatable at [i].
 [[nodiscard]]
-static lua_Integer get_mt_id(Universe* U_, lua_State* L_, StackIndex const idx_)
+static lua_Integer get_mt_id(Universe* const U_, lua_State* const L_, StackIndex const idx_)
 {
     StackIndex const _absidx{ luaG_absindex(L_, idx_) };
 

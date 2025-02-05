@@ -4,7 +4,7 @@
 
 class Universe;
 
-enum class LookupMode
+enum class [[nodiscard]] LookupMode
 {
     LaneBody, // send the lane body directly from the source to the destination lane. keep this one first so that it's the value we get when we default-construct
     ToKeeper, // send a function from a lane to a keeper state
@@ -20,6 +20,7 @@ enum class [[nodiscard]] FuncSubType
     FastJIT
 };
 
+[[nodiscard]]
 FuncSubType luaG_getfuncsubtype(lua_State* L_, StackIndex i_);
 
 // #################################################################################################

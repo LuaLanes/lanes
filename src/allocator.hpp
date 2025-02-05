@@ -68,18 +68,18 @@ namespace lanes {
         }
 
         [[nodiscard]]
-        void* alloc(size_t const nsize_)
+        void* alloc(size_t const nsize_) const
         {
             return allocF(allocUD, nullptr, 0, nsize_);
         }
 
         [[nodiscard]]
-        void* alloc(void* const ptr_, size_t const osize_, size_t const nsize_)
+        void* alloc(void* const ptr_, size_t const osize_, size_t const nsize_) const
         {
             return allocF(allocUD, ptr_, osize_, nsize_);
         }
 
-        void free(void* const ptr_, size_t const osize_)
+        void free(void* const ptr_, size_t const osize_) const
         {
             std::ignore = allocF(allocUD, ptr_, osize_, 0);
         }

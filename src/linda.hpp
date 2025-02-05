@@ -40,7 +40,7 @@ class Linda final
         }
     };
 
-    enum class Status
+    enum class [[nodiscard]] Status
     {
         Active,
         Cancelled

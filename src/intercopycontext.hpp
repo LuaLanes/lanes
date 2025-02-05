@@ -7,14 +7,14 @@ class Universe;
 
 // #################################################################################################
 
-enum class VT
+enum class [[nodiscard]] VT
 {
     NORMAL, // keep this one first so that it's the value we get when we default-construct
     KEY,
     METATABLE
 };
 
-enum class InterCopyResult
+enum class [[nodiscard]] InterCopyResult
 {
     Success,
     NotEnoughValues,

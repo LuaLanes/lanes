@@ -4,7 +4,7 @@
 
 // forwards
 class Linda;
-enum class LookupMode;
+enum class [[nodiscard]] LookupMode;
 class Universe;
 
 DECLARE_UNIQUE_TYPE(KeeperState,lua_State*);
@@ -13,7 +13,7 @@ DECLARE_UNIQUE_TYPE(KeeperIndex, int);
 
 // #################################################################################################
 
-enum class LindaRestrict
+enum class [[nodiscard]] LindaRestrict
 {
     None,
     SetGet,

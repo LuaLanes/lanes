@@ -67,6 +67,7 @@ static int dummy_writer([[maybe_unused]] lua_State* const L_, [[maybe_unused]] v
  * +-----------------+-------------------+------------+----------+
  */
 
+[[nodiscard]]
 FuncSubType luaG_getfuncsubtype(lua_State* const L_, StackIndex const i_)
 {
     if (lua_tocfunction(L_, i_)) { // nullptr for LuaJIT-fast && bytecode functions
@@ -93,6 +94,7 @@ FuncSubType luaG_getfuncsubtype(lua_State* const L_, StackIndex const i_)
 namespace tools {
 
     // inspired from tconcat() in ltablib.c
+    [[nodiscard]]
     std::string_view PushFQN(lua_State* const L_, StackIndex const t_, TableIndex const last_)
     {
         STACK_CHECK_START_REL(L_, 0);

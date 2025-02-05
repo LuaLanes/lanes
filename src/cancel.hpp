@@ -6,20 +6,20 @@
 // #################################################################################################
 
 // Lane cancellation request modes
-enum class CancelRequest : uint8_t
+enum class [[nodiscard]] CancelRequest : uint8_t
 {
     None, // no pending cancel request
     Soft, // user wants the lane to cancel itself manually on cancel_test()
     Hard // user wants the lane to be interrupted (meaning code won't return from those functions) from inside linda:send/receive calls
 };
 
-struct CancelOp
+struct [[nodiscard]] CancelOp
 {
     CancelRequest mode;
     LuaHookMask hookMask;
 };
 
-enum class CancelResult : uint8_t
+enum class [[nodiscard]] CancelResult : uint8_t
 {
     Timeout,
     Cancelled

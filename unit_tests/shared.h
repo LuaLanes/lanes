@@ -54,7 +54,7 @@ class LuaState
 
 // #################################################################################################
 
-enum class TestType
+enum class [[nodiscard]] TestType
 {
     AssertNoLuaError,
     AssertNoThrow,

@@ -44,7 +44,7 @@ static constexpr std::string_view kLaneMetatableName{ "Lane" };
 #define kLanesCoreLibName kLanesLibName ".core"
 
 // for cancel() argument
-enum class WakeLane
+enum class [[nodiscard]] WakeLane
 {
     No,
     Yes
@@ -60,7 +60,7 @@ class Lane final
       Running, Suspended, Waiting: Thread is inside the Lua VM.
       Done, Error, Cancelled: Thread execution is outside the Lua VM. It can be lua_close()d.
     */
-    enum class Status
+    enum class [[nodiscard]] Status
     {
         Pending,
         Running,
@@ -73,7 +73,7 @@ class Lane final
     };
     using enum Status;
 
-    enum class ErrorTraceLevel
+    enum class [[nodiscard]] ErrorTraceLevel
     {
         Minimal, // no error handler function when running the lane body
         Basic, // lane body errors caught by a error handler
@@ -163,6 +163,7 @@ class Lane final
     public:
 
     void applyDebugName() const;
+    [[nodiscard]]
     CancelResult cancel(CancelOp op_, std::chrono::time_point<std::chrono::steady_clock> until_, WakeLane wakeLane_, int hookCount_);
     void closeState()
     {

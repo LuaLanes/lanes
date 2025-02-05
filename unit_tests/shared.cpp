@@ -18,7 +18,7 @@ namespace
         {
             STACK_CHECK_START_REL(L_, 0);
             lua_getglobal(L_, "package");                                                          // L_: package
-            luaG_getfield(L_, kIdxTop, "preload");                                                 // L_: package package.preload
+            std::ignore = luaG_getfield(L_, kIdxTop, "preload");                                   // L_: package package.preload
             lua_pushcfunction(L_, openf_);                                                         // L_: package package.preload openf_
             luaG_setfield(L_, StackIndex{ -2 }, name_);                                            // L_: package package.preload
             lua_pop(L_, 2);

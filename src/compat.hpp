@@ -34,7 +34,7 @@
 // #################################################################################################
 
 // a strong-typed wrapper over lua types to see them easier in a debugger
-enum class LuaType
+enum class [[nodiscard]] LuaType
 {
     NONE = LUA_TNONE,
     NIL = LUA_TNIL,
@@ -49,7 +49,7 @@ enum class LuaType
     CDATA = 10 // LuaJIT CDATA
 };
 
-enum class LuaHookMask
+enum class [[nodiscard]] LuaHookMask
 {
     None = 0,
     Call = LUA_MASKCALL,
@@ -113,7 +113,7 @@ inline int luaL_optint(lua_State* L_, StackIndex n_, lua_Integer d_)
 // #################################################################################################
 
 // a strong-typed wrapper over lua error codes to see them easier in a debugger
-enum class LuaError
+enum class [[nodiscard]] LuaError
 {
     OK = LUA_OK,
     YIELD = LUA_YIELD,

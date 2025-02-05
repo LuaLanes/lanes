@@ -923,6 +923,7 @@ void Lane::applyDebugName() const
 
 // #################################################################################################
 
+[[nodiscard]]
 CancelResult Lane::cancel(CancelOp const op_, std::chrono::time_point<std::chrono::steady_clock> const until_, WakeLane const wakeLane_, int const hookCount_)
 {
     // this is a hook installed with lua_sethook: can't capture anything to be convertible to lua_Hook
