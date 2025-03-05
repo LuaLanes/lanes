@@ -4,7 +4,6 @@
 
 // forwards
 class Linda;
-enum class [[nodiscard]] LookupMode;
 class Universe;
 
 DECLARE_UNIQUE_TYPE(KeeperState,lua_State*);

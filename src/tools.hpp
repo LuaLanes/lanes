@@ -4,7 +4,7 @@
 
 class Universe;
 
-enum class [[nodiscard]] LookupMode
+enum class LookupMode
 {
     LaneBody, // send the lane body directly from the source to the destination lane. keep this one first so that it's the value we get when we default-construct
     ToKeeper, // send a function from a lane to a keeper state

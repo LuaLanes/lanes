@@ -9,7 +9,7 @@
 #include "uniquekey.hpp"
 
 // forwards
-enum class [[nodiscard]] LookupMode;
+enum class LookupMode;
 class DeepFactory;
 class Universe;
 
