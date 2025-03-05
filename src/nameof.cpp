@@ -33,29 +33,55 @@ THE SOFTWARE.
 
 // Return some name helping to identify an object
 [[nodiscard]]
-static int DiscoverObjectNameRecur(lua_State* const L_, int shortest_, TableIndex depth_)
+static int DiscoverObjectNameRecur(lua_State* const L_, int shortest_, TableIndex const curDepth_)
 {
     static constexpr StackIndex kWhat{ 1 }; // the object to investigate                           // L_: o "r" {c} {fqn} ... {?}
     static constexpr StackIndex kResult{ 2 }; // where the result string is stored
     static constexpr StackIndex kCache{ 3 }; // a cache
     static constexpr StackIndex kFQN{ 4 }; // the name compositing stack
     // no need to scan this table if the name we will discover is longer than one we already know
-    if (shortest_ <= depth_ + 1) {
+    TableIndex const _nextDepth{ curDepth_ + 1 };
+    if (shortest_ <= _nextDepth) {
         return shortest_;
     }
+
+    auto _pushNameOnFQN = [L_](std::string_view const& name_, TableIndex const depth_) {
+        luaG_pushstring(L_, name_);                                                                // L_: o "r" {c} {fqn} ... name_
+        lua_rawseti(L_, kFQN, depth_);                                                             // L_: o "r" {c} {fqn} ... {mt}
+    };
+
+    auto _popNameFromFQN = [L_](TableIndex const depth_) {
+        lua_pushnil(L_);                                                                           // L_: o "r" {c} {fqn} ... nil
+        lua_rawseti(L_, kFQN, depth_);                                                             // L_: o "r" {c} {fqn} ...
+    };
+
+    auto _recurseIfTableThenPop = [&_pushNameOnFQN, &_popNameFromFQN, L_](std::string_view const& name_, TableIndex const depth_, int shortest_) {
+        STACK_CHECK_START_REL(L_, 0);                                                              // L_: o "r" {c} {fqn} ... <> {}?
+        if (lua_istable(L_, kIdxTop)) {
+            _pushNameOnFQN(name_, depth_);
+            shortest_ = DiscoverObjectNameRecur(L_, shortest_, TableIndex{ depth_ + 1 });
+            _popNameFromFQN(depth_);
+        }
+        lua_pop(L_, 1);                                                                            // L_: o "r" {c} {fqn} ... <>
+        STACK_CHECK(L_, -1);
+        return shortest_;
+    };
+
     STACK_GROW(L_, 3);
     STACK_CHECK_START_REL(L_, 0);
     // stack top contains the table to search in
-    lua_pushvalue(L_, -1);                                                                         // L_: o "r" {c} {fqn} ... {?} {?}
+    LUA_ASSERT(L_, lua_istable(L_, kIdxTop));
+    lua_pushvalue(L_, kIdxTop);                                                                    // L_: o "r" {c} {fqn} ... {?} {?}
     lua_rawget(L_, kCache);                                                                        // L_: o "r" {c} {fqn} ... {?} nil/1
     // if table is already visited, we are done
-    if (!lua_isnil(L_, -1)) {
-        lua_pop(L_, 1); // L_: o "r" {c} {fqn} ... {?}
+    if (!lua_isnil(L_, kIdxTop)) {
+        lua_pop(L_, 1);                                                                            // L_: o "r" {c} {fqn} ... {?}
         return shortest_;
     }
     // examined table is not in the cache, add it now
     lua_pop(L_, 1);                                                                                // L_: o "r" {c} {fqn} ... {?}
-    lua_pushvalue(L_, -1);                                                                         // L_: o "r" {c} {fqn} ... {?} {?}
+    // cache[o] = 1
+    lua_pushvalue(L_, kIdxTop);                                                                    // L_: o "r" {c} {fqn} ... {?} {?}
     lua_pushinteger(L_, 1);                                                                        // L_: o "r" {c} {fqn} ... {?} {?} 1
     lua_rawset(L_, kCache);                                                                        // L_: o "r" {c} {fqn} ... {?}
     // scan table contents
@@ -65,15 +91,14 @@ static int DiscoverObjectNameRecur(lua_State* const L_, int shortest_, TableInde
         // lua_Number const numKey = (luaG_type(L_, -2) == LuaType::NUMBER) ? lua_tonumber(L_, -2) : -6666; // only for debugging
         STACK_CHECK(L_, 2);
         // append key name to fqn stack
-        ++depth_;
         lua_pushvalue(L_, -2);                                                                     // L_: o "r" {c} {fqn} ... {?} k v k
-        lua_rawseti(L_, kFQN, depth_);                                                             // L_: o "r" {c} {fqn} ... {?} k v
-        if (lua_rawequal(L_, -1, kWhat)) { // is it what we are looking for?
+        lua_rawseti(L_, kFQN, _nextDepth);                                                         // L_: o "r" {c} {fqn} ... {?} k v
+        if (lua_rawequal(L_, kIdxTop, kWhat)) { // is it what we are looking for?
             STACK_CHECK(L_, 2);
             // update shortest name
-            if (depth_ < shortest_) {
-                shortest_ = depth_;
-                std::ignore = tools::PushFQN(L_, kFQN, depth_);                                    // L_: o "r" {c} {fqn} ... {?} k v "fqn"
+            if (_nextDepth < shortest_) {
+                shortest_ = _nextDepth;
+                std::ignore = tools::PushFQN(L_, kFQN, _nextDepth);                                // L_: o "r" {c} {fqn} ... {?} k v "fqn"
                 lua_replace(L_, kResult);                                                          // L_: o "r" {c} {fqn} ... {?} k v
             }
             // no need to search further at this level
@@ -87,19 +112,10 @@ static int DiscoverObjectNameRecur(lua_State* const L_, int shortest_, TableInde
 
         case LuaType::TABLE:                                                                       // L_: o "r" {c} {fqn} ... {?} k {}
             STACK_CHECK(L_, 2);
-            shortest_ = DiscoverObjectNameRecur(L_, shortest_, depth_);
+            shortest_ = DiscoverObjectNameRecur(L_, shortest_, _nextDepth);
             // search in the table's metatable too
             if (lua_getmetatable(L_, -1)) {                                                        // L_: o "r" {c} {fqn} ... {?} k {} {mt}
-                if (lua_istable(L_, -1)) {
-                    ++depth_;
-                    luaG_pushstring(L_, "__metatable");                                            // L_: o "r" {c} {fqn} ... {?} k {} {mt} "__metatable"
-                    lua_rawseti(L_, kFQN, depth_);                                                 // L_: o "r" {c} {fqn} ... {?} k {} {mt}
-                    shortest_ = DiscoverObjectNameRecur(L_, shortest_, depth_);
-                    lua_pushnil(L_);                                                               // L_: o "r" {c} {fqn} ... {?} k {} {mt} nil
-                    lua_rawseti(L_, kFQN, depth_);                                                 // L_: o "r" {c} {fqn} ... {?} k {} {mt}
-                    --depth_;
-                }
-                lua_pop(L_, 1);                                                                    // L_: o "r" {c} {fqn} ... {?} k {}
+                shortest_ = _recurseIfTableThenPop("__metatable", _nextDepth, shortest_);          // L_: o "r" {c} {fqn} ... {?} k {}
             }
             STACK_CHECK(L_, 2);
             break;
@@ -112,32 +128,15 @@ static int DiscoverObjectNameRecur(lua_State* const L_, int shortest_, TableInde
             STACK_CHECK(L_, 2);
             // search in the object's metatable (some modules are built that way)
             if (lua_getmetatable(L_, -1)) {                                                        // L_: o "r" {c} {fqn} ... {?} k U {mt}
-                if (lua_istable(L_, -1)) {
-                    ++depth_;
-                    luaG_pushstring(L_, "__metatable");                                            // L_: o "r" {c} {fqn} ... {?} k U {mt} "__metatable"
-                    lua_rawseti(L_, kFQN, depth_);                                                 // L_: o "r" {c} {fqn} ... {?} k U {mt}
-                    shortest_ = DiscoverObjectNameRecur(L_, shortest_, depth_);
-                    lua_pushnil(L_);                                                               // L_: o "r" {c} {fqn} ... {?} k U {mt} nil
-                    lua_rawseti(L_, kFQN, depth_);                                                 // L_: o "r" {c} {fqn} ... {?} k U {mt}
-                    --depth_;
-                }
-                lua_pop(L_, 1);                                                                    // L_: o "r" {c} {fqn} ... {?} k U
+                shortest_ = _recurseIfTableThenPop("__metatable", _nextDepth, shortest_);          // L_: o "r" {c} {fqn} ... {?} k U
             }
+
             STACK_CHECK(L_, 2);
             // search in the object's uservalues
             {
                 UserValueIndex _uvi{ 1 };
                 while (lua_getiuservalue(L_, kIdxTop, _uvi) != LUA_TNONE) {                        // L_: o "r" {c} {fqn} ... {?} k U {u}
-                    if (lua_istable(L_, -1)) { // if it is a table, look inside
-                        ++depth_;
-                        luaG_pushstring(L_, "uservalue");                                          // L_: o "r" {c} {fqn} ... {?} k v {u} "uservalue"
-                        lua_rawseti(L_, kFQN, depth_);                                             // L_: o "r" {c} {fqn} ... {?} k v {u}
-                        shortest_ = DiscoverObjectNameRecur(L_, shortest_, depth_);
-                        lua_pushnil(L_);                                                           // L_: o "r" {c} {fqn} ... {?} k v {u} nil
-                        lua_rawseti(L_, kFQN, depth_);                                             // L_: o "r" {c} {fqn} ... {?} k v {u}
-                        --depth_;
-                    }
-                    lua_pop(L_, 1);                                                                // L_: o "r" {c} {fqn} ... {?} k U
+                    shortest_ = _recurseIfTableThenPop("uservalue", _nextDepth, shortest_);        // L_: o "r" {c} {fqn} ... {?} k U
                     ++_uvi;
                 }
                 // when lua_getiuservalue() returned LUA_TNONE, it pushed a nil. pop it now
@@ -145,18 +144,20 @@ static int DiscoverObjectNameRecur(lua_State* const L_, int shortest_, TableInde
             }
             STACK_CHECK(L_, 2);
             break;
+
+        case LuaType::FUNCTION:                                                                    // L_: o "r" {c} {fqn} ... {?} k F
+            // TODO: explore the function upvalues
+            break;
         }
         // make ready for next iteration
         lua_pop(L_, 1);                                                                            // L_: o "r" {c} {fqn} ... {?} k
         // remove name from fqn stack
-        lua_pushnil(L_);                                                                           // L_: o "r" {c} {fqn} ... {?} k nil
-        lua_rawseti(L_, kFQN, depth_);                                                             // L_: o "r" {c} {fqn} ... {?} k
+        _popNameFromFQN(_nextDepth);
         STACK_CHECK(L_, 1);
-        --depth_;
     }                                                                                              // L_: o "r" {c} {fqn} ... {?}
     STACK_CHECK(L_, 0);
     // remove the visited table from the cache, in case a shorter path to the searched object exists
-    lua_pushvalue(L_, -1);                                                                         // L_: o "r" {c} {fqn} ... {?} {?}
+    lua_pushvalue(L_, kIdxTop);                                                                    // L_: o "r" {c} {fqn} ... {?} {?}
     lua_pushnil(L_);                                                                               // L_: o "r" {c} {fqn} ... {?} {?} nil
     lua_rawset(L_, kCache);                                                                        // L_: o "r" {c} {fqn} ... {?}
     STACK_CHECK(L_, 0);
@@ -168,14 +169,18 @@ static int DiscoverObjectNameRecur(lua_State* const L_, int shortest_, TableInde
 // "type", "name" = lanes.nameof(o)
 LUAG_FUNC(nameof)
 {
-    StackIndex const _what{ lua_gettop(L_) };
-    if (_what > 1) {
-        raise_luaL_argerror(L_, _what, "too many arguments.");
+    auto const _argCount{ lua_gettop(L_) };
+    if (_argCount > 1) {
+        raise_luaL_argerror(L_, StackIndex{ _argCount }, "too many arguments.");
     }
 
     // nil, boolean, light userdata, number and string aren't identifiable
-    if (luaG_type(L_, StackIndex{ 1 }) < LuaType::TABLE) {
-        lua_pushstring(L_, luaL_typename(L_, 1));                                                  // L_: o "type"
+    auto const _isIdentifiable = [L_]() {
+        auto const _valType{ luaG_type(L_, kIdxTop) };
+        return _valType == LuaType::TABLE || _valType == LuaType::FUNCTION || _valType == LuaType::USERDATA || _valType == LuaType::THREAD;
+    };
+    if (!_isIdentifiable()) {
+        luaG_pushstring(L_, luaG_typename(L_, kIdxTop));                                           // L_: o "type"
         lua_insert(L_, -2);                                                                        // L_: "type" o
         return 2;
     }

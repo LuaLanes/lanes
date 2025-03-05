@@ -1,8 +1,8 @@
 local lanes = require "lanes".configure{nb_user_keepers = 100, on_state_create = function() end}
 
 local SLEEP = function(...)
-    local k, v = lanes.sleep(...)
-    assert(k == nil and v == "timeout")
+	local k, v = lanes.sleep(...)
+	assert(k == nil and v == "timeout")
 end
 
 print("Name of table: ", lanes.nameof({}))

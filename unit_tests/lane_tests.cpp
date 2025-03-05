@@ -3,6 +3,25 @@
 
 // #################################################################################################
 // #################################################################################################
+TEST_CASE("lanes.nameof")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+    S.requireSuccess("lanes = require 'lanes'.configure()");
+
+    // a constant is itself, stringified
+    S.requireReturnedString("local t, n = lanes.nameof('bob'); return t .. ': ' .. tostring(n)", "string: bob");
+    S.requireReturnedString("local t, n = lanes.nameof(true); return t .. ': ' .. tostring(n)", "boolean: true");
+    S.requireReturnedString("local t, n = lanes.nameof(42); return t .. ': ' .. tostring(n)", "number: 42");
+    S.requireReturnedString("local t, n = lanes.nameof({}); return t .. ': ' .. tostring(n)", "table: nil");
+
+    // look for something in _G
+    S.requireReturnedString("local t, n = lanes.nameof(print); return t .. ': ' .. tostring(n)", "function: _G/print");
+    S.requireReturnedString("local t, n = lanes.nameof(string); return t .. ': ' .. tostring(n)", "table: _G/string");
+    S.requireReturnedString("local t, n = lanes.nameof(string.sub); return t .. ': ' .. tostring(n)", "function: _G/string/sub");
+}
+
+// #################################################################################################
+// #################################################################################################
 
 TEST_CASE("lanes.gen")
 {
