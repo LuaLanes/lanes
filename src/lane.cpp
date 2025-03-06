@@ -298,8 +298,7 @@ static int lane_index_string(lua_State* L_)
     // look in metatable first
     lua_getmetatable(L_, kIdxSelf);                                                                // L_: lane "key" mt
     lua_replace(L_, -3);                                                                           // L_: mt "key"
-    lua_rawget(L_, -2);                                                                            // L_: mt value
-    if (luaG_type(L_, kIdxTop) != LuaType::NIL) { // found something?
+    if (luaG_rawget(L_, StackIndex{ -2 }) != LuaType::NIL) { // found something?                   // L_: mt value
         return 1; // done
     }
 
@@ -335,14 +334,12 @@ static LUAG_FUNC(lane_index)
     default: // unknown key
         lua_getmetatable(L_, kIdxSelf);                                                            // L_: mt
         kCachedError.pushKey(L_);                                                                  // L_: mt kCachedError
-        lua_rawget(L_, -2);                                                                        // L_: mt error()
-        if (luaG_type(L_, kIdxTop) != LuaType::FUNCTION) {
+        if (luaG_rawget(L_, StackIndex{ -2 }) != LuaType::FUNCTION) {                              // L_: mt error()
             raise_luaL_error(L_, "INTERNAL ERROR: cached error() is a %s, not a function", luaG_typename(L_, kIdxTop).data());
         }
         luaG_pushstring(L_, "Unknown key: ");                                                      // L_: mt error() "Unknown key: "
         kCachedTostring.pushKey(L_);                                                               // L_: mt error() "Unknown key: " kCachedTostring
-        lua_rawget(L_, -4);                                                                        // L_: mt error() "Unknown key: " tostring()
-        if (luaG_type(L_, kIdxTop) != LuaType::FUNCTION) {
+        if (luaG_rawget(L_, StackIndex{ -4 }) != LuaType::FUNCTION) {                              // L_: mt error() "Unknown key: " tostring()
             raise_luaL_error(L_, "INTERNAL ERROR: cached tostring() is a %s, not a function", luaG_typename(L_, kIdxTop).data());
         }
         lua_pushvalue(L_, kKey);                                                                   // L_: mt error() "Unknown key: " tostring() k
@@ -840,8 +837,7 @@ static LUAG_FUNC(lane_gc)
     // if there a gc callback?
     lua_getiuservalue(L_, StackIndex{ 1 }, UserValueIndex{ 1 });                                   // L_: ud uservalue
     kLaneGC.pushKey(L_);                                                                           // L_: ud uservalue __gc
-    lua_rawget(L_, -2);                                                                            // L_: ud uservalue gc_cb|nil
-    if (!lua_isnil(L_, -1)) {
+    if (luaG_rawget(L_, StackIndex{ -2 }) != LuaType::NIL) {                                       // L_: ud uservalue gc_cb|nil
         lua_remove(L_, -2);                                                                        // L_: ud gc_cb|nil
         luaG_pushstring(L_, _lane->getDebugName());                                                // L_: ud gc_cb name
         _have_gc_cb = true;

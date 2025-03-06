@@ -271,6 +271,7 @@ static inline int WrapLuaGetField(LUA_GETFIELD f_, lua_State* const L_, StackInd
 
 // -------------------------------------------------------------------------------------------------
 
+[[nodiscard]]
 static inline LuaType luaG_getfield(lua_State* const L_, StackIndex const idx_, std::string_view const& name_)
 {
     return static_cast<LuaType>(WrapLuaGetField(lua_getfield, L_, idx_, name_));
@@ -278,6 +279,7 @@ static inline LuaType luaG_getfield(lua_State* const L_, StackIndex const idx_, 
 
 // #################################################################################################
 
+[[nodiscard]]
 LuaType luaG_getmodule(lua_State* L_, std::string_view const& name_);
 
 // #################################################################################################
@@ -350,9 +352,42 @@ static inline int WrapLuaResume(LUA_RESUME const lua_resume_, lua_State* const L
 
 // -------------------------------------------------------------------------------------------------
 
+[[nodiscard]]
 static inline LuaError luaG_resume(lua_State* const L_, lua_State* const from_, int const nargs_, int* const nresults_)
 {
     return ToLuaError(WrapLuaResume(lua_resume, L_, from_, nargs_, nresults_));
+}
+
+// #################################################################################################
+
+template <typename LUA_RAWGET>
+concept RequiresOldLuaRawget = requires(LUA_RAWGET f_) { { f_(nullptr, 0) } -> std::same_as<void>; };
+
+template <RequiresOldLuaRawget LUA_RAWGET>
+static inline LuaType WrapLuaRawget(LUA_RAWGET lua_rawget_, lua_State* const L_, StackIndex const idx_)
+{
+    // until Lua 5.3, lua_rawget -> void
+    lua_rawget_(L_, idx_);
+    return luaG_type(L_, kIdxTop);
+}
+
+// -------------------------------------------------------------------------------------------------
+
+template <typename LUA_RAWGET>
+concept RequiresNewLuaRawget = requires(LUA_RAWGET f_) { { f_(nullptr, 0) } -> std::same_as<int>; };
+
+template <RequiresNewLuaRawget LUA_RAWGET>
+static inline LuaType WrapLuaRawget(LUA_RAWGET lua_rawget_, lua_State* const L_, StackIndex const idx_)
+{
+    // starting with Lua 5.3, lua_rawget -> int (the type of the extracted value)
+    return static_cast<LuaType>(lua_rawget_(L_, idx_));
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static inline LuaType luaG_rawget(lua_State* const L_, StackIndex const idx_)
+{
+    return WrapLuaRawget(lua_rawget, L_, idx_);
 }
 
 // #################################################################################################

@@ -315,9 +315,7 @@ static void PushKeysDB(KeeperState const K_, StackIndex const idx_)
     StackIndex const _absidx{ luaG_absindex(K_, idx_) };
     kLindasRegKey.pushValue(K_);                                                                   // K_: ... LindasDB
     lua_pushvalue(K_, _absidx);                                                                    // K_: ... LindasDB linda
-    lua_rawget(K_, -2);                                                                            // K_: ... LindasDB KeysDB
-    STACK_CHECK(K_, 2);
-    if (lua_isnil(K_, -1)) {
+    if (luaG_rawget(K_, StackIndex{ -2 }) == LuaType::NIL) {                                       // K_: ... LindasDB KeysDB
         lua_pop(K_, 1);                                                                            // K_: ... LindasDB
         // add a new KeysDB table for this linda
         lua_newtable(K_);                                                                          // K_: ... LindasDB KeysDB
@@ -372,8 +370,7 @@ int keepercall_count(lua_State* const L_)
     case 2:                                                                                        // _K: linda key
         PushKeysDB(_K, StackIndex{ 1 });                                                           // _K: linda key KeysDB
         lua_replace(_K, 1);                                                                        // _K: KeysDB key
-        lua_rawget(_K, -2);                                                                        // _K: KeysDB KeyUD|nil
-        if (lua_isnil(_K, -1)) { // the key is unknown                                             // _K: KeysDB nil
+        if (luaG_rawget(_K, StackIndex{ -2 }) == LuaType::NIL) { // the key is unknown             // _K: KeysDB KeyUD|nil
             lua_remove(_K, -2);                                                                    // _K: nil
         } else { // the key is known                                                               // _K: KeysDB KeyUD
             KeyUD* const _key{ KeyUD::GetPtr(_K, kIdxTop) };
@@ -656,8 +653,7 @@ int keepercall_send(lua_State* const L_)
     PushKeysDB(_K, StackIndex{ 1 });                                                               // _K: linda key val... KeysDB
     // get the fifo associated to this key in this linda, create it if it doesn't exist
     lua_pushvalue(_K, 2);                                                                          // _K: linda key val... KeysDB key
-    lua_rawget(_K, -2);                                                                            // _K: linda key val... KeysDB KeyUD|nil
-    if (lua_isnil(_K, -1)) {
+    if (luaG_rawget(_K, StackIndex{ -2 }) == LuaType::NIL) {                                       // _K: linda key val... KeysDB KeyUD|nil
         lua_pop(_K, 1);                                                                            // _K: linda key val... KeysDB
         std::ignore = KeyUD::Create(KeeperState{ _K });                                            // _K: linda key val... KeysDB KeyUD
         // KeysDB[key] = KeyUD
@@ -853,9 +849,9 @@ int Keeper::PushLindaStorage(Linda& linda_, DestState const L_)
     STACK_CHECK_START_REL(_K, 0);
     kLindasRegKey.pushValue(_K);                                                                   // _K: LindasDB                                       L_:
     lua_pushlightuserdata(_K, &linda_);                                                            // _K: LindasDB linda                                 L_:
-    lua_rawget(_K, -2);                                                                            // _K: LindasDB KeysDB                                L_:
+    LuaType const _type{ luaG_rawget(_K, StackIndex{ -2 }) };                                      // _K: LindasDB KeysDB                                L_:
     lua_remove(_K, -2);                                                                            // _K: KeysDB                                         L_:
-    if (!lua_istable(_K, -1)) { // possible if we didn't send anything through that linda
+    if (_type != LuaType::TABLE) { // possible if we didn't send anything through that linda
         lua_pop(_K, 1);                                                                            // _K:                                                L_:
         STACK_CHECK(_K, 0);
         return 0;

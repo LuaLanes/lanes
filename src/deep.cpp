@@ -190,8 +190,7 @@ void DeepFactory::PushDeepProxy(DestState const L_, DeepPrelude* const prelude_,
 
     // Check if a proxy already exists
     lua_pushlightuserdata(L_, prelude_);                                                           // L_: DPC deep
-    lua_rawget(L_, -2);                                                                            // L_: DPC proxy
-    if (!lua_isnil(L_, -1)) {
+    if (luaG_rawget(L_, StackIndex{ -2 }) != LuaType::NIL) {                                       // L_: DPC proxy
         lua_remove(L_, -2);                                                                        // L_: proxy
         STACK_CHECK(L_, 1);
         return;

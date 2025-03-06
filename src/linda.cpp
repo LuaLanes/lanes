@@ -417,8 +417,7 @@ static int linda_index_string(lua_State* L_)
     // look in metatable first
     lua_getmetatable(L_, kIdxSelf);                                                                // L_: linda "key" mt
     lua_replace(L_, -3);                                                                           // L_: mt "key"
-    lua_rawget(L_, -2);                                                                            // L_: mt value
-    if (luaG_type(L_, kIdxTop) != LuaType::NIL) { // found something?
+    if (luaG_rawget(L_, StackIndex{ -2 }) != LuaType::NIL) { // found something?                   // L_: mt value
         return 1; // done
     }
 
