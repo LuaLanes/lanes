@@ -37,13 +37,18 @@ LUA=$(word 1,$(shell which lua5.1$(_LUAEXT)) $(shell which lua51$(_LUAEXT)) $(sh
 
 _TARGET_SO=$(_TARGET_DIR)/core.$(_SO)
 
+_UNITTEST_TARGET=$(_TARGET_DIR)/UnitTests$(_LUAEXT)
+
 _PREFIX=LUA_CPATH="./src/?.$(_SO)" LUA_PATH="./src/?.lua;./tests/?.lua"
 
 #---
-all: $(_TARGET_SO)
+all: $(_TARGET_SO) $(_UNITTEST_TARGET)
 
 $(_TARGET_SO): src/*.lua src/*.cpp src/*.h src/*.hpp
 	cd src && $(MAKE) LUA=$(LUA)
+
+$(_UNITTEST_TARGET): $(_TARGET_SO)
+	cd unit_tests && $(MAKE)
 
 clean:
 	cd src && $(MAKE) clean
@@ -271,7 +276,7 @@ endif
 # 2.0.1: Running this (instant exit of the main Lua state) occasionally
 #        segfaults (1:15 or so on OS X PowerPC G4).
 #
-require: $(_TARGET_SO)
+require_module: $(_TARGET_SO)
 	$(_PREFIX) $(LUA) -e "require '$(MODULE)'"
 
 run: $(_TARGET_SO)

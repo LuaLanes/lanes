@@ -345,6 +345,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Catch2.runsettings" />
+    <None Include="Makefile" />
     <None Include="scripts\coro\basics.lua" />
     <None Include="scripts\coro\error_handling.lua" />
     <None Include="scripts\lane\cooperative_shutdown.lua" />

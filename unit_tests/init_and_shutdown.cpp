@@ -756,11 +756,6 @@ TEST_CASE("lanes.on_state_create setting")
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
 
     local::OnStateCreateCallsCount.store(0, std::memory_order_relaxed);
-    auto on_state_create = +[](lua_State* const L_) {
-        local::OnStateCreateCallsCount.fetch_add(1, std::memory_order_relaxed);
-        return 0;
-    };
-
 
     SECTION("on_state_create called in Keeper states")
     {

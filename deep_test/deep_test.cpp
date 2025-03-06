@@ -204,44 +204,44 @@ static int clonable_get(lua_State* const L_)
 // #################################################################################################
 
 [[nodiscard]]
-static int clonable_set(lua_State* L)
+static int clonable_set(lua_State* const L_)
 {
-    MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
-    lua_Integer i = lua_tointeger(L, 2);
-    self->val = i;
+    MyClonableUserdata* _self = static_cast<MyClonableUserdata*>(lua_touserdata(L_, 1));
+    lua_Integer i = lua_tointeger(L_, 2);
+    _self->val = i;
     return 0;
 }
 
 // #################################################################################################
 
 [[nodiscard]]
-static int clonable_setuv(lua_State* L)
+static int clonable_setuv(lua_State* const L_)
 {
-    MyClonableUserdata* const _self{ static_cast<MyClonableUserdata*>(lua_touserdata(L, 1)) };
-    UserValueIndex const _uv{ static_cast<UserValueIndex::type>(luaL_optinteger(L, 2, 1)) };
-    lua_settop(L, 3);
-    lua_pushboolean(L, lua_setiuservalue(L, StackIndex{ 1 }, _uv) != 0);
+    [[maybe_unused]] MyClonableUserdata* const _self{ static_cast<MyClonableUserdata*>(lua_touserdata(L_, 1)) };
+    UserValueIndex const _uv{ static_cast<UserValueIndex::type>(luaL_optinteger(L_, 2, 1)) };
+    lua_settop(L_, 3);
+    lua_pushboolean(L_, lua_setiuservalue(L_, StackIndex{ 1 }, _uv) != 0);
     return 1;
 }
 
 // #################################################################################################
 
 [[nodiscard]]
-static int clonable_getuv(lua_State* L)
+static int clonable_getuv(lua_State* const L_)
 {
-    MyClonableUserdata* const _self{ static_cast<MyClonableUserdata*>(lua_touserdata(L, 1)) };
-    UserValueIndex const _uv{ static_cast<UserValueIndex::type>(luaL_optinteger(L, 2, 1)) };
-    lua_getiuservalue(L, StackIndex{ 1 }, _uv);
+    [[maybe_unused]] MyClonableUserdata* const _self{ static_cast<MyClonableUserdata*>(lua_touserdata(L_, 1)) };
+    UserValueIndex const _uv{ static_cast<UserValueIndex::type>(luaL_optinteger(L_, 2, 1)) };
+    lua_getiuservalue(L_, StackIndex{ 1 }, _uv);
     return 1;
 }
 
 // #################################################################################################
 
 [[nodiscard]]
-static int clonable_tostring(lua_State* L)
+static int clonable_tostring(lua_State* const L_)
 {
-    MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
-    luaG_pushstring(L, "%p:clonable(%d)", lua_topointer(L, 1), self->val);
+    MyClonableUserdata* _self = static_cast<MyClonableUserdata*>(lua_touserdata(L_, 1));
+    luaG_pushstring(L_, "%p:clonable(%d)", lua_topointer(L_, 1), _self->val);
     return 1;
 }
 
@@ -250,7 +250,7 @@ static int clonable_tostring(lua_State* L)
 [[nodiscard]]
 static int clonable_gc(lua_State* const L_)
 {
-    MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L_, 1));
+    [[maybe_unused]] MyClonableUserdata* _self = static_cast<MyClonableUserdata*>(lua_touserdata(L_, 1));
     if (lua_getiuservalue(L_, kIdxTop, UserValueIndex{ 1 }) == LUA_TFUNCTION) {
         lua_call(L_, 0, 0);
     }

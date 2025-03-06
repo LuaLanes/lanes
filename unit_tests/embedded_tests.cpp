@@ -60,14 +60,6 @@ TEST_CASE("lanes.embedding")
     lua_pop(S, 1);
     S.stackCheck(0);
 
-    auto load_lanes_lua = +[](lua_State* const L_) {
-        if (0 == luaL_dofile(L_, "lanes.lua")) {
-            return 1;
-        } else {
-            return 0;
-        }
-    };
-
     _p_luaopen_lanes_embedded(S, local::load_lanes_lua);                                           // S: lanes
     lua_pop(S, 1);
     S.stackCheck(0);

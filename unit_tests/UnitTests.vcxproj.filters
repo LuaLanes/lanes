@@ -51,6 +51,9 @@
     <Filter Include="Catch2">
       <UniqueIdentifier>{2e1bf85c-7722-42ba-86f8-ac0f5a494ac5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Make">
+      <UniqueIdentifier>{c62af5d9-9161-4ca1-9b58-6837e2907e35}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="scripts\linda\send_receive.lua">
@@ -106,6 +109,9 @@
     </None>
     <None Include="Catch2.runsettings">
       <Filter>Catch2</Filter>
+    </None>
+    <None Include="Makefile">
+      <Filter>Make</Filter>
     </None>
   </ItemGroup>
 </Project>

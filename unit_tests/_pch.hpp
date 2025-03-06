@@ -1,9 +1,11 @@
 #pragma once
 
+#include <atomic>
 #include <cassert>
 #include <filesystem>
 #include <source_location>
 #include <mutex>
+#include <thread>
 #include <variant>
 
 #include "catch_amalgamated.hpp"

@@ -101,7 +101,9 @@ namespace
 TEST_CASE("lanes.stack checker")
 {
     LuaState _L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+#if HAVE_LUA_ASSERT()
     StackChecker::CallsCassert = false;
+#endif // HAVE_LUA_ASSERT()
 
     auto _doStackCheckerTest = [&_L](lua_CFunction const _f, LuaError const _expected) {
         lua_pushcfunction(_L, _f);
@@ -223,7 +225,7 @@ std::string_view LuaState::doStringAndRet(std::string_view const& str_) const
         STACK_CHECK(L, 1); // the error message is on the stack
         return "";
     }
-    LuaError const _callErr{ lua_pcall(L, 0, 1, 0) };                                              // L: "<msg>"?|retstring
+    [[maybe_unused]] LuaError const _callErr{ lua_pcall(L, 0, 1, 0) };                             // L: "<msg>"?|retstring
     STACK_CHECK(L, 1);
     return luaG_tostring(L, kIdxTop);
 }
