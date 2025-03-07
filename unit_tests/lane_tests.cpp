@@ -8,16 +8,25 @@ TEST_CASE("lanes.nameof")
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
     S.requireSuccess("lanes = require 'lanes'.configure()");
 
+    // no argument is not good
+    S.requireFailure("local t, n = lanes.nameof()");
+
+    // more than one argument is not good
+    S.requireFailure("local t, n = lanes.nameof(true, false)");
+
     // a constant is itself, stringified
     S.requireReturnedString("local t, n = lanes.nameof('bob'); return t .. ': ' .. tostring(n)", "string: bob");
     S.requireReturnedString("local t, n = lanes.nameof(true); return t .. ': ' .. tostring(n)", "boolean: true");
     S.requireReturnedString("local t, n = lanes.nameof(42); return t .. ': ' .. tostring(n)", "number: 42");
+
+    // a temporary object has no name
     S.requireReturnedString("local t, n = lanes.nameof({}); return t .. ': ' .. tostring(n)", "table: nil");
+    S.requireReturnedString("local t, n = lanes.nameof(function() end); return t .. ': ' .. tostring(n)", "function: nil");
 
     // look for something in _G
-    S.requireReturnedString("local t, n = lanes.nameof(print); return t .. ': ' .. tostring(n)", "function: _G/print");
-    S.requireReturnedString("local t, n = lanes.nameof(string); return t .. ': ' .. tostring(n)", "table: _G/string");
-    S.requireReturnedString("local t, n = lanes.nameof(string.sub); return t .. ': ' .. tostring(n)", "function: _G/string/sub");
+    S.requireReturnedString("local t, n = lanes.nameof(print); return t .. ': ' .. tostring(n)", "function: _G/print()");
+    S.requireReturnedString("local t, n = lanes.nameof(string); return t .. ': ' .. tostring(n)", "table: _G/string[]");
+    S.requireReturnedString("local t, n = lanes.nameof(string.sub); return t .. ': ' .. tostring(n)", "function: _G/string[]/sub()");
 }
 
 // #################################################################################################

@@ -95,19 +95,20 @@ namespace tools {
 
     // inspired from tconcat() in ltablib.c
     [[nodiscard]]
-    std::string_view PushFQN(lua_State* const L_, StackIndex const t_, TableIndex const last_)
+    std::string_view PushFQN(lua_State* const L_, StackIndex const t_)
     {
         STACK_CHECK_START_REL(L_, 0);
         // Lua 5.4 pushes &b as light userdata on the stack. be aware of it...
         luaL_Buffer _b;
         luaL_buffinit(L_, &_b);                                                                    // L_: ... {} ... &b?
         TableIndex _i{ 1 };
-        for (; _i < last_; ++_i) {
+        TableIndex const _last{ static_cast<TableIndex::type>(lua_rawlen(L_, t_)) };
+        for (; _i < _last; ++_i) {
             lua_rawgeti(L_, t_, _i);
             luaL_addvalue(&_b);
             luaL_addlstring(&_b, "/", 1);
         }
-        if (_i == last_) { // add last value (if interval was not empty)
+        if (_i == _last) { // add last value (if interval was not empty)
             lua_rawgeti(L_, t_, _i);
             luaL_addvalue(&_b);
         }
@@ -151,7 +152,7 @@ static void update_lookup_entry(lua_State* const L_, StackIndex const ctxBase_, 
     TableIndex const _deeper{ depth_ + 1 };
     lua_rawseti(L_, _fqn, _deeper);                                                                // L_: ... {bfc} k o name?
     // generate name
-    std::string_view const _newName{ tools::PushFQN(L_, _fqn, _deeper) };                          // L_: ... {bfc} k o name? "f.q.n"
+    std::string_view const _newName{ tools::PushFQN(L_, _fqn) };                                   // L_: ... {bfc} k o name? "f.q.n"
     // Lua 5.2 introduced a hash randomizer seed which causes table iteration to yield a different key order
     // on different VMs even when the tables are populated the exact same way.
     // Also, when Lua is built with compatibility options (such as LUA_COMPAT_ALL), some base libraries register functions under multiple names.
