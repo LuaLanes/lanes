@@ -31,7 +31,7 @@ THE SOFTWARE.
 
 // #################################################################################################
 
-DECLARE_UNIQUE_TYPE(FqnLength, lua_Unsigned);
+DECLARE_UNIQUE_TYPE(FqnLength, decltype(lua_rawlen(nullptr, kIdxTop)));
 
 // Return some name helping to identify an object
 [[nodiscard]]
@@ -76,7 +76,7 @@ FqnLength DiscoverObjectNameRecur(lua_State* const L_, FqnLength const shortest_
         }
 
         FqnLength const _depth{ lua_rawlen(L_, kFQN) + 1 };
-        lua_rawseti(L_, kFQN, _depth);                                                             // L_: o "r" {c} {fqn} ... k v
+        lua_rawseti(L_, kFQN, static_cast<int>(_depth));                                           // L_: o "r" {c} {fqn} ... k v
         STACK_CHECK(L_, 0);
         STACK_CHECK(L_, 0);
         return _depth;
@@ -85,7 +85,7 @@ FqnLength DiscoverObjectNameRecur(lua_State* const L_, FqnLength const shortest_
     static constexpr auto _popNameFromFQN = [](lua_State* const L_) {
         STACK_CHECK_START_REL(L_, 0);
         lua_pushnil(L_);                                                                           // L_: o "r" {c} {fqn} ... nil
-        lua_rawseti(L_, kFQN,  lua_rawlen(L_, kFQN));                                              // L_: o "r" {c} {fqn} ...
+        lua_rawseti(L_, kFQN, static_cast<int>(lua_rawlen(L_, kFQN)));                             // L_: o "r" {c} {fqn} ...
         STACK_CHECK(L_, 0);
     };
 
