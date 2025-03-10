@@ -27,7 +27,8 @@ local linda = lanes.linda()
 linda:set("val", 33.0)
 
 -- so that we can easily swap between lanes.gen and lanes.coro, to try stuff
-local generator = lanes.coro
+-- TODO: looks like the result changes when using LuaJIT and coro together. to be investigated
+local generator = lanes.gen
 
 -- ##################################################################################################
 

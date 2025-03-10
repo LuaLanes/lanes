@@ -60,5 +60,5 @@ if true then
     local a, b, c = h:join()
     -- we get the expected error back
     PRINT("non_string_thrower:", a, b, c)
-    assert(a == nil and type(b) == "table" and b[1] == "string in table" and c == nil)
+    assert(a == nil and type(b) == "table" and b[1] == "string in table" and c == nil, "a=" .. tostring(a) .. " b=" .. tostring(b))
 end
