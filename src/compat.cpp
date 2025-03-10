@@ -120,9 +120,9 @@ int lua_getiuservalue(lua_State* const L_, StackIndex const idx_, UserValueIndex
 #endif// LUA_VERSION_NUM > 501
     STACK_CHECK(L_, 1);
     int const _uvType{ lua_type(L_, -1) };
-    // under Lua 5.2, there is a single uservalue that is either nil or a table.
-    // If nil, don't transfer it, as it can cause issues when copying to a Keeper state because of nil sentinel conversion
-    return (LUA_VERSION_NUM == 502 && _uvType == LUA_TNIL) ? LUA_TNONE : _uvType;
+    // under Lua 5.2 and 5.3, there is a single uservalue, that can be nil.
+    // emulate 5.4 behavior by returning LUA_TNONE when that's the case
+    return (_uvType == LUA_TNIL) ? LUA_TNONE : _uvType;
 }
 
 // #################################################################################################

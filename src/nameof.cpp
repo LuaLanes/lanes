@@ -60,6 +60,7 @@ FqnLength DiscoverObjectNameRecur(lua_State* const L_, FqnLength const shortest_
             // decorate the key string with something that tells us the type of the value
             switch (luaG_type(L_, StackIndex{ -2 })) {
             default:
+                LUA_ASSERT(L_, false); // there is something wrong if we end up here
                 luaG_pushstring(L_, "??");                                                         // L_: o "r" {c} {fqn} ... k v "k" "??"
                 break;
             case LuaType::FUNCTION:
@@ -77,7 +78,6 @@ FqnLength DiscoverObjectNameRecur(lua_State* const L_, FqnLength const shortest_
 
         FqnLength const _depth{ lua_rawlen(L_, kFQN) + 1 };
         lua_rawseti(L_, kFQN, static_cast<int>(_depth));                                           // L_: o "r" {c} {fqn} ... k v
-        STACK_CHECK(L_, 0);
         STACK_CHECK(L_, 0);
         return _depth;
     };
@@ -114,7 +114,7 @@ FqnLength DiscoverObjectNameRecur(lua_State* const L_, FqnLength const shortest_
 
         // filter out uninteresting values
         auto const _valType{ luaG_type(L_, kIdxTop) };
-        if (_valType == LuaType::BOOLEAN || _valType == LuaType::LIGHTUSERDATA || _valType == LuaType::NUMBER || _valType == LuaType::STRING) {
+        if (_valType == LuaType::NIL || _valType == LuaType::BOOLEAN || _valType == LuaType::LIGHTUSERDATA || _valType == LuaType::NUMBER || _valType == LuaType::STRING) {
             lua_pop(L_, 1);                                                                        // L_: o "r" {c} {fqn} ... k
             return _r;
         }
@@ -164,7 +164,6 @@ FqnLength DiscoverObjectNameRecur(lua_State* const L_, FqnLength const shortest_
 
     static constexpr auto _scanUserData = [](lua_State* const L_, FqnLength const shortest_) -> FqnLength {
         FqnLength r_{ shortest_ };
-        FqnLength const _depth{ lua_rawlen(L_, kFQN) + 1 };
         STACK_GROW(L_, 2);
         STACK_CHECK_START_REL(L_, 0);
         if (lua_getmetatable(L_, kIdxTop)) {                                                       // L_: o "r" {c} {fqn} ... U {mt}
@@ -233,7 +232,7 @@ FqnLength DiscoverObjectNameRecur(lua_State* const L_, FqnLength const shortest_
 
     FqnLength r_;
     // scan location contents
-    switch (luaG_type(L_, kIdxTop)) {                                                              // L_: o "r" {c} {fqn} ... <>
+    switch (_typeWhere) {                                                                          // L_: o "r" {c} {fqn} ... <>
     default:
         raise_luaL_error(L_, "unexpected error, please investigate");
         break;
