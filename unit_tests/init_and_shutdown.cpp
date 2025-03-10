@@ -150,7 +150,9 @@ TEST_CASE("lanes.configure")
             };
             lua_pushcfunction(L, _provideAllocator);
             lua_setglobal(L, "ProvideAllocator");
-            L.requireFailure("require 'lanes'.configure{allocator = ProvideAllocator}");
+            // force value of internal_allocator so that the LuaJIT-default 'libc' is not selected
+            // which would prevent us from calling _provideAllocator
+            L.requireFailure("require 'lanes'.configure{allocator = ProvideAllocator, internal_allocator = 'allocator'}");
         }
 
         // -----------------------------------------------------------------------------------------
@@ -166,7 +168,9 @@ TEST_CASE("lanes.configure")
             };
             lua_pushcfunction(L, _provideAllocator);
             lua_setglobal(L, "ProvideAllocator");
-            L.requireFailure("require 'lanes'.configure{allocator = ProvideAllocator}");
+            // force value of internal_allocator so that the LuaJIT-default 'libc' is not selected
+            // which would prevent us from calling _provideAllocator
+            L.requireFailure("require 'lanes'.configure{allocator = ProvideAllocator, internal_allocator = 'allocator'}");
         }
 
         // -----------------------------------------------------------------------------------------
@@ -183,7 +187,9 @@ TEST_CASE("lanes.configure")
             };
             lua_pushcfunction(L, _provideAllocator);
             lua_setglobal(L, "ProvideAllocator");
-            L.requireFailure("require 'lanes'.configure{allocator = ProvideAllocator}");
+            // force value of internal_allocator so that the LuaJIT-default 'libc' is not selected
+            // which would prevent us from calling _provideAllocator
+            L.requireFailure("require 'lanes'.configure{allocator = ProvideAllocator, internal_allocator = 'allocator'}");
         }
     }
 

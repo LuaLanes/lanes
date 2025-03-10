@@ -52,6 +52,11 @@ namespace
             return 0;
         };
 
+        // a function that returns immediately (so that LuaJIT issues a function call for it)
+        lua_CFunction sGiveMeBack = +[](lua_State* L_) {
+            return lua_gettop(L_);
+        };
+
         lua_CFunction sNewLightUserData = +[](lua_State* const L_) {
             lua_pushlightuserdata(L_, std::bit_cast<void*>(static_cast<uintptr_t>(42)));
             return 1;
@@ -71,8 +76,9 @@ namespace
 
         static luaL_Reg const sFixture[] = {
             { "forever", sForever },
+            { "give_me_back()", sGiveMeBack },
             { "newlightuserdata", sNewLightUserData },
-            { "newuserdata", sNewUserData }, 
+            { "newuserdata", sNewUserData },
             { "on_state_create", sOnStateCreate },
             { "throwing_finalizer", sThrowingFinalizer },
             { "yielding_finalizer", sYieldingFinalizer },
@@ -163,7 +169,15 @@ LuaState::LuaState(WithBaseLibs const withBaseLibs_, WithFixture const withFixtu
     STACK_CHECK_START_REL(L, 0);
     if (withBaseLibs_) {
         luaL_openlibs(L);
+    } else {
+#if LUAJIT_FLAVOR()
+        // lanes.core relies on the presence of jit to detect LuaJIT/PUC-Lua mismatches
+        luaL_requiref(L, LUA_JITLIBNAME, luaopen_jit, 1);
+        lua_pop(L, 1);
+#endif // LUAJIT_FLAVOR
     }
+    
+
     if (withFixture_) {
         // make require "fixture" call luaopen_fixture
         local::PreloadModule(L, "fixture", luaopen_fixture);

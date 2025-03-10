@@ -3,6 +3,7 @@ local lanes = require "lanes"
 -- launch lanes that cooperate properly with cancellation request
 
 local lane1 = function()
+	lane_threadname("lane1")
 	-- loop breaks on cancellation request
 	repeat
 		lanes.sleep(0)
@@ -11,6 +12,7 @@ local lane1 = function()
 end
 
 local lane2 = function(linda_)
+	lane_threadname("lane2")
 	-- loop breaks on lane/linda cancellation
 	repeat
 		local k, v = linda_:receive('k')
@@ -19,9 +21,11 @@ local lane2 = function(linda_)
 end
 
 local lane3 = function()
+	lane_threadname("lane3")
 	-- this one cooperates too, because of the hook cancellation modes that Lanes will be using
 	-- but not with LuaJIT, because the function is compiled, and we don't call anyone, so no hook triggers
-	repeat until false
+	local fixture = require "fixture"
+	repeat until fixture.give_me_back(false)
 end
 
 

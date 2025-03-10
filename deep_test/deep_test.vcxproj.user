@@ -33,6 +33,12 @@
     <LocalDebuggerCommandArguments>-i</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">
+    <LocalDebuggerCommand>$(SolutionDir)..\LuaJIT-GIT\bin\$(Platform)\luajitgit.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments>-i</LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">
     <LocalDebuggerCommand>$(SolutionDir)..\framework\lua54.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
@@ -65,6 +71,12 @@
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT 2.0.5|Win32'">
+    <LocalDebuggerCommand>$(SolutionDir)..\LuaJIT-2.0.5\bin\$(Platform)\luajit205.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments>-i</LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\deep_test\</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">
     <LocalDebuggerCommand>$(SolutionDir)..\LuaJIT-2.0.5\bin\$(Platform)\luajit205.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerCommandArguments>-i</LocalDebuggerCommandArguments>
