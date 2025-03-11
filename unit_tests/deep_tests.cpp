@@ -2,19 +2,19 @@
 #include "shared.h"
 
 // yeah it's dirty, I will do better someday
-#include "../deep_test/deep_test.cpp"
+#include "../deep_userdata_example/deep_userdata_example.cpp"
 
 
 // #################################################################################################
 // #################################################################################################
 
-TEST_CASE("misc.deep_test")
+TEST_CASE("misc.deep_userdata.example")
 {
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
     S.requireSuccess(
         " lanes = require 'lanes'.configure()"
         " fixture = require 'fixture'"
-        " deep_test = require 'deep_test'"
+        " due = require 'deep_userdata_example'"
     );
 
     SECTION("garbage collection collects")
@@ -24,8 +24,8 @@ TEST_CASE("misc.deep_test")
         if constexpr (LUA_VERSION_NUM >= 503) { // Lua < 5.3 only supports a table uservalue
             S.requireSuccess(
                 // create a deep userdata object without referencing it. First uservalue is a function, and should be called on __gc
-                " deep_test.new_deep(1):setuv(1, function() collected = collected and collected + 1 or 1 end)"
-                " deep_test.new_deep(1):setuv(1, function() collected = collected and collected + 1 or 1 end)"
+                " due.new_deep(1):setuv(1, function() collected = collected and collected + 1 or 1 end)"
+                " due.new_deep(1):setuv(1, function() collected = collected and collected + 1 or 1 end)"
                 " collectgarbage()"                         // and collect it
                 " assert(collected == 2)"
             );
@@ -37,7 +37,7 @@ TEST_CASE("misc.deep_test")
     SECTION("reference counting")
     {
         S.requireSuccess(
-            " d = deep_test.new_deep(1)"                   // create a deep userdata object
+            " d = due.new_deep(1)"                         // create a deep userdata object
             " d:set(42)"                                   // set some value
             " assert(d:refcount() == 1)"
         );
@@ -73,7 +73,7 @@ TEST_CASE("misc.deep_test")
     SECTION("collection from inside a Linda")
     {
         S.requireSuccess(
-            " d = deep_test.new_deep(1)"                   // create a deep userdata object
+            " d = due.new_deep(1)"                         // create a deep userdata object
             " d:set(42)"                                   // set some value
             " assert(d:refcount() == 1)"
         );
@@ -89,7 +89,7 @@ TEST_CASE("misc.deep_test")
             " l = nil"
             " collectgarbage()"                            // clears the linda, removes its storage from the keeper
             " lanes.collectgarbage()"                      // collect garbage inside the keepers too, to finish cleanup
-            " assert(deep_test.get_deep_count() == 0)"
+            " assert(due.get_deep_count() == 0)"
         );
     }
 }

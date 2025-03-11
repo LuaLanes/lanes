@@ -8,7 +8,7 @@
 // #################################################################################################
 // #################################################################################################
 
-LANES_API int luaopen_deep_test(lua_State* L_);
+LANES_API int luaopen_deep_userdata_example(lua_State* L_);
 
 namespace
 {
@@ -70,7 +70,7 @@ namespace
         // a function that enables any lane to require "fixture"
         lua_CFunction sOnStateCreate = +[](lua_State* const L_) {
             PreloadModule(L_, "fixture", luaopen_fixture);
-            PreloadModule(L_, "deep_test", luaopen_deep_test);
+            PreloadModule(L_, "deep_userdata_example", luaopen_deep_userdata_example);
             return 0;
         };
 
@@ -181,7 +181,7 @@ LuaState::LuaState(WithBaseLibs const withBaseLibs_, WithFixture const withFixtu
     if (withFixture_) {
         // make require "fixture" call luaopen_fixture
         local::PreloadModule(L, "fixture", luaopen_fixture);
-        local::PreloadModule(L, "deep_test", luaopen_deep_test);
+        local::PreloadModule(L, "deep_userdata_example", luaopen_deep_userdata_example);
     }
     STACK_CHECK(L, 0);
 }

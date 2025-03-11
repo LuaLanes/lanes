@@ -857,7 +857,7 @@
   <ItemGroup>
     <ClCompile Include="..\src\compat.cpp" />
     <ClCompile Include="..\src\deep.cpp" />
-    <ClCompile Include="deep_test.cpp" />
+    <ClCompile Include="deep_userdata_example.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\compat.hpp" />

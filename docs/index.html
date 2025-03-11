@@ -1832,7 +1832,7 @@ static int clonable_lanesclone(lua_State* L)
 	<b>NOTE</b>: In the event the source userdata has uservalues, it is not necessary to create them for the clone, Lanes will handle their cloning.<br />
 	Of course, more complex objects may require smarter cloning behavior than a simple <tt>memcpy</tt>. Also, the module initialisation code should make each metatable accessible from the module table itself as in:
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
-int luaopen_deep_test(lua_State* L)
+int luaopen_deep_userdata_example(lua_State* L)
 {
 	luaL_newlib(L, deep_module);
 
@@ -1898,7 +1898,7 @@ static MyDeepFactory g_MyDeepFactory;
 			<li><tt>createMetatable()</tt>: should build a metatable for the object. Don't cache the metatable yourself, Lanes takes care of it (<tt>createMetatable</tt> should only be invoked once per state). Just push the metatable on the stack.</li>
 			<li><tt>moduleName()</tt>: requests the name of the module that exports the factory, to be returned. It is necessary so that Lanes can require it in any lane state that receives a userdata. This is to prevent crashes in situations where the module could be unloaded while the factory pointer is still held.</li>
 		</ul>
-		Take a look at <tt>LindaFactory</tt> in <tt>lindafactory.cpp</tt> or <tt>MyDeepFactory</tt> in <tt>deep_test.cpp</tt>.
+		Take a look at <tt>LindaFactory</tt> in <tt>lindafactory.cpp</tt> or <tt>MyDeepFactory</tt> in <tt>deep_userdata_example.cpp</tt>.
 	</li>
 	<li>Include <tt>"_pch.hpp", "deep.hpp"</tt> and either link against Lanes or statically compile <tt>compat.cpp deep.cpp</tt> into your module if you want to avoid a runtime dependency for users that will use your module without Lanes.
 	<li>Instanciate your userdata using <tt>yourFactoryObject.pushDeepUserdata()</tt>, instead of the regular <tt>lua_newuserdata()</tt>. Given a <tt>factory</tt>, it sets up the support structures and returns a state-specific proxy full userdata for accessing your data. This proxy can also be copied over to other lanes.</li>

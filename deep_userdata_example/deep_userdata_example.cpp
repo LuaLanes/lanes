@@ -19,7 +19,7 @@ class MyDeepFactory final : public DeepFactory
     [[nodiscard]]
     DeepPrelude* newDeepObjectInternal(lua_State* const L_) const override;
     [[nodiscard]]
-    std::string_view moduleName() const override { return std::string_view{ "deep_test" }; }
+    std::string_view moduleName() const override { return std::string_view{ "deep_userdata_example" }; }
 };
 /*static*/ MyDeepFactory MyDeepFactory::Instance{};
 
@@ -315,7 +315,7 @@ static luaL_Reg const deep_module[] = {
 
 // #################################################################################################
 
-LANES_API int luaopen_deep_test(lua_State* L)
+LANES_API int luaopen_deep_userdata_example(lua_State* L)
 {
     luaG_newlib<std::size(deep_module)>(L, deep_module);                                           // M
 
