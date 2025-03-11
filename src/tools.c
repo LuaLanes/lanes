@@ -1510,12 +1510,6 @@ static void inter_copy_keyvaluepair( Universe* U, lua_State* L2, uint_t L2_cache
     }
 }
 
-/*
-* The clone cache is a weak valued table listing all clones, indexed by their userdatapointer
-* fnv164 of string "CLONABLES_CACHE_KEY" generated at https://www.pelock.com/products/hash-calculator
-*/
-static DECLARE_CONST_UNIQUE_KEY( CLONABLES_CACHE_KEY, 0xD04EE018B3DEE8F5);
-
 static bool_t copyclone( Universe* U, lua_State* L2, uint_t L2_cache_i, lua_State* L, uint_t source_i_, LookupMode mode_, char const* upName_)
 {
     void* const source = lua_touserdata( L, source_i_);

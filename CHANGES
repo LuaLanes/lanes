@@ -1,5 +1,8 @@
 CHANGES:
 
+CHANGE 163: BGe 11-Mar-25
+   * Fix a compilation warning
+
 CHANGE 162: BGe 29-Apr-24
    * remove uintptr_t again. I love optional stuff in standard headers
    * expose nil sentinel as lanes.null
