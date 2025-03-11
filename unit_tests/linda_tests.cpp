@@ -329,7 +329,7 @@ TEST_CASE("linda.multi Keeper")
 #define MAKE_TEST_CASE(DIR, FILE) \
 TEST_CASE("scripted tests." #DIR "." #FILE) \
 { \
-    FileRunner _runner(R"(.\lanes\unit_tests\scripts)"); \
+    FileRunner _runner(R"(.\unit_tests\scripts)"); \
     _runner.performTest(FileRunnerParam{ #DIR "/" #FILE, TestType::AssertNoLuaError }); \
 }
 
@@ -346,7 +346,7 @@ TEST_CASE("linda.scripted tests")
         FileRunnerParam{ "linda/multiple_keepers", TestType::AssertNoLuaError }
     );
 
-    FileRunner _runner(R"(.\lanes\unit_tests\scripts)");
+    FileRunner _runner(R"(.\unit_tests\scripts)");
     _runner.performTest(_testParam);
 }
 */

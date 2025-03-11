@@ -1,0 +1,1648 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug 5.1|Prospero">
+      <Configuration>Debug 5.1</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug 5.2|Prospero">
+      <Configuration>Debug 5.2</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug 5.3|Prospero">
+      <Configuration>Debug 5.3</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug 5.4|Prospero">
+      <Configuration>Debug 5.4</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug 5.1|Win32">
+      <Configuration>Debug 5.1</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug 5.1|x64">
+      <Configuration>Debug 5.1</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug 5.2|Win32">
+      <Configuration>Debug 5.2</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug 5.2|x64">
+      <Configuration>Debug 5.2</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug 5.3|Win32">
+      <Configuration>Debug 5.3</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug 5.3|x64">
+      <Configuration>Debug 5.3</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug 5.4|Win32">
+      <Configuration>Debug 5.4</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug 5.4|x64">
+      <Configuration>Debug 5.4</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug LuaJIT GIT|Prospero">
+      <Configuration>Debug LuaJIT GIT</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug LuaJIT GIT|Win32">
+      <Configuration>Debug LuaJIT GIT</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug LuaJIT GIT|x64">
+      <Configuration>Debug LuaJIT GIT</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug MoonJIT|Prospero">
+      <Configuration>Debug MoonJIT</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug MoonJIT|Win32">
+      <Configuration>Debug MoonJIT</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug MoonJIT|x64">
+      <Configuration>Debug MoonJIT</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release 5.1|Prospero">
+      <Configuration>Release 5.1</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release 5.1|Win32">
+      <Configuration>Release 5.1</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release 5.1|x64">
+      <Configuration>Release 5.1</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release 5.2|Prospero">
+      <Configuration>Release 5.2</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release 5.2|Win32">
+      <Configuration>Release 5.2</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release 5.2|x64">
+      <Configuration>Release 5.2</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release 5.3|Prospero">
+      <Configuration>Release 5.3</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release 5.3|Win32">
+      <Configuration>Release 5.3</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release 5.3|x64">
+      <Configuration>Release 5.3</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release 5.4|Prospero">
+      <Configuration>Release 5.4</Configuration>
+      <Platform>Prospero</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release 5.4|Win32">
+      <Configuration>Release 5.4</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release 5.4|x64">
+      <Configuration>Release 5.4</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{1DB7D861-EEFD-49DC-A8E2-3FC2BD6AD49D}</ProjectGuid>
+    <RootNamespace>Lanes</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+    <SccProjectName>
+    </SccProjectName>
+    <SccLocalPath>
+    </SccLocalPath>
+    <SccProvider>
+    </SccProvider>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>NotSet</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Prospero'">
+    <PlatformToolset>Clang</PlatformToolset>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.40219.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|x64'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release 5.4|x64'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|x64'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release 5.4|x64'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">false</LinkIncremental>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'">$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'">false</LinkIncremental>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|x64'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release 5.4|x64'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">core</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'">core</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|x64'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|x64'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">
+    <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Prospero'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <TargetName>core</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Prospero'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <TargetName>core</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Prospero'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <TargetName>core</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Prospero'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <TargetName>core</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Prospero'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <TargetName>core</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Prospero'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <TargetName>core</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Prospero'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <TargetName>core</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Prospero'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <TargetName>core</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Prospero'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <TargetName>core</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Prospero'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <TargetName>core</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua51\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
+      <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug\lanes\
+xcopy /F /R /Y "$(OutputPath)core.pdb" $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug\lanes\
+</Command>
+      <Message>Copy to Lua 5.1</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\LuaJIT-GIT\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\LuaJIT-GIT\bin\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
+      <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\LuaJIT-GIT\bin\$(Platform)\lanes\</Command>
+      <Message>Copy to LuaJITGIT</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua53\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua53.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
+      <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\framework\lanes\
+</Command>
+      <Message>Copy to framework</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua54\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua54.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
+      <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
+    </Link>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+      <Message>
+      </Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\MoonJIT\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\MoonJIT\bin\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
+      <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\MoonJIT\bin\$(Platform)\lanes\</Command>
+      <Message>Copy to MoonJIT</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua53\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua53.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
+      <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\framework\lanes\
+</Command>
+      <Message>Copy to framework</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua54\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua54.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
+      <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\framework\lanes\
+</Command>
+      <Message>Copy to framework</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua51\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /F /R /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug\lanes\
+xcopy /F /R /Y "$(OutputPath)core.pdb" $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug\lanes\
+</Command>
+      <Message>Copy to Lua 5.1</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\LuaJIT-GIT\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\LuaJIT-GIT\bin\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\LuaJIT-GIT\bin\$(Platform)\lanes\</Command>
+      <Message>Copy to LuaJITGIT</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|x64'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua53\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua53.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /F /R /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Debug\lanes\
+xcopy /F /R /Y "$(OutputPath)core.pdb" $(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Debug\lanes\
+</Command>
+      <Message>Copy to Lua 5.3</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua54\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua54.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /F /R /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Debug\lanes\
+xcopy /F /R /Y "$(OutputPath)core.pdb" $(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Debug\lanes\
+</Command>
+      <Message>Copy to Lua 5.4</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\MoonJIT\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\MoonJIT\bin\$(Platform);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\MoonJIT\bin\$(Platform)\lanes\</Command>
+      <Message>Copy to MoonJIT</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua53\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua53.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /F /R /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Release\lanes\
+xcopy /F /R /Y "$(OutputPath)core.pdb" $(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Release\lanes\
+</Command>
+      <Message>Copy to Lua 5.3</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|x64'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Full</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua54\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua54.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /F /R /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Release\lanes\
+xcopy /F /R /Y "$(OutputPath)core.pdb" $(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Release\lanes\
+</Command>
+      <Message>Copy to Lua 5.4</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua52\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua52.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
+      <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug\lanes\
+xcopy /F /R /Y "$(OutputPath)core.pdb" $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug\lanes\
+</Command>
+      <Message>Copy to Lua 5.2</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua52\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua52.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /F /R /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug\lanes\
+xcopy /F /R /Y "$(OutputPath)core.pdb" $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug\lanes\
+</Command>
+      <Message>Copy to Lua 5.2</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua51\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
+      <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+      <Message>
+      </Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua51\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /F /R /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Release\lanes\
+xcopy /F /R /Y "$(OutputPath)core.pdb" $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Release\lanes\
+</Command>
+      <Message>Copy to Lua 5.1</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua52\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua52.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
+      <ImportLibrary>$(IntDir)$(TargetName).lib</ImportLibrary>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'">
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua52\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ProgramDataBaseFileName>$(IntDir)$(TargetName).pdb</ProgramDataBaseFileName>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>lua52.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName).dll</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <PostBuildEvent>
+      <Command>xcopy /F /R /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Release\lanes\
+xcopy /F /R /Y "$(OutputPath)core.pdb" $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Release\lanes\
+</Command>
+      <Message>Copy to Lua 5.2</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Prospero'">
+    <ClCompile>
+      <CppLanguageStd>Cpp20</CppLanguageStd>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua51\include</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ExtraWarnings>true</ExtraWarnings>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Prospero'">
+    <ClCompile>
+      <CppLanguageStd>Cpp20</CppLanguageStd>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua52\include</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ExtraWarnings>true</ExtraWarnings>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Prospero'">
+    <ClCompile>
+      <CppLanguageStd>Cpp20</CppLanguageStd>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua53\include</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ExtraWarnings>true</ExtraWarnings>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Prospero'">
+    <ClCompile>
+      <CppLanguageStd>Cpp20</CppLanguageStd>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua54\include</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ExtraWarnings>true</ExtraWarnings>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Prospero'">
+    <ClCompile>
+      <CppLanguageStd>Cpp20</CppLanguageStd>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ExtraWarnings>true</ExtraWarnings>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Prospero'">
+    <ClCompile>
+      <CppLanguageStd>Cpp20</CppLanguageStd>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ExtraWarnings>true</ExtraWarnings>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Prospero'">
+    <ClCompile>
+      <CppLanguageStd>Cpp20</CppLanguageStd>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua51\include</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ExtraWarnings>true</ExtraWarnings>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Prospero'">
+    <ClCompile>
+      <CppLanguageStd>Cpp20</CppLanguageStd>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua52\include</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ExtraWarnings>true</ExtraWarnings>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Prospero'">
+    <ClCompile>
+      <CppLanguageStd>Cpp20</CppLanguageStd>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua53\include</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ExtraWarnings>true</ExtraWarnings>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Prospero'">
+    <ClCompile>
+      <CppLanguageStd>Cpp20</CppLanguageStd>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua54\include</AdditionalIncludeDirectories>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <ExtraWarnings>true</ExtraWarnings>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\allocator.cpp" />
+    <ClCompile Include="src\_pch.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release 5.4|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Prospero'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Prospero'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Prospero'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Prospero'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Prospero'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Prospero'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Prospero'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Prospero'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Prospero'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Prospero'">Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="src\cancel.cpp" />
+    <ClCompile Include="src\compat.cpp" />
+    <ClCompile Include="src\deep.cpp" />
+    <ClCompile Include="src\intercopycontext.cpp" />
+    <ClCompile Include="src\keeper.cpp" />
+    <ClCompile Include="src\lane.cpp" />
+    <ClCompile Include="src\lanes.cpp" />
+    <ClCompile Include="src\linda.cpp" />
+    <ClCompile Include="src\lindafactory.cpp" />
+    <ClCompile Include="src\nameof.cpp" />
+    <ClCompile Include="src\state.cpp" />
+    <ClCompile Include="src\threading.cpp" />
+    <ClCompile Include="src\tools.cpp" />
+    <ClCompile Include="src\tracker.cpp" />
+    <ClCompile Include="src\universe.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\allocator.hpp" />
+    <ClInclude Include="src\stackindex.hpp" />
+    <ClInclude Include="src\unique.hpp" />
+    <ClInclude Include="src\_pch.hpp" />
+    <ClInclude Include="src\cancel.hpp" />
+    <ClInclude Include="src\compat.hpp" />
+    <ClInclude Include="src\debug.hpp" />
+    <ClInclude Include="src\debugspew.hpp" />
+    <ClInclude Include="src\deep.hpp" />
+    <ClInclude Include="src\intercopycontext.hpp" />
+    <ClInclude Include="src\keeper.hpp" />
+    <ClInclude Include="src\lanes.hpp" />
+    <ClInclude Include="src\lanesconf.h" />
+    <ClInclude Include="src\lane.hpp" />
+    <ClInclude Include="src\linda.hpp" />
+    <ClInclude Include="src\lindafactory.hpp" />
+    <ClInclude Include="src\luaerrors.hpp" />
+    <ClInclude Include="src\macros_and_utils.hpp" />
+    <ClInclude Include="src\nameof.hpp" />
+    <ClInclude Include="src\platform.h" />
+    <ClInclude Include="src\state.hpp" />
+    <ClInclude Include="src\threading.hpp" />
+    <ClInclude Include="src\tools.hpp" />
+    <ClInclude Include="src\tracker.hpp" />
+    <ClInclude Include="src\uniquekey.hpp" />
+    <ClInclude Include="src\universe.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\.clang-format" />
+    <None Include="CHANGES" />
+    <CustomBuild Include="src\lanes.lua">
+      <FileType>Document</FileType>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">Copy lanes.lua to Lua 5.1</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">Copy lanes.lua to LuaJIT-GIT</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">Copy lanes.lua to Lua 5.3</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">Copy lanes.lua to framework</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">Copy lanes.lua to MoonJIT</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">
+      </Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">Copy lanes.lua to framework</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'">Copy lanes.lua to Lua 5.1</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">Copy lanes.lua to LuaJIT-GIT</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|x64'">Copy lanes.lua to Lua 5.3</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">Copy lanes.lua to Lua 5.4</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">Copy lanes.lua to MoonJIT</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'">Copy lanes.lua to Lua 5.3</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release 5.4|x64'">Copy lanes.lua to Lua 5.4</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">Copy lanes.lua to Lua 5.2</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">Copy lanes.lua to Lua 5.2</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug\</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\..\..\LuaJIT-GIT\bin\$(Platform)\lua</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Debug\</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\framework\</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\MoonJIT\bin\$(Platform)\lua</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">
+      </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\framework\</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug\</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\..\..\LuaJIT-GIT\bin\$(Platform)\lua</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|x64'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Debug\</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Debug\</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\MoonJIT\bin\$(Platform)\lua</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Release\</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release 5.4|x64'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Release\</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug\</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug\</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">$(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">$(SolutionDir)..\..\..\LuaJIT-GIT\bin\$(Platform)\lua\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">$(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Debug\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">$(SolutionDir)..\framework\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">$(SolutionDir)..\MoonJIT\bin\$(Platform)\lua\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">
+      </Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">$(SolutionDir)..\framework\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'">$(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">$(SolutionDir)..\..\..\LuaJIT-GIT\bin\$(Platform)\lua\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|x64'">$(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Debug\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">$(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Debug\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">$(SolutionDir)..\MoonJIT\bin\$(Platform)\lua\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'">$(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Release\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release 5.4|x64'">$(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Release\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">$(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">$(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug\%(Filename)%(Extension)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">
+      </Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'">Copy lanes.lua to Lua 5.1</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">
+      </Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'">Copy lanes.lua to Lua 5.2</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">
+      </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Release\</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">
+      </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'">xcopy /R /F /Y %(FullPath) $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Release\</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">
+      </Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'">$(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Release\%(Filename)%(Extension)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">
+      </Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'">$(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Release\%(Filename)%(Extension)</Outputs>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">
+      </BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">
+      </BuildInParallel>
+      <MaxProcesses Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">
+      </MaxProcesses>
+      <MaxProcesses Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">
+      </MaxProcesses>
+      <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">
+      </MaxItemsInBatch>
+      <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">
+      </MaxItemsInBatch>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">
+      </BuildInParallel>
+      <MaxProcesses Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">
+      </MaxProcesses>
+      <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">
+      </MaxItemsInBatch>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">
+      </BuildInParallel>
+      <MaxProcesses Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">
+      </MaxProcesses>
+      <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">
+      </MaxItemsInBatch>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">
+      </BuildInParallel>
+      <MaxProcesses Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">
+      </MaxProcesses>
+      <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">
+      </MaxItemsInBatch>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">
+      </BuildInParallel>
+      <MaxProcesses Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">
+      </MaxProcesses>
+      <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">
+      </MaxItemsInBatch>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">
+      </BuildInParallel>
+      <MaxProcesses Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">
+      </MaxProcesses>
+      <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">
+      </MaxItemsInBatch>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">
+      </BuildInParallel>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">
+      </BuildInParallel>
+      <MaxProcesses Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">
+      </MaxProcesses>
+      <MaxProcesses Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">
+      </MaxProcesses>
+      <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">
+      </MaxItemsInBatch>
+      <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">
+      </MaxItemsInBatch>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">
+      </BuildInParallel>
+      <MaxProcesses Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">
+      </MaxProcesses>
+      <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">
+      </MaxItemsInBatch>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'">
+      </BuildInParallel>
+      <MaxProcesses Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'">
+      </MaxProcesses>
+      <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'">
+      </MaxItemsInBatch>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'">
+      </BuildInParallel>
+      <MaxProcesses Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'">
+      </MaxProcesses>
+      <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'">
+      </MaxItemsInBatch>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'">
+      </BuildInParallel>
+      <MaxProcesses Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'">
+      </MaxProcesses>
+      <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'">
+      </MaxItemsInBatch>
+      <BuildInParallel Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">
+      </BuildInParallel>
+      <MaxProcesses Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">
+      </MaxProcesses>
+      <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">
+      </MaxItemsInBatch>
+    </CustomBuild>
+    <None Include="CMakeLists.txt" />
+    <None Include="docs\comparison.html" />
+    <None Include="docs\index.html" />
+    <None Include="lanes-4.0.0-0.rockspec" />
+    <None Include="make-vc.cmd" />
+    <None Include="Shared.mk" />
+    <None Include="src\Makefile" />
+    <None Include="Makefile" />
+    <None Include="tests\appendud.lua" />
+    <None Include="tests\argtable.lua" />
+    <None Include="tests\assert.lua" />
+    <None Include="tests\atexit.lua" />
+    <None Include="tests\atomic.lua" />
+    <None Include="tests\basic.lua" />
+    <None Include="tests\cancel.lua" />
+    <None Include="tests\cyclic.lua" />
+    <None Include="tests\deadlock.lua" />
+    <None Include="tests\ehynes.lua" />
+    <None Include="tests\errhangtest.lua" />
+    <None Include="tests\error.lua" />
+    <None Include="tests\fibonacci.lua" />
+    <None Include="tests\fifo.lua" />
+    <None Include="tests\finalizer.lua" />
+    <None Include="tests\func_is_string.lua" />
+    <None Include="tests\hangtest.lua" />
+    <None Include="tests\irayo_closure.lua" />
+    <None Include="tests\irayo_recursive.lua" />
+    <None Include="tests\keeper.lua" />
+    <None Include="tests\lanes_as_upvalue.lua" />
+    <None Include="tests\launchtest.lua" />
+    <None Include="tests\linda_perf.lua" />
+    <None Include="tests\manual_register.lua" />
+    <None Include="tests\nameof.lua" />
+    <None Include="tests\objects.lua" />
+    <None Include="tests\parallel_os_calls.lua" />
+    <None Include="tests\perftest.lua" />
+    <None Include="tests\protectproxy.lua" />
+    <None Include="tests\protect_allocator.lua" />
+    <None Include="tests\recursive.lua" />
+    <None Include="tests\require.lua" />
+    <None Include="tests\rupval.lua" />
+    <None Include="tests\timer.lua" />
+    <None Include="tests\tobeclosed.lua" />
+    <None Include="tests\track_lanes.lua" />
+    <None Include="TODO" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

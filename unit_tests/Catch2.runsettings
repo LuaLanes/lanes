@@ -7,8 +7,8 @@
 
 		<!-- Executable Filename
 			Discover filenames with ... (must not include the .exe extension)
-			Regex breakdown: ^scimitar(_(.+))+(p|r|d)(_?(.+))x*$
-			- ^scimitar : find file that starts with scimitar
+			Regex breakdown: ^foo(_(.+))+(p|r|d)(_?(.+))x*$
+			- ^foo : find file that starts with foo
 			- (_(.+))+ : follows with a number of elements starting with _ (_foo_bar_dll)
 			- (r|d|p) : contains a word with one of these letters : r (release), d (debug), p (profile).
 			- (_?(.+)): optionally follow with underscores.
@@ -24,6 +24,6 @@
 
 		<!-- Working directory -->
 		<WorkingDirectoryRoot>Solution</WorkingDirectoryRoot>
-		<WorkingDirectory>Lanes</WorkingDirectory>
+		<WorkingDirectory>.</WorkingDirectory>
 	</Catch2Adapter>
 </RunSettings>

@@ -1,0 +1,158 @@
+{
+  "FileVersion": 2,
+  "Id": "1db7d861-eefd-49dc-a8e2-3fc2bd6ad49d",
+  "Items": [
+    {
+      "Id": "6871d067-5644-4f35-8d5d-b1be97ff58c1",
+      "Command": "ad hoc",
+      "Items": [
+        {
+          "Id": "8a72a101-aa21-40b1-9a98-f76d95b46ae5",
+          "Command": "cancel.lua hook"
+        },
+        {
+          "Id": "408af77c-b41d-486d-91fb-4e690ee27124",
+          "Command": "-e \"require'lanes'.configure{on_state_create=print}\""
+        }
+      ]
+    },
+    {
+      "Id": "7edf5d9e-4a19-4aed-86dd-db3879040658",
+      "Command": "UnitTests",
+      "Items": [
+        {
+          "Id": "c13625a5-0ba9-421b-bebc-96fa8f031717",
+          "Command": "Linda",
+          "Items": [
+            {
+              "Id": "a1766559-b2f5-4775-a2f7-d5fb4a91c79f",
+              "Command": "send_receive.lua"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Id": "9ed7e352-5e90-43a9-84a2-9bff816fb4c8",
+      "Command": "Legacy",
+      "Items": [
+        {
+          "Id": "574ebff8-6b20-46cd-a7a2-86b2e97c9492",
+          "Command": "atexit.lua"
+        },
+        {
+          "Id": "24d2ddcb-be70-4263-b79c-8986031034ce",
+          "Command": "atomic.lua"
+        },
+        {
+          "Id": "bc664cf1-e733-4771-ade9-55b67cf26aa0",
+          "Command": "basic.lua"
+        },
+        {
+          "Id": "4805db8d-9126-4ca5-8533-2ac689dd622c",
+          "Command": "cancel.lua"
+        },
+        {
+          "Id": "10cb77d0-5b13-4244-961b-45b2c03cb30d",
+          "Command": "coverage.lua"
+        },
+        {
+          "Id": "11fabdb2-5527-456b-95e4-dde03926dd16",
+          "Command": "deadlock.lua"
+        },
+        {
+          "Id": "b420633f-dcf7-4ba1-aed6-e00cddfa9f6a",
+          "Command": "errhangtest.lua"
+        },
+        {
+          "Id": "9b8c4c9a-829d-47cb-9dbc-05f9a0cbaf20",
+          "Command": "error.lua"
+        },
+        {
+          "Id": "8986c442-6eab-49cc-94e6-94b5e1e2f630",
+          "Command": "fifo.lua"
+        },
+        {
+          "Id": "1fd4849c-8f0b-45cb-b1e0-08a5565aa8a3",
+          "Command": "finalizer.lua"
+        },
+        {
+          "Id": "c98c2169-34cd-45a1-9373-4df8e418d937",
+          "Command": "func_is_string.lua"
+        },
+        {
+          "Id": "b4cbd3c4-109c-4106-9bab-fb9ff44ea93d",
+          "Command": "ignore.lua"
+        },
+        {
+          "Id": "de4ab896-373a-44d9-af01-c3e22a205197",
+          "Command": "irayo_recursive.lua"
+        },
+        {
+          "Id": "83feda37-b85c-489d-94e8-2d9f87134c7f",
+          "Command": "keeper.lua"
+        },
+        {
+          "Id": "cb8833d2-cd8c-4dd4-9808-4b887ccedf45",
+          "Command": "lanes_as_upvalue.lua"
+        },
+        {
+          "Id": "13551306-493f-45e7-aacc-fbf134ca2441",
+          "Command": "linda_perf.lua"
+        },
+        {
+          "Id": "b54bec40-7f76-422a-a486-e6c232fd2229",
+          "Command": "-e \"TEST1=50 PREFILL1=1000 FILL1=100000\" linda_perf.lua"
+        },
+        {
+          "Id": "62468c84-6050-4de2-864a-bb1d5ce81fa9",
+          "Command": "launchtest.lua 1"
+        },
+        {
+          "Id": "30a80bc0-51b1-46ed-b326-e53c3d3c55f2",
+          "Command": "manual_register.lua"
+        },
+        {
+          "Id": "e756bd9e-512f-40ac-b990-2f3040384419",
+          "Command": "nameof.lua"
+        },
+        {
+          "Id": "d3e42f6c-3976-407e-a3f8-04f07eae0fff",
+          "Command": "objects.lua"
+        },
+        {
+          "Id": "00f8f64c-bfa2-483d-a0dd-230940cc1860",
+          "Command": "package.lua"
+        },
+        {
+          "Id": "d842776e-dee0-4808-a051-6b6ce588e601",
+          "Command": "perftest.lua"
+        },
+        {
+          "Id": "b9d7165b-c8b6-4559-9fcc-7905841815d9",
+          "Command": "protect_allocator.lua"
+        },
+        {
+          "Id": "5f2d8aa4-1416-4c43-ba11-0d6c2b2b3b2f",
+          "Command": "require.lua"
+        },
+        {
+          "Id": "0d8a5929-cbee-4367-b13c-1a5e547eb29d",
+          "Command": "rupval.lua"
+        },
+        {
+          "Id": "f7a50188-7ac9-46ca-959e-226e5bce69f6",
+          "Command": "timer.lua"
+        },
+        {
+          "Id": "f14c84e5-7fc1-4706-ade7-614c23c4ea7d",
+          "Command": "tobeclosed.lua"
+        },
+        {
+          "Id": "f4538cac-85e5-4a28-aa65-6f10879f649a",
+          "Command": "track_lanes.lua"
+        }
+      ]
+    }
+  ]
+}

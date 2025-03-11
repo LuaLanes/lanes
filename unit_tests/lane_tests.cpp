@@ -257,7 +257,7 @@ TEST_CASE("lane.cancel")
 #define MAKE_TEST_CASE(DIR, FILE, CONDITION)\
 TEST_CASE("scripted tests." #DIR "." #FILE) \
 { \
-    FileRunner _runner(R"(.\lanes\unit_tests\scripts)"); \
+    FileRunner _runner(R"(.\unit_tests\scripts)"); \
     _runner.performTest(FileRunnerParam{ #DIR "/" #FILE, TestType::CONDITION }); \
 }
 
@@ -298,7 +298,7 @@ TEST_CASE("lanes.scripted tests")
         FileRunnerParam{ "coro/error_handling", TestType::AssertNoLuaError }
     );
 
-    FileRunner _runner(R"(.\lanes\unit_tests\scripts)");
+    FileRunner _runner(R"(.\unit_tests\scripts)");
     _runner.performTest(_testParam);
 }
 */

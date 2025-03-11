@@ -21,7 +21,7 @@
     <ClCompile Include="..\src\deep.cpp">
       <Filter>Lanes</Filter>
     </ClCompile>
-    <ClCompile Include="deep_test.cpp">
+    <ClCompile Include="deep_userdata_example.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

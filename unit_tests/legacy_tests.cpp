@@ -13,7 +13,7 @@
 #define MAKE_TEST_CASE(FILE) \
 TEST_CASE("scripted tests.legacy." #FILE) \
 { \
-    FileRunner _runner(R"(.\lanes\tests\)"); \
+    FileRunner _runner(R"(.\tests\)"); \
     _runner.performTest(FileRunnerParam{ #FILE, TestType::AssertNoLuaError }); \
 }
 
@@ -34,9 +34,7 @@ MAKE_TEST_CASE(irayo_closure)
 MAKE_TEST_CASE(irayo_recursive)
 MAKE_TEST_CASE(keeper)
 //MAKE_TEST_CASE(linda_perf)
-#if LUA_VERSION_NUM == 504
 MAKE_TEST_CASE(manual_register)
-#endif // LUA_VERSION_NUM
 MAKE_TEST_CASE(nameof)
 MAKE_TEST_CASE(objects)
 MAKE_TEST_CASE(package)
@@ -84,7 +82,7 @@ TEST_CASE("lanes.legacy scripted tests")
         , FileRunnerParam{ "track_lanes", TestType::AssertNoLuaError } // 26
     );
 
-    FileRunner _runner(R"(.\lanes\tests\)");
+    FileRunner _runner(R"(.\tests\)");
     _runner.performTest(_testParam);
 }
 */

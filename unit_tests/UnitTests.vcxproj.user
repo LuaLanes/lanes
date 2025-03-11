@@ -6,7 +6,17 @@
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Prospero'">
+    <LocalDebuggerCommandArguments />
+    <RemoteDebuggerCommandArguments />
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
@@ -14,11 +24,23 @@
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
@@ -36,7 +58,43 @@
     <LocalDebuggerCommandArguments />
     <RemoteDebuggerCommandArguments />
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments />
+    <RemoteDebuggerCommandArguments />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Prospero'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments />
+    <RemoteDebuggerCommandArguments />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Prospero'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments />
+    <RemoteDebuggerCommandArguments />
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments />
+    <RemoteDebuggerCommandArguments />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments />
+    <RemoteDebuggerCommandArguments />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Prospero'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments />
+    <RemoteDebuggerCommandArguments />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Prospero'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerCommandArguments />
@@ -46,11 +104,39 @@
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Prospero'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Prospero'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|x64'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Prospero'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Prospero'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|x64'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Prospero'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>

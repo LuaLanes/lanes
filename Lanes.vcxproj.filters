@@ -1,0 +1,303 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+    <Filter Include="Resource Files\Make">
+      <UniqueIdentifier>{eae6e512-d07d-41a7-89da-471c8ecad5bd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests">
+      <UniqueIdentifier>{2cc51605-325c-46f6-8090-5724a68c1e78}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Make\src">
+      <UniqueIdentifier>{6ae0bc84-53df-4a3d-bcb7-fe6ff0dd4b8b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\keeper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lanes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\threading.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tools.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\compat.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\deep.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\universe.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\linda.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\cancel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\state.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lindafactory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\intercopycontext.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tracker.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\lane.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nameof.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\_pch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\allocator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\lanes.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tools.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\threading.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\keeper.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\deep.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\compat.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\universe.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\macros_and_utils.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\platform.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\uniquekey.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\lane.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cancel.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\state.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\lanesconf.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\linda.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\lindafactory.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\intercopycontext.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tracker.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\debugspew.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\nameof.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\debug.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\luaerrors.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\_pch.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\allocator.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\unique.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\stackindex.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\Makefile">
+      <Filter>Resource Files\Make\src</Filter>
+    </None>
+    <None Include="tests\appendud.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\argtable.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\assert.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\atexit.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\atomic.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\basic.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\cancel.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\cyclic.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\deadlock.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\ehynes.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\errhangtest.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\error.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\fibonacci.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\fifo.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\finalizer.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\func_is_string.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\hangtest.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\irayo_closure.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\irayo_recursive.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\keeper.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\lanes_as_upvalue.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\launchtest.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\linda_perf.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\manual_register.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\nameof.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\objects.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\parallel_os_calls.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\perftest.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\protect_allocator.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\protectproxy.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\recursive.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\require.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\rupval.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\timer.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\tobeclosed.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="tests\track_lanes.lua">
+      <Filter>tests</Filter>
+    </None>
+    <None Include="Makefile">
+      <Filter>Resource Files\Make</Filter>
+    </None>
+    <None Include="Shared.mk">
+      <Filter>Resource Files\Make</Filter>
+    </None>
+    <None Include="make-vc.cmd">
+      <Filter>Resource Files\Make</Filter>
+    </None>
+    <None Include="lanes-4.0.0-0.rockspec">
+      <Filter>Resource Files\Make</Filter>
+    </None>
+    <None Include="CMakeLists.txt">
+      <Filter>Resource Files\Make</Filter>
+    </None>
+    <None Include="docs\comparison.html">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="docs\index.html">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="TODO">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\..\.clang-format">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="CHANGES">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="src\lanes.lua">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,9 @@
+_Output
+_Tmp
+.vs
+*.dll
+*.exe
+*.gch
+*.map
+*.o
+*.so

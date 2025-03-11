@@ -1,8 +1,8 @@
 local RequireAModuleThatExportsGlobalFunctions = function(type_)
 	-- grab some module that exports C functions, this is good enough for our purpose
-	local lfs = require "lfs"
+	local due = require "deep_userdata_example"
 	-- make one of these a global
-	GlobalFunc = lfs.attributes
+	GlobalFunc = due.get_deep_count
 	-- we need to register it so that it is transferable
 	local lanes = require "lanes"
 	lanes.register( "GlobalFunc", GlobalFunc)

@@ -1,0 +1,191 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">
+    <LocalDebuggerCommand>$(SolutionDir)..\Lua51\bin\$(Platform)\Debug\lua51.exe</LocalDebuggerCommand>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">
+    <LocalDebuggerCommand>$(SolutionDir)..\LuaJIT-GIT\bin\$(Platform)\luajitgit.exe</LocalDebuggerCommand>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">
+    <LocalDebuggerCommand>$(SolutionDir)..\Lua53\bin\$(Platform)\Debug\lua53.exe</LocalDebuggerCommand>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">
+    <LocalDebuggerCommand>$(SolutionDir)..\framework\lua54.exe</LocalDebuggerCommand>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">
+    <LocalDebuggerCommand>$(SolutionDir)..\MoonJIT\bin\$(Platform)\moonjit.exe</LocalDebuggerCommand>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">
+    <LocalDebuggerCommand>$(SolutionDir)..\Lua53\bin\$(Platform)\Release\lua53.exe</LocalDebuggerCommand>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">
+    <LocalDebuggerCommand>$(SolutionDir)..\framework\lua54.exe</LocalDebuggerCommand>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">
+    <LocalDebuggerCommand>$(SolutionDir)..\Lua52\bin\$(Platform)\Debug\lua52.exe</LocalDebuggerCommand>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">
+    <LocalDebuggerCommandArguments>error.lua</LocalDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">
+    <LocalDebuggerCommandArguments>-joff -i</LocalDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">
+    <LocalDebuggerCommandArguments>
+    </LocalDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">
+    <LocalDebuggerCommandArguments />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">
+    <LocalDebuggerCommandArguments />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">
+    <LocalDebuggerCommandArguments />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">
+    <LocalDebuggerCommandArguments />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">
+    <LocalDebuggerCommandArguments>Launcher.lua</LocalDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">
+    <LocalDebuggerCommand>$(SolutionDir)..\Lua52\bin\$(Platform)\Release\lua52.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments>keeper.lua</LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|x64'">
+    <LocalDebuggerCommand>$(SolutionDir)..\Lua51\bin\$(Platform)\Debug\lua51.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>keeper.lua timer.lua</LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <RemoteDebuggerCommandArguments>keeper.lua timer.lua</RemoteDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|ORBIS'">
+    <LocalDebuggerCommand>C:\Lua\5.1\lua51.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments />
+    <LocalDebuggerWorkingDirectory>C:\Lua\5.1\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">
+    <LocalDebuggerCommand>$(SolutionDir)..\LuaJIT-GIT\bin\$(Platform)\luajitgit.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>cancel.lua hook</LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <RemoteDebuggerCommandArguments>cancel.lua hook</RemoteDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT 2.0.5|ORBIS'">
+    <LocalDebuggerCommand>C:\Lua\JIT2_64\luajit64.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments />
+    <LocalDebuggerWorkingDirectory>C:\Lua\JIT2_64\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT 2.1.0-beta3|ORBIS'">
+    <LocalDebuggerCommand>C:\Lua\JIT2_64\luajit64.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments />
+    <LocalDebuggerWorkingDirectory>C:\Lua\JIT2_64\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|ORBIS'">
+    <LocalDebuggerCommand>C:\Lua\JIT2_64\luajit64.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments />
+    <LocalDebuggerWorkingDirectory>C:\Lua\JIT2_64\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'">
+    <LocalDebuggerCommand>$(SolutionDir)..\Lua53\bin\$(Platform)\Release\lua53.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerCommandArguments>-i -- basic.lua</LocalDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|x64'">
+    <LocalDebuggerCommand>$(SolutionDir)..\framework\lua54.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerCommandArguments>-e "TEST1=50 PREFILL1=1000 FILL1=100000" linda_perf.lua timer.lua</LocalDebuggerCommandArguments>
+    <RemoteDebuggerCommandArguments>-e "TEST1=50 PREFILL1=1000 FILL1=100000" linda_perf.lua timer.lua</RemoteDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|ORBIS'">
+    <LocalDebuggerCommand>D:\Boulot\anubis\Lua\framework\lua53.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|ORBIS'">
+    <LocalDebuggerCommand>D:\Boulot\anubis\Lua\framework\lua53.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|x64'">
+    <LocalDebuggerCommand>$(SolutionDir)..\Lua53\bin\$(Platform)\Debug\lua53.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerCommandArguments>cancel.lua "kill"</LocalDebuggerCommandArguments>
+    <RemoteDebuggerCommandArguments>cancel.lua "kill"</RemoteDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|x64'">
+    <LocalDebuggerCommand>$(SolutionDir)..\framework\lua54.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerCommandArguments>protect_allocator.lua</LocalDebuggerCommandArguments>
+    <RemoteDebuggerCommandArguments>protect_allocator.lua</RemoteDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">
+    <LocalDebuggerCommand>$(SolutionDir)..\MoonJIT\bin\$(Platform)\moonjit.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerCommandArguments>-joff -i</LocalDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">
+    <LocalDebuggerCommand>$(SolutionDir)..\Lua52\bin\$(Platform)\Debug\lua52.exe</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerCommandArguments>keeper.lua timer.lua</LocalDebuggerCommandArguments>
+    <RemoteDebuggerCommandArguments>keeper.lua timer.lua</RemoteDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommand>$(SolutionDir)..\Lua51\bin\$(Platform)\Release\lua51.exe</LocalDebuggerCommand>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|x64'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommand>$(SolutionDir)..\Lua51\bin\$(Platform)\Release\lua51.exe</LocalDebuggerCommand>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|x64'">
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommand>$(SolutionDir)..\Lua52\bin\$(Platform)\Release\lua52.exe</LocalDebuggerCommand>
+  </PropertyGroup>
+</Project>
