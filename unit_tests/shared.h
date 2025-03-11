@@ -18,7 +18,15 @@ class LuaState
     }
     LuaState(WithBaseLibs withBaseLibs_, WithFixture withFixture_);
 
-    LuaState(LuaState&& rhs_) = default;
+    LuaState(LuaState const&) = delete;
+    LuaState(LuaState&& rhs_) noexcept
+    : L{ std::exchange(rhs_.L, nullptr) }
+    {
+    }
+    LuaState& operator=(LuaState const&) = delete;
+    LuaState& operator=(LuaState&& rhs_) noexcept {
+        L = std::exchange(rhs_.L, nullptr);
+    }
 
     public:
 
