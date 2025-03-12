@@ -23,7 +23,7 @@ _pch.hpp.gch: _pch.hpp
 # Note: Don't put $(LUA_LIBS) ahead of $^; MSYS will not like that (I think)
 #
 $(_UNITTEST_TARGET): $(OBJ)
-	$(CC) $(LIBFLAG) $^ $(LIBS) $(LUA_LIBS) -o $@
+	$(CC) $^ $(LIBS) $(LUA_LIBS) -o $@
 
 clean:
 	-rm -rf $(_UNITTEST_TARGET) *.o *.map
