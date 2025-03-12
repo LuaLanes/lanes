@@ -3,6 +3,7 @@
 
 // #################################################################################################
 // #################################################################################################
+
 TEST_CASE("lanes.nameof")
 {
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
@@ -27,6 +28,70 @@ TEST_CASE("lanes.nameof")
     S.requireReturnedString("local t, n = lanes.nameof(print); return t .. ': ' .. tostring(n)", "function: _G/print()");
     S.requireReturnedString("local t, n = lanes.nameof(string); return t .. ': ' .. tostring(n)", "table: _G/string[]");
     S.requireReturnedString("local t, n = lanes.nameof(string.sub); return t .. ': ' .. tostring(n)", "function: _G/string[]/sub()");
+}
+
+// #################################################################################################
+// #################################################################################################
+
+TEST_CASE("lanes.sleep.argument validation")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+    S.requireSuccess("lanes = require 'lanes'.configure()");
+
+    // anything not a number is no good
+    S.requireFailure("lanes.sleep(true)");
+    S.requireFailure("lanes.sleep({})");
+    S.requireFailure("lanes.sleep('a string')");
+    S.requireFailure("lanes.sleep(lanes.null)");
+    S.requireFailure("lanes.sleep(print)");
+
+    // negative durations are not supported
+    S.requireFailure("lanes.sleep(-1)");
+
+    // no duration is supported (same as 0)
+    S.requireSuccess("lanes.sleep()");
+    S.requireSuccess("lanes.sleep(0)");
+}
+
+// #################################################################################################
+
+TEST_CASE("lanes.sleep.check durations")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+    S.requireSuccess("lanes = require 'lanes'.configure()");
+
+    // requesting to sleep some duration should result in sleeping for that duration
+    auto const _before{ std::chrono::steady_clock::now() };
+    S.requireSuccess("lanes.sleep(1)");
+    CHECK(std::chrono::steady_clock::now() - _before >= 1000ms);
+    CHECK(std::chrono::steady_clock::now() - _before < 1100ms);
+}
+
+
+// #################################################################################################
+
+TEST_CASE("lanes.sleep.interactions with timers")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+    S.requireSuccess("lanes = require 'lanes'.configure{with_timers = true}");
+    
+    std::string_view const _script{
+        // start a 10Hz timer
+        " local l = lanes.linda()"
+        " lanes.timer(l, 'gluh', 0.1, 0.1)"
+        // launch a lane that is supposed to sleep forever
+        " local g = lanes.gen('*', lanes.sleep)"
+        " local h = g('indefinitely')"
+        // sleep 1 second (this uses the timer linda)
+        " lanes.sleep(1)"
+        // shutdown should be able to cancel the lane and stop it instantly
+        " return 'SUCCESS'"
+    };
+    // running the script should take about 1 second
+    auto const _before{ std::chrono::steady_clock::now() };
+    S.requireReturnedString(_script, "SUCCESS");
+    CHECK(std::chrono::steady_clock::now() - _before >= 1000ms);
+    CHECK(std::chrono::steady_clock::now() - _before < 1100ms);
 }
 
 // #################################################################################################
