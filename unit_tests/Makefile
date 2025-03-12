@@ -26,6 +26,6 @@ $(_UNITTEST_TARGET): $(OBJ)
 	$(CC) $^ $(LIBS) $(LUA_LIBS) -o $@
 
 clean:
-	-rm -rf $(_UNITTEST_TARGET) *.o *.map
+	-rm -rf $(_UNITTEST_TARGET) *.o *.map *.gch
 
 .PROXY:	all clean

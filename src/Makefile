@@ -34,7 +34,7 @@ $(MODULE_DIR)/core.$(_SO): $(OBJ)
 	$(CC) $(LIBFLAG) $^ $(LIBS) $(LUA_LIBS) -o $@
 
 clean:
-	-rm -rf $(MODULE)/core.$(_SO) *.o *.map
+	-rm -rf $(MODULE)/core.$(_SO) *.o *.map *.gch
 
 #---
 # NSLU2 "slug" Linux ARM

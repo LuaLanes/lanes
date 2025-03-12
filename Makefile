@@ -52,6 +52,7 @@ $(_UNITTEST_TARGET): $(_TARGET_SO)
 
 clean:
 	cd src && $(MAKE) clean
+	cd unit_tests && $(MAKE) clean
 
 debug:
 	$(MAKE) clean
