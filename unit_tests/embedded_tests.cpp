@@ -38,8 +38,8 @@ namespace
                 if (ptr) {
                     --sAllocCount;
                     sAllocBytes -= osize;
-                    free(ptr);
                     sAllocs.erase(ptr);
+                    free(ptr);
                 }
                 return nullptr;
             } else if (!ptr) // malloc

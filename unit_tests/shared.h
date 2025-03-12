@@ -26,6 +26,7 @@ class LuaState
     LuaState& operator=(LuaState const&) = delete;
     LuaState& operator=(LuaState&& rhs_) noexcept {
         L = std::exchange(rhs_.L, nullptr);
+        return *this;
     }
 
     public:
