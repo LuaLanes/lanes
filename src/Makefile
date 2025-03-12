@@ -9,11 +9,11 @@ include ../Shared.mk
 
 MODULE=lanes
 
-CC= g++ -std=c++20
+CC:= g++ -std=c++20
 
-SRC=$(wildcard *.cpp)
+SRC:=$(wildcard *.cpp)
 
-OBJ=$(SRC:.cpp=.o)
+OBJ:=$(SRC:.cpp=.o)
 
 
 MODULE_DIR=$(MODULE)
@@ -67,4 +67,4 @@ $(WIN32_LUA51)/include/lua.h:
 	@echo "                  [MINGW_GCC=...mingw32-gcc]"
 	@false
 
-.PROXY:	all clean nslu2 win32
+.PHONY: all clean nslu2 win32

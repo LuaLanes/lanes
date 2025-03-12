@@ -10,12 +10,12 @@ OPT_FLAGS=-O2
 ifeq "$(findstring MINGW,$(shell uname -s))" "MINGW"
   # MinGW MSYS on Windows
   #
-  _SO=dll
-  _LUAEXT=.exe
-  TIME=timeit.exe
+  _SO:=dll
+  _LUAEXT:=.exe
+  TIME:=timeit.exe
 else
-  _SO=so
-  _LUAEXT=
+  _SO:=so
+  _LUAEXT:=
 endif
 
 ifeq "$(LUAROCKS)" ""
@@ -30,7 +30,7 @@ ifeq "$(LUAROCKS)" ""
       $(warning LUA_DEV not defined - try i.e. 'make LUA_DEV=/c/Program\ Files/Lua/5.1')
       # this assumes Lua was built and installed from source and everything is located in default folders (/usr/local/include and /usr/local/bin)
       LUA_FLAGS:=-I "/usr/local/include"
-      LUA_LIBS:=$(word 1,$(shell which lua54.$(_SO)) $(shell which lua53.$(_SO)) $(shell which lua52.$(_SO)) $(shell which lua51$(_SO)))
+      LUA_LIBS:=$(word 1,$(shell which lua54.$(_SO) 2>/dev/null) $(shell which lua53.$(_SO) 2>/dev/null) $(shell which lua52.$(_SO) 2>/dev/null) $(shell which lua51$(_SO) 2>/dev/null))
     else
       LUA_FLAGS:=-I "$(LUA_DEV)/include"
       LUA_LIBS:="$(LUA_DEV)/lua5.1.dll" -lgcc

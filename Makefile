@@ -33,22 +33,30 @@ endif
 
 # Autodetect LUA
 #
-LUA=$(word 1,$(shell which lua5.1$(_LUAEXT)) $(shell which lua51$(_LUAEXT)) $(shell which lua$(_LUAEXT)) $(shell which luajit$(_LUAEXT)))
+LUA:=$(word 1,$(shell which lua5.1$(_LUAEXT) 2>/dev/null) $(shell which lua51$(_LUAEXT) 2>/dev/null) $(shell which lua$(_LUAEXT) 2>/dev/null) $(shell which luajit$(_LUAEXT) 2>/dev/null))
+LUA_VERSION:=$(shell $(LUA) -e "print(string.sub(_VERSION,5,7))")
 
-_TARGET_SO=$(_TARGET_DIR)/core.$(_SO)
+$(info LUA is $(LUA))
+$(info LUA_VERSION is $(LUA_VERSION))
 
-_UNITTEST_TARGET=$(_TARGET_DIR)/UnitTests$(_LUAEXT)
+_TARGET_SO:=$(_TARGET_DIR)/core.$(_SO)
 
-_PREFIX=LUA_CPATH="./src/?.$(_SO)" LUA_PATH="./src/?.lua;./tests/?.lua"
+_UNITTEST_TARGET:=$(_TARGET_DIR)/UnitTests$(_LUAEXT)
+
+_PREFIX:=LUA_CPATH="./src/?.$(_SO)" LUA_PATH="./src/?.lua;./tests/?.lua"
 
 #---
 all: $(_TARGET_SO) $(_UNITTEST_TARGET)
 
 $(_TARGET_SO): src/*.lua src/*.cpp src/*.h src/*.hpp
+	@echo =========================================================================================
 	cd src && $(MAKE) LUA=$(LUA)
+	@echo ========== $(_TARGET_SO): DONE!
 
 $(_UNITTEST_TARGET): $(_TARGET_SO)
+	@echo =========================================================================================
 	cd unit_tests && $(MAKE)
+	@echo ========== $(_UNITTEST_TARGET): DONE!
 
 clean:
 	cd src && $(MAKE) clean
@@ -231,9 +239,9 @@ _perftest:
 #
 # LUA_LIBDIR and LUA_SHAREDIR are used by the .rockspec (don't change the names!)
 #
-DESTDIR=/usr/local
-LUA_LIBDIR=$(DESTDIR)/lib/lua/5.1
-LUA_SHAREDIR=$(DESTDIR)/share/lua/5.1
+DESTDIR:=/usr/local
+LUA_LIBDIR:=$(DESTDIR)/lib/lua/$(LUA_VERSION)
+LUA_SHAREDIR:=$(DESTDIR)/share/lua/$(LUA_VERSION)
 
 #
 # AKa 17-Oct: changed to use 'install -m 644' and 'cp -p'
@@ -242,6 +250,10 @@ install: $(_TARGET_SO) src/lanes.lua
 	mkdir -p $(LUA_LIBDIR) $(LUA_LIBDIR)/lanes $(LUA_SHAREDIR)
 	install -m 644 $(_TARGET_SO) $(LUA_LIBDIR)/lanes
 	cp -p src/lanes.lua $(LUA_SHAREDIR)
+
+uninstall:
+	rm $(LUA_LIBDIR)/lanes/core.$(_SO)
+	rm $(LUA_SHAREDIR)/lanes.lua
 
 
 #--- Packaging ---
@@ -286,5 +298,5 @@ run: $(_TARGET_SO)
 echo:
 	@echo $(PROGRAMFILES:C=X)
 
-.PROXY:	all clean test require debug _nodemo _notest
+.PHONY: all clean debug gdb rock test require install uninstall _nodemo _notest
 
