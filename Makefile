@@ -55,8 +55,10 @@ _PREFIX := LUA_CPATH="./src/?.$(_SO)" LUA_PATH="./src/?.lua;./tests/?.lua"
 all: $(_LANES_TARGET)
 
 # build the unit_tests and the side deep_userdata_example module 
+# also run the test that shows whether lanes is successfully loaded or not
 unit_tests: $(_UNITTEST_TARGET) $(_DUE_TARGET)
 	cd deep_userdata_example && $(MAKE) -f DUE.makefile LUA_LIBDIR=$(LUA_LIBDIR) install
+	$(_UNITTEST_TARGET) "lanes.require 'lanes'"
 
 #---
 
