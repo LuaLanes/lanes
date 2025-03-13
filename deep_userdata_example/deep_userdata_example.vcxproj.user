@@ -35,7 +35,7 @@
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\deep_userdata_example\</LocalDebuggerWorkingDirectory>
     <RemoteDebuggerCommandArguments>-i deeptest.lua</RemoteDebuggerCommandArguments>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT|x64'">
     <LocalDebuggerCommand>$(SolutionDir)..\LuaJIT-GIT\bin\$(Platform)\luajitgit.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerCommandArguments>-i</LocalDebuggerCommandArguments>
@@ -66,7 +66,7 @@
     <LocalDebuggerCommandArguments>-i -- deeptest.lua</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\deep_userdata_example\</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT GIT|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT|Win32'">
     <LocalDebuggerCommand>$(SolutionDir)..\LuaJIT-2.0.5\bin\$(Platform)\luajit205.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerCommandArguments>-i</LocalDebuggerCommandArguments>

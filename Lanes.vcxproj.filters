@@ -294,6 +294,9 @@
     <None Include="CHANGES">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="Lanes.slnenv">
+      <Filter>Resource Files\Make</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\lanes.lua">

@@ -49,5 +49,8 @@
     <None Include="deeptest.lua">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="Makefile">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
