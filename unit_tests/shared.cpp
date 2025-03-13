@@ -104,12 +104,11 @@ namespace
 // #################################################################################################
 // #################################################################################################
 
+#if HAVE_LUA_ASSERT()
 TEST_CASE("lanes.stack checker")
 {
     LuaState _L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
-#if HAVE_LUA_ASSERT()
     StackChecker::CallsCassert = false;
-#endif // HAVE_LUA_ASSERT()
 
     auto _doStackCheckerTest = [&_L](lua_CFunction const _f, LuaError const _expected) {
         lua_pushcfunction(_L, _f);
@@ -152,11 +151,27 @@ TEST_CASE("lanes.stack checker")
         return 0;
     };
 
-    _doStackCheckerTest(_unbalancedStack1, LuaError::ERRRUN);
-    _doStackCheckerTest(_balancedStack1, LuaError::OK);
-    _doStackCheckerTest(_goodStart, LuaError::OK);
-    _doStackCheckerTest(_badStart, LuaError::ERRRUN);
+    SECTION("unbalanced stack")
+    {
+        _doStackCheckerTest(_unbalancedStack1, LuaError::ERRRUN);
+    }
+
+    SECTION("balanced stack")
+    {
+        _doStackCheckerTest(_balancedStack1, LuaError::OK);
+    }
+
+    SECTION("good start")
+    {
+        _doStackCheckerTest(_goodStart, LuaError::OK);
+    }
+
+    SECTION("bad start")
+    {
+        _doStackCheckerTest(_badStart, LuaError::ERRRUN);
+    }
 }
+#endif // HAVE_LUA_ASSERT()
 
 // #################################################################################################
 // #################################################################################################

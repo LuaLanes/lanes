@@ -12,7 +12,7 @@ local lane = function()
 end
 
 -- the generator
-local g1 = lanes.gen("*", lane)
+local g1 = lanes.gen("*", {name = "auto"}, lane)
 
 -- launch lane
 local h1 = g1()

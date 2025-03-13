@@ -40,6 +40,7 @@ class StackChecker final
     DECLARE_UNIQUE_TYPE(Relative, int);
     DECLARE_UNIQUE_TYPE(Absolute, int);
 
+    // offer a way to bypass C assert during unit testing
     static inline bool CallsCassert{ true };
 
     StackChecker(lua_State* const L_, Relative const offset_, SourceLocation const& where_ = Where())
