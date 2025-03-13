@@ -153,7 +153,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\Makefile">
+    <None Include="src\Lanes.makefile">
       <Filter>Resource Files\Make\src</Filter>
     </None>
     <None Include="tests\appendud.lua">
@@ -267,7 +267,7 @@
     <None Include="Makefile">
       <Filter>Resource Files\Make</Filter>
     </None>
-    <None Include="Shared.mk">
+    <None Include="Shared.makefile">
       <Filter>Resource Files\Make</Filter>
     </None>
     <None Include="make-vc.cmd">

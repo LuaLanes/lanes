@@ -1,40 +1,39 @@
 #
-# Lanes/src/Makefile
+# Lanes/src/Lanes.makefile
 #
 #   make                                    Manual build
 #   make LUAROCKS=1 CFLAGS=... LIBFLAG=...  LuaRocks automated build
 #
 
-include ../Shared.mk
+include ../Shared.makefile
 
-MODULE=lanes
+_MODULE=lanes
 
-CC:= g++ -std=c++20
+_SRC := $(wildcard *.cpp)
 
-SRC:=$(wildcard *.cpp)
+_OBJ := $(_SRC:.cpp=.o)
 
-OBJ:=$(SRC:.cpp=.o)
-
-
-MODULE_DIR=$(MODULE)
+_MODULE_DIR = $(_MODULE)
 
 #---
-all: $(MODULE)/core.$(_SO)
+all: $(_MODULE)/core.$(_SO)
+	$(info CC: $(CC))
+	$(info _SRC: $(_SRC))
 
 _pch.hpp.gch: _pch.hpp
 	$(CC) $(CFLAGS) -x c++-header _pch.hpp -o _pch.hpp.gch
 
-%.o: %.cpp _pch.hpp.gch *.h *.hpp Makefile
+%.o: %.cpp _pch.hpp.gch *.h *.hpp Lanes.makefile
 	$(CC) $(CFLAGS) -c $<
 
 # Note: Don't put $(LUA_LIBS) ahead of $^; MSYS will not like that (I think)
 #
-$(MODULE_DIR)/core.$(_SO): $(OBJ)
-	mkdir -p $(MODULE_DIR)
+$(_MODULE_DIR)/core.$(_SO): $(_OBJ)
+	mkdir -p $(_MODULE_DIR)
 	$(CC) $(LIBFLAG) $^ $(LIBS) $(LUA_LIBS) -o $@
 
 clean:
-	-rm -rf $(MODULE)/core.$(_SO) *.o *.map *.gch
+	-rm -rf $(_MODULE)/core.$(_SO) *.o *.map *.gch
 
 #---
 # NSLU2 "slug" Linux ARM
@@ -52,7 +51,7 @@ nslu2:
 #
 # EXPERIMENTAL; NOT TESTED OF LATE.
 #
-MINGW_GCC=mingw32-gcc
+MINGW_GCC = mingw32-gcc
 # i686-pc-mingw32-gcc
 
 win32: $(WIN32_LUA51)/include/lua.h

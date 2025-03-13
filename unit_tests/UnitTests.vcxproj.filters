@@ -110,7 +110,7 @@
     <None Include="Catch2.runsettings">
       <Filter>Catch2</Filter>
     </None>
-    <None Include="Makefile">
+    <None Include="UnitTests.makefile">
       <Filter>Make</Filter>
     </None>
   </ItemGroup>

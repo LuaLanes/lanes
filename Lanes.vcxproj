@@ -1595,8 +1595,8 @@ xcopy /F /R /Y "$(OutputPath)core.pdb" $(SolutionDir)..\..\..\Lua52\bin\$(Platfo
     <None Include="lanes-4.0.0-0.rockspec" />
     <None Include="Lanes.slnenv" />
     <None Include="make-vc.cmd" />
-    <None Include="Shared.mk" />
-    <None Include="src\Makefile" />
+    <None Include="Shared.makefile" />
+    <None Include="src\Lanes.makefile" />
     <None Include="Makefile" />
     <None Include="tests\appendud.lua" />
     <None Include="tests\argtable.lua" />

@@ -855,7 +855,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="deeptest.lua" />
-    <None Include="Makefile" />
+    <None Include="DUE.makefile" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
