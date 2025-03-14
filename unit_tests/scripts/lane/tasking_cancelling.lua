@@ -36,7 +36,7 @@ end
 
 PRINT("\n\n", "---=== Tasking (cancelling) ===---", "\n\n")
 
-local task_launch2 = lanes_gen("", { globals={hey=true}, gc_cb = gc_cb}, task)
+local task_launch2 = lanes_gen("", { name = 'auto', globals={hey=true}, gc_cb = gc_cb }, task)
 
 local N=999999999
 local lane9= task_launch2(1,N,1)   -- huuuuuuge...
@@ -87,7 +87,7 @@ local wait_send = function()
     a,b = limited:send("key", "bybye") -- infinite timeout, returns only when lane is cancelled
 end
 
-local wait_send_lane = lanes.gen("*", wait_send)()
+local wait_send_lane = lanes_gen("*", { name = 'auto' }, wait_send)()
 repeat until wait_send_lane.status == "waiting"
 print "wait_send_lane is waiting"
 wait_send_lane:cancel() -- hard cancel, 0 timeout
@@ -100,7 +100,7 @@ local wait_receive = function()
     k, v = limited:receive("dummy") -- infinite timeout, returns only when lane is cancelled
 end
 
-local wait_receive_lane = lanes.gen("*", wait_receive)()
+local wait_receive_lane = lanes_gen("*", { name = 'auto' }, wait_receive)()
 repeat until wait_receive_lane.status == "waiting"
 print "wait_receive_lane is waiting"
 wait_receive_lane:cancel() -- hard cancel, 0 timeout
@@ -113,7 +113,7 @@ local wait_receive_batched = function()
     k, v1, v2 = limited:receive(limited.batched, "dummy", 2) -- infinite timeout, returns only when lane is cancelled
 end
 
-local wait_receive_batched_lane = lanes.gen("*", wait_receive_batched)()
+local wait_receive_batched_lane = lanes_gen("*", { name = 'auto' }, wait_receive_batched)()
 repeat until wait_receive_batched_lane.status == "waiting"
 print "wait_receive_batched_lane is waiting"
 wait_receive_batched_lane:cancel() -- hard cancel, 0 timeout

@@ -42,7 +42,7 @@ end
 
 if true then
     -- if we start a non-coroutine lane with a yielding function, we should get an error, right?
-    local fun_g = lanes.gen("*", {name = "auto"}, yielder)
+    local fun_g = lanes.gen("*", { name = 'auto' }, yielder)
     local h = fun_g("hello", "world", "!")
     local err, status, stack = h:join()
     PRINT(err, status, stack)

@@ -86,7 +86,7 @@ do
         return "success"
     end
 
-    local h = lanes.gen("*", lane_body)()
+    local h = lanes.gen("*", { name = 'auto' }, lane_body)()
     do
         local tobeclosed <close> = h
     end
@@ -118,7 +118,7 @@ do
     l:set("trip", l_in)
 
     do
-    lanes.gen("*", lane_body)(l_in):join()
+    lanes.gen("*", { name = 'auto' }, lane_body)(l_in):join()
     end
     local _count, _closed = l_in:get("closed")
     assert(_count == 1 and _closed == 2)

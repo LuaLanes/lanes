@@ -7,7 +7,7 @@ local lanes = require "lanes"
 local function ret(b)
     return b
 end
-local lgen = lanes.gen("*", {}, ret)
+local lgen = lanes.gen("*", { name = 'auto' }, ret)
 
 for i=1,10000 do
     local ln = lgen(i)

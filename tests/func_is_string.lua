@@ -7,7 +7,7 @@ if _VERSION >= "Lua 5.4" then
         local lanes = require 'lanes'
         local r
         do
-            local h <close> = lanes.gen('*', lanes.sleep)(0.5)
+            local h <close> = lanes.gen('*', { name = 'auto' }, lanes.sleep)(0.5)
             r = h
         end -- h is closed here
         return r.status
@@ -21,8 +21,8 @@ end
 
 local options = {globals = { b = 666 }}
 
-local gen1 = lanes.gen("*", "return true, dofile('fibonacci.lua')")
-local gen2 = lanes.gen(options, "return b")
+local gen1 = lanes.gen("*", { name = 'auto' }, "return true, dofile('fibonacci.lua')")
+local gen2 = lanes.gen(options, { name = 'auto' }, "return b")
 
 fibLane = gen1()
 lanes.sleep(0.1)

@@ -79,8 +79,8 @@ end
 
 -- #################################################################################################
 
-local lane_eater_gen = lanes.gen( "*", {priority = 3}, eater)
-local lane_gobbler_gen = lanes.gen( "*", {priority = 3}, gobbler)
+local lane_eater_gen = lanes.gen( "*", { name = 'auto', priority = 3 }, eater)
+local lane_gobbler_gen = lanes.gen( "*", { name = 'auto', priority = 3 }, gobbler)
 
 -- #################################################################################################
 

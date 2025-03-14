@@ -39,7 +39,7 @@ end
 
 PRINT("\n\n", "---=== Tasking (basic) ===---", "\n\n")
 
-local task_launch = lanes_gen("", { globals={hey=true}, gc_cb = gc_cb}, task)
+local task_launch = lanes_gen("", { name = 'auto', globals={hey=true}, gc_cb = gc_cb }, task)
     -- base stdlibs, normal priority
 
 -- 'task_launch' is a factory of multithreaded tasks, we can launch several:

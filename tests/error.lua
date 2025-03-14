@@ -87,7 +87,7 @@ end
 --##################################################################################################
 
 local start_lane = function(error_reporting_mode_, error_value_, finalizer_, finalizer_error_value_)
-    return lanes.gen("*", {error_trace_level = error_reporting_mode_}, lane_body)(error_value_, finalizer_, finalizer_error_value_)
+    return lanes.gen("*", { name = 'auto', error_trace_level = error_reporting_mode_ }, lane_body)(error_value_, finalizer_, finalizer_error_value_)
 end
 
 --##################################################################################################

@@ -829,6 +829,7 @@ TEST_CASE("lanes.on_state_create setting")
         // launch a Lane that requires the module. It should succeed because _on_state_create was called and made it possible
         std::string_view const _script{
             " f = lanes.gen('*',"
+            "    { name = 'auto' },"
             "    function()"
             "        local Stuff = require ('Stuff')"
             "        Stuff.DoStuffInC()"

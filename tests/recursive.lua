@@ -12,7 +12,7 @@ local function func( depth )
     end
 
     local lanes = require "lanes"
-    local lane = lanes.gen("*", func)( depth-1 )
+    local lane = lanes.gen("*", { name = 'auto' }, func)( depth-1 )
     return lane[1]
 end
 

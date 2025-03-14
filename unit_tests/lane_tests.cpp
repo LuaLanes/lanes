@@ -80,7 +80,7 @@ TEST_CASE("lanes.sleep.interactions with timers")
         " local l = lanes.linda()"
         " lanes.timer(l, 'gluh', 0.1, 0.1)"
         // launch a lane that is supposed to sleep forever
-        " local g = lanes.gen('*', lanes.sleep)"
+        " local g = lanes.gen('*', { name = 'auto' }, lanes.sleep)"
         " local h = g('indefinitely')"
         // sleep 1 second (this uses the timer linda)
         " lanes.sleep(1)"

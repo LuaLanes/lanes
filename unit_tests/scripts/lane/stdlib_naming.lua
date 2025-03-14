@@ -63,7 +63,7 @@ local function coro_f(_x)
     return true
 end
 
-assert.fails(function() lanes_gen("xxx", {gc_cb = gc_cb}, io_os_f) end)
+assert.fails(function() lanes_gen("xxx", { name = 'auto', gc_cb = gc_cb }, io_os_f) end)
 
 local stdlib_naming_tests =
 {

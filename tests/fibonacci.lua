@@ -44,7 +44,7 @@ local function fib( n )
     else
         -- Splits into two; this task remains waiting for the results
         --
-        local gen_f= lanes.gen( "*", fib)
+        local gen_f= lanes.gen( "*", { name = 'auto' }, fib)
 
         local n1=floor(n/2) +1
         local n2=floor(n/2) -1 + n%2

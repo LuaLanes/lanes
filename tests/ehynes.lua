@@ -16,7 +16,7 @@ end
 local linda = lanes.linda()
 
 -- a linda message receiver
-local receiver_gen = lanes.gen( 'base', 'os', 'string', 'io',
+local receiver_gen = lanes.gen( 'base', 'os', 'string', 'io', { name = 'auto' },
     function (message_name)
         PRINT_FMT( 'receiver for message %s entered', message_name )
         local n = 1

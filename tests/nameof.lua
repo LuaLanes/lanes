@@ -18,7 +18,7 @@ local body = function()
 end
 
 -- start the lane without any library
-local h = lanes.gen(nil, body)()
+local h = lanes.gen(nil, { name = 'auto' }, body)()
 SLEEP(0.1)
 print("Name of lane: ", lanes.nameof(h), "("..h.status..")")
 assert(h.status == "running")

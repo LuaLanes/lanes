@@ -66,7 +66,7 @@ local function chunk2(linda)
 end
 
 local linda = lanes_linda("auto")
-local t2= lanes_gen("debug,package,string,io", {gc_cb = gc_cb}, chunk2)(linda)     -- prepare & launch
+local t2= lanes_gen("debug,package,string,io", { name = 'auto', gc_cb = gc_cb }, chunk2)(linda)     -- prepare & launch
 linda:send("down", function(linda) linda:send("up", "ready!") end,
                     "ok")
 -- wait to see if the tiny function gets executed

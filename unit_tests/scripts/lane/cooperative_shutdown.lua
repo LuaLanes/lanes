@@ -31,9 +31,9 @@ end
 
 
 -- the generators
-local g1 = lanes.gen("*", lane1)
-local g2 = lanes.gen("*", lane2)
-local g3 = lanes.gen("*", lane3)
+local g1 = lanes.gen("*", { name = 'auto' }, lane1)
+local g2 = lanes.gen("*", { name = 'auto' }, lane2)
+local g3 = lanes.gen("*", { name = 'auto' }, lane3)
 
 -- launch lanes
 local h1 = g1()

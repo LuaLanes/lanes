@@ -16,8 +16,8 @@ local g = function()
 	print "User cancellation detected!"
 end
 
-local genF = lanes.gen( "", {globals = {threadName = "mylane"}}, f)
-local genG = lanes.gen( "", g)
+local genF = lanes.gen( "", {name = 'auto', globals = {threadName = "mylane"}}, f)
+local genG = lanes.gen( "", { name = 'auto'}, g)
 
 
 -- launch a good batch of free running lanes

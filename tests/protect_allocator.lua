@@ -36,7 +36,7 @@ end
 
 -- start threads
 local COUNT = 4
-local gen = lanes.gen( "*", body)
+local gen = lanes.gen( "*", { name = 'auto' }, body)
 for i = 1, COUNT do
 	gen( i)
 end

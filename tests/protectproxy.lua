@@ -5,7 +5,7 @@ local body = function( param)
 	return 1
 end
 
-local gen = lanes.gen( "*", body)
+local gen = lanes.gen( "*", { name = 'auto' }, body)
 
 local mylane = gen( "hello")
 

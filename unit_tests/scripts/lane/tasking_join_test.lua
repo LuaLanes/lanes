@@ -34,7 +34,7 @@ PRINT("---=== :join test ===---", "\n\n")
 --       (unless [1..n] has been read earlier, in which case it would seemingly
 --       work).
 
-local S= lanes_gen("table", {gc_cb = gc_cb},
+local S= lanes_gen("table", { name = 'auto', gc_cb = gc_cb },
     function(arg)
         lane_threadname "join test lane"
         set_finalizer(function() end)

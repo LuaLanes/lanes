@@ -101,7 +101,7 @@ local function PEEK(...) return linda:get("<-", ...) end
 local function SEND(...) local _res, _err = linda:send("->", ...) assert(_res == true and _err == nil) end
 local function RECEIVE() local k,v = linda:receive(1, "<-") return v end
 
-local comms_lane = lanes_gen("io", {gc_cb = gc_cb, name = "auto"}, chunk)(linda)     -- prepare & launch
+local comms_lane = lanes_gen("io", { name = 'auto', gc_cb = gc_cb }, chunk)(linda)     -- prepare & launch
 
 SEND(1);  WR("main ", "1 sent\n")
 SEND(2);  WR("main ", "2 sent\n")

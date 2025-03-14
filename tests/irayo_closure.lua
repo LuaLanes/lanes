@@ -33,5 +33,5 @@ local function useclosurehere()
     print "using the closure" 
 end
 
-local lane= lanes.gen( "", { globals = { data=1, func=useclosurehere } }, testrun )()
+local lane= lanes.gen( "", { name = 'auto', globals = { data=1, func=useclosurehere } }, testrun )()
 print(lane[1])

@@ -22,7 +22,7 @@ end
 PRINT("---=== Tasking (error) ===---", "\n\n")
 
 -- a lane that throws immediately the error value it received
-local g = lanes_gen("", {gc_cb = gc_cb}, error)
+local g = lanes_gen("", { name = 'auto', gc_cb = gc_cb }, error)
 local errmsg = "ERROR!"
 
 if true then

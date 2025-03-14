@@ -43,7 +43,7 @@ end
 -- sleeper( "main", 1)
 
 -- the generator
-local g = lanes.gen( "*", sleeper)
+local g = lanes.gen( "*", { name = 'auto' }, sleeper)
 
 -- start a forever-waiting lane (nil timeout)
 local forever = g( "forever", 'indefinitely')

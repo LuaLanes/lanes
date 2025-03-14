@@ -4,7 +4,7 @@ local function foo()
 	local lanes = lanes -- lanes as upvalue
 end
 
-local g = lanes.gen( "*", {error_trace_level = "extended"}, foo)
+local g = lanes.gen( "*", { name = 'auto', error_trace_level = "extended"}, foo)
 
 -- this should raise an error as lanes.timer_lane is a Lane (a non-deep full userdata)
 local res, err = pcall( g)

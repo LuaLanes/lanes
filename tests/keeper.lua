@@ -160,7 +160,7 @@ if true then
     end
 
     PRINT("lane started")
-    local h= lanes.gen( "io", lane )()
+    local h= lanes.gen( "io", { name = 'auto' }, lane )()
     PRINT("lane joined:", h:join())
 
     PRINT("A.some = " .. A.some )

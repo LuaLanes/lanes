@@ -19,14 +19,14 @@ local function a_lane()
     local lanes = require "lanes"
     assert( lanes and lanes.gen )
 
-    local h= lanes.gen( function() return 42 end ) ()
+    local h= lanes.gen( { name = 'auto' }, function() return 42 end ) ()
     local v= h[1]
 
     return v==42
 end
 
 -- string and table for Lanes itself, package to be able to require in the lane, math for the actual work
-local gen= lanes.gen( "math,package,string,table", {package={}},a_lane )
+local gen= lanes.gen( "math,package,string,table", { name = 'auto', package={} },a_lane )
 
 local h= gen()
 local ret= h[1]

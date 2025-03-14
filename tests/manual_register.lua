@@ -25,7 +25,7 @@ local f = function()
 end
 
 
-local g = lanes.gen( "*", f)
+local g = lanes.gen( "*", { name = 'auto' }, f)
 
 -- generate a lane, this will transfer f, which pulls GlobalFunc.
 local h = g()

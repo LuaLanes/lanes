@@ -27,7 +27,7 @@ PRINT("\n\n", "---=== Comms criss cross ===---", "\n\n")
 
 -- We make two identical lanes, which are using the same Linda channel.
 --
-local tc = lanes_gen("io", {gc_cb = gc_cb},
+local tc = lanes_gen("io", { name = 'auto', gc_cb = gc_cb },
   function(linda, ch_in, ch_out)
         lane_threadname("criss cross " .. ch_in .. " -> " .. ch_out)
     local function STAGE(str)

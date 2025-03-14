@@ -15,7 +15,7 @@ local lanes = require_lanes_result_1
 local require_assert_result_1, require_assert_result_2 = require "assert"    -- assert.fails()
 print("require_assert_result:", require_assert_result_1, require_assert_result_2)
 
-local lanes_gen=    assert(lanes.gen)
+local lanes_gen     assert(lanes.gen)
 local lanes_linda = assert(lanes.linda)
 
 local tostring=     assert(tostring)
@@ -86,7 +86,7 @@ local function task(a, b, c)
     return v, hey
 end
 
-local task_launch= lanes_gen("", { globals={hey=true}, gc_cb = gc_cb}, task)
+local task_launch= lanes.gen("", { name = 'auto', globals={hey=true}, gc_cb = gc_cb }, task)
     -- base stdlibs, normal priority
 
 -- 'task_launch' is a factory of multithreaded tasks, we can launch several:
@@ -126,7 +126,7 @@ collectgarbage()
 
 PRINT("\n\n", "---=== Tasking (cancelling) ===---", "\n\n")
 
-local task_launch2= lanes_gen("", { globals={hey=true}, gc_cb = gc_cb}, task)
+local task_launch2= lanes.gen("", { name = 'auto', globals={hey=true}, gc_cb = gc_cb }, task)
 
 local N=999999999
 local lane9= task_launch2(1,N,1)   -- huuuuuuge...
@@ -177,7 +177,7 @@ local wait_send = function()
     a,b = limited:send("key", "bybye") -- infinite timeout, returns only when lane is cancelled
 end
 
-local wait_send_lane = lanes.gen("*", wait_send)()
+local wait_send_lane = lanes.gen("*", { name = 'auto' }, wait_send)()
 repeat until wait_send_lane.status == "waiting"
 print "wait_send_lane is waiting"
 wait_send_lane:cancel() -- hard cancel, 0 timeout
@@ -190,7 +190,7 @@ local wait_receive = function()
     k, v = limited:receive("dummy") -- infinite timeout, returns only when lane is cancelled
 end
 
-local wait_receive_lane = lanes.gen("*", wait_receive)()
+local wait_receive_lane = lanes.gen("*", { name = 'auto' }, wait_receive)()
 repeat until wait_receive_lane.status == "waiting"
 print "wait_receive_lane is waiting"
 wait_receive_lane:cancel() -- hard cancel, 0 timeout
@@ -203,7 +203,7 @@ local wait_receive_batched = function()
     k, v1, v2 = limited:receive(limited.batched, "dummy", 2) -- infinite timeout, returns only when lane is cancelled
 end
 
-local wait_receive_batched_lane = lanes.gen("*", wait_receive_batched)()
+local wait_receive_batched_lane = lanes.gen("*", { name = 'auto' }, wait_receive_batched)()
 repeat until wait_receive_batched_lane.status == "waiting"
 print "wait_receive_batched_lane is waiting"
 wait_receive_batched_lane:cancel() -- hard cancel, 0 timeout
@@ -275,7 +275,7 @@ local function PEEK(...) return linda:get("<-", ...) end
 local function SEND(...) local _res, _err = linda:send("->", ...) assert(_res == true and _err == nil) end
 local function RECEIVE() local k,v = linda:receive(1, "<-") return v end
 
-local comms_lane = lanes_gen("io", {gc_cb = gc_cb, name = "auto"}, chunk)(linda)     -- prepare & launch
+local comms_lane = lanes.gen("io", { name = 'auto', gc_cb = gc_cb }, chunk)(linda)     -- prepare & launch
 
 SEND(1);  WR("main ", "1 sent\n")
 SEND(2);  WR("main ", "2 sent\n")
@@ -355,7 +355,7 @@ local function coro_f(_x)
     return true
 end
 
-assert.fails(function() lanes_gen("xxx", {gc_cb = gc_cb}, io_os_f) end)
+assert.fails(function() lanes_gen("xxx", {name = 'auto', gc_cb = gc_cb }, io_os_f) end)
 
 local stdlib_naming_tests =
 {
@@ -371,7 +371,7 @@ local stdlib_naming_tests =
 }
 
 for _, t in ipairs(stdlib_naming_tests) do
-    local f= lanes_gen(t[1], {gc_cb = gc_cb}, t[2])     -- any delimiter will do
+    local f= lanes.gen(t[1], { name = 'auto', gc_cb = gc_cb }, t[2])     -- any delimiter will do
     assert(f(t[1])[1])
 end
 
@@ -386,7 +386,7 @@ PRINT("\n\n", "---=== Comms criss cross ===---", "\n\n")
 
 -- We make two identical lanes, which are using the same Linda channel.
 --
-local tc= lanes_gen("io", {gc_cb = gc_cb},
+local tc = lanes.gen("io", { name = 'auto', gc_cb = gc_cb },
   function(linda, ch_in, ch_out)
         lane_threadname("criss cross " .. ch_in .. " -> " .. ch_out)
     local function STAGE(str)
@@ -453,7 +453,7 @@ local function chunk2(linda)
 end
 
 local linda = lanes_linda("auto")
-local t2= lanes_gen("debug,string,io", {gc_cb = gc_cb}, chunk2)(linda)     -- prepare & launch
+local t2 = lanes.gen("debug,string,io", { name = 'auto', gc_cb = gc_cb }, chunk2)(linda)     -- prepare & launch
 linda:send("down", function(linda) linda:send("up", "ready!") end,
                     "ok")
 -- wait to see if the tiny function gets executed
@@ -486,7 +486,7 @@ PRINT("\n\n", "---=== :join test ===---", "\n\n")
 --       (unless [1..n] has been read earlier, in which case it would seemingly
 --       work).
 
-local S= lanes_gen("table", {gc_cb = gc_cb},
+local S = lanes.gen("table", { name = 'auto', gc_cb = gc_cb },
   function(arg)
         lane_threadname "join test lane"
         set_finalizer(function() end)

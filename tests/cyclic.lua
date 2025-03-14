@@ -31,7 +31,7 @@ local function lane1()
     assert( b[1]==a )
     return true
 end
-local L1= lanes.gen( "io", lane1 )()
+local L1= lanes.gen( "io", { name = 'auto' }, lane1 )()
     -- ...running
 
 -- Getting the tables as arguments should also keep the linkage
@@ -42,7 +42,7 @@ local function lane2( aa, bb )
     assert( bb[1]==aa )
     return true
 end
-local L2= lanes.gen( "io", lane2 )( a, b )
+local L2= lanes.gen( "io", { name = 'auto' }, lane2 )( a, b )
     -- ...running
 
 -- Really unnecessary, but let's try a directly recursive table
@@ -55,7 +55,7 @@ local function lane3( cc )
     assert( cc and cc.a==cc )
     return true
 end
-local L3= lanes.gen("io", lane3)(c)
+local L3= lanes.gen("io", { name = 'auto' }, lane3)(c)
 
 -- Without a wait, exit from the main lane will close the process
 --

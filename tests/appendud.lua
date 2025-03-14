@@ -42,7 +42,7 @@ function appendud(tab, ud)
                 -- ('tab' is passed over lanes by value, not by reference)
 end
 
-local t,err= lanes.gen( "base,io", appendud )( _tab, _ud )   -- create & launch a thread
+local t,err= lanes.gen( "base,io", { name = 'auto'}, appendud )( _tab, _ud )   -- create & launch a thread
 assert(t)
 assert(not err)
 

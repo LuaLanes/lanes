@@ -8,7 +8,7 @@ local lanes = require "lanes"
 
 local linda= lanes.linda()
 
-local start_lane= lanes.gen("io", 
+local start_lane= lanes.gen("io", { name = 'auto' },
     function(obj1 )
 
         assert(obj1.v )

@@ -25,8 +25,8 @@ local pingpong = function(name, qr, qs, start)
 end
 
 -- pingpong("L1", '0', '1', true)
-local t1, err1 = lanes.gen("*", pingpong)("L1", 'a', 'b', true)
-local t2, err2 = lanes.gen("*", pingpong)("L2", 'b', 'a', false)
+local t1, err1 = lanes.gen("*", { name = 'auto' }, pingpong)("L1", 'a', 'b', true)
+local t2, err2 = lanes.gen("*", { name = 'auto' }, pingpong)("L2", 'b', 'a', false)
 
 t1:join()
 t2:join()

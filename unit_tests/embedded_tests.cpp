@@ -234,7 +234,7 @@ TEST_CASE("lanes.embedding.with custom allocator")
         // lua_setfield(L, -2, "allocator");                                             // configure {on_state_create = on_state_create_, allocater = "protected"}
         lua_pcall(L, 1, 0, 0);
         sprintf_s(script,
-                  "g = lanes.gen('*', {globals = {ID = %d}}, function(id_) lane_threadname('Lane %d.'..id_) logPrint('This is L%d.'..id_) end)" // lane generator
+                  "g = lanes.gen('*', { name = 'auto', globals = {ID = %d} }, function(id_) lane_threadname('Lane %d.'..id_) logPrint('This is L%d.'..id_) end)" // lane generator
                   "for i = 1,%d do _G['a'..i] = g(i) end" // launch a few lanes, handle stored in global a<i>
                   ,
                   id_,

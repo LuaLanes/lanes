@@ -137,10 +137,10 @@ end
 -- Keep preparation code outside of the performance test
 --
 local f_even= lanes.gen( "base,coroutine,math,table,io",  -- "*" = all
-                            { priority= PRIO_EVEN }, sieve_lane )
+                            { name = 'auto', priority= PRIO_EVEN }, sieve_lane )
                              
 local f_odd= lanes.gen( "base,coroutine,math,table,io",  -- "*" = all
-                            { priority= PRIO_ODD }, sieve_lane )
+                            { name = 'auto', priority= PRIO_ODD }, sieve_lane )
 
 io.stderr:write( "*** Counting primes 1.."..M.." "..N.." times ***\n\n" )
 

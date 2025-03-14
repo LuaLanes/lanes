@@ -47,7 +47,7 @@ end
 
 local lanes = require "lanes"
 
-local g= lanes.gen( LIBS, function(i) 
+local g= lanes.gen( LIBS, { name = 'auto' }, function(i) 
                         --io.stderr:write( i.."\t" )
                         return i 
                     end )

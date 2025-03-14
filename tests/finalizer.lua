@@ -69,7 +69,7 @@ cleanup = function(err)
 end
 
 -- we need error_trace_level above "minimal" to get a stack trace out of h:join()
-local lgen = lanes.gen("*", {error_trace_level = "basic"}, lane)
+local lgen = lanes.gen("*", { name = 'auto', error_trace_level = "basic" }, lane)
 
 local do_test = function(error_)
 

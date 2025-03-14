@@ -23,7 +23,7 @@ c = function( n)
 	return n <= 0 and z or a( n-1)
 end
 
-local g = lanes.gen( "base", a)
+local g = lanes.gen( "base", { name = 'auto' }, a)
 
 local l = g(7)
 local r = l:join()

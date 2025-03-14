@@ -82,6 +82,7 @@ local performTest = function( obj_)
 	local g = lanes.gen(
 		"package"
 		, {
+			name = 'auto',
 			required = { "deep_userdata_example"} -- we will transfer userdata created by this module, so we need to make this lane aware of it
 		}
 		, function( arg_, t_)

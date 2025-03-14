@@ -160,7 +160,7 @@ end
 if not next(which_tests) or which_tests.linda then
 	remaining_tests.linda = nil
 	print "\n\n####################################################################\nbegin linda cancel test\n"
-	h = generator("*", laneBody)("receive", nil) -- start an infinite wait on the linda
+	h = generator("*", { name = 'auto' }, laneBody)("receive", nil) -- start an infinite wait on the linda
 
 	print "wait 1s"
 	SLEEP(1)
@@ -181,7 +181,7 @@ end
 if not next(which_tests) or which_tests.soft then
 	remaining_tests.soft = nil
 	print "\n\n####################################################################\nbegin soft cancel test\n"
-	h = generator("*", protectedBody)("receive") -- start an infinite wait on the linda
+	h = generator("*", { name = 'auto' }, protectedBody)("receive") -- start an infinite wait on the linda
 
 	print "wait 1s"
 	SLEEP(1)
@@ -205,7 +205,7 @@ end
 if not next(which_tests) or which_tests.hook then
 	remaining_tests.hook = nil
 	print "\n\n####################################################################\nbegin hook cancel test\n"
-	h = generator("*", protectedBody)("get", 300000)
+	h = generator("*", { name = 'auto' }, protectedBody)("get", 300000)
 	print "wait 2s"
 	SLEEP(2)
 
@@ -222,7 +222,7 @@ end
 if not next(which_tests) or which_tests.hard then
 	remaining_tests.hard = nil
 	print "\n\n####################################################################\nbegin hard cancel test\n"
-	h = lanes.gen("*", protectedBody)("receive", nil) -- infinite timeout
+	h = lanes.gen("*", { name = 'auto' }, protectedBody)("receive", nil) -- infinite timeout
 
 	-- wait 2s before cancelling the lane
 	print "wait 2s"
@@ -241,7 +241,7 @@ end
 if not next(which_tests) or which_tests.hard_unprotected then
 	remaining_tests.hard_unprotected = nil
 	print "\n\n####################################################################\nbegin hard cancel test with unprotected lane body\n"
-	h = generator("*", laneBody)("receive", nil)
+	h = generator("*", { name = 'auto' }, laneBody)("receive", nil)
 
 	-- wait 2s before cancelling the lane
 	print "wait 2s"
