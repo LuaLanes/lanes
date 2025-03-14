@@ -11,7 +11,7 @@ local function recurse()
 
     --local lanes = require "lanes"
 
-    local lane = lanes.gen( "base,string,lanes.core", { globals = { ["i"]= i + 1 } }, recurse ) ()
+    local lane = lanes.gen( "base,string,lanes_core", { globals = { ["i"]= i + 1 } }, recurse ) ()
     return lane[1]
 end
 

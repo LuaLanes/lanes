@@ -80,7 +80,7 @@ namespace
         class EmbeddedLuaState : public LuaState
         {
             private:
-            HMODULE hCore{ LoadLibraryW(L"lanes\\core") };
+            HMODULE hCore{ LoadLibraryW(L"lanes_core") };
             lua_CFunction lanes_register{};
 
             public:
@@ -93,7 +93,7 @@ namespace
             {
 
                 if (!hCore) {
-                    throw std::logic_error("Could not load lanes.core");
+                    throw std::logic_error("Could not load lanes_core");
                 }
                 luaopen_lanes_embedded_t const _p_luaopen_lanes_embedded{ reinterpret_cast<luaopen_lanes_embedded_t>(GetProcAddress(hCore, "luaopen_lanes_embedded")) };
                 if (!_p_luaopen_lanes_embedded) {

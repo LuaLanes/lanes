@@ -41,7 +41,7 @@ static constexpr std::string_view kLaneMetatableName{ "Lane" };
 
 // must be a #define instead of a constexpr to benefit from compile-time string concatenation
 #define kLanesLibName "lanes"
-#define kLanesCoreLibName kLanesLibName ".core"
+#define kLanesCoreLibName kLanesLibName "_core"
 
 // for cancel() argument
 enum class [[nodiscard]] WakeLane

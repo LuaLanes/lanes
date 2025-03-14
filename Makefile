@@ -38,7 +38,7 @@ LUA_VERSION := $(shell $(LUA) -e "print(string.sub(_VERSION,5,7))")
 $(info LUA: $(LUA))
 $(info LUA_VERSION: $(LUA_VERSION))
 
-_LANES_TARGET := src/lanes/core.$(_SO)
+_LANES_TARGET := src/lanes_core.$(_SO)
 $(info _LANES_TARGET: $(_LANES_TARGET))
 
 _UNITTEST_TARGET := unit_tests/UnitTests$(_LUAEXT)
@@ -271,12 +271,12 @@ LUA_SHAREDIR:=$(DESTDIR)/share/lua/$(LUA_VERSION)
 # AKa 17-Oct: changed to use 'install -m 644' and 'cp -p'
 #
 install: $(_LANES_TARGET) src/lanes.lua
-	mkdir -p $(LUA_LIBDIR) $(LUA_LIBDIR)/lanes $(LUA_SHAREDIR)
-	install -m 644 $(_LANES_TARGET) $(LUA_LIBDIR)/lanes
+	mkdir -p $(LUA_LIBDIR) $(LUA_SHAREDIR)
+	install -m 644 $(_LANES_TARGET) $(LUA_LIBDIR)
 	cp -p src/lanes.lua $(LUA_SHAREDIR)
 
 uninstall:
-	rm $(LUA_LIBDIR)/lanes/core.$(_SO)
+	rm $(LUA_LIBDIR)/lanes_core.$(_SO)
 	rm $(LUA_SHAREDIR)/lanes.lua
 	rm $(LUA_LIBDIR)/deep_userdata_example.$(_SO)
 

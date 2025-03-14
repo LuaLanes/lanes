@@ -91,7 +91,7 @@ void Universe::callOnStateCreate(lua_State* const L_, lua_State* const from_, Lo
             
         // C function: recreate a closure in the new state, bypassing the lookup scheme
         lua_pushcfunction(L_, std::get<lua_CFunction>(onStateCreateFunc));                         // on_state_create()
-    } else { // Lua function located in the config table, copied when we opened "lanes.core"
+    } else { // Lua function located in the config table, copied when we opened "lanes_core"
         LUA_ASSERT(from_, std::holds_alternative<uintptr_t>(onStateCreateFunc));
         if (mode_ != LookupMode::LaneBody) {
             // if attempting to call in a keeper state, do nothing because the function doesn't exist there

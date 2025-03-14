@@ -170,7 +170,7 @@ TEST_CASE("lanes.gen")
         S.requireSuccess("lanes.gen('utf8?', function() end)");
 #endif // LUA_VERSION_NUM < 503
 
-        S.requireSuccess("lanes.gen('lanes.core', function() end)");
+        S.requireSuccess("lanes.gen('lanes_core', function() end)");
         // "*" repeated or combined with anything else is forbidden
         S.requireFailure("lanes.gen('*', '*', function() end)");
         S.requireFailure("lanes.gen('base', '*', function() end)");

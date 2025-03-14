@@ -99,9 +99,9 @@ namespace {
                 DEBUGSPEW_CODE(DebugSpew(Universe::Get(L_)) << "opening '" << _name << "' library" << std::endl);
                 STACK_CHECK_START_REL(L_, 0);
                 // open the library as if through require(), and create a global as well if necessary (the library table is left on the stack)
-                bool const _isLanesCore{ _libfunc == luaopen_lanes_core }; // don't want to create a global for "lanes.core"
+                bool const _isLanesCore{ _libfunc == luaopen_lanes_core }; // don't want to create a global for "lanes_core"
                 luaL_requiref(L_, _name.data(), _libfunc, !_isLanesCore);                          // L_: {lib}
-                // lanes.core doesn't declare a global, so scan it here and now
+                // lanes_core doesn't declare a global, so scan it here and now
                 if (_isLanesCore) {
                     tools::PopulateFuncLookupTable(L_, kIdxTop, _name);
                 }
@@ -224,7 +224,7 @@ namespace state {
             if (_libs == "*") {
                 DEBUGSPEW_CODE(DebugSpew(U_) << "opening ALL standard libraries" << std::endl);
                 luaL_openlibs(_L);
-                // don't forget lanes.core for regular lane states
+                // don't forget lanes_core for regular lane states
                 Open1Lib(_L, kLanesCoreLibName);
                 _libs = ""; // done with libs
             } else {
@@ -248,7 +248,6 @@ namespace state {
 
         // scan all libraries, open them one by one
         auto isLibNameChar = [](char const c_) {
-            // '.' can be part of name for "lanes.core"
             return std::isalnum(c_) || c_ == '.' || c_ == '-' || c_ == '_';
         };
         while (!_libs.empty()) {

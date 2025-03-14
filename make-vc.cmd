@@ -84,7 +84,7 @@ goto ERR_NOLUA
 
 :BUILD
 @REM LuaBinaries: 
-@REM 	The current build system does not show 'lanes/core.dll' to
+@REM 	The current build system does not show 'lanes_core.dll' to
 @REM 	be dependent on more than 'KERNEL32.DLL'. Good.
 @REM
 @REM Lua for Windows:
@@ -130,15 +130,15 @@ goto ERR_NOLUA
 @REM
 @set FLAGS=/O2 /LD
 
-cl %WARN% %FLAGS% /I "%LUA51%\include" /Felanes\core.dll src\*.cpp "%LUA_LIB%\lua5.1.lib"
-@REM cl %WARN% %FLAGS% /I "%LUA51%\include" /Felanes\core.dll src\*.cpp "%LUA_LIB%\lua5.1.lib" /link /NODEFAULTLIB:libcmt
+cl %WARN% %FLAGS% /I "%LUA51%\include" /Felanes_core.dll src\*.cpp "%LUA_LIB%\lua5.1.lib"
+@REM cl %WARN% %FLAGS% /I "%LUA51%\include" /Felanes_core.dll src\*.cpp "%LUA_LIB%\lua5.1.lib" /link /NODEFAULTLIB:libcmt
 
-@del lanes\core.lib
-@del lanes\core.exp
+@del lanes_core.lib
+@del lanes_core.exp
 @goto EXIT
 
 :CLEAN
-if exist lanes\*.dll del lanes\*.dll
+if exist lanes*.dll del lanes*.dll
 if exist delme del delme
 @goto EXIT
 

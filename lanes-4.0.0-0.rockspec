@@ -47,7 +47,7 @@ build = {
 		{
 			modules =
 			{
-				["lanes.core"] =
+				["lanes_core"] =
 				{
 					libraries = "pthread"
 				},

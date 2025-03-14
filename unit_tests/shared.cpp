@@ -186,7 +186,7 @@ LuaState::LuaState(WithBaseLibs const withBaseLibs_, WithFixture const withFixtu
         luaL_openlibs(L);
     } else {
 #if LUAJIT_FLAVOR()
-        // lanes.core relies on the presence of jit to detect LuaJIT/PUC-Lua mismatches
+        // lanes_core relies on the presence of jit to detect LuaJIT/PUC-Lua mismatches
         luaL_requiref(L, LUA_JITLIBNAME, luaopen_jit, 1);
         lua_pop(L, 1);
 #endif // LUAJIT_FLAVOR

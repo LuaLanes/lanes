@@ -9,6 +9,7 @@ CHANGE 2: BGe 27-Nov-24
     * Lanes API changes
         - Version is now 4.0.0
         - Lanes module:
+            - shared library is now lanes_core.[so|dll] instead of lanes/core.[so|dll]
             - lanes.register() is also available as lanes_register() in the exported C API.
             - lanes.sleep() accepts a new argument "indefinitely" to block forever (until hard cancellation is received).
             - function set_debug_threadname() available inside a Lane is renamed lane_threadname(); can now both read and write the name.

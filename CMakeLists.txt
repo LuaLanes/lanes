@@ -29,7 +29,7 @@ ENDIF(CYGWIN)
 # Build
 INCLUDE_DIRECTORIES(src)
 aux_source_directory(./src LANES_SRC)
-ADD_LIBRARY(core MODULE ${LANES_SRC})
+ADD_LIBRARY(lanes_core MODULE ${LANES_SRC})
 
 IF(UNIX AND NOT CYGWIN)
   SET(LIBS pthread)
@@ -37,12 +37,12 @@ ENDIF(UNIX AND NOT CYGWIN)
 
 
 if(WIN32)
-TARGET_LINK_LIBRARIES(core ${LUA_LIBRARY} ${LIBS})
+TARGET_LINK_LIBRARIES(lanes_core ${LUA_LIBRARY} ${LIBS})
 else(WIN32)
-TARGET_LINK_LIBRARIES(core ${LIBS})
+TARGET_LINK_LIBRARIES(lanes_core ${LIBS})
 endif(WIN32)
 
-SET_TARGET_PROPERTIES(core PROPERTIES PREFIX "")
+SET_TARGET_PROPERTIES(lanes_core PROPERTIES PREFIX "")
 
 # Install all files and documentation
 set(INSTALL_LMOD share/lua/lmod CACHE PATH "Directory to install Lua modules.")
@@ -51,7 +51,7 @@ set(INSTALL_DATA share/${PROJECT_NAME} CACHE PATH "Directory the package can sto
 set(INSTALL_DOC ${INSTALL_DATA}/doc CACHE PATH "Recommended directory to install documentation into.")
 set(INSTALL_TEST ${INSTALL_DATA}/test CACHE PATH "Recommended directory to install tests into.")
 
-INSTALL (TARGETS core DESTINATION ${INSTALL_CMOD})
+INSTALL (TARGETS lanes_core DESTINATION ${INSTALL_CMOD})
 INSTALL (FILES src/lanes.lua DESTINATION ${INSTALL_LMOD})
 
 INSTALL (FILES ABOUT BUGS COPYRIGHT CHANGES README TODO DESTINATION ${INSTALL_DATA})

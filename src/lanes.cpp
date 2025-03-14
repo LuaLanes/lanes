@@ -760,7 +760,7 @@ LUAG_FUNC(configure)
 
     // register all native functions found in that module in the transferable functions database
     // we process it before _G because we don't want to find the module when scanning _G (this would generate longer names)
-    // for example in package.loaded["lanes.core"].*
+    // for example in package.loaded["lanes_core"].*
     tools::PopulateFuncLookupTable(L_, kIdxTop, _name);
     STACK_CHECK(L_, 2);
 
@@ -862,11 +862,11 @@ LANES_API int luaopen_lanes_core(lua_State* const L_)
     // Create main module interface table
     // we only have 1 closure, which must be called to configure Lanes
     lua_newtable(L_);                                                                              // L_: M
-    lua_pushvalue(L_, 1);                                                                          // L_: M "lanes.core"
-    lua_pushvalue(L_, -2);                                                                         // L_: M "lanes.core" M
+    lua_pushvalue(L_, 1);                                                                          // L_: M "lanes_core"
+    lua_pushvalue(L_, -2);                                                                         // L_: M "lanes_core" M
     lua_pushcclosure(L_, LG_configure, 2);                                                         // L_: M LG_configure()
     kConfigRegKey.pushValue(L_);                                                                   // L_: M LG_configure() settings
-    if (!lua_isnil(L_, -1)) { // this is not the first require "lanes.core": call configure() immediately
+    if (!lua_isnil(L_, -1)) { // this is not the first require "lanes_core": call configure() immediately
         lua_pushvalue(L_, -1);                                                                     // L_: M LG_configure() settings settings
         lua_setfield(L_, -4, "settings");                                                          // L_: M LG_configure() settings
         lua_call(L_, 1, 0);                                                                        // L_: M
@@ -898,8 +898,8 @@ static int default_luaopen_lanes(lua_State* const L_)
 LANES_API void luaopen_lanes_embedded(lua_State* const L_, lua_CFunction const luaopen_lanes_)
 {
     STACK_CHECK_START_REL(L_, 0);
-    // pre-require lanes.core so that when lanes.lua calls require "lanes.core" it finds it is already loaded
-    luaL_requiref(L_, kLanesCoreLibName, luaopen_lanes_core, 0);                                   // L_: ... lanes.core
+    // pre-require lanes_core so that when lanes.lua calls require "lanes_core" it finds it is already loaded
+    luaL_requiref(L_, kLanesCoreLibName, luaopen_lanes_core, 0);                                   // L_: ... lanes_core
     lua_pop(L_, 1);                                                                                // L_: ...
     STACK_CHECK(L_, 0);
     // call user-provided function that runs the chunk "lanes.lua" from wherever they stored it

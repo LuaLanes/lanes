@@ -7,16 +7,14 @@
 
 include ../Shared.makefile
 
-_MODULE=lanes
+_TARGET := lanes_core.$(_SO)
 
 _SRC := $(wildcard *.cpp)
 
 _OBJ := $(_SRC:.cpp=.o)
 
-_MODULE_DIR = $(_MODULE)
-
 #---
-all: info $(_MODULE)/core.$(_SO)
+all: info $(_TARGET)
 
 info:
 	$(info CC: $(CC))
@@ -30,12 +28,11 @@ _pch.hpp.gch: _pch.hpp
 
 # Note: Don't put $(LUA_LIBS) ahead of $^; MSYS will not like that (I think)
 #
-$(_MODULE_DIR)/core.$(_SO): $(_OBJ)
-	mkdir -p $(_MODULE_DIR)
+$(_TARGET): $(_OBJ)
 	$(CC) $(LIBFLAG) $^ $(LIBS) $(LUA_LIBS) -o $@
 
 clean:
-	-rm -rf $(_MODULE)/core.$(_SO) *.o *.map *.gch
+	-rm -rf $(_TARGET) *.o *.map *.gch
 
 #---
 # NSLU2 "slug" Linux ARM
