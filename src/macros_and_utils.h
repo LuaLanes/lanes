@@ -82,7 +82,7 @@ extern char const* debugspew_indent;
 
 #define ASSERT_L(c) _ASSERT_L(L,c)
 
-inline void STACK_GROW(lua_State * L, int n_)
+static inline void STACK_GROW(lua_State * L, int n_)
 {
     if (!lua_checkstack(L, n_))
         luaL_error(L, "Cannot grow stack!");
