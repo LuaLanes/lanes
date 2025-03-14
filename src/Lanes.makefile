@@ -16,7 +16,9 @@ _OBJ := $(_SRC:.cpp=.o)
 _MODULE_DIR = $(_MODULE)
 
 #---
-all: $(_MODULE)/core.$(_SO)
+all: info $(_MODULE)/core.$(_SO)
+
+info:
 	$(info CC: $(CC))
 	$(info _SRC: $(_SRC))
 
@@ -24,7 +26,7 @@ _pch.hpp.gch: _pch.hpp
 	$(CC) $(CFLAGS) -x c++-header _pch.hpp -o _pch.hpp.gch
 
 %.o: %.cpp _pch.hpp.gch *.h *.hpp Lanes.makefile
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # Note: Don't put $(LUA_LIBS) ahead of $^; MSYS will not like that (I think)
 #
@@ -66,4 +68,4 @@ $(WIN32_LUA51)/include/lua.h:
 	@echo "                  [MINGW_GCC=...mingw32-gcc]"
 	@false
 
-.PHONY: all clean nslu2 win32
+.PHONY: all info clean nslu2 win32

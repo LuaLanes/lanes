@@ -47,38 +47,39 @@ $(info _UNITTEST_TARGET: $(_UNITTEST_TARGET))
 _DUE_TARGET := deep_userdata_example/deep_userdata_example.$(_SO)
 $(info _DUE_TARGET: $(_DUE_TARGET))
 
-_PREFIX := LUA_CPATH="./src/?.$(_SO)" LUA_PATH="./src/?.lua;./tests/?.lua"
+# setup LUA_PATH and LUA_CPATH so that requiring lanes and deep_userdata_example work without having to install them
+_PREFIX := LUA_CPATH="./src/?.$(_SO);./deep_userdata_example/?.$(_SO)" LUA_PATH="./src/?.lua;./tests/?.lua"
 
-.PHONY: all unit_tests
+.PHONY: all build_lanes build_unit_tests build_DUE
 
 # only build lanes itself by default
-all: $(_LANES_TARGET)
-
-# build the unit_tests and the side deep_userdata_example module 
-# also run the test that shows whether lanes is successfully loaded or not
-unit_tests: $(_UNITTEST_TARGET) $(_DUE_TARGET)
-	cd deep_userdata_example && $(MAKE) -f DUE.makefile LUA_LIBDIR=$(LUA_LIBDIR) install
-	$(_UNITTEST_TARGET) "lanes.require 'lanes'"
+all: build_lanes
 
 #---
 
-$(_LANES_TARGET): src/*.lua src/*.cpp src/*.h src/*.hpp
+build_lanes:
 	@echo =========================================================================================
 	cd src && $(MAKE) -f Lanes.makefile LUA=$(LUA)
 	@echo ==================== $(_LANES_TARGET): DONE!
 	@echo
 
-$(_UNITTEST_TARGET): $(_LANES_TARGET)
+build_unit_tests:
 	@echo =========================================================================================
 	cd unit_tests && $(MAKE) -f UnitTests.makefile 
 	@echo ==================== $(_UNITTEST_TARGET): DONE!
 	@echo
 
-$(_DUE_TARGET):
+build_DUE:
 	@echo =========================================================================================
 	cd deep_userdata_example && $(MAKE) -f DUE.makefile
 	@echo ==================== $(_DUE_TARGET): DONE!
 	@echo
+
+# build the unit_tests and the side deep_userdata_example module
+# also run a test that shows whether lanes is successfully loaded or not
+run_unit_tests: build_lanes build_unit_tests build_DUE
+	@echo =========================================================================================
+	$(_PREFIX) $(_UNITTEST_TARGET) "lanes.require 'lanes'"
 
 clean:
 	cd src && $(MAKE) -f Lanes.makefile clean
