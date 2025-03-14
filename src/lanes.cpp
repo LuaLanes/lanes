@@ -361,10 +361,17 @@ LUAG_FUNC(lane_new)
             if (!_debugName.empty())
             {
                 if (_debugName == "auto") {
-                    lua_Debug _ar;
-                    lua_pushvalue(L, kFuncIdx);                                                    // L: ... lane func
-                    lua_getinfo(L, ">S", &_ar);                                                    // L: ... lane
-                    luaG_pushstring(L, "%s:%d", _ar.short_src, _ar.linedefined);                   // L: ... lane "<name>"
+                    if (luaG_type(L, kFuncIdx) == LuaType::STRING) {
+                        lua_Debug _ar;
+                        lua_getstack(L, 2, &_ar); // 0 is here, 1 is lanes.gen, 2 is its caller
+                        lua_getinfo(L, "Sl", &_ar);
+                        luaG_pushstring(L, "%s:%d", _ar.short_src, _ar.currentline);               // L: ... lane "<name>"
+                    } else {
+                        lua_Debug _ar;
+                        lua_pushvalue(L, kFuncIdx);                                                // L: ... lane func
+                        lua_getinfo(L, ">S", &_ar);                                                // L: ... lane
+                        luaG_pushstring(L, "%s:%d", _ar.short_src, _ar.linedefined);               // L: ... lane "<name>"
+                    }
                     lua_replace(L, _name_idx);                                                     // L: ... lane
                     _debugName = luaG_tostring(L, _name_idx);
                 }
