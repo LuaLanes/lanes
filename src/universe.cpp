@@ -451,7 +451,9 @@ int Universe::UniverseGC(lua_State* const L_)
         } else {
             // take the value returned by the finalizer (or our default message) and throw it as an error
             // since we are inside Lua's GCTM, it will be propagated through the warning system (Lua 5.4) or swallowed silently
-            raise_lua_error(L_);
+            // IMPORTANT: lua_error() is used here instead of the wrapper raise_lua_error() to circumvent what looks like a MSVC compiler bug
+            // that manifests as a crash inside ntdll!longjmp() function, in optimized builds only
+            lua_error(L_);
         }
     }
 
