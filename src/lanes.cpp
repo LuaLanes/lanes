@@ -363,7 +363,9 @@ LUAG_FUNC(lane_new)
                 if (_debugName == "auto") {
                     if (luaG_type(L, kFuncIdx) == LuaType::STRING) {
                         lua_Debug _ar;
-                        lua_getstack(L, 2, &_ar); // 0 is here, 1 is lanes.gen, 2 is its caller
+                        if (lua_getstack(L, 2, &_ar) == 0) { // 0 is here, 1 is lanes.gen, 2 is its caller
+                            lua_getstack(L, 1, &_ar); // level 2 may not exist with LuaJIT, try again with level 1
+                        }
                         lua_getinfo(L, "Sl", &_ar);
                         luaG_pushstring(L, "%s:%d", _ar.short_src, _ar.currentline);               // L: ... lane "<name>"
                     } else {
