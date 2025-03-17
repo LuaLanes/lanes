@@ -106,7 +106,7 @@ class Universe final
     LaneTracker tracker;
 
     // Protects modifying the selfdestruct chain
-    std::mutex selfdestructMutex;
+    mutable std::mutex selfdestructMutex;
 
     // require() serialization
     std::recursive_mutex requireMutex;
@@ -126,6 +126,7 @@ class Universe final
 
     private:
     static int UniverseGC(lua_State* L_);
+    void flagDanglingLanes() const;
 
     public:
     [[nodiscard]]

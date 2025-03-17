@@ -327,10 +327,10 @@ TEST_CASE("scripted tests." #DIR "." #FILE) \
 }
 
 MAKE_TEST_CASE(lane, cooperative_shutdown, AssertNoLuaError)
-#if LUAJIT_FLAVOR() == 0
-// TODO: for some reason, even though we throw as expected, the test fails with LuaJIT. To be investigated
-MAKE_TEST_CASE(lane, uncooperative_shutdown, AssertThrows)
-#endif // LUAJIT_FLAVOR()
+#if LUA_VERSION_NUM >= 504 // // warnings are a Lua 5.4 feature
+// NOTE: when this test ends, there are resource leaks and a dangling thread
+MAKE_TEST_CASE(lane, uncooperative_shutdown, AssertWarns)
+#endif // LUA_VERSION_NUM
 MAKE_TEST_CASE(lane, tasking_basic, AssertNoLuaError)
 MAKE_TEST_CASE(lane, tasking_cancelling, AssertNoLuaError)
 MAKE_TEST_CASE(lane, tasking_comms_criss_cross, AssertNoLuaError)
@@ -350,7 +350,7 @@ TEST_CASE("lanes.scripted tests")
 {
     auto const& _testParam = GENERATE(
         FileRunnerParam{ PUC_LUA_ONLY("lane/cooperative_shutdown"), TestType::AssertNoLuaError }, // 0
-        FileRunnerParam{ "lane/uncooperative_shutdown", TestType::AssertThrows },
+        FileRunnerParam{ "lane/uncooperative_shutdown", TestType::AssertWarns },
         FileRunnerParam{ "lane/tasking_basic", TestType::AssertNoLuaError }, // 2
         FileRunnerParam{ "lane/tasking_cancelling", TestType::AssertNoLuaError }, // 3
         FileRunnerParam{ "lane/tasking_comms_criss_cross", TestType::AssertNoLuaError }, // 4

@@ -70,7 +70,7 @@
 			</p>
 
 			<p>
-				This document was revised on 13-Dec-24, and applies to version <tt>4.0.0</tt>.
+				This document was revised on 17-Mar-25, and applies to version <tt>4.0.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -380,6 +380,8 @@
 				Sets the duration in seconds Lanes will wait for graceful termination of running lanes at application shutdown. Default is <tt>0.25</tt>.<br />
 				Lanes signals all lanes for cancellation with <tt>"soft"</tt>, <tt>"hard"</tt>, and <tt>"all"</tt> modes, in that order. Each attempt has <tt>shutdown_timeout</tt> seconds to succeed before the next one.<br />
 				Then there is a last chance at cleanup with <a href="#finally"><tt>lanes.finally()</tt></a>. If some lanes are still running after that point, shutdown will either freeze or throw. It is YOUR responsibility to cleanup properly after yourself.
+				IMPORTANT: If there are still running lanes at shutdown, an error is raised, which will be propagated by Lua to the handler installed by <tt>lua_setwarnf</tt>. If the finalizer returned a value, this will be used as the error message.<br />
+				LANES SHUTDOWN WILL NOT BE COMPLETE IN THAT CASE, AND THE SUBSEQUENT CONSEQUENCES ARE UNDEFINED!
 			</td>
 		</tr>
 
@@ -487,7 +489,7 @@
 	The finalizer is called unprotected from inside <tt>__gc</tt> metamethod of Lanes's Universe. Therefore, if your finalizer raises an error, Lua rules regarding errors in finalizers apply normally.<br />
 	The installed function is called after all free-running lanes got a chance to terminate (see <a href="#shutdown_timeout"><tt>shutdown_timeout</tt></a>), but before lindas become unusable.<br />
 	The finalizer receives a single argument, a <tt>bool</tt> indicating whether all Lanes are successfully terminated at that point. It is possible to inspect them with <a href="#tracking">tracking</a>.<br />
-	If there are still running lanes when the finalizer returns: Lanes will throw a C++ <tt>std::logic_error</tt> if the finalizer returned <tt>"throw"</tt>. Any other value will cause Lanes to freeze forever.
+	If there are still running lanes when the finalizer returns: If the finalizer returned <tt>"freeze"</tt>, Lanes will freeze inside the Universe <tt>__gc</tt>. Any other value will cause Lanes to raise it as an error. If there is no return value, a default message will be used.
 </p>
 
 <hr/>

@@ -25,35 +25,19 @@ namespace
             STACK_CHECK(L_, 0);
         }
 
-
         static std::map<lua_State*, std::atomic_flag> sFinalizerHits;
         static std::mutex sCallCountsLock;
 
         // a finalizer that we can detect even after closing the state
-        lua_CFunction sThrowingFinalizer = +[](lua_State* L_) {
+        lua_CFunction sFreezingFinalizer = +[](lua_State* const L_) {
             std::lock_guard _guard{ sCallCountsLock };
             sFinalizerHits[L_].test_and_set();
-            luaG_pushstring(L_, "throw");
+            luaG_pushstring(L_, "freeze"); // just freeze the thread in place so that it can be debugged
             return 1;
         };
 
-        // a finalizer that we can detect even after closing the state
-        lua_CFunction sYieldingFinalizer = +[](lua_State* L_) {
-            std::lock_guard _guard{ sCallCountsLock };
-            sFinalizerHits[L_].test_and_set();
-            return 0;
-        };
-
-        // a function that runs forever
-        lua_CFunction sForever = +[](lua_State* L_) {
-            while (true) {
-                std::this_thread::yield();
-            }
-            return 0;
-        };
-
         // a function that returns immediately (so that LuaJIT issues a function call for it)
-        lua_CFunction sGiveMeBack = +[](lua_State* L_) {
+        lua_CFunction sGiveMeBack = +[](lua_State* const L_) {
             return lua_gettop(L_);
         };
 
@@ -74,14 +58,42 @@ namespace
             return 0;
         };
 
+        // a function that sleeps for the specified duration (in seconds)
+        lua_CFunction sSleepFor = +[](lua_State* const L_) {
+            std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
+            lua_settop(L_, 1);
+            if (luaG_type(L_, kIdxTop) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
+                lua_Duration const _duration{ lua_tonumber(L_, kIdxTop) };
+                if (_duration.count() >= 0.0) {
+                    _until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(_duration);
+                } else {
+                    raise_luaL_argerror(L_, kIdxTop, "duration cannot be < 0");
+                }
+
+            } else if (!lua_isnoneornil(L_, 2)) {
+                raise_luaL_argerror(L_, StackIndex{ 2 }, "incorrect duration type");
+            }
+            std::this_thread::sleep_until(_until);
+            return 0;
+        };
+
+        // a finalizer that we can detect even after closing the state
+        lua_CFunction sThrowingFinalizer = +[](lua_State* const L_) {
+            std::lock_guard _guard{ sCallCountsLock };
+            sFinalizerHits[L_].test_and_set();
+            bool const _allLanesTerminated = lua_toboolean(L_, kIdxTop);
+            luaG_pushstring(L_, "Finalizer%s", _allLanesTerminated ? "" : ": Uncooperative lanes detected");
+            return 1;
+        };
+
         static luaL_Reg const sFixture[] = {
-            { "forever", sForever },
+            { "freezing_finalizer", sFreezingFinalizer },
             { "give_me_back()", sGiveMeBack },
             { "newlightuserdata", sNewLightUserData },
             { "newuserdata", sNewUserData },
             { "on_state_create", sOnStateCreate },
+            { "sleep_for", sSleepFor },
             { "throwing_finalizer", sThrowingFinalizer },
-            { "yielding_finalizer", sYieldingFinalizer },
             { nullptr, nullptr }
         };
     } // namespace local
@@ -448,16 +460,34 @@ FileRunner::FileRunner(std::string_view const& where_)
 
 void FileRunner::performTest(FileRunnerParam const& testParam_)
 {
+    static constexpr auto _atPanic = [](lua_State* const L_) {
+        throw std::logic_error("panic!");
+        return 0;
+    };
+
+#if LUA_VERSION_NUM >= 504 // // warnings are a Lua 5.4 feature
+    std::string _warnMessage;
+    static constexpr auto _onWarn = [](void* const opaque_, char const* const msg_, int const tocont_) {
+        std::string& _warnMessage = *static_cast<std::string*>(opaque_);
+        _warnMessage += msg_;
+    };
+#endif // LUA_VERSION_NUM
+
     INFO(testParam_.script);
     switch (testParam_.test) {
     case TestType::AssertNoLuaError:
         requireSuccess(root, testParam_.script);
         break;
-    case TestType::AssertNoThrow:
-        REQUIRE_NOTHROW((std::ignore = doFile(root, testParam_.script), close()));
+
+#if LUA_VERSION_NUM >= 504 // // warnings are a Lua 5.4 feature
+    case TestType::AssertWarns:
+        lua_atpanic(L, _atPanic);
+        lua_setwarnf(L, _onWarn, &_warnMessage);
+        std::ignore = doFile(root, testParam_.script);
+        close();
+        WARN(_warnMessage);
+        REQUIRE(_warnMessage != std::string_view{});
         break;
-    case TestType::AssertThrows:
-        REQUIRE_THROWS_AS((std::ignore = doFile(root, testParam_.script), close()), std::logic_error);
-        break;
+#endif // LUA_VERSION_NUM
     }
 }

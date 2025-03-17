@@ -756,6 +756,12 @@ static void lane_main(Lane* const lane_)
             }
         }
 
+        if (lane_->flaggedAfterUniverseGC.load(std::memory_order_relaxed)) {
+            // let's try not to crash if the lane didn't terminate gracefully and the Universe met its end
+            // there will be leaks, but what else can we do?
+            return;
+        }
+
         if (_errorHandlerCount) {
             lua_remove(_L, 1);                                                                     // L: retvals|error
         }

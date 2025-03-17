@@ -8,7 +8,7 @@ local lanes = require "lanes".configure{shutdown_timeout = 0.001, on_state_creat
 -- launch lanes that blocks forever
 local lane = function()
 	local fixture = require "fixture"
-	fixture.forever()
+	fixture.sleep_for()
 end
 
 -- the generator
@@ -20,5 +20,5 @@ local h1 = g1()
 -- wait until the lane is running
 repeat until h1.status == "running"
 
--- let the script end, Lanes should throw std::logic_error because the lane did not gracefully terminate
+-- this finalizer returns an error string that telling Universe::__gc will use to raise an error when it detects the uncooperative lane
 lanes.finally(fixture.throwing_finalizer)

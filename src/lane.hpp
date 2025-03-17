@@ -139,6 +139,10 @@ class Lane final
 
     ErrorTraceLevel const errorTraceLevel{ Basic };
 
+    // when Universe is collected, and an uncooperative Lane refuses to terminate, this flag becomes true
+    // in case of crash, that's the Lane's fault!
+    std::atomic_bool flaggedAfterUniverseGC{ false };
+
     [[nodiscard]]
     static void* operator new(size_t size_, Universe* U_) noexcept { return U_->internalAllocator.alloc(size_); }
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception

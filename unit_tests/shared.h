@@ -66,8 +66,9 @@ class LuaState
 enum class [[nodiscard]] TestType
 {
     AssertNoLuaError,
-    AssertNoThrow,
-    AssertThrows,
+#if LUA_VERSION_NUM >= 504 // warnings are a Lua 5.4 feature
+    AssertWarns,
+#endif // LUA_VERSION_NUM
 };
 
 struct FileRunnerParam

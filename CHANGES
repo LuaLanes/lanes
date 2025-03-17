@@ -14,8 +14,8 @@ CHANGE 2: BGe 27-Nov-24
             - lanes.sleep() accepts a new argument "indefinitely" to block forever (until hard cancellation is received).
             - function set_debug_threadname() available inside a Lane is renamed lane_threadname(); can now both read and write the name.
             - new function lanes.finally(). Installs a function that gets called at Lanes shutdown after attempting to terminate all lanes.
+              If some lanes still run after the finalizer, Universe::__gc with raise an error or freeze, depending on its return value.
             - new function lanes.collectgarbage(), to force a full GC cycle in the keeper states.
-              If some lanes still run after the finalizer, Lanes with throw an exception or freeze, depending on its return value.
             - Configuration settings:
                 - Boolean parameters only accept boolean values.
                 - allocator provider function is called with a string hint to distinguish internal allocations, lane and keeper states.

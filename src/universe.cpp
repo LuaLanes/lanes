@@ -209,6 +209,17 @@ static int luaG_provide_protected_allocator(lua_State* const L_)
 
 // #################################################################################################
 
+void Universe::flagDanglingLanes() const
+{
+    std::lock_guard<std::mutex> _guard{ selfdestructMutex };
+    Lane* _lane{ selfdestructFirst };
+    while (_lane != SELFDESTRUCT_END) {
+        _lane->flaggedAfterUniverseGC.store(true, std::memory_order_relaxed);
+        _lane = _lane->selfdestruct_next;
+    }
+}
+// #################################################################################################
+
 // called once at the creation of the universe (therefore L_ is the master Lua state everything originates from)
 // Do I need to disable this when compiling for LuaJIT to prevent issues?
 void Universe::initializeAllocatorFunction(lua_State* const L_)
@@ -399,6 +410,7 @@ bool Universe::terminateFreeRunningLanes(lua_Duration const shutdownTimeout_, Ca
 // #################################################################################################
 
 // process end: cancel any still free-running threads
+// as far as I can tell, this can only by called only from lua_close()
 int Universe::UniverseGC(lua_State* const L_)
 {
     lua_Duration const _shutdown_timeout{ lua_tonumber(L_, lua_upvalueindex(1)) };
@@ -416,22 +428,36 @@ int Universe::UniverseGC(lua_State* const L_)
     kFinalizerRegKey.pushValue(L_);                                                                // L_: U finalizer|nil
     if (!lua_isnil(L_, -1)) {
         lua_pushboolean(L_, _allLanesTerminated);                                                  // L_: U finalizer bool
-        // no protection. Lua rules for errors in finalizers apply normally
-        lua_call(L_, 1, 1);                                                                        // L_: U ret|error
+        // no protection. Lua rules for errors in finalizers apply normally:
+        // Lua 5.4: error is propagated in the warn system
+        // older: error is swallowed
+        lua_call(L_, 1, 1);                                                                        // L_: U msg?
+        // phew, no error in finalizer, since we reached that point
+    }
+
+    if (lua_isnil(L_, kIdxTop)) {
+        lua_pop(L_, 1);                                                                            // L_: U
+        // no finalizer, or it returned no value: push some default message on the stack, in case it is necessary
+        luaG_pushstring(L_, "uncooperative lanes detected at shutdown");                           // L_: U "msg"
     }
     STACK_CHECK(L_, 2);
 
-    // if some lanes are still running here, we have no other choice than crashing or freezing and let the client figure out what's wrong
-    bool const _throw{ luaG_tostring(L_, kIdxTop) == "throw" };
-    lua_pop(L_, 1);                                                                                // L_: U
-
-    while (_U->selfdestructFirst != SELFDESTRUCT_END) {
-        if (_throw) {
-            throw std::logic_error{ "Some lanes are still running at shutdown" };
+    // now, all remaining lanes are flagged. if they crash because we remove keepers and the Universe from under them, it is their fault
+    bool const _detectedUncooperativeLanes{ _U->selfdestructFirst != SELFDESTRUCT_END };
+    if (_detectedUncooperativeLanes) {
+        _U->flagDanglingLanes();
+        if (luaG_tostring(L_, kIdxTop) == "freeze") {
+            std::this_thread::sleep_until(std::chrono::time_point<std::chrono::steady_clock>::max());
         } else {
-            std::this_thread::yield();
+            // take the value returned by the finalizer (or our default message) and throw it as an error
+            // since we are inside Lua's GCTM, it will be propagated through the warning system (Lua 5.4) or swallowed silently
+            raise_lua_error(L_);
         }
     }
+
+    // ---------------------------------------------------------
+    // we don't reach that point if some lanes are still running
+    // ---------------------------------------------------------
 
     // no need to mutex-protect this as all lanes in the universe are gone at that point
     Linda::DeleteTimerLinda(L_, std::exchange(_U->timerLinda, nullptr), PK);
