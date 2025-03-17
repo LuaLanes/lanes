@@ -244,7 +244,7 @@ void Universe::initializeAllocatorFunction(lua_State* const L_)
         provideAllocator = lua_tocfunction(L_, -1);                                                // L_: settings allocator
         if (provideAllocator != nullptr) {
             // make sure the function doesn't have upvalues
-            char const* _upname = lua_getupvalue(L_, -1, 1);                                       // L_: settings allocator upval?
+            char const* _upname{ lua_getupvalue(L_, -1, 1) };                                      // L_: settings allocator upval?
             if (_upname != nullptr) {   // should be "" for C functions with upvalues if any
                 raise_luaL_error(L_, "config.allocator() shouldn't have upvalues");
             }
@@ -266,11 +266,11 @@ void Universe::initializeAllocatorFunction(lua_State* const L_)
     std::ignore = luaG_getfield(L_, kIdxTop, "internal_allocator");                                // L_: settings "libc"|"allocator"
     LUA_ASSERT(L_, lua_isstring(L_, kIdxTop)); // should be the case due to lanes.lua parameter validation
     std::string_view const _allocator{ luaG_tostring(L_, kIdxTop) };
+    // use whatever the provider provides. This performs validation of what provideAllocator is giving
+    // we do this even if _allocator == "libc", to have the validation part
+    internalAllocator = resolveAndValidateAllocator(L_, "internal");
     if (_allocator == "libc") {
         internalAllocator = lanes::AllocatorDefinition{ libc_lua_Alloc, nullptr };
-    } else {
-        // use whatever the provider provides
-        internalAllocator = resolveAllocator(L_, "internal");
     }
     lua_pop(L_, 1);                                                                                // L_: settings
     STACK_CHECK(L_, 1);
@@ -331,7 +331,7 @@ void Universe::initializeOnStateCreate(lua_State* const L_)
 
 // #################################################################################################
 
-lanes::AllocatorDefinition Universe::resolveAllocator(lua_State* const L_, std::string_view const& hint_) const
+lanes::AllocatorDefinition Universe::resolveAndValidateAllocator(lua_State* const L_, std::string_view const& hint_) const
 {
     lanes::AllocatorDefinition _ret{ protectedAllocator };
     if (provideAllocator == nullptr) {

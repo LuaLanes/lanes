@@ -56,234 +56,243 @@ TEST_CASE("lanes.require 'lanes'")
 }
 
 // #################################################################################################
-// #################################################################################################
-// allocator should be "protected", a C function returning a suitable userdata, or nil
 
-TEST_CASE("lanes.configure")
+// allocator should be "protected", a C function returning a suitable userdata, or nil
+TEST_CASE("lanes.configure.allocator")
 {
     LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
 
-    // ---------------------------------------------------------------------------------------------
-
-    SECTION("allocator", "[allocator]")
+    SECTION("allocator = false")
     {
-        SECTION("allocator = false")
-        {
-            L.requireFailure("require 'lanes'.configure{allocator = false}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("allocator = true")
-        {
-            L.requireFailure("require 'lanes'.configure{allocator = true}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("allocator = <number>")
-        {
-            L.requireFailure("require 'lanes'.configure{allocator = 33}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("allocator = <table>")
-        {
-            L.requireFailure("require 'lanes'.configure{allocator = {}}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("allocator = <Lua function>")
-        {
-            L.requireFailure("require 'lanes'.configure{allocator = function() return {}, 12, 'yoy' end}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("allocator = <bad C function>")
-        {
-            // a C function that doesn't return what we expect should cause an error too
-            L.requireFailure("require 'lanes'.configure{allocator = print}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("allocator = <string with a typo>")
-        {
-            // oops, a typo
-            L.requireFailure("require 'lanes'.configure{allocator = 'Protected'}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("allocator = 'protected'")
-        {
-            // no typo, should work
-            L.requireSuccess("require 'lanes'.configure{allocator = 'protected'}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("allocator = <good custom C allocator>")
-        {
-            // a function that provides what we expect is fine
-            static constexpr lua_CFunction _provideAllocator = +[](lua_State* const L_) {
-                lanes::AllocatorDefinition* const _def{ new (L_) lanes::AllocatorDefinition{} };
-                _def->initFrom(L_);
-                return 1;
-            };
-            lua_pushcfunction(L, _provideAllocator);
-            lua_setglobal(L, "ProvideAllocator");
-            L.requireSuccess("require 'lanes'.configure{allocator = ProvideAllocator}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("allocator not returning an AllocatorDefinition")
-        {
-            // a function that provides something that is definitely not an AllocatorDefinition, should cause an error
-            static constexpr lua_CFunction _provideAllocator = +[](lua_State* const L_) {
-                lua_newtable(L_);
-                return 1;
-            };
-            lua_pushcfunction(L, _provideAllocator);
-            lua_setglobal(L, "ProvideAllocator");
-            // force value of internal_allocator so that the LuaJIT-default 'libc' is not selected
-            // which would prevent us from calling _provideAllocator
-            L.requireFailure("require 'lanes'.configure{allocator = ProvideAllocator, internal_allocator = 'allocator'}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("allocator returning an AllocatorDefinition with the wrong signature")
-        {
-            // a function that provides something that is too small to contain an AllocatorDefinition, should cause an error
-            static constexpr lua_CFunction _provideAllocator = +[](lua_State* const L_) {
-                // create a full userdata that is too small (it only contains enough to store a version tag, but not the rest
-                auto* const _duck{ static_cast<lanes::AllocatorDefinition::version_t*>(lua_newuserdata(L_, sizeof(lanes::AllocatorDefinition::version_t))) };
-                *_duck = 666777;
-                return 1;
-            };
-            lua_pushcfunction(L, _provideAllocator);
-            lua_setglobal(L, "ProvideAllocator");
-            // force value of internal_allocator so that the LuaJIT-default 'libc' is not selected
-            // which would prevent us from calling _provideAllocator
-            L.requireFailure("require 'lanes'.configure{allocator = ProvideAllocator, internal_allocator = 'allocator'}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("allocator returning something too small to be a valid AllocatorDefinition")
-        {
-            // a function that provides something that attempts to pass as an AllocatorDefinition, but is not, should cause an error
-            static constexpr lua_CFunction _provideAllocator = +[](lua_State* const L_) {
-                // create a full userdata of the correct size, but of course the contents don't match
-                int* const _duck{ static_cast<int*>(lua_newuserdata(L_, sizeof(lanes::AllocatorDefinition))) };
-                _duck[0] = 666;
-                _duck[1] = 777;
-                return 1;
-            };
-            lua_pushcfunction(L, _provideAllocator);
-            lua_setglobal(L, "ProvideAllocator");
-            // force value of internal_allocator so that the LuaJIT-default 'libc' is not selected
-            // which would prevent us from calling _provideAllocator
-            L.requireFailure("require 'lanes'.configure{allocator = ProvideAllocator, internal_allocator = 'allocator'}");
-        }
+        L.requireFailure("require 'lanes'.configure{allocator = false}");
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    SECTION("allocator = true")
+    {
+        L.requireFailure("require 'lanes'.configure{allocator = true}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("allocator = <number>")
+    {
+        L.requireFailure("require 'lanes'.configure{allocator = 33}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("allocator = <table>")
+    {
+        L.requireFailure("require 'lanes'.configure{allocator = {}}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("allocator = <Lua function>")
+    {
+        L.requireFailure("require 'lanes'.configure{allocator = function() return {}, 12, 'yoy' end}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("allocator = <bad C function>")
+    {
+        // a C function that doesn't return what we expect should cause an error too
+        // TODO: for some reason, we use os.getenv here because using 'print' as the culprit, the tests deadlock in Release builds
+        L.requireFailure("return type(require 'lanes'.configure{allocator = os.getenv})");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("allocator = <string with a typo>")
+    {
+        // oops, a typo
+        L.requireFailure("require 'lanes'.configure{allocator = 'Protected'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("allocator = 'protected'")
+    {
+        // no typo, should work
+        L.requireSuccess("require 'lanes'.configure{allocator = 'protected'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("allocator = <good custom C allocator>")
+    {
+        // a function that provides what we expect is fine
+        static constexpr lua_CFunction _provideAllocator = +[](lua_State* const L_) {
+            lanes::AllocatorDefinition* const _def{ new (L_) lanes::AllocatorDefinition{} };
+            _def->initFrom(L_);
+            return 1;
+        };
+        lua_pushcfunction(L, _provideAllocator);
+        lua_setglobal(L, "ProvideAllocator");
+        L.requireSuccess("require 'lanes'.configure{allocator = ProvideAllocator}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("allocator not returning an AllocatorDefinition")
+    {
+        // a function that provides something that is definitely not an AllocatorDefinition, should cause an error
+        static constexpr lua_CFunction _provideAllocator = +[](lua_State* const L_) {
+            lua_newtable(L_);
+            return 1;
+        };
+        lua_pushcfunction(L, _provideAllocator);
+        lua_setglobal(L, "ProvideAllocator");
+        // force value of internal_allocator so that the LuaJIT-default 'libc' is not selected
+        // which would prevent us from calling _provideAllocator
+        L.requireFailure("require 'lanes'.configure{allocator = ProvideAllocator, internal_allocator = 'allocator'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("allocator returning an AllocatorDefinition with the wrong signature")
+    {
+        // a function that provides something that is too small to contain an AllocatorDefinition, should cause an error
+        static constexpr lua_CFunction _provideAllocator = +[](lua_State* const L_) {
+            // create a full userdata that is too small (it only contains enough to store a version tag, but not the rest
+            auto* const _duck{ static_cast<lanes::AllocatorDefinition::version_t*>(lua_newuserdata(L_, sizeof(lanes::AllocatorDefinition::version_t))) };
+            *_duck = 666777;
+            return 1;
+        };
+        lua_pushcfunction(L, _provideAllocator);
+        lua_setglobal(L, "ProvideAllocator");
+        // force value of internal_allocator so that the LuaJIT-default 'libc' is not selected
+        // which would prevent us from calling _provideAllocator
+        L.requireFailure("require 'lanes'.configure{allocator = ProvideAllocator, internal_allocator = 'allocator'}");
+    }
+
+    // -----------------------------------------------------------------------------------------
+
+    SECTION("allocator returning something too small to be a valid AllocatorDefinition")
+    {
+        // a function that provides something that attempts to pass as an AllocatorDefinition, but is not, should cause an error
+        static constexpr lua_CFunction _provideAllocator = +[](lua_State* const L_) {
+            // create a full userdata of the correct size, but of course the contents don't match
+            int* const _duck{ static_cast<int*>(lua_newuserdata(L_, sizeof(lanes::AllocatorDefinition))) };
+            _duck[0] = 666;
+            _duck[1] = 777;
+            return 1;
+        };
+        lua_pushcfunction(L, _provideAllocator);
+        lua_setglobal(L, "ProvideAllocator");
+        // force value of internal_allocator so that the LuaJIT-default 'libc' is not selected
+        // which would prevent us from calling _provideAllocator
+        L.requireFailure("require 'lanes'.configure{allocator = ProvideAllocator, internal_allocator = 'allocator'}");
+    }
+}
+
+// #################################################################################################
+
+TEST_CASE("lanes.configure.internal_allocator")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
     // internal_allocator should be a string, "libc"/"allocator"
 
-    SECTION("[internal_allocator")
+    SECTION("internal_allocator = false")
     {
-        SECTION("internal_allocator = false")
-        {
-            L.requireFailure("require 'lanes'.configure{internal_allocator = false}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("internal_allocator = true")
-        {
-            L.requireFailure("require 'lanes'.configure{internal_allocator = true}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("internal_allocator = <table>")
-        {
-            L.requireFailure("require 'lanes'.configure{internal_allocator = {}}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("internal_allocator = <Lua function>")
-        {
-            L.requireFailure("require 'lanes'.configure{internal_allocator = function() end}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("internal_allocator = <bad string>")
-        {
-            L.requireFailure("require 'lanes'.configure{internal_allocator = 'gluh'}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("internal_allocator = 'libc'")
-        {
-            L.requireSuccess("require 'lanes'.configure{internal_allocator = 'libc'}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("internal_allocator = 'allocator'")
-        {
-            L.requireSuccess("require 'lanes'.configure{internal_allocator = 'allocator'}");
-        }
+        L.requireFailure("require 'lanes'.configure{internal_allocator = false}");
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    SECTION("internal_allocator = true")
+    {
+        L.requireFailure("require 'lanes'.configure{internal_allocator = true}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("internal_allocator = <table>")
+    {
+        L.requireFailure("require 'lanes'.configure{internal_allocator = {}}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("internal_allocator = <Lua function>")
+    {
+        L.requireFailure("require 'lanes'.configure{internal_allocator = function() end}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("internal_allocator = <bad string>")
+    {
+        L.requireFailure("require 'lanes'.configure{internal_allocator = 'gluh'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("internal_allocator = 'libc'")
+    {
+        L.requireSuccess("require 'lanes'.configure{internal_allocator = 'libc'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("internal_allocator = 'allocator'")
+    {
+        L.requireSuccess("require 'lanes'.configure{internal_allocator = 'allocator'}");
+    }
+}
+
+// #################################################################################################
+
+TEST_CASE("lanes.configure.keepers_gc_threshold")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
     // keepers_gc_threshold should be a number in [0, 100]
 
-    SECTION("keepers_gc_threshold")
+    SECTION("keepers_gc_threshold = <table>")
     {
-        SECTION("keepers_gc_threshold = <table>")
-        {
-            L.requireFailure("require 'lanes'.configure{keepers_gc_threshold = {}}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("keepers_gc_threshold = <string>")
-        {
-            L.requireFailure("require 'lanes'.configure{keepers_gc_threshold = 'gluh'}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("keepers_gc_threshold = -1")
-        {
-            L.requireSuccess("require 'lanes'.configure{keepers_gc_threshold = -1}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("keepers_gc_threshold = 0")
-        {
-            L.requireSuccess("require 'lanes'.configure{keepers_gc_threshold = 0}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("keepers_gc_threshold = 100")
-        {
-            L.requireSuccess("require 'lanes'.configure{keepers_gc_threshold = 100}");
-        }
+        L.requireFailure("require 'lanes'.configure{keepers_gc_threshold = {}}");
     }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("keepers_gc_threshold = <string>")
+    {
+        L.requireFailure("require 'lanes'.configure{keepers_gc_threshold = 'gluh'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("keepers_gc_threshold = -1")
+    {
+        L.requireSuccess("require 'lanes'.configure{keepers_gc_threshold = -1}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("keepers_gc_threshold = 0")
+    {
+        L.requireSuccess("require 'lanes'.configure{keepers_gc_threshold = 0}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("keepers_gc_threshold = 100")
+    {
+        L.requireSuccess("require 'lanes'.configure{keepers_gc_threshold = 100}");
+    }
+}
+
+// #################################################################################################
+
+TEST_CASE("lanes.configure.the rest")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
 
     // ---------------------------------------------------------------------------------------------
     // nb_user_keepers should be a number in [0, 100]

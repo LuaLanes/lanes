@@ -158,7 +158,7 @@ namespace state {
                         // for some reason, LuaJIT 64 bits does not support creating a state with lua_newstate...
                         return luaL_newstate();
                     } else {
-                        lanes::AllocatorDefinition const _def{ U->resolveAllocator(from, hint) };
+                        lanes::AllocatorDefinition const _def{ U->resolveAndValidateAllocator(from, hint) };
                         return _def.newState();
                     }
                 }
