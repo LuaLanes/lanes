@@ -178,14 +178,14 @@
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -437,6 +437,14 @@
     <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">
+    <IntDir>$(SolutionDir)_Tmp\$(ProjectName)\$(PlatformName)\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)_Output\$(ProjectName)\$(PlatformName)\$(Configuration)\</OutDir>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -455,7 +463,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Release</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Release\</Command>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Release\</Command>
       <Message>Copy to Lua 5.3</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -477,7 +485,7 @@
       <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Release</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Release\</Command>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Release\</Command>
       <Message>Copy to Lua 5.4</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -493,8 +501,8 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Debug\</Command>
-      <Message>Lua 5.3</Message>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Debug\</Command>
+      <Message>Copy to Lua 5.3</Message>
     </PostBuildEvent>
     <Link>
       <AdditionalDependencies>lua53.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -513,12 +521,12 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug\</Command>
-      <Message>Copy to Lua 5.2</Message>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug\</Command>
+      <Message>Copy to Lua 5.1</Message>
     </PostBuildEvent>
     <Link>
-      <AdditionalDependencies>lua52.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug</AdditionalLibraryDirectories>
+      <AdditionalDependencies>lua51.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.1|Win32'">
@@ -533,12 +541,12 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug\</Command>
-      <Message>Copy to Lua 5.2</Message>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Release\</Command>
+      <Message>Copy to Lua 5.1</Message>
     </PostBuildEvent>
     <Link>
-      <AdditionalDependencies>lua52.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug</AdditionalLibraryDirectories>
+      <AdditionalDependencies>lua51.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Release</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|Win32'">
@@ -553,12 +561,12 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug\</Command>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug\</Command>
       <Message>Copy to Lua 5.2</Message>
     </PostBuildEvent>
     <Link>
-      <AdditionalDependencies>lua51.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug</AdditionalLibraryDirectories>
+      <AdditionalDependencies>lua52.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.2|Win32'">
@@ -573,12 +581,12 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug\</Command>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Release\</Command>
       <Message>Copy to Lua 5.2</Message>
     </PostBuildEvent>
     <Link>
-      <AdditionalDependencies>lua51.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug</AdditionalLibraryDirectories>
+      <AdditionalDependencies>lua52.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Release</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT|Win32'">
@@ -594,8 +602,8 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\LuaJIT-2.0.5\bin\$(Platform)\</Command>
-      <Message>Copy to LuaJITGIT</Message>
+      <Command>xcopy /F /I /R /Y  "$(TargetPath)" $(SolutionDir)..\..\..\LuaJIT\bin\$(Platform)\</Command>
+      <Message>Copy to LuaJIT</Message>
     </PostBuildEvent>
     <Link>
       <AdditionalDependencies>lua51.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -614,8 +622,8 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\framework\</Command>
-      <Message>Copy to framework</Message>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Debug\</Command>
+      <Message>Copy to Lua 5.4</Message>
     </PostBuildEvent>
     <Link>
       <AdditionalDependencies>lua54.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -634,7 +642,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\MoonJIT\bin\$(Platform)\</Command>
+      <Command>xcopy /F /I /R /Y  "$(TargetPath)" $(SolutionDir)..\..\..\MoonJIT\bin\$(Platform)\</Command>
       <Message>Copy to MoonJIT</Message>
     </PostBuildEvent>
     <Link>
@@ -654,7 +662,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Debug\</Command>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Debug\</Command>
       <Message>Copy to Lua 5.3</Message>
     </PostBuildEvent>
     <Link>
@@ -674,7 +682,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug\</Command>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug\</Command>
       <Message>Copy to Lua 5.1</Message>
     </PostBuildEvent>
     <Link>
@@ -694,12 +702,12 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Release\</Command>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Release\</Command>
       <Message>Copy to Lua 5.1</Message>
     </PostBuildEvent>
     <Link>
       <AdditionalDependencies>lua51.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Debug</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua51\bin\$(Platform)\Release</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.2|x64'">
@@ -714,7 +722,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug\</Command>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug\</Command>
       <Message>Copy to Lua 5.2</Message>
     </PostBuildEvent>
     <Link>
@@ -734,12 +742,12 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Release\</Command>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Release\</Command>
       <Message>Copy to Lua 5.2</Message>
     </PostBuildEvent>
     <Link>
       <AdditionalDependencies>lua52.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Debug</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua52\bin\$(Platform)\Release</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT|x64'">
@@ -754,8 +762,8 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\LuaJIT-GIT\bin\$(Platform)\</Command>
-      <Message>Copy to LuaJITGIT</Message>
+      <Command>xcopy /F /I /R /Y  "$(TargetPath)" $(SolutionDir)..\..\..\LuaJIT\bin\$(Platform)\</Command>
+      <Message>Copy to LuaJIT</Message>
     </PostBuildEvent>
     <Link>
       <AdditionalDependencies>lua51.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
@@ -774,7 +782,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Debug\</Command>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Debug\</Command>
       <Message>Copy to Lua 5.4</Message>
     </PostBuildEvent>
     <Link>
@@ -794,7 +802,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>xcopy /R /F /Y /I "$(TargetPath)" $(SolutionDir)..\MoonJIT\bin\$(Platform)\</Command>
+      <Command>xcopy /F /I /R /Y  "$(TargetPath)" $(SolutionDir)..\..\..\MoonJIT\bin\$(Platform)\</Command>
       <Message>Copy to MoonJIT</Message>
     </PostBuildEvent>
     <Link>
@@ -820,6 +828,12 @@
       <AdditionalDependencies>lua53.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Release</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua53\bin\$(Platform)\Release\</Command>
+    </PostBuildEvent>
+    <PostBuildEvent>
+      <Message>Copy to Lua 5.3</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.4|Win32'">
     <ClCompile>
@@ -839,6 +853,12 @@
       <AdditionalDependencies>lua54.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Release</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /F /I /R /Y "$(TargetPath)" $(SolutionDir)..\..\..\Lua54\bin\$(Platform)\Release\</Command>
+    </PostBuildEvent>
+    <PostBuildEvent>
+      <Message>Copy to Lua 5.4</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\compat.cpp" />
