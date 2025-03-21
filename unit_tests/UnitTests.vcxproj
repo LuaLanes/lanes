@@ -264,7 +264,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua54\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -283,7 +283,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua53\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -302,7 +302,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua53\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -321,7 +321,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua52\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -340,7 +340,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua52\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -359,7 +359,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua51\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -378,7 +378,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua51\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -394,10 +394,10 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\LuaJIT\src;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -413,10 +413,10 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\MoonJIT\src;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
@@ -435,7 +435,7 @@
       <PreprocessorDefinitions>X64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua54\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -477,7 +477,7 @@
       <PreprocessorDefinitions>X64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua53\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -496,7 +496,7 @@
       <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
       <PreprocessorDefinitions>X64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua53\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -558,7 +558,7 @@
       <PreprocessorDefinitions>X64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua52\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -577,7 +577,7 @@
       <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
       <PreprocessorDefinitions>X64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua52\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -639,7 +639,7 @@
       <PreprocessorDefinitions>X64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua51\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -658,7 +658,7 @@
       <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
       <PreprocessorDefinitions>X64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua51\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -717,10 +717,10 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>X64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>X64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\LuaJIT\src;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
@@ -738,10 +738,10 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>_pch.hpp</PrecompiledHeaderFile>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>X64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>X64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <WarningLevel>Level3</WarningLevel>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\MoonJIT\src;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
@@ -804,7 +804,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua54\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -822,7 +822,7 @@
       <PreprocessorDefinitions>X64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>Level3</WarningLevel>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\..\..\Lua54\include;$(SolutionDir)..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)/include;$(SolutionDir)..</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
