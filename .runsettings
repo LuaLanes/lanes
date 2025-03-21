@@ -5,6 +5,14 @@
 		<DiscoverCommandLine>--list-tests --verbosity high</DiscoverCommandLine>
 		<DiscoverTimeout>300000</DiscoverTimeout>
 
+		<!-- The whole setup relies on Lua Binaries and headers to be located in a folder $(SolutionDir)/Binaries/$(PlatformName)/$(ConfigurationName)
+			this is also true for linker input folders, the folder where lanes.lua is copied by the custom build operation, etc.
+		-->
+		<Environment>
+			<LUA_PATH value="$(SolutionDir)/Binaries/$(PlatformName)/$(ConfigurationName)" />
+			<LUA_CPATH value="$(SolutionDir)/Binaries/$(PlatformName)/$(ConfigurationName)" />
+		</Environment>
+
 		<!-- Executable Filename
 			Discover filenames with ... (must not include the .exe extension)
 			Regex breakdown: ^foo(_(.+))+(p|r|d)(_?(.+))x*$

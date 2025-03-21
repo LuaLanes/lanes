@@ -107,11 +107,11 @@
     <None Include="scripts\linda\send_registered_userdata.lua">
       <Filter>Scripts\linda</Filter>
     </None>
-    <None Include="Catch2.runsettings">
-      <Filter>Catch2</Filter>
-    </None>
     <None Include="UnitTests.makefile">
       <Filter>Make</Filter>
+    </None>
+    <None Include="..\.runsettings">
+      <Filter>Catch2</Filter>
     </None>
   </ItemGroup>
 </Project>

@@ -1,5 +1,6 @@
 _Output
 _Tmp
+_LuaVersions
 .vs
 *.dll
 *.exe
@@ -7,3 +8,4 @@ _Tmp
 *.map
 *.o
 *.so
+*.user

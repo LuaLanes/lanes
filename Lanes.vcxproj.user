@@ -3,7 +3,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">
     <LocalDebuggerCommand>$(SolutionDir)..\Lua51\bin\$(Platform)\Debug\lua51.exe</LocalDebuggerCommand>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release LuaJIT|Win32'">
     <LocalDebuggerCommand>$(SolutionDir)..\LuaJIT-GIT\bin\$(Platform)\luajitgit.exe</LocalDebuggerCommand>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">
@@ -12,7 +12,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">
     <LocalDebuggerCommand>$(SolutionDir)..\framework\lua54.exe</LocalDebuggerCommand>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MoonJIT|Win32'">
     <LocalDebuggerCommand>$(SolutionDir)..\MoonJIT\bin\$(Platform)\moonjit.exe</LocalDebuggerCommand>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">
@@ -27,7 +27,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.1|Win32'">
     <LocalDebuggerCommandArguments>error.lua</LocalDebuggerCommandArguments>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release LuaJIT|Win32'">
     <LocalDebuggerCommandArguments>-joff -i</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.3|Win32'">
@@ -37,7 +37,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug 5.4|Win32'">
     <LocalDebuggerCommandArguments />
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MoonJIT|Win32'">
     <LocalDebuggerCommandArguments />
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release 5.3|Win32'">
@@ -53,7 +53,7 @@
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release LuaJIT|Win32'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
@@ -65,7 +65,7 @@
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MoonJIT|Win32'">
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
@@ -100,7 +100,7 @@
     <LocalDebuggerWorkingDirectory>C:\Lua\5.1\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release LuaJIT|x64'">
     <LocalDebuggerCommand>$(SolutionDir)..\LuaJIT-GIT\bin\$(Platform)\luajitgit.exe</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments>cancel.lua hook</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
@@ -119,7 +119,7 @@
     <LocalDebuggerWorkingDirectory>C:\Lua\JIT2_64\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug LuaJIT|ORBIS'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release LuaJIT|ORBIS'">
     <LocalDebuggerCommand>C:\Lua\JIT2_64\luajit64.exe</LocalDebuggerCommand>
     <LocalDebuggerCommandArguments />
     <LocalDebuggerWorkingDirectory>C:\Lua\JIT2_64\</LocalDebuggerWorkingDirectory>
@@ -160,7 +160,7 @@
     <LocalDebuggerCommandArguments>protect_allocator.lua</LocalDebuggerCommandArguments>
     <RemoteDebuggerCommandArguments>protect_allocator.lua</RemoteDebuggerCommandArguments>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug MoonJIT|x64'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release MoonJIT|x64'">
     <LocalDebuggerCommand>$(SolutionDir)..\MoonJIT\bin\$(Platform)\moonjit.exe</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerWorkingDirectory>$(SolutionDir)Lanes\lanes\tests\</LocalDebuggerWorkingDirectory>
