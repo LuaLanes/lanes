@@ -79,7 +79,7 @@ build_DUE:
 # also run a test that shows whether lanes is successfully loaded or not
 run_unit_tests: build_lanes build_unit_tests build_DUE
 	@echo =========================================================================================
-	$(_PREFIX) $(_UNITTEST_TARGET) "lanes.require 'lanes'"
+	$(_PREFIX) $(_UNITTEST_TARGET) -s
 
 clean:
 	cd src && $(MAKE) -f Lanes.makefile clean
