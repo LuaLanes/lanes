@@ -5,13 +5,38 @@
 #define THREADAPI_WINDOWS 1
 #define THREADAPI_PTHREAD 2
 
-#if (defined(PLATFORM_XBOX) || defined(PLATFORM_WIN32) || defined(PLATFORM_POCKETPC))
-// #pragma message ( "THREADAPI_WINDOWS" )
-#define THREADAPI THREADAPI_WINDOWS
-#else // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
-// #pragma message ( "THREADAPI_PTHREAD" )
+#if __has_include(<pthread.h>)
+#include <pthread.h>
+#define HAVE_PTHREAD 1
+//#pragma message("HAVE_PTHREAD")
+#else
+#define HAVE_PTHREAD 0
+#endif // <pthread.h>
+
+#if __has_include(<windows.h>)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#define HAVE_WIN32 1
+//#pragma message("HAVE_WIN32")
+#elif __has_include(<xtl.h>)
+#include <xtl.h>
+#define HAVE_WIN32 1
+//#pragma message("HAVE_WIN32")
+#else // no <windows.h> nor <xtl.h>
+#define HAVE_WIN32 0
+#endif // <windows.h>
+
+#if HAVE_PTHREAD
+// unless proven otherwise, if pthread is available, let's assume that's what std::thread is using
 #define THREADAPI THREADAPI_PTHREAD
-#endif // (defined PLATFORM_WIN32) || (defined PLATFORM_POCKETPC)
+//#pragma message ( "THREADAPI_PTHREAD" )
+#elif HAVE_WIN32
+//#pragma message ( "THREADAPI_WINDOWS" )
+#define THREADAPI THREADAPI_WINDOWS
+#include <process.h>
+#else // unknown
+#error "unsupported threading API"
+#endif // unknown
 
 static constexpr int kThreadPrioDefault{ -999 };
 
@@ -19,18 +44,6 @@ static constexpr int kThreadPrioDefault{ -999 };
 // #################################################################################################
 #if THREADAPI == THREADAPI_WINDOWS
 
-#if defined(PLATFORM_XBOX)
-#include <xtl.h>
-#else // !PLATFORM_XBOX
-#define WIN32_LEAN_AND_MEAN
-// CONDITION_VARIABLE needs version 0x0600+
-// _WIN32_WINNT value is already defined by MinGW, but not by MSVC
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0600
-#endif // _WIN32_WINNT
-#include <windows.h>
-#endif // !PLATFORM_XBOX
-#include <process.h>
 
 /*
 #define XSTR(x) STR(x)
@@ -48,12 +61,6 @@ static constexpr int kThreadPrioMax{ +3 };
 // #################################################################################################
 
 // PThread (Linux, OS X, ...)
-
-// looks like some MinGW installations don't support PTW32_INCLUDE_WINDOWS_H, so let's include it ourselves, just in case
-#if defined(PLATFORM_WIN32)
-#include <windows.h>
-#endif // PLATFORM_WIN32
-#include <pthread.h>
 
 #if defined(PLATFORM_LINUX) && !defined(LINUX_SCHED_RR)
 static constexpr int kThreadPrioMin{ 0 };

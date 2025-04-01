@@ -86,7 +86,7 @@ THE SOFTWARE.
  * FAIL is for unexpected API return values - essentially programming
  * error in _this_ code.
  */
-#if defined(PLATFORM_XBOX) || defined(PLATFORM_WIN32) || defined(PLATFORM_POCKETPC)
+#if HAVE_WIN32
 static void FAIL(char const* funcname_, DWORD const rc_)
 {
 #if defined(PLATFORM_XBOX)
@@ -101,7 +101,7 @@ static void FAIL(char const* funcname_, DWORD const rc_)
 #endif              // _MSC_VER
     abort();
 }
-#endif // win32 build
+#endif // HAVE_WIN32
 
 /*---=== Threading ===---*/
 
@@ -136,7 +136,7 @@ void THREAD_SET_PRIORITY(std::thread& thread_, int prio_, [[maybe_unused]] bool 
     // prio range [-3,+3] was checked by the caller
     // for some reason when building for mingw, native_handle() is an unsigned long long, but HANDLE is a void*
     // -> need a strong cast to make g++ happy
-    if (!SetThreadPriority((HANDLE)thread_.native_handle(), gs_prio_remap[prio_ + 3])) {
+    if (!SetThreadPriority(thread_.native_handle(), gs_prio_remap[prio_ + 3])) {
         FAIL("THREAD_SET_PRIORITY", GetLastError());
     }
 }
@@ -382,7 +382,7 @@ void THREAD_SET_PRIORITY(std::thread& thread_, int prio_, [[maybe_unused]] bool 
     struct sched_param sp;
     // prio range [-3,+3] was checked by the caller
     sp.sched_priority = gs_prio_remap[prio_ + 3];
-    PT_CALL(pthread_setschedparam(static_cast<pthread_t>(thread_.native_handle()), _PRIO_MODE, &sp));
+    PT_CALL(pthread_setschedparam(thread_.native_handle(), _PRIO_MODE, &sp));
 }
 
 // #################################################################################################
@@ -398,6 +398,12 @@ void THREAD_SET_AFFINITY(unsigned int aff_)
 
 void THREAD_SET_AFFINITY(unsigned int aff_)
 {
+#if HAVE_WIN32 // "hybrid": Win32 API is available, and pthread too
+    // since pthread_setaffinity_np can be missing (for example mingw), use win32 api instead
+    if (!SetThreadAffinityMask(GetCurrentThread(), aff_)) {
+        FAIL("THREAD_SET_AFFINITY", GetLastError());
+    }
+#else // pure pthread
     int bit = 0;
 #ifdef __NetBSD__
     cpuset_t* cpuset = cpuset_create();
@@ -423,6 +429,7 @@ void THREAD_SET_AFFINITY(unsigned int aff_)
 #else
     PT_CALL(pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset));
 #endif
+#endif // PLATFORM_MINGW
 }
 
 #endif // __PROSPERO__
