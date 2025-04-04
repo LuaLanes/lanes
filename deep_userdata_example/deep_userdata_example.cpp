@@ -261,21 +261,21 @@ static int clonable_gc(lua_State* const L_)
 
 // this is all we need to make a userdata lanes-clonable. no dependency on Lanes code.
 [[nodiscard]]
-static int clonable_lanesclone(lua_State* L)
+static int clonable_lanesclone(lua_State* const L_)
 {
-    switch (lua_gettop(L)) {
+    switch (lua_gettop(L_)) {
     case 3:
         {
-            MyClonableUserdata* self = static_cast<MyClonableUserdata*>(lua_touserdata(L, 1));
-            MyClonableUserdata* from = static_cast<MyClonableUserdata*>(lua_touserdata(L, 2));
-            size_t len = lua_tointeger(L, 3);
-            assert(len == sizeof(MyClonableUserdata));
-            *self = *from;
+            MyClonableUserdata* const _self = static_cast<MyClonableUserdata*>(lua_touserdata(L_, 1));
+            MyClonableUserdata* const _from = static_cast<MyClonableUserdata*>(lua_touserdata(L_, 2));
+            auto const _len{ static_cast<size_t>(lua_tointeger(L_, 3)) }; // make 32-bits builds happy
+            assert(_len == sizeof(MyClonableUserdata));
+            *_self = *_from;
         }
         return 0;
 
     default:
-        raise_luaL_error(L, "Lanes called clonable_lanesclone with unexpected arguments");
+        raise_luaL_error(L_, "Lanes called clonable_lanesclone with unexpected arguments");
     }
     return 0;
 }
