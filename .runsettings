@@ -8,10 +8,10 @@
 		<!-- The whole setup relies on Lua Binaries and headers to be located in a folder $(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)
 			this is also true for linker input folders, the folder where lanes.lua is copied by the custom build operation, etc.
 		-->
-		<Environment>
-			<LUA_PATH value="$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)" />
-			<LUA_CPATH value="$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)" />
-		</Environment>
+		<!-- Environment>
+			<LUA_PATH>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)</LUA_PATH>
+			<LUA_CPATH>$(SolutionDir)/_LuaVersions/$(PlatformName)/$(ConfigurationName)</LUA_CPATH>
+		</Environment -->
 
 		<!-- Executable Filename
 			Discover filenames with ... (must not include the .exe extension)
