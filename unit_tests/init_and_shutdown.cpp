@@ -289,58 +289,59 @@ TEST_CASE("lanes.configure.keepers_gc_threshold")
 
 // #################################################################################################
 
+TEST_CASE("lanes.configure.nb_user_keepers")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
+    // nb_user_keepers should be a number in [0, 100]
+
+    SECTION("nb_user_keepers = <table>")
+    {
+        L.requireFailure("require 'lanes'.configure{nb_user_keepers = {}}");
+    }
+
+    // -----------------------------------------------------------------------------------------
+
+    SECTION("nb_user_keepers = <string>")
+    {
+        L.requireFailure("require 'lanes'.configure{nb_user_keepers = 'gluh'}");
+    }
+
+    // -----------------------------------------------------------------------------------------
+
+    SECTION("nb_user_keepers = -1")
+    {
+        L.requireFailure("require 'lanes'.configure{nb_user_keepers = -1}");
+    }
+
+    // -----------------------------------------------------------------------------------------
+
+    SECTION("nb_user_keepers = 0")
+    {
+        L.requireSuccess("require 'lanes'.configure{nb_user_keepers = 0}");
+    }
+
+    // -----------------------------------------------------------------------------------------
+
+    SECTION("nb_user_keepers = 100")
+    {
+        L.requireSuccess("require 'lanes'.configure{nb_user_keepers = 100}");
+    }
+
+    // -----------------------------------------------------------------------------------------
+
+    SECTION("nb_user_keepers = 101")
+    {
+        L.requireFailure("require 'lanes'.configure{nb_user_keepers = 101}");
+    }
+}
+
+// #################################################################################################
+
 TEST_CASE("lanes.configure.the rest")
 {
     LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
 
-
-    // ---------------------------------------------------------------------------------------------
-    // nb_user_keepers should be a number in [0, 100]
-
-    SECTION("nb_user_keepers")
-    {
-        SECTION("nb_user_keepers = <table>")
-        {
-            L.requireFailure("require 'lanes'.configure{nb_user_keepers = {}}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("nb_user_keepers = <string>")
-        {
-            L.requireFailure("require 'lanes'.configure{nb_user_keepers = 'gluh'}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("nb_user_keepers = -1")
-        {
-            L.requireFailure("require 'lanes'.configure{nb_user_keepers = -1}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("nb_user_keepers = 0")
-        {
-            L.requireSuccess("require 'lanes'.configure{nb_user_keepers = 0}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("nb_user_keepers = 100")
-        {
-            L.requireSuccess("require 'lanes'.configure{nb_user_keepers = 100}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("nb_user_keepers = 101")
-        {
-            L.requireFailure("require 'lanes'.configure{nb_user_keepers = 101}");
-        }
-    }
-
-    // ---------------------------------------------------------------------------------------------
     // on_state_create should be a function, either C or Lua, without upvalues
 
     SECTION("on_state_create")
