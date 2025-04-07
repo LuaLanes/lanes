@@ -449,7 +449,9 @@ void THREAD_SETNAME(std::string_view const& name_)
 {
     // exact API to set the thread name is platform-dependant
     // if you need to fix the build, or if you know how to fill a hole, tell me (bnt.germain@gmail.com) so that I can submit the fix in github.
-#if defined PLATFORM_BSD && !defined __NetBSD__
+#if defined PLATFORM_MINGW
+    pthread_setname_np(pthread_self(), name_.data());
+#elif defined PLATFORM_BSD && !defined __NetBSD__
     pthread_set_name_np(pthread_self(), name_.data());
 #elif defined PLATFORM_BSD && defined __NetBSD__
     pthread_setname_np(pthread_self(), "%s", (void*) name_.data());
