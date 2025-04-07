@@ -79,7 +79,13 @@ build_DUE:
 # also run a test that shows whether lanes is successfully loaded or not
 run_unit_tests: build_lanes build_unit_tests build_DUE
 	@echo =========================================================================================
-	$(_PREFIX) $(_UNITTEST_TARGET) -s
+	$(_PREFIX) $(_UNITTEST_TARGET) --list-tests
+	$(_PREFIX) $(_UNITTEST_TARGET) --rng-seed 0 -s
+
+debug_unit_tests: build_lanes build_unit_tests build_DUE
+	@echo =========================================================================================
+	$(_PREFIX) $(_UNITTEST_TARGET) --list-tests
+	$(_PREFIX) gdb --args $(_UNITTEST_TARGET) --rng-seed 0 -s "lanes.configure.nb_user_keepers"
 
 clean:
 	cd src && $(MAKE) -f Lanes.makefile clean

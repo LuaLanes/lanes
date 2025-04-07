@@ -811,22 +811,6 @@ KeeperCallResult keeper_call(KeeperState const K_, keeper_api_t const func_, lua
 // #################################################################################################
 // #################################################################################################
 
-void* Keeper::operator new[](size_t size_, Universe* U_) noexcept
-{
-    // size_ is the memory for the element count followed by the elements themselves
-    return U_->internalAllocator.alloc(size_);
-}
-
-// #################################################################################################
-
-// can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
-void Keeper::operator delete[](void* p_, Universe* U_)
-{
-    U_->internalAllocator.free(p_, *static_cast<size_t*>(p_) * sizeof(Keeper) + sizeof(size_t));
-}
-
-// #################################################################################################
-
 // only used by linda:dump() and linda:__towatch() for debugging purposes
 // table is populated as follows:
 // {
@@ -927,7 +911,7 @@ void Keepers::DeleteKV::operator()(Keeper* const k_) const
     for (auto& _k : std::span<Keeper>(k_, count)) {
         _k.~Keeper();
     }
-    U->internalAllocator.free(k_, count * sizeof(Keeper));
+    U.internalAllocator.free(k_, count * sizeof(Keeper));
 }
 
 // #################################################################################################
@@ -959,8 +943,8 @@ void Keepers::collectGarbage()
         // when keeper N+1 is closed, object is GCed, linda operation is called, which attempts to acquire keeper N, whose Lua state no longer exists
         // in that case, the linda operation should do nothing. which means that these operations must check for keeper acquisition success
         // which is early-outed with a keepers->nbKeepers null-check
-        for (size_t const _i : std::ranges::iota_view{ size_t{ 0 }, _kv.nbKeepers }) {
-            _gcOneKeeper(_kv.keepers[_i]);
+        for (Keeper& _k : std::span<Keeper>{ _kv.keepers.get(), _kv.nbKeepers }) {
+            _gcOneKeeper(_k);
         }
     }
 }
@@ -996,9 +980,8 @@ void Keepers::close()
         // when keeper N+1 is closed, object is GCed, linda operation is called, which attempts to acquire keeper N, whose Lua state no longer exists
         // in that case, the linda operation should do nothing. which means that these operations must check for keeper acquisition success
         // which is early-outed with a keepers->nbKeepers null-check
-        size_t const _nbKeepers{ std::exchange(_kv.nbKeepers, size_t{ 0 }) };
-        for (size_t const _i : std::ranges::iota_view{ size_t{ 0 }, _nbKeepers }) {
-            if (!_closeOneKeeper(_kv.keepers[_i])) {
+        for (Keeper& _k : std::span<Keeper>{ _kv.keepers.get(), std::exchange(_kv.nbKeepers, size_t{ 0 }) }) {
+            if (!_closeOneKeeper(_k)) {
                 // detected partial init: destroy only the mutexes that got initialized properly
                 break;
             }
@@ -1137,11 +1120,14 @@ void Keepers::initialize(Universe& U_, lua_State* L_, size_t const nbKeepers_, i
 
     default:
         KV& _kv = keeper_array.emplace<KV>(
-            std::unique_ptr<Keeper[], DeleteKV>{ new(&U_) Keeper[nbKeepers_], DeleteKV{ &U_, nbKeepers_ } },
+            std::unique_ptr<Keeper, DeleteKV>{ static_cast<Keeper*>(U_.internalAllocator.alloc(sizeof(Keeper) * nbKeepers_)), DeleteKV{ U_, nbKeepers_ } },
             nbKeepers_
         );
-        for (size_t const _i : std::ranges::iota_view{ size_t{ 0 }, nbKeepers_ }) {
-            _initOneKeeper(_kv.keepers[_i], static_cast<int>(_i));
+        // fak. std::ranges::views::enumerate is c++23 (would help having item and index iterated over simultaneously)
+        int _i{};
+        for (Keeper& _k : std::span<Keeper>{ _kv.keepers.get(), nbKeepers_ }) {
+            new (&_k) Keeper{};
+            _initOneKeeper(_k, _i++);
         }
     }
 }

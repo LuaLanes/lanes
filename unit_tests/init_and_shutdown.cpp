@@ -323,6 +323,13 @@ TEST_CASE("lanes.configure.nb_user_keepers")
 
     // -----------------------------------------------------------------------------------------
 
+    SECTION("nb_user_keepers = 1")
+    {
+        L.requireSuccess("require 'lanes'.configure{nb_user_keepers = 1}");
+    }
+
+    // -----------------------------------------------------------------------------------------
+
     SECTION("nb_user_keepers = 100")
     {
         L.requireSuccess("require 'lanes'.configure{nb_user_keepers = 100}");

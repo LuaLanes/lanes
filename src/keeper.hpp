@@ -26,12 +26,6 @@ struct Keeper
     std::mutex mutex;
     KeeperState K{ static_cast<lua_State*>(nullptr) };
 
-    [[nodiscard]]
-    static void* operator new[](size_t size_, Universe* U_) noexcept;
-    // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
-    static void operator delete[](void* p_, Universe* U_);
-
-
     ~Keeper() = default;
     Keeper() = default;
     // non-copyable, non-movable
@@ -51,14 +45,15 @@ struct Keepers
     private:
     struct DeleteKV
     {
-        Universe* U{};
+        Universe& U;
         size_t count{};
         void operator()(Keeper* k_) const;
     };
-    // can't use std::vector<Keeper> because Keeper contains a mutex, so we need a raw memory buffer
+    // can't use std::unique_ptr<Keeper[]> because of interactions with placement new and custom deleters
+    // and I'm not using std::vector<Keeper> because I don't have an allocator to plug on the Universe (yet)
     struct KV
     {
-        std::unique_ptr<Keeper[], DeleteKV> keepers;
+        std::unique_ptr<Keeper, DeleteKV> keepers;
         size_t nbKeepers{};
     };
     std::variant<std::monostate, Keeper, KV> keeper_array;
