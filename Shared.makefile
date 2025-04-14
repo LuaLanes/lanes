@@ -5,7 +5,7 @@ CC := g++ -std=c++20
 LIBFLAG := -shared
 
 OPT_FLAGS := -O2
-#         -O0 -g
+#OPT_FLAGS := -O0 -g3
 
 ifeq "$(findstring MINGW,$(shell uname -s))" "MINGW"
   # MinGW MSYS on Windows

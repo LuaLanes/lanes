@@ -85,7 +85,7 @@ run_unit_tests: build_lanes build_unit_tests build_DUE
 debug_unit_tests: build_lanes build_unit_tests build_DUE
 	@echo =========================================================================================
 	$(_PREFIX) $(_UNITTEST_TARGET) --list-tests
-	$(_PREFIX) gdb --args $(_UNITTEST_TARGET) --rng-seed 0 -s "lanes.configure.nb_user_keepers"
+	$(_PREFIX) gdb --args $(_UNITTEST_TARGET) --list-tests --rng-seed 0 -s "scripted_tests.legacy.basic"
 
 clean:
 	cd src && $(MAKE) -f Lanes.makefile clean
@@ -273,13 +273,11 @@ DESTDIR:=/usr/local
 LUA_LIBDIR:=$(DESTDIR)/lib/lua/$(LUA_VERSION)
 LUA_SHAREDIR:=$(DESTDIR)/share/lua/$(LUA_VERSION)
 
-#
-# AKa 17-Oct: changed to use 'install -m 644' and 'cp -p'
-#
 install: $(_LANES_TARGET) src/lanes.lua
 	mkdir -p $(LUA_LIBDIR) $(LUA_SHAREDIR)
 	install -m 644 $(_LANES_TARGET) $(LUA_LIBDIR)
 	cp -p src/lanes.lua $(LUA_SHAREDIR)
+	install -m 644 $(_DUE_TARGET) $(LUA_LIBDIR)
 
 uninstall:
 	rm $(LUA_LIBDIR)/lanes_core.$(_SO)
