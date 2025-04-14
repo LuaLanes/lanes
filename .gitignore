@@ -2,6 +2,7 @@ _Output
 _Tmp
 _LuaVersions
 .vs
+.vscode
 *.dll
 *.exe
 *.gch
