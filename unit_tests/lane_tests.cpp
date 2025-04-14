@@ -320,7 +320,7 @@ TEST_CASE("lane.cancel")
 // so let's create a separate test case for each file with an ugly macro...
 
 #define MAKE_TEST_CASE(DIR, FILE, CONDITION)\
-TEST_CASE("scripted tests." #DIR "." #FILE) \
+TEST_CASE("scripted_tests." #DIR "." #FILE) \
 { \
     FileRunner _runner(R"(.\unit_tests\scripts)"); \
     _runner.performTest(FileRunnerParam{ #DIR "/" #FILE, TestType::CONDITION }); \
@@ -346,7 +346,7 @@ MAKE_TEST_CASE(coro, error_handling, AssertNoLuaError)
 #endif // LUAJIT_FLAVOR()
 
 /*
-TEST_CASE("lanes.scripted tests")
+TEST_CASE("lanes.scripted_tests")
 {
     auto const& _testParam = GENERATE(
         FileRunnerParam{ PUC_LUA_ONLY("lane/cooperative_shutdown"), TestType::AssertNoLuaError }, // 0

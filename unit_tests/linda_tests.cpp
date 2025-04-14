@@ -327,7 +327,7 @@ TEST_CASE("linda.multi Keeper")
 // so let's create a separate test case for each file with an ugly macro...
 
 #define MAKE_TEST_CASE(DIR, FILE) \
-TEST_CASE("scripted tests." #DIR "." #FILE) \
+TEST_CASE("scripted_tests." #DIR "." #FILE) \
 { \
     FileRunner _runner(R"(.\unit_tests\scripts)"); \
     _runner.performTest(FileRunnerParam{ #DIR "/" #FILE, TestType::AssertNoLuaError }); \
@@ -338,7 +338,7 @@ MAKE_TEST_CASE(linda, send_registered_userdata)
 MAKE_TEST_CASE(linda, multiple_keepers)
 
 /*
-TEST_CASE("linda.scripted tests")
+TEST_CASE("linda.scripted_tests")
 {
     auto const& _testParam = GENERATE(
         FileRunnerParam{ "linda/send_receive", TestType::AssertNoLuaError },

@@ -11,7 +11,7 @@
 // so let's create a separate test case for each file with an ugly macro...
 
 #define MAKE_TEST_CASE(FILE) \
-TEST_CASE("scripted tests.legacy." #FILE) \
+TEST_CASE("scripted_tests.legacy." #FILE) \
 { \
     FileRunner _runner(R"(.\tests\)"); \
     _runner.performTest(FileRunnerParam{ #FILE, TestType::AssertNoLuaError }); \
@@ -49,7 +49,7 @@ MAKE_TEST_CASE(tobeclosed)
 MAKE_TEST_CASE(track_lanes)
 
 /*
-TEST_CASE("lanes.legacy scripted tests")
+TEST_CASE("lanes.legacy_scripted_tests")
 {
     auto const& _testParam = GENERATE(
           FileRunnerParam{ "appendud", TestType::AssertNoLuaError } // 0
