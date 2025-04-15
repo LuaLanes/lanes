@@ -15,69 +15,12 @@ local lanes_linda = assert(lanes.linda)
 -- ##################################################################################################
 -- ##################################################################################################
 
-local function task(a, b, c)
-    lane_threadname("task("..a..","..b..","..c..")")
-    --error "111"     -- testing error messages
-    assert(hey)
-    local v=0
-    for i=a,b,c do
-        v= v+i
-    end
-    return v, hey
-end
-
-local gc_cb = function(name_, status_)
-    PRINT("				---> lane '" .. name_ .. "' collected with status '" .. status_ .. "'")
-end
-
--- ##################################################################################################
--- ##################################################################################################
--- ##################################################################################################
-
-PRINT("\n\n", "---=== Tasking (cancelling) ===---", "\n\n")
-
-local task_launch2 = lanes_gen("", { name = 'auto', globals={hey=true}, gc_cb = gc_cb }, task)
-
-local N=999999999
-local lane9= task_launch2(1,N,1)   -- huuuuuuge...
-
--- Wait until state changes "pending"->"running"
---
-local st
-local t0= os.time()
-while os.time()-t0 < 5 do
-    st= lane9.status
-    io.stderr:write((i==1) and st.." " or '.')
-    if st~="pending" then break end
-end
-PRINT(" "..st)
-
-if st=="error" then
-    local _= lane9[0]  -- propagate the error here
-end
-if st=="done" then
-    error("Looping to "..N.." was not long enough (cannot test cancellation)")
-end
-assert(st=="running", "st == " .. st)
-
--- when running under luajit, the function is JIT-ed, and the instruction count isn't hit, so we need a different hook
-lane9:cancel(jit and "line" or "count", 100) -- 0 timeout, hook triggers cancelslation when reaching the specified count
-
-local t0= os.time()
-while os.time()-t0 < 5 do
-    st= lane9.status
-    io.stderr:write((i==1) and st.." " or '.')
-    if st~="running" then break end
-end
-PRINT(" "..st)
-assert(st == "cancelled", "st is '" .. st .. "' instead of 'cancelled'")
-
 -- cancellation of lanes waiting on a linda
 local limited = lanes_linda("limited")
 assert.fails(function() limited:limit("key", -1) end)
 assert.failsnot(function() limited:limit("key", 1) end)
 -- [[################################################
-limited:send("key", "hello") -- saturate linda
+limited:send("key", "hello") -- saturate linda, so that subsequent sends will block
 for k, v in pairs(limited:dump()) do
     PRINT("limited[" .. tostring(k) .. "] = " .. tostring(v))
 end
@@ -88,11 +31,15 @@ local wait_send = function()
 end
 
 local wait_send_lane = lanes_gen("*", { name = 'auto' }, wait_send)()
-repeat until wait_send_lane.status == "waiting"
-print "wait_send_lane is waiting"
+repeat
+    io.stderr:write('!')
+    -- currently mingw64 builds can deadlock if we cancel the lane too early (before the linda blocks, at it causes the linda condvar not to be signalled)
+    lanes.sleep(0.1)
+until wait_send_lane.status == "waiting"
+PRINT "wait_send_lane is waiting"
 wait_send_lane:cancel() -- hard cancel, 0 timeout
 repeat until wait_send_lane.status == "cancelled"
-print "wait_send_lane is cancelled"
+PRINT "wait_send_lane is cancelled"
 --################################################]]
 local wait_receive = function()
     local k, v
@@ -101,11 +48,15 @@ local wait_receive = function()
 end
 
 local wait_receive_lane = lanes_gen("*", { name = 'auto' }, wait_receive)()
-repeat until wait_receive_lane.status == "waiting"
-print "wait_receive_lane is waiting"
+repeat
+    io.stderr:write('!')
+    -- currently mingw64 builds can deadlock if we cancel the lane too early (before the linda blocks, at it causes the linda condvar not to be signalled)
+    lanes.sleep(0.1)
+until wait_receive_lane.status == "waiting"
+PRINT "wait_receive_lane is waiting"
 wait_receive_lane:cancel() -- hard cancel, 0 timeout
 repeat until wait_receive_lane.status == "cancelled"
-print "wait_receive_lane is cancelled"
+PRINT "wait_receive_lane is cancelled"
 --################################################]]
 local wait_receive_batched = function()
     local k, v1, v2
@@ -114,9 +65,13 @@ local wait_receive_batched = function()
 end
 
 local wait_receive_batched_lane = lanes_gen("*", { name = 'auto' }, wait_receive_batched)()
-repeat until wait_receive_batched_lane.status == "waiting"
-print "wait_receive_batched_lane is waiting"
+repeat
+    io.stderr:write('!')
+    -- currently mingw64 builds can deadlock if we cancel the lane too early (before the linda blocks, at it causes the linda condvar not to be signalled)
+    lanes.sleep(0.1)
+until wait_receive_batched_lane.status == "waiting"
+PRINT "wait_receive_batched_lane is waiting"
 wait_receive_batched_lane:cancel() -- hard cancel, 0 timeout
 repeat until wait_receive_batched_lane.status == "cancelled"
-print "wait_receive_batched_lane is cancelled"
+PRINT "wait_receive_batched_lane is cancelled"
 --################################################]]

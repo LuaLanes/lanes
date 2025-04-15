@@ -967,6 +967,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\.runsettings" />
+    <None Include="scripts\lane\tasking_cancelling_with_hook.lua" />
     <None Include="UnitTests.makefile" />
     <None Include="scripts\coro\basics.lua" />
     <None Include="scripts\coro\error_handling.lua" />

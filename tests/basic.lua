@@ -173,29 +173,38 @@ for k, v in pairs(limited:dump()) do
 end
 local wait_send = function()
     local a,b
-    set_finalizer(function() print("wait_send", a, b) end)
+    set_finalizer(function(err, stack_tbl) print("wait_send", a, b, " -> ", tostring(err)) end)
+    print("in wait_send")
     a,b = limited:send("key", "bybye") -- infinite timeout, returns only when lane is cancelled
 end
 
 local wait_send_lane = lanes.gen("*", { name = 'auto' }, wait_send)()
-repeat until wait_send_lane.status == "waiting"
-print "wait_send_lane is waiting"
+repeat
+    io.stderr:write('!')
+    -- currently mingw64 builds can deadlock if we cancel the lane too early (before the linda blocks, at it causes the linda condvar not to be signalled)
+    lanes.sleep(0.1)
+until wait_send_lane.status == "waiting"
+PRINT "wait_send_lane is waiting"
 wait_send_lane:cancel() -- hard cancel, 0 timeout
 repeat until wait_send_lane.status == "cancelled"
-print "wait_send_lane is cancelled"
+PRINT "wait_send_lane is cancelled"
 --################################################]]
 local wait_receive = function()
     local k, v
-    set_finalizer(function() print("wait_receive", k, v) end)
+    set_finalizer(function(err, stack_tbl) print("wait_receive", k, v, " -> ", tostring(err)) end)
     k, v = limited:receive("dummy") -- infinite timeout, returns only when lane is cancelled
 end
 
 local wait_receive_lane = lanes.gen("*", { name = 'auto' }, wait_receive)()
-repeat until wait_receive_lane.status == "waiting"
-print "wait_receive_lane is waiting"
+repeat
+    io.stderr:write('!')
+    -- currently mingw64 builds can deadlock if we cancel the lane too early (before the linda blocks, at it causes the linda condvar not to be signalled)
+    lanes.sleep(0.1)
+until wait_receive_lane.status == "waiting"
+PRINT "wait_receive_lane is waiting"
 wait_receive_lane:cancel() -- hard cancel, 0 timeout
 repeat until wait_receive_lane.status == "cancelled"
-print "wait_receive_lane is cancelled"
+PRINT "wait_receive_lane is cancelled"
 --################################################]]
 local wait_receive_batched = function()
     local k, v1, v2
@@ -205,10 +214,10 @@ end
 
 local wait_receive_batched_lane = lanes.gen("*", { name = 'auto' }, wait_receive_batched)()
 repeat until wait_receive_batched_lane.status == "waiting"
-print "wait_receive_batched_lane is waiting"
+PRINT "wait_receive_batched_lane is waiting"
 wait_receive_batched_lane:cancel() -- hard cancel, 0 timeout
 repeat until wait_receive_batched_lane.status == "cancelled"
-print "wait_receive_batched_lane is cancelled"
+PRINT "wait_receive_batched_lane is cancelled"
 --################################################]]
 
 -- ##################################################################################################
@@ -437,7 +446,7 @@ local function chunk2(linda)
     assert(config.strip_functions and info.short_src=="?" or string.match(info.short_src, "^.*basic.lua$"), "bad info.short_src")
     -- These vary so let's not be picky (they're there..)
     --
-    assert(info.linedefined == 422, "bad linedefined")   -- start of 'chunk2'
+    assert(info.linedefined == 431, "bad linedefined")   -- start of 'chunk2'
     assert(config.strip_functions and info.currentline==-1 or info.currentline > info.linedefined, "bad currentline")   -- line of 'debug.getinfo'
     assert(info.lastlinedefined > info.currentline, "bad lastlinedefined")   -- end of 'chunk2'
     local k,func= linda:receive("down")
@@ -460,7 +469,7 @@ linda:send("down", function(linda) linda:send("up", "ready!") end,
 --
 local k,s= linda:receive(1, "up")
 if t2.status == "error" then
-    print("t2 error: " , t2:join())
+    PRINT("t2 error: " , t2:join())
 end
 PRINT(s)
 assert(s=="ready!")

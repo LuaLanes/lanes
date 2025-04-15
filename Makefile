@@ -80,12 +80,12 @@ build_DUE:
 run_unit_tests: build_lanes build_unit_tests build_DUE
 	@echo =========================================================================================
 	$(_PREFIX) $(_UNITTEST_TARGET) --list-tests
-	$(_PREFIX) $(_UNITTEST_TARGET) --rng-seed 0 -s
+	$(_PREFIX) $(_UNITTEST_TARGET) --rng-seed 0 -s scripted_tests.lane.tasking_cancelling
 
 debug_unit_tests: build_lanes build_unit_tests build_DUE
 	@echo =========================================================================================
 	$(_PREFIX) $(_UNITTEST_TARGET) --list-tests
-	$(_PREFIX) gdb --args $(_UNITTEST_TARGET) --list-tests --rng-seed 0 -s "scripted_tests.legacy.basic"
+	$(_PREFIX) gdb --args $(_UNITTEST_TARGET) --rng-seed 0 -s scripted_tests.lane.tasking_cancelling
 
 clean:
 	cd src && $(MAKE) -f Lanes.makefile clean

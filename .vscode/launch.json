@@ -10,7 +10,7 @@
             "args": [
                 //"--list-tests",
                 "--rng-seed 0",
-                "-s scripted_tests.legacy.basic"
+                "-s scripted_tests.lane.tasking_cancelling"
             ],
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
