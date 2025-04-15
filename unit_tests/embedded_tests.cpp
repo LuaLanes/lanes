@@ -202,6 +202,7 @@ TEST_CASE("lanes.embedding.with default allocator")
 // #################################################################################################
 
 // this is not really a test yet, just something sitting here until it is converted properly
+// currently it crashes with moonjit (but maybe I just need a more recent moonjit version)
 TEST_CASE("lanes.embedding.with custom allocator")
 {
     static constexpr auto logPrint = +[](lua_State* L) {
