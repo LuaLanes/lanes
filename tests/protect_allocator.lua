@@ -52,7 +52,7 @@ end
 
 -- wait for completion
 print "wait for completion"
-linda:receive( linda.batched, "key", COUNT)
+linda:receive_batched("key", COUNT)
 print "waiting a bit more ..."
 SLEEP(1)
 print "SUCCESS"

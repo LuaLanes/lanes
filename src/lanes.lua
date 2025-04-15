@@ -603,7 +603,6 @@ local configure_timers = function()
                 return next_wakeup  -- may be 'nil'
             end -- check_timers()
 
-            local timer_gateway_batched = timerLinda.batched
             set_finalizer(function(err, stk)
                 if err and type(err) ~= "userdata" then
                     error("LanesTimer error: "..tostring(err))
@@ -628,7 +627,7 @@ local configure_timers = function()
 
                 if _timerKey == TGW_KEY then
                     assert(getmetatable(_what) == "Linda") -- '_what' should be a linda on which the client sets a timer
-                    local _, key, wakeup_at, period = timerLinda:receive(0, timer_gateway_batched, TGW_KEY, 3)
+                    local _, key, wakeup_at, period = timerLinda:receive_batched(0, TGW_KEY, 3)
                     assert(key)
                     set_timer(_what, key, wakeup_at, period and period > 0 and period or nil)
                 elseif _timerKey == TGW_QUERY then
@@ -758,7 +757,7 @@ local genlock = function(linda_, key_, N)
             -- 'nil' timeout allows 'key_' to be numeric
             return linda_:send(timeout, key_, trues(M_))    -- suspends until been able to push them
         else
-            local _k, _v = linda_:receive(nil, linda_.batched, key_, -M_)
+            local _k, _v = linda_:receive_batched(nil, key_, -M_)
             -- propagate cancel_error if we got it, else return true or false
             return (_v == cancel_error and _v) or (_k and true or false)
         end

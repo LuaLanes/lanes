@@ -53,10 +53,6 @@ void LindaFactory::createMetatable(lua_State* L_) const
     // the linda functions
     luaG_registerlibfuncs(L_, mLindaMT);
 
-    // some constants
-    kLindaBatched.pushKey(L_);                                                                     // L_: mt kLindaBatched
-    lua_setfield(L_, -2, "batched");                                                               // L_: mt
-
     kNilSentinel.pushKey(L_);                                                                      // L_: mt kNilSentinel
     lua_setfield(L_, -2, "null");                                                                  // L_: mt
 

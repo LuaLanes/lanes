@@ -106,7 +106,6 @@ TEST_CASE("linda.single Keeper")
             S.requireFailure("lanes.linda():send(0, io.stdin, 'v')");
             S.requireFailure("lanes.linda():send(0, lanes.null, 'v')");
             S.requireFailure("lanes.linda():send(0, lanes.cancel_error, 'v')");
-            S.requireFailure("local l = lanes.linda(); l:send(0, l.batched, 'v')");
         }
 
         // -----------------------------------------------------------------------------------------

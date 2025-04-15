@@ -209,7 +209,7 @@ PRINT "wait_receive_lane is cancelled"
 local wait_receive_batched = function()
     local k, v1, v2
     set_finalizer(function() print("wait_receive_batched", k, v1, v2) end)
-    k, v1, v2 = limited:receive(limited.batched, "dummy", 2) -- infinite timeout, returns only when lane is cancelled
+    k, v1, v2 = limited:receive_batched("dummy", 2) -- infinite timeout, returns only when lane is cancelled
 end
 
 local wait_receive_batched_lane = lanes.gen("*", { name = 'auto' }, wait_receive_batched)()
@@ -273,7 +273,7 @@ local b,x,y,z,w = linda:get("<->", 4)
 assert(b == 3 and x == "x" and y == "y" and z == "z" and w == nil)
 local k, x = linda:receive("<->")
 assert(k == "<->" and x == "x")
-local k,y,z = linda:receive(linda.batched, "<->", 2)
+local k,y,z = linda:receive_batched("<->", 2)
 assert(k == "<->" and y == "y" and z == "z")
 linda:set("<->")
 local b,x,y,z,w = linda:get("<->", 4)

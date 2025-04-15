@@ -994,7 +994,7 @@ bool InterCopyContext::interCopyLightuserdata() const
     // recognize and print known UniqueKey names here
     if constexpr (USE_DEBUG_SPEW()) {
         bool _found{ false };
-        static constexpr std::array<std::reference_wrapper<UniqueKey const>, 3> kKeysToCheck{ kLindaBatched, kCancelError, kNilSentinel };
+        static constexpr std::array<std::reference_wrapper<UniqueKey const>, 2> kKeysToCheck{ kCancelError, kNilSentinel };
         for (UniqueKey const& _key : kKeysToCheck) {
             if (_key.equals(L1, L1_i)) {
                 DEBUGSPEW_CODE(DebugSpew(nullptr) << _key.debugName);

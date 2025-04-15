@@ -45,6 +45,7 @@ CHANGE 2: BGe 27-Nov-24
                 - Providing "auto" as name when constructing a Linda cause Lanes to provide a name built from the source location of the construction.
                 - Specifying a group to lanes.linda() is mandatory when Lanes is configured with user Keepers.
             - linda:deep() result no longer contains the raw C pointer of the Linda object.
+            - new function linda:receive_batched() to replace linda:receive(linda.batched). linda.batched special value is removed.
             - linda :receive(), :send(), :get(), :set(), :limit() return nil, error in case of problem. Returned values in case of success change too.
             - linda:limit() can be used to read the value if no new limit is provided.
             - linda:restrict() can restrain the use of send/receive or set/get on any key.

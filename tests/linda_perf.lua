@@ -68,7 +68,7 @@ local gobbler = function( l, loop, batch)
 	l:receive( "go")
 	-- eat data in batches
 	for i = 1, loop/batch do
-		l:receive( l.batched, "key", batch)
+		l:receive_batched("key", batch)
 		-- print("gobbler:", batch)
 	end
 	print "loop is over"
@@ -168,9 +168,9 @@ local function ziva2( preloop, loop, batch)
 	local l = lanes.linda("ziva2("..preloop..":"..loop..":"..tostring(batch)..")", group_uid)
 	group_uid = (group_uid % config.nb_user_keepers) + 1
 	-- prefill the linda a bit to increase fifo stress
-	local top, step = math.max( preloop, loop), (l.batched and batch) and batch or 1
+	local top, step = math.max( preloop, loop), batch or 1
 	local batch_send, batch_read
-	if l.batched and batch then
+	if batch then
 		local batch_values = {}
 		for i = 1, batch do
 			table.insert( batch_values, i)
@@ -180,7 +180,7 @@ local function ziva2( preloop, loop, batch)
 			l:send( "key", table_unpack( batch_values))
 		end
 		batch_read = function()
-			l:receive( l.batched, "key", batch)
+			l:receive_batched("key", batch)
 		end
 	else -- not batched
 		batch_send = function()

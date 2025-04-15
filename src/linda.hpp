@@ -8,11 +8,6 @@ struct Keeper;
 
 // #################################################################################################
 
-// xxh64 of string "kLindaBatched" generated at https://www.pelock.com/products/hash-calculator
-static constexpr UniqueKey kLindaBatched{ 0xB8234DF772646567ull, "linda.batched" };
-
-// #################################################################################################
-
 DECLARE_UNIQUE_TYPE(LindaGroup, int);
 
 class Linda final

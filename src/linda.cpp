@@ -62,7 +62,7 @@ namespace {
 
             case LuaType::LIGHTUSERDATA:
                 {
-                    static constexpr std::array<std::reference_wrapper<UniqueKey const>, 3> kKeysToCheck{ kLindaBatched, kCancelError, kNilSentinel };
+                    static constexpr std::array<std::reference_wrapper<UniqueKey const>, 2> kKeysToCheck{ kCancelError, kNilSentinel };
                     for (UniqueKey const& _key : kKeysToCheck) {
                         if (_key.equals(L_, _i)) {
                             raise_luaL_error(L_, "argument #%d: can't use %s as a slot", _i, _key.debugName.data());
@@ -123,6 +123,8 @@ namespace {
         return 0;
     }
 
+    // #############################################################################################
+
     // a helper to process the timeout argument of linda:send() and linda:receive()
     [[nodiscard]]
     static auto ProcessTimeoutArg(lua_State* const L_)
@@ -142,6 +144,142 @@ namespace {
             ++_key_i;
         }
         return std::make_pair(_key_i, _until);
+    }
+
+    // #############################################################################################
+
+    // the implementation for linda:receive() and linda:receive_batched()
+    static int ReceiveInternal(lua_State* const L_, bool const batched_)
+    {
+        Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
+
+        auto const [_key_i, _until] = ProcessTimeoutArg(L_);
+
+        keeper_api_t _selected_keeper_receive{ nullptr };
+        int _expected_pushed_min{ 0 }, _expected_pushed_max{ 0 };
+        // are we in batched mode?
+        if (batched_) {
+            // make sure the keys are of a valid type
+            CheckKeyTypes(L_, _key_i, _key_i);
+            // receive multiple values from a single slot
+            _selected_keeper_receive = KEEPER_API(receive_batched);
+            // we expect a user-defined amount of return value
+            _expected_pushed_min = (int) luaL_checkinteger(L_, _key_i + 1);
+            if (_expected_pushed_min < 1) {
+                raise_luaL_argerror(L_, StackIndex{ _key_i + 1 }, "bad min count");
+            }
+            _expected_pushed_max = (int) luaL_optinteger(L_, _key_i + 2, _expected_pushed_min);
+            // don't forget to count the slot in addition to the values
+            ++_expected_pushed_min;
+            ++_expected_pushed_max;
+            if (_expected_pushed_min > _expected_pushed_max) {
+                raise_luaL_argerror(L_, StackIndex{ _key_i + 2 }, "batched min/max error");
+            }
+        } else {
+            // make sure the keys are of a valid type
+            CheckKeyTypes(L_, _key_i, StackIndex{ lua_gettop(L_) });
+            // receive a single value, checking multiple slots
+            _selected_keeper_receive = KEEPER_API(receive);
+            // we expect a single (value, slot) pair of returned values
+            _expected_pushed_min = _expected_pushed_max = 2;
+        }
+
+        Lane* const _lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
+        Keeper* const _keeper{ _linda->whichKeeper() };
+        KeeperState const _K{ _keeper ? _keeper->K : KeeperState{ static_cast<lua_State*>(nullptr) } };
+        if (_K == nullptr)
+            return 0;
+
+        CancelRequest _cancel{ CancelRequest::None };
+        KeeperCallResult _pushed{};
+
+        STACK_CHECK_START_REL(_K, 0);
+        for (bool _try_again{ true };;) {
+            if (_lane != nullptr) {
+                _cancel = _lane->cancelRequest.load(std::memory_order_relaxed);
+            }
+            _cancel = (_cancel != CancelRequest::None)
+                ? _cancel
+                : ((_linda->cancelStatus == Linda::Cancelled) ? CancelRequest::Soft : CancelRequest::None);
+            // if user wants to cancel, or looped because of a timeout, the call returns without sending anything
+            if (!_try_again || _cancel != CancelRequest::None) {
+                _pushed.emplace(0);
+                break;
+            }
+
+            // all arguments of receive() but the first are passed to the keeper's receive function
+            STACK_CHECK(_K, 0);
+            _pushed = keeper_call(_K, _selected_keeper_receive, L_, _linda, _key_i);
+            if (!_pushed.has_value()) {
+                break;
+            }
+            if (_pushed.value() > 0) {
+                LUA_ASSERT(L_, _pushed.value() >= _expected_pushed_min && _pushed.value() <= _expected_pushed_max);
+                if (kRestrictedChannel.equals(L_, StackIndex{ kIdxTop })) {
+                    raise_luaL_error(L_, "Key is restricted");
+                }
+                _linda->readHappened.notify_all();
+                break;
+            }
+
+            if (std::chrono::steady_clock::now() >= _until) {
+                break; /* instant timeout */
+            }
+
+            // nothing received, wait until timeout or signalled that we should try again
+            {
+                Lane::Status _prev_status{ Lane::Error }; // prevent 'might be used uninitialized' warnings
+                if (_lane != nullptr) {
+                    // change status of lane to "waiting"
+                    _prev_status = _lane->status.load(std::memory_order_acquire); // Running, most likely
+                    LUA_ASSERT(L_, _prev_status == Lane::Running); // but check, just in case
+                    LUA_ASSERT(L_, _lane->waiting_on == nullptr);
+                    _lane->waiting_on = &_linda->writeHappened;
+                    _lane->status.store(Lane::Waiting, std::memory_order_release);
+                }
+                // not enough data to read: wakeup when data was sent, or when timeout is reached
+                std::unique_lock<std::mutex> _guard{ _keeper->mutex, std::adopt_lock };
+                std::cv_status const _status{ _linda->writeHappened.wait_until(_guard, _until) };
+                _guard.release(); // we don't want to unlock the mutex on exit!
+                _try_again = (_status == std::cv_status::no_timeout); // detect spurious wakeups
+                if (_lane != nullptr) {
+                    _lane->waiting_on = nullptr;
+                    _lane->status.store(_prev_status, std::memory_order_release);
+                }
+            }
+        }
+        STACK_CHECK(_K, 0);
+
+        if (!_pushed.has_value()) {
+            raise_luaL_error(L_, "tried to copy unsupported types");
+        }
+
+        switch (_cancel) {
+        case CancelRequest::None:
+            {
+                int const _nbPushed{ _pushed.value() };
+                if (_nbPushed == 0) {
+                    // not enough data in the linda slot to fulfill the request, return nil, "timeout"
+                    lua_pushnil(L_);
+                    luaG_pushstring(L_, "timeout");
+                    return 2;
+                }
+                return _nbPushed;
+            }
+
+        case CancelRequest::Soft:
+            // if user wants to soft-cancel, the call returns nil, kCancelError
+            lua_pushnil(L_);
+            kCancelError.pushKey(L_);
+            return 2;
+
+        case CancelRequest::Hard:
+            // raise an error interrupting execution only in case of hard cancel
+            raise_cancel_error(L_); // raises an error and doesn't return
+
+        default:
+            raise_luaL_error(L_, "internal error: unknown cancel request");
+        }
     }
 
     // #############################################################################################
@@ -650,153 +788,25 @@ LUAG_FUNC(linda_limit)
 // #################################################################################################
 
 /*
- * 2 modes of operation
- * [val, slot]= linda:receive([timeout_secs_num=nil], key_num|str|bool|lightuserdata [, ...] )
+ * [val, slot] = linda:receive([timeout_secs_num=nil], key_num|str|bool|lightuserdata [, ...] )
  * Consumes a single value from the Linda, in any slot.
  * Returns: received value (which is consumed from the slot), and the slot which had it
-
- * [val1, ... valCOUNT]= linda_receive( linda_ud, [timeout_secs_num=-1], linda.batched, key_num|str|bool|lightuserdata, min_COUNT[, max_COUNT])
- * Consumes between min_COUNT and max_COUNT values from the linda, from a single slot.
- * returns the actual consumed values, or nil if there weren't enough values to consume
  */
 LUAG_FUNC(linda_receive)
 {
-    static constexpr lua_CFunction _receive{
-        +[](lua_State* const L_) {
-            Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
+    return Linda::ProtectedCall(L_, [](lua_State* const L_) { return ReceiveInternal(L_, false); });
+}
 
-            auto [_key_i, _until] = ProcessTimeoutArg(L_);
+// #################################################################################################
 
-            keeper_api_t _selected_keeper_receive{ nullptr };
-            int _expected_pushed_min{ 0 }, _expected_pushed_max{ 0 };
-            // are we in batched mode?
-            if (kLindaBatched.equals(L_, _key_i)) {
-                // no need to pass linda.batched in the keeper state
-                ++_key_i;
-                // make sure the keys are of a valid type
-                CheckKeyTypes(L_, _key_i, _key_i);
-                // receive multiple values from a single slot
-                _selected_keeper_receive = KEEPER_API(receive_batched);
-                // we expect a user-defined amount of return value
-                _expected_pushed_min = (int) luaL_checkinteger(L_, _key_i + 1);
-                if (_expected_pushed_min < 1) {
-                    raise_luaL_argerror(L_, StackIndex{ _key_i + 1 }, "bad min count");
-                }
-                _expected_pushed_max = (int) luaL_optinteger(L_, _key_i + 2, _expected_pushed_min);
-                // don't forget to count the slot in addition to the values
-                ++_expected_pushed_min;
-                ++_expected_pushed_max;
-                if (_expected_pushed_min > _expected_pushed_max) {
-                    raise_luaL_argerror(L_, StackIndex{ _key_i + 2 }, "batched min/max error");
-                }
-            } else {
-                // make sure the keys are of a valid type
-                CheckKeyTypes(L_, _key_i, StackIndex{ lua_gettop(L_) });
-                // receive a single value, checking multiple slots
-                _selected_keeper_receive = KEEPER_API(receive);
-                // we expect a single (value, slot) pair of returned values
-                _expected_pushed_min = _expected_pushed_max = 2;
-            }
-
-            Lane* const _lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
-            Keeper* const _keeper{ _linda->whichKeeper() };
-            KeeperState const _K{ _keeper ? _keeper->K : KeeperState{ static_cast<lua_State*>(nullptr) } };
-            if (_K == nullptr)
-                return 0;
-
-            CancelRequest _cancel{ CancelRequest::None };
-            KeeperCallResult _pushed{};
-
-            STACK_CHECK_START_REL(_K, 0);
-            for (bool _try_again{ true };;) {
-                if (_lane != nullptr) {
-                    _cancel = _lane->cancelRequest.load(std::memory_order_relaxed);
-                }
-                _cancel = (_cancel != CancelRequest::None)
-                    ? _cancel
-                    : ((_linda->cancelStatus == Linda::Cancelled) ? CancelRequest::Soft : CancelRequest::None);
-                // if user wants to cancel, or looped because of a timeout, the call returns without sending anything
-                if (!_try_again || _cancel != CancelRequest::None) {
-                    _pushed.emplace(0);
-                    break;
-                }
-
-                // all arguments of receive() but the first are passed to the keeper's receive function
-                STACK_CHECK(_K, 0);
-                _pushed = keeper_call(_K, _selected_keeper_receive, L_, _linda, _key_i);
-                if (!_pushed.has_value()) {
-                    break;
-                }
-                if (_pushed.value() > 0) {
-                    LUA_ASSERT(L_, _pushed.value() >= _expected_pushed_min && _pushed.value() <= _expected_pushed_max);
-                    if (kRestrictedChannel.equals(L_, StackIndex{ kIdxTop })) {
-                        raise_luaL_error(L_, "Key is restricted");
-                    }
-                    _linda->readHappened.notify_all();
-                    break;
-                }
-
-                if (std::chrono::steady_clock::now() >= _until) {
-                    break; /* instant timeout */
-                }
-
-                // nothing received, wait until timeout or signalled that we should try again
-                {
-                    Lane::Status _prev_status{ Lane::Error }; // prevent 'might be used uninitialized' warnings
-                    if (_lane != nullptr) {
-                        // change status of lane to "waiting"
-                        _prev_status = _lane->status.load(std::memory_order_acquire); // Running, most likely
-                        LUA_ASSERT(L_, _prev_status == Lane::Running); // but check, just in case
-                        LUA_ASSERT(L_, _lane->waiting_on == nullptr);
-                        _lane->waiting_on = &_linda->writeHappened;
-                        _lane->status.store(Lane::Waiting, std::memory_order_release);
-                    }
-                    // not enough data to read: wakeup when data was sent, or when timeout is reached
-                    std::unique_lock<std::mutex> _guard{ _keeper->mutex, std::adopt_lock };
-                    std::cv_status const _status{ _linda->writeHappened.wait_until(_guard, _until) };
-                    _guard.release(); // we don't want to unlock the mutex on exit!
-                    _try_again = (_status == std::cv_status::no_timeout); // detect spurious wakeups
-                    if (_lane != nullptr) {
-                        _lane->waiting_on = nullptr;
-                        _lane->status.store(_prev_status, std::memory_order_release);
-                    }
-                }
-            }
-            STACK_CHECK(_K, 0);
-
-            if (!_pushed.has_value()) {
-                raise_luaL_error(L_, "tried to copy unsupported types");
-            }
-
-            switch (_cancel) {
-            case CancelRequest::None:
-                {
-                    int const _nbPushed{ _pushed.value() };
-                    if (_nbPushed == 0) {
-                        // not enough data in the linda slot to fulfill the request, return nil, "timeout"
-                        lua_pushnil(L_);
-                        luaG_pushstring(L_, "timeout");
-                        return 2;
-                    }
-                    return _nbPushed;
-                }
-
-            case CancelRequest::Soft:
-                // if user wants to soft-cancel, the call returns nil, kCancelError
-                lua_pushnil(L_);
-                kCancelError.pushKey(L_);
-                return 2;
-
-            case CancelRequest::Hard:
-                // raise an error interrupting execution only in case of hard cancel
-                raise_cancel_error(L_); // raises an error and doesn't return
-
-            default:
-                raise_luaL_error(L_, "internal error: unknown cancel request");
-            }
-        }
-    };
-    return Linda::ProtectedCall(L_, _receive);
+/*
+ * [val1, ... valCOUNT] = linda_receive_batched( linda_ud, [timeout_secs_num=-1], key_num|str|bool|lightuserdata, min_COUNT[, max_COUNT])
+ * Consumes between min_COUNT and max_COUNT values from the linda, from a single slot.
+ * returns the actual consumed values, or nil if there weren't enough values to consume
+ */
+LUAG_FUNC(linda_receive_batched)
+{
+    return Linda::ProtectedCall(L_, [](lua_State* const L_) { return ReceiveInternal(L_, true); });
 }
 
 // #################################################################################################
@@ -1102,6 +1112,7 @@ namespace {
             { "get", LG_linda_get },
             { "limit", LG_linda_limit },
             { "receive", LG_linda_receive },
+            { "receive_batched", LG_linda_receive_batched },
             { "restrict", LG_linda_restrict },
             { "send", LG_linda_send },
             { "set", LG_linda_set },

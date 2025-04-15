@@ -1107,7 +1107,7 @@
 	b = f()
 	c = f()
 
-	sync_linda:receive(nil, sync_linda.batched, "done", 3) -- wait for 3 lanes to write something in "done" slot of sync_linda
+	sync_linda:receive_batched(nil, "done", 3) -- wait for 3 lanes to write something in "done" slot of sync_linda
 </pre></td></tr></table>
 
 <!-- cancelling +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
@@ -1260,7 +1260,7 @@
 		<li>Two producer-side methods: <tt>:send</tt> and <tt>:set</tt> (not out).</li>
 		<li><tt>send</tt> allows for sending multiple values -atomically- to a given slot.</li>
 		<li><tt>receive</tt> can wait for multiple slots at once.</li>
-		<li><tt>receive</tt> has a batched mode to consume more than one value from a single slot, as in <tt>linda:receive(1.0, linda.batched, "slot", 3, 6).</tt></li>
+		<li><tt>receive_batched</tt> can be used to consume more than one value from a single slot, as in <tt>linda:receive_batched(1.0, "slot", 3, 6).</tt></li>
 		<li><tt>restrict</tt> can restrain a particular slot to function either with <tt>send/receive</tt> or <tt>set/get</tt>.</li>
 		<li>Individual slots' queue length can be limited, balancing speed differences in a producer/consumer scenario (making <tt>:send</tt> wait).</li>
 		<li><tt>tostring(linda)</tt> returns a string of the form <tt>"Linda: &lt;opt_name&gt;"</tt></li>
@@ -1349,12 +1349,12 @@
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
 	slot, val = h:receive([timeout_secs,] slot [, slot...])
 
-	slot, val [, val...] = h:receive([timeout,] h.batched, slot, n_uint_min[, n_uint_max])
+	slot, val [, val...] = h:receive_batched([timeout,] slot, n_uint_min[, n_uint_max])
 </pre></td></tr></table>
 
 <p>
-	<tt>receive()</tt> raises an error if called when a restriction forbids its use on any provided slot.<br />
-	In batched mode, <tt>receive()</tt> will raise an error if <tt>min_count < 1</tt> or <tt>max_count < min_count</tt>.
+	<tt>receive()</tt> and <tt>receive_batched()</tt> raise an error if called when a restriction forbids their use on any provided slot.<br />
+	<tt>receive_batched()</tt> will raise an error if <tt>min_count < 1</tt> or <tt>max_count < min_count</tt>.
 </p>
 
 <p>
