@@ -116,5 +116,8 @@
     <None Include="scripts\lane\tasking_cancelling_with_hook.lua">
       <Filter>Scripts\lane</Filter>
     </None>
+    <None Include="scripts\linda\wake_period.lua">
+      <Filter>Scripts\linda</Filter>
+    </None>
   </ItemGroup>
 </Project>

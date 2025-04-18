@@ -59,8 +59,10 @@ local threads = track( "============= START", 2)
 --     two_seconds                        forever
 assert(threads[1].status == 'waiting' and threads[2].status == 'waiting')
 
--- wait until ephemeral1 has completed
-SLEEP(2.1)
+-- wait until ephemeral1 has completed, should take about 2 seconds
+repeat
+    SLEEP(0.1)
+until ephemeral1.status == "done"
 
 local threads = track( "============= two_seconds dead", 2)
 --     two_seconds                     forever

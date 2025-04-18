@@ -104,16 +104,7 @@ TEST_CASE("linda.single_keeper.creation/wake_period")
     S.requireFailure("lanes.linda{wake_period = -1}");
     S.requireFailure("lanes.linda{wake_period = 0}");
     S.requireSuccess("lanes.linda{wake_period = 0.0001}");
-}
-
-// #################################################################################################
-
-TEST_CASE("linda.single_keeper.wake_period")
-{
-    FAIL("TODO: check that wake_period works as expected");
-    // - use configure default if not provided
-    // - overrides default when provided
-    // - blocking operation wakes at the specified period
+    S.requireSuccess("lanes.linda{wake_period = 'never'}");
 }
 
 // #################################################################################################
@@ -397,17 +388,19 @@ TEST_CASE("scripted_tests." #DIR "." #FILE) \
     _runner.performTest(FileRunnerParam{ #DIR "/" #FILE, TestType::AssertNoLuaError }); \
 }
 
+MAKE_TEST_CASE(linda, multiple_keepers)
 MAKE_TEST_CASE(linda, send_receive)
 MAKE_TEST_CASE(linda, send_registered_userdata)
-MAKE_TEST_CASE(linda, multiple_keepers)
+MAKE_TEST_CASE(linda, wake_period)
 
 /*
 TEST_CASE("linda.scripted_tests")
 {
     auto const& _testParam = GENERATE(
+        FileRunnerParam{ "linda/multiple_keepers", TestType::AssertNoLuaError },
         FileRunnerParam{ "linda/send_receive", TestType::AssertNoLuaError },
         FileRunnerParam{ "linda/send_registered_userdata", TestType::AssertNoLuaError },
-        FileRunnerParam{ "linda/multiple_keepers", TestType::AssertNoLuaError }
+        FileRunnerParam{ "linda/wake_period", TestType::AssertNoLuaError }
     );
 
     FileRunner _runner(R"(.\unit_tests\scripts)");

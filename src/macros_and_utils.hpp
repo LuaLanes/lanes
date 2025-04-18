@@ -21,6 +21,7 @@ inline void STACK_GROW(lua_State* const L_, int const n_)
 
 // #################################################################################################
 
+// 1 unit of lua_Duration lasts 1 second (using default period of std::ratio<1>)
 using lua_Duration = std::chrono::template duration<lua_Number>;
 
 // #################################################################################################

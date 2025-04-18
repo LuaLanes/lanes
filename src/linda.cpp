@@ -1178,7 +1178,15 @@ LUAG_FUNC(linda)
         if (lua_isnil(L_, kIdxTop)) {
             lua_pop(L_, 1);
             lua_pushnumber(L_, _U->lindaWakePeriod.count());
-        } else {
+        } else if (luaG_type(L_, kIdxTop) == LuaType::STRING) {
+            if (luaG_tostring(L_, kIdxTop) != "never") {
+                luaL_argerror(L_, 1, "invalid wake_period");
+            } else {
+                lua_pop(L_, 1);
+                lua_pushnumber(L_, 0);
+            }
+        }
+        else {
             luaL_argcheck(L_, luaL_optnumber(L_, 2, 0) > 0, 1, "wake_period must be > 0");
         }
 
