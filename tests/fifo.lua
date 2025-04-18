@@ -6,10 +6,10 @@
 
 local lanes = require "lanes".configure{shutdown_timeout=3,with_timers=true}
 
-local atomic_linda = lanes.linda( "atom")
+local atomic_linda = lanes.linda{name = "atom"}
 local atomic_inc= lanes.genatomic( atomic_linda, "FIFO_n")
 
-local fifo_linda = lanes.linda( "fifo")
+local fifo_linda = lanes.linda{name = "fifo"}
 
 -- Lua 5.1 support
 local table_unpack = table.unpack or unpack

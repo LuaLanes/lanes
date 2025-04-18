@@ -72,7 +72,7 @@ local chunk= function(linda)
     WR("chunk ", "Lane ends!\n")
 end
 
-local linda = lanes_linda("communications")
+local linda = lanes_linda{name = "communications"}
 assert(type(linda) == "userdata" and tostring(linda) == "Linda: communications")
     --
     -- ["->"] master -> slave

@@ -163,7 +163,7 @@ PRINT(" "..st)
 assert(st == "cancelled", "st is '" .. st .. "' instead of 'cancelled'")
 
 -- cancellation of lanes waiting on a linda
-local limited = lanes_linda("limited")
+local limited = lanes_linda{name = "limited"}
 assert.fails(function() limited:limit("key", -1) end)
 assert.failsnot(function() limited:limit("key", 1) end)
 -- [[################################################
@@ -255,7 +255,7 @@ local chunk= function(linda)
     WR("chunk ", "Lane ends!\n")
 end
 
-local linda = lanes_linda("communications")
+local linda = lanes_linda{name = "communications"}
 assert(type(linda) == "userdata" and tostring(linda) == "Linda: communications")
     --
     -- ["->"] master -> slave
@@ -410,7 +410,7 @@ local tc = lanes.gen("io", { name = 'auto', gc_cb = gc_cb },
   end
 )
 
-local linda= lanes_linda("criss cross")
+local linda= lanes_linda{name = "criss cross"}
 
 local a,b= tc(linda, "A","B"), tc(linda, "B","A")   -- launching two lanes, twisted comms
 
@@ -461,7 +461,7 @@ local function chunk2(linda)
     linda:send("up", function() return ":)" end, "ok2")
 end
 
-local linda = lanes_linda("auto")
+local linda = lanes_linda{name = "auto"}
 local t2 = lanes.gen("debug,string,io", { name = 'auto', gc_cb = gc_cb }, chunk2)(linda)     -- prepare & launch
 linda:send("down", function(linda) linda:send("up", "ready!") end,
                     "ok")

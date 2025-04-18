@@ -148,7 +148,7 @@ local protectedBody = function(...)
 	local paramLessClosure = function() laneBody(unpack(params)) end
 	local status, message = xpcall(paramLessClosure, errorHandler)
 	if status == false then
-		print("			error handler rethrowing '" .. (ce == message and "cancel_error"or tostring(message)) .. "'")
+		print("			protectedBody rethrowing '" .. (ce == message and "cancel_error" or tostring(message)) .. "'")
 		-- if the error isn't rethrown, the lane's finalizer won't get it
 		error(message)
 	end

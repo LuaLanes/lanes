@@ -42,19 +42,21 @@ class Linda final
     };
     using enum Status;
 
-    private:
+    public:
+    Universe* const U{ nullptr }; // the universe this linda belongs to
 
+    private:
     static constexpr size_t kEmbeddedNameLength = 24;
     using EmbeddedName = std::array<char, kEmbeddedNameLength>;
     // depending on the name length, it is either embedded inside the Linda, or allocated separately
     std::variant<std::string_view, EmbeddedName> nameVariant{};
     // counts the keeper operations in progress
     std::atomic<int> keeperOperationCount{};
+    lua_Duration wakePeriod{};
 
     public:
     std::condition_variable readHappened{};
     std::condition_variable writeHappened{};
-    Universe* const U{ nullptr }; // the universe this linda belongs to
     KeeperIndex const keeperIndex{ -1 }; // the keeper associated to this linda
     Status cancelStatus{ Status::Active };
 
@@ -68,7 +70,7 @@ class Linda final
     static void operator delete(void* p_) { static_cast<Linda*>(p_)->U->internalAllocator.free(p_, sizeof(Linda)); }
 
     ~Linda();
-    Linda(Universe* U_, LindaGroup group_, std::string_view const& name_);
+    Linda(Universe* U_, std::string_view const& name_, lua_Duration wake_period_, LindaGroup group_);
     Linda() = delete;
     // non-copyable, non-movable
     Linda(Linda const&) = delete;
@@ -91,6 +93,8 @@ class Linda final
     static void DeleteTimerLinda(lua_State* const L_, Linda* const linda_, Passkey<Universe> const) { DeleteTimerLinda(L_, linda_); }
     [[nodiscard]]
     std::string_view getName() const;
+    [[nodiscard]]
+    auto getWakePeriod() const { return wakePeriod; }
     [[nodiscard]]
     bool inKeeperOperation() const { return keeperOperationCount.load(std::memory_order_seq_cst) != 0; }
     template <typename T = uintptr_t>

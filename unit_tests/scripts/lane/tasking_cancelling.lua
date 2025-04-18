@@ -16,7 +16,7 @@ local lanes_linda = assert(lanes.linda)
 -- ##################################################################################################
 
 -- cancellation of lanes waiting on a linda
-local limited = lanes_linda("limited")
+local limited = lanes_linda{name = "limited"}
 assert.fails(function() limited:limit("key", -1) end)
 assert.failsnot(function() limited:limit("key", 1) end)
 -- [[################################################

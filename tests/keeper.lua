@@ -40,14 +40,14 @@ if true then
     end
 
     -- should succeed
-    assert.failsnot(function() createLinda("zero", 0) end)
-    assert.failsnot(function() createLinda("one", 1) end)
-    assert.failsnot(function() createLinda("two", 2) end)
-    assert.failsnot(function() createLinda("three", 3) end)
+    assert.failsnot(function() createLinda{name = "zero", group = 0} end)
+    assert.failsnot(function() createLinda{name = "one", group = 1} end)
+    assert.failsnot(function() createLinda{name = "two", group = 2} end)
+    assert.failsnot(function() createLinda{name = "three", group = 3} end)
     -- should fail (and not create the lindas)
-    assert.fails(function() createLinda("minus 1", -1) end)
-    assert.fails(function() createLinda("none") end)
-    assert.fails(function() createLinda("four", 4) end)
+    assert.fails(function() createLinda{name = "minus 1", group = -1} end)
+    assert.fails(function() createLinda{name = "none"} end)
+    assert.fails(function() createLinda{name = "four", group = 4} end)
 
 end
 -- should only collect the 4 successfully created lindas
@@ -58,11 +58,11 @@ DONE()
 if true then
     PRINT "========================================================================================="
     PRINT "Linda names test:"
-    local unnamedLinda1 = lanes.linda(1)
-    local unnamedLinda2 = lanes.linda("", 2)
-    local veeeerrrryyyylooongNamedLinda3 = lanes.linda( "veeeerrrryyyylooongNamedLinda", 3)
+    local unnamedLinda1 = lanes.linda{group = 1}
+    local unnamedLinda2 = lanes.linda{name = "", group = 2}
+    local veeeerrrryyyylooongNamedLinda3 = lanes.linda{ name = "veeeerrrryyyylooongNamedLinda", group = 3}
     assert(tostring(veeeerrrryyyylooongNamedLinda3) == "Linda: veeeerrrryyyylooongNamedLinda")
-    local shortNamedLinda0 = lanes.linda( "short", 0)
+    local shortNamedLinda0 = lanes.linda{name = "short", group = 0}
     assert(tostring(shortNamedLinda0) == "Linda: short")
     PRINT(shortNamedLinda0, unnamedLinda1, unnamedLinda2, veeeerrrryyyylooongNamedLinda3)
 end
@@ -74,12 +74,12 @@ DONE()
 if true then
     PRINT "========================================================================================="
     PRINT "Linda GC test:"
-    local a = lanes.linda("A", 1)
-    local b = lanes.linda("B", 2)
-    local c = lanes.linda("C", 3)
+    local a = lanes.linda{name = "A", group = 1}
+    local b = lanes.linda{name = "B", group = 2}
+    local c = lanes.linda{name = "C", group = 3}
 
     -- store lindas in each other and in themselves
-    a:set("here", lanes.linda("temporary linda", 0))
+    a:set("here", lanes.linda{name = "temporary linda", group = 0})
     b:set("here", a, b, c)
     c:set("here", a, b, c)
 
@@ -120,13 +120,13 @@ if true then
     end
 
     --
-    local lindaA= lanes.linda( "A", 1)
+    local lindaA= lanes.linda{name = "A", group = 1}
     local A= keeper( lindaA )
 
-    local lindaB= lanes.linda( "B", 2)
+    local lindaB= lanes.linda{name = "B", group = 2}
     local B= keeper( lindaB )
 
-    local lindaC= lanes.linda( "C", 3)
+    local lindaC= lanes.linda{name = "C", group = 3}
     local C= keeper( lindaC )
     PRINT("Created", lindaA, lindaB, lindaC)
 

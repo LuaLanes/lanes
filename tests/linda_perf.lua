@@ -22,7 +22,7 @@ if true then
 	do
 		print "############################################ tests get/set"
 		-- linda:get throughput
-		local l = lanes.linda("get/set", 1)
+		local l = lanes.linda{name = "get/set", group = 1}
 		local batch = {}
 		for i = 1,1000 do
 			table.insert(batch, i)
@@ -90,7 +90,7 @@ local group_uid = 1
 local function ziva1( preloop, loop, batch)
 	-- prefill the linda a bit to increase fifo stress
 	local top = math.max( preloop, loop)
-	local l = lanes.linda("ziva1("..preloop..":"..loop..":"..batch..")", group_uid)
+	local l = lanes.linda{name = "ziva1("..preloop..":"..loop..":"..batch..")", group = group_uid}
 	group_uid = (group_uid % config.nb_user_keepers) + 1
 	local t1 = lanes.now_secs()
 	for i = 1, preloop do
@@ -165,7 +165,7 @@ end
 
 -- sequential write/read (no parallelization involved)
 local function ziva2( preloop, loop, batch)
-	local l = lanes.linda("ziva2("..preloop..":"..loop..":"..tostring(batch)..")", group_uid)
+	local l = lanes.linda{name = "ziva2("..preloop..":"..loop..":"..tostring(batch)..")", group = group_uid}
 	group_uid = (group_uid % config.nb_user_keepers) + 1
 	-- prefill the linda a bit to increase fifo stress
 	local top, step = math.max( preloop, loop), batch or 1

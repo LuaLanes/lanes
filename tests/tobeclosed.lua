@@ -36,7 +36,7 @@ do
             WR("f closing ", linda_)
             closed_by_f = true
         end
-        local lf <close> = lanes.linda("closed by f", close_handler_f)
+        local lf <close> = lanes.linda{name = "closed by f", close_handler = close_handler_f}
 
         local close_handler_t = setmetatable({},
             {
@@ -46,7 +46,7 @@ do
                 end
             }
         )
-        local lt <close> = lanes.linda("closed by t", close_handler_t)
+        local lt <close> = lanes.linda{name = "closed by t", close_handler = close_handler_t}
     end
     assert(closed_by_f == true)
     assert(closed_by_t == true)
@@ -58,13 +58,13 @@ end
 WR "================================================================================================"
 WR "Through Linda"
 do
-    local l = lanes.linda("channel")
+    local l = lanes.linda{name = "channel"}
 
     local close_handler_f = function(linda_, err_)
         WR("f closing ", linda_)
         linda_:set("closed", true)
     end
-    local l_in = lanes.linda("voyager", close_handler_f)
+    local l_in = lanes.linda{name = "voyager", close_handler = close_handler_f}
     l:set("trip", l_in)
 
     do
@@ -99,7 +99,7 @@ end
 WR "================================================================================================"
 WR "Linda closing through Lane"
 do
-    local l = lanes.linda("channel")
+    local l = lanes.linda{name = "channel"}
     local lane_body = function(l_arg_)
         WR "In lane body"
         -- linda obtained through a linda
@@ -114,7 +114,7 @@ do
         local _count, _closed = linda_:get("closed")
         linda_:set("closed", (_closed or 0) + 1)
     end
-    local l_in = lanes.linda("voyager", close_handler_f)
+    local l_in = lanes.linda{name = "voyager", close_handler = close_handler_f}
     l:set("trip", l_in)
 
     do

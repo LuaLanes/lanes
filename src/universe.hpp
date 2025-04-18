@@ -99,6 +99,8 @@ class Universe final
 
     Keepers keepers;
 
+    lua_Duration lindaWakePeriod{};
+
     // Initialized by 'init_once_LOCKED()': the deep userdata Linda object
     // used for timers (each lane will get a proxy to this)
     Linda* timerLinda{ nullptr };

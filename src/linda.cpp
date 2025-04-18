@@ -237,11 +237,23 @@ namespace {
                     _lane->waiting_on = &_linda->writeHappened;
                     _lane->status.store(Lane::Waiting, std::memory_order_release);
                 }
+
+                // wait until the final target date by small increments, interrupting regularly so that we can check for cancel requests,
+                // in case some timing issue caused a cancel request to be issued, and the condvar signalled, before we actually wait for it
+                auto const [_forceTryAgain, _until_check_cancel] = std::invoke([_until, wakePeriod = _linda->getWakePeriod()] {
+                    auto _until_check_cancel{ std::chrono::time_point<std::chrono::steady_clock>::max() };
+                    if (wakePeriod.count() > 0.0f) {
+                        _until_check_cancel = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(wakePeriod);
+                    }
+                    bool const _forceTryAgain{ _until_check_cancel < _until };
+                    return std::make_tuple(_forceTryAgain, _forceTryAgain ? _until_check_cancel : _until);
+                });
+
                 // not enough data to read: wakeup when data was sent, or when timeout is reached
                 std::unique_lock<std::mutex> _guard{ _keeper->mutex, std::adopt_lock };
-                std::cv_status const _status{ _linda->writeHappened.wait_until(_guard, _until) };
+                std::cv_status const _status{ _linda->writeHappened.wait_until(_guard, _until_check_cancel) };
                 _guard.release(); // we don't want to unlock the mutex on exit!
-                _try_again = (_status == std::cv_status::no_timeout); // detect spurious wakeups
+                _try_again = _forceTryAgain || (_status == std::cv_status::no_timeout); // detect spurious wakeups
                 if (_lane != nullptr) {
                     _lane->waiting_on = nullptr;
                     _lane->status.store(_prev_status, std::memory_order_release);
@@ -296,9 +308,10 @@ LUAG_FUNC(linda);
 // #################################################################################################
 // #################################################################################################
 
-Linda::Linda(Universe* const U_, LindaGroup const group_, std::string_view const& name_)
+Linda::Linda(Universe* const U_, std::string_view const& name_, lua_Duration const wake_period_, LindaGroup const group_)
 : DeepPrelude{ LindaFactory::Instance }
 , U{ U_ }
+, wakePeriod{ wake_period_ }
 , keeperIndex{ group_ % U_->keepers.getNbKeepers() }
 {
     setName(name_);
@@ -330,9 +343,13 @@ Linda* Linda::CreateTimerLinda(lua_State* const L_)
     STACK_CHECK_START_REL(L_, 0);                                                                  // L_:
     // Initialize 'timerLinda'; a common Linda object shared by all states
     lua_pushcfunction(L_, LG_linda);                                                               // L_: lanes.linda
-    luaG_pushstring(L_, "lanes-timer");                                                            // L_: lanes.linda "lanes-timer"
-    lua_pushinteger(L_, 0);                                                                        // L_: lanes.linda "lanes-timer" 0
-    lua_call(L_, 2, 1);                                                                            // L_: linda
+    lua_createtable(L_, 0, 3);                                                                     // L_: lanes.linda {}
+    luaG_pushstring(L_, "lanes-timer");                                                            // L_: lanes.linda {} "lanes-timer"
+    luaG_setfield(L_, StackIndex{ -2 }, std::string_view{ "name" });                               // L_: lanes.linda { .name="lanes-timer" }
+    lua_pushinteger(L_, 0);                                                                        // L_: lanes.linda { .name="lanes-timer" } 0
+    luaG_setfield(L_, StackIndex{ -2 }, std::string_view{ "group" });                              // L_: lanes.linda { .name="lanes-timer" .group = 0 }
+    // note that wake_period is not set (will default to the value in the universe)
+    lua_call(L_, 1, 1);                                                                            // L_: linda
     STACK_CHECK(L_, 1);
 
     // Proxy userdata contents is only a 'DeepPrelude*' pointer
@@ -941,11 +958,23 @@ LUAG_FUNC(linda_send)
                         _lane->waiting_on = &_linda->readHappened;
                         _lane->status.store(Lane::Waiting, std::memory_order_release);
                     }
+
+                    // wait until the final target date by small increments, interrupting regularly so that we can check for cancel requests,
+                    // in case some timing issue caused a cancel request to be issued, and the condvar signalled, before we actually wait for it
+                    auto const [_forceTryAgain, _until_check_cancel] = std::invoke([_until, wakePeriod = _linda->getWakePeriod()] {
+                        auto _until_check_cancel{ std::chrono::time_point<std::chrono::steady_clock>::max() };
+                        if (wakePeriod.count() > 0.0f) {
+                            _until_check_cancel = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(wakePeriod);
+                        }
+                        bool const _forceTryAgain{ _until_check_cancel < _until };
+                        return std::make_tuple(_forceTryAgain, _forceTryAgain ? _until_check_cancel : _until);
+                    });
+
                     // could not send because no room: wait until some data was read before trying again, or until timeout is reached
                     std::unique_lock<std::mutex> _guard{ _keeper->mutex, std::adopt_lock };
-                    std::cv_status const status{ _linda->readHappened.wait_until(_guard, _until) };
+                    std::cv_status const status{ _linda->readHappened.wait_until(_guard, _until_check_cancel) };
                     _guard.release(); // we don't want to unlock the mutex on exit!
-                    _try_again = (status == std::cv_status::no_timeout); // detect spurious wakeups
+                    _try_again = _forceTryAgain || (status == std::cv_status::no_timeout); // detect spurious wakeups
                     if (_lane != nullptr) {
                         _lane->waiting_on = nullptr;
                         _lane->status.store(_prev_status, std::memory_order_release);
@@ -1129,88 +1158,69 @@ namespace {
 // #################################################################################################
 
 /*
- * ud = lanes.linda( [name[,group[,close_handler]]])
+ * ud = lanes.linda{.name = <string>, .group = <number>, .close_handler = <callable>, .wake_period = <number>}
  *
  * returns a linda object, or raises an error if creation failed
  */
 LUAG_FUNC(linda)
 {
-    static constexpr StackIndex kLastArg{ LUA_VERSION_NUM >= 504 ? 3 : 2 };
+    // unpack the received table on the stack, putting name wake_period group close_handler in that order
     StackIndex const _top{ lua_gettop(L_) };
-    luaL_argcheck(L_, _top <= kLastArg, _top, "too many arguments");
-    StackIndex _closeHandlerIdx{};
-    StackIndex _nameIdx{};
-    StackIndex _groupIdx{};
-    for (StackIndex const _i : std::ranges::iota_view{ StackIndex{ 1 }, StackIndex{ _top + 1 }}) {
-        switch (luaG_type(L_, _i)) {
-#if LUA_VERSION_NUM >= 504 // to-be-closed support starts with Lua 5.4
-        case LuaType::FUNCTION:
-            luaL_argcheck(L_, _closeHandlerIdx == 0, _i, "More than one __close handler");
-            _closeHandlerIdx = _i;
-            break;
+    luaL_argcheck(L_, _top <= 1, _top, "too many arguments");
+    if (_top == 0) {
+        lua_settop(L_, 3);                                                                         // L_: nil nil nil
+    }
+    else if (!lua_istable(L_, kIdxTop)) {
+        luaL_argerror(L_, 1, "expecting a table");
+    } else {
+        auto* const _U{ Universe::Get(L_) };
+        lua_getfield(L_, 1, "wake_period");                                                        // L_: {} wake_period
+        if (lua_isnil(L_, kIdxTop)) {
+            lua_pop(L_, 1);
+            lua_pushnumber(L_, _U->lindaWakePeriod.count());
+        } else {
+            luaL_argcheck(L_, luaL_optnumber(L_, 2, 0) > 0, 1, "wake_period must be > 0");
+        }
 
-        case LuaType::USERDATA:
-        case LuaType::TABLE:
-            luaL_argcheck(L_, _closeHandlerIdx == 0, _i, "More than one __close handler");
-            luaL_argcheck(L_, luaL_getmetafield(L_, _i, "__call") != 0, _i, "__close handler is not callable");
+        lua_getfield(L_, 1, "group");                                                              // L_: {} wake_period group
+        int const _nbKeepers{ _U->keepers.getNbKeepers() };
+        if (lua_isnil(L_, kIdxTop)) {
+            luaL_argcheck(L_, _nbKeepers < 2, 0, "Group is mandatory in multiple Keeper scenarios");
+        } else {
+            int const _group{ static_cast<int>(lua_tointeger(L_, kIdxTop)) };
+            luaL_argcheck(L_, _group >= 0 && _group < _nbKeepers, 1, "group out of range");
+        }
+
+#if LUA_VERSION_NUM >= 504 // to-be-closed support starts with Lua 5.4
+        lua_getfield(L_, 1, "close_handler");                                                      // L_: {} wake_period group close_handler
+        LuaType const _handlerType{ luaG_type(L_, kIdxTop) };
+        if (_handlerType == LuaType::NIL) {
+            lua_pop(L_, 1);                                                                        // L_: {} wake_period group
+        } else if (_handlerType == LuaType::USERDATA || _handlerType == LuaType::TABLE) {
+            luaL_argcheck(L_, luaL_getmetafield(L_, kIdxTop, "__call") != 0, 1, "__close handler is not callable");
             lua_pop(L_, 1); // luaL_getmetafield() pushed the field, we need to pop it
-            _closeHandlerIdx = _i;
-            break;
+        } else {
+            luaL_argcheck(L_, _handlerType == LuaType::FUNCTION, 1, "__close handler is not a function");
+        }
 #endif // LUA_VERSION_NUM >= 504
 
-        case LuaType::STRING:
-            luaL_argcheck(L_, _nameIdx == 0, _i, "More than one name");
-            _nameIdx = _i;
-            break;
-
-        case LuaType::NUMBER:
-            luaL_argcheck(L_, _groupIdx == 0, _i, "More than one group");
-            _groupIdx = _i;
-            break;
-
-        default:
-            luaL_argcheck(L_, false, _i, "Bad argument type (should be a string, a number, or a callable type)");
-        }
-    }
- 
-    int const _nbKeepers{ Universe::Get(L_)->keepers.getNbKeepers() };
-    if (!_groupIdx) {
-        luaL_argcheck(L_, _nbKeepers < 2, 0, "Group is mandatory in multiple Keeper scenarios");
-    } else {
-        int const _group{ static_cast<int>(lua_tointeger(L_, _groupIdx)) };
-        luaL_argcheck(L_, _group >= 0 && _group < _nbKeepers, _groupIdx, "Group out of range");
+        auto const _nameType{ luaG_getfield(L_, StackIndex{ 1 }, "name") };                        // L_: {} wake_period group [close_handler] name
+        luaL_argcheck(L_, _nameType == LuaType::NIL || _nameType == LuaType::STRING, 1, "name is not a string");
+        lua_replace(L_, 1);                                                                        // L_: name wake_period group [close_handler]
     }
 
     // done with argument checking, let's proceed
-    if constexpr (LUA_VERSION_NUM >= 504) {
-        // make sure we have kMaxArgs arguments on the stack for processing, with name, group, and handler, in that order
-        lua_settop(L_, kLastArg);                                                                  // L_: a b c
-        // If either index is 0, lua_settop() adjusted the stack with a nil in slot kLastArg
-        lua_pushvalue(L_, _closeHandlerIdx ? _closeHandlerIdx : kLastArg);                         // L_: a b c close_handler
-        lua_pushvalue(L_, _groupIdx ? _groupIdx : kLastArg);                                       // L_: a b c close_handler group
-        lua_pushvalue(L_, _nameIdx ? _nameIdx : kLastArg);                                         // L_: a b c close_handler group name
-        lua_replace(L_, 1);                                                                        // L_: name b c close_handler group
-        lua_replace(L_, 2);                                                                        // L_: name group c close_handler
-        lua_replace(L_, 3);                                                                        // L_: name group close_handler
-
+    if (lua_gettop(L_) == 4) {
         // if we have a __close handler, we need a uservalue slot to store it
-        UserValueCount const _nuv{ _closeHandlerIdx ? 1 : 0 };
-        LindaFactory::Instance.pushDeepUserdata(DestState{ L_ }, _nuv);                            // L_: name group close_handler linda
-        if (_closeHandlerIdx != 0) {
-            lua_replace(L_, 2);                                                                    // L_: name linda close_handler
-            lua_setiuservalue(L_, StackIndex{ 2 }, UserValueIndex{ 1 });                           // L_: name linda
-        }
+        LindaFactory::Instance.pushDeepUserdata(DestState{ L_ }, UserValueCount{ 1 });             // L_: name wake_period group [close_handler] linda
+        lua_replace(L_, 3);                                                                        // L_: name wake_period linda close_handler
+        lua_setiuservalue(L_, StackIndex{ 3 }, UserValueIndex{ 1 });                               // L_: name wake_period linda
         // depending on whether we have a handler or not, the stack is not in the same state at this point
         // just make sure we have our Linda at the top
         LUA_ASSERT(L_, ToLinda<true>(L_, kIdxTop));
         return 1;
     } else { // no to-be-closed support
-        // ensure we have name, group in that order on the stack
-        if (_nameIdx > _groupIdx) {
-            lua_insert(L_, 1);                                                                     // L_: name group
-        }
-        LindaFactory::Instance.pushDeepUserdata(DestState{ L_ }, UserValueCount{ 0 });             // L_: name group linda
+        LindaFactory::Instance.pushDeepUserdata(DestState{ L_ }, UserValueCount{ 0 });             // L_: name wake_period group linda
         return 1;
     }
-
 }

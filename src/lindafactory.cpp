@@ -108,9 +108,11 @@ std::string_view LindaFactory::moduleName() const
 
 DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* const L_) const
 {
-    // we always expect name and group at the bottom of the stack (either can be nil). any extra stuff we ignore and keep unmodified
+    STACK_CHECK_START_REL(L_, 0);
+    // we always expect name, wake_period, group at the bottom of the stack (either can be nil). any extra stuff we ignore and keep unmodified
     std::string_view _linda_name{ luaG_tostring(L_, StackIndex{ 1 }) };
-    LindaGroup _linda_group{ static_cast<int>(lua_tointeger(L_, 2)) };
+    auto const _wake_period{ static_cast<lua_Duration>(lua_tonumber(L_, 2)) };
+    LindaGroup const _linda_group{ static_cast<int>(lua_tointeger(L_, 3)) };
 
     // store in the linda the location of the script that created it
     if (_linda_name == "auto") {
@@ -129,6 +131,7 @@ DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* const L_) const
     // The deep data is allocated separately of Lua stack; we might no longer be around when last reference to it is being released.
     // One can use any memory allocation scheme. Just don't use L's allocF because we don't know which state will get the honor of GCing the linda
     Universe* const _U{ Universe::Get(L_) };
-    Linda* const _linda{ new (_U) Linda{ _U, _linda_group, _linda_name } };
+    Linda* const _linda{ new (_U) Linda{ _U, _linda_name, _wake_period, _linda_group } };
+    STACK_CHECK(L_, 0);
     return _linda;
 }

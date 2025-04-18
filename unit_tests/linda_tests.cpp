@@ -3,67 +3,132 @@
 
 // #################################################################################################
 
-TEST_CASE("linda.single Keeper")
+TEST_CASE("linda.single_keeper.creation/no_argument")
 {
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
     S.requireSuccess("lanes = require 'lanes'");
 
-    SECTION("Linda creation")
+    // no argument is ok
+    S.requireSuccess("lanes.linda()");
+    S.requireNotReturnedString("return tostring(lanes.linda())", R"===(Linda: <not a string>)==="); // unspecified name should not result in <not a string>
+}
+
+// #################################################################################################
+
+TEST_CASE("linda.single_keeper.creation/non_table_arguments")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
+    S.requireSuccess("lanes = require 'lanes'");
+
+    // any argument that is not a table is not ok
+    S.requireFailure("lanes.linda(0)");
+    S.requireFailure("lanes.linda('bob')");
+    S.requireFailure("lanes.linda(false)");
+    S.requireFailure("lanes.linda(function() end)");
+    S.requireFailure("lanes.linda(lanes.cancel_error)");
+}
+
+// #################################################################################################
+
+TEST_CASE("linda.single_keeper.creation/close_handler")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
+    S.requireSuccess("lanes = require 'lanes'");
+
+    if constexpr (LUA_VERSION_NUM == 504) {
+        // a function is acceptable as a __close handler
+        S.requireSuccess("local l <close> = lanes.linda{close_handler = function() end}");
+        // a callable table too (a callable full userdata as well, but I have none here)
+        S.requireSuccess("local l <close> = lanes.linda{close_handler = setmetatable({}, {__call = function() end})}");
+    } else {
+        // no __close support before Lua 5.4, field is ignored (therefore invalid values are accepted too!)
+        S.requireSuccess("lanes.linda{close_handler = 'a string'}");
+        S.requireSuccess("lanes.linda{close_handler = function() end}");
+        S.requireSuccess("lanes.linda{close_handler = setmetatable({}, {__call = function() end})}");
+    }
+}
+
+// #################################################################################################
+
+TEST_CASE("linda.single_keeper.creation/table_argument")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
+    S.requireSuccess("lanes = require 'lanes'");
+
+    // one table is fine
+    S.requireSuccess("lanes.linda{}");
+    // anything beyond that is not
+    S.requireFailure("lanes.linda({},{})");
+    S.requireFailure("lanes.linda({},'bob')");
+    S.requireFailure("lanes.linda({},42)");
+}
+
+// #################################################################################################
+
+TEST_CASE("linda.single_keeper.creation/group")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
+    S.requireSuccess("lanes = require 'lanes'");
+
+    // since we have only one keeper, only group 0 is authorized
+    S.requireFailure("lanes.linda{group = -1}");
+    S.requireSuccess("lanes.linda{group = 0}");
+    S.requireFailure("lanes.linda{group = 1}");
+}
+
+// #################################################################################################
+
+TEST_CASE("linda.single_keeper.creation/name")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
+    S.requireSuccess("lanes = require 'lanes'");
+
+    // any name is ok
+    S.requireSuccess("lanes.linda{name = ''}"); // an empty name results in a string conversion of the form "Linda: <some hex value>" that we can't test (but it works)
+    S.requireReturnedString("return tostring(lanes.linda{name = 'short name'})", R"===(Linda: short name)===");
+    S.requireReturnedString("return tostring(lanes.linda{name = 'very very very very very very long name'})", R"===(Linda: very very very very very very long name)===");
+    S.requireReturnedString("return tostring(lanes.linda{name = 'auto'})", R"===(Linda: [string "return tostring(lanes.linda{name = 'auto'})"]:1)===");
+}
+
+// #################################################################################################
+
+TEST_CASE("linda.single_keeper.creation/wake_period")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
+    S.requireSuccess("lanes = require 'lanes'");
+
+    // wake_period should be a number > 0
+    S.requireFailure("lanes.linda{wake_period = false}");
+    S.requireFailure("lanes.linda{wake_period = 'bob'}");
+    S.requireFailure("lanes.linda{wake_period = {}}");
+    S.requireFailure("lanes.linda{wake_period = -1}");
+    S.requireFailure("lanes.linda{wake_period = 0}");
+    S.requireSuccess("lanes.linda{wake_period = 0.0001}");
+}
+
+// #################################################################################################
+
+TEST_CASE("linda.single_keeper.wake_period")
+{
+    FAIL("TODO: check that wake_period works as expected");
+    // - use configure default if not provided
+    // - overrides default when provided
+    // - blocking operation wakes at the specified period
+}
+
+// #################################################################################################
+
+TEST_CASE("linda.single_keeper.the_rest")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
+    S.requireSuccess("lanes = require 'lanes'");
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("error in close handler is propagated")
     {
-        // no parameters is ok
-        S.requireSuccess("lanes.linda()");
-        S.requireNotReturnedString("return tostring(lanes.linda())", R"===(Linda: <not a string>)==="); // unspecified name should not result in <not a string>
-
-        // since we have only one keeper, only group 0 is authorized
-        S.requireFailure("lanes.linda(-1)");
-        S.requireSuccess("lanes.linda(0)");
-        S.requireFailure("lanes.linda(1)");
-
-        // any name is ok
-        S.requireSuccess("lanes.linda('')"); // an empty name results in a string conversion of the form "Linda: <some hex value>" that we can't test (but it works)
-        S.requireReturnedString("return tostring(lanes.linda('short name'))", R"===(Linda: short name)===");
-        S.requireReturnedString("return tostring(lanes.linda('very very very very very very long name'))", R"===(Linda: very very very very very very long name)===");
-        S.requireReturnedString("return tostring(lanes.linda('auto'))", R"===(Linda: [string "return tostring(lanes.linda('auto'))"]:1)===");
-
-        if constexpr (LUA_VERSION_NUM == 504) {
-            // a function is acceptable as a __close handler
-            S.requireSuccess("local l <close> = lanes.linda(function() end)");
-            // a callable table too (a callable full userdata as well, but I have none here)
-            S.requireSuccess("local l <close> = lanes.linda(setmetatable({}, {__call = function() end}))");
-            // if the function raises an error, we should get it
-            S.requireFailure("local l <close> = lanes.linda(function() error 'gluh' end)");
-        } else {
-            // no __close support before Lua 5.4
-            S.requireFailure("lanes.linda(function() end)");
-            S.requireFailure("lanes.linda(setmetatable({}, {__call = function() end}))");
-        }
-
-        // mixing parameters in any order is ok: 2 out of 3
-        S.requireSuccess("lanes.linda(0, 'name')");
-        S.requireSuccess("lanes.linda('name', 0)");
-        if constexpr (LUA_VERSION_NUM == 504) {
-            S.requireSuccess("lanes.linda(0, function() end)");
-            S.requireSuccess("lanes.linda(function() end, 0)");
-            S.requireSuccess("lanes.linda('name', function() end)");
-            S.requireSuccess("lanes.linda(function() end, 'name')");
-        }
-
-        // mixing parameters in any order is ok: 3 out of 3
-        if constexpr (LUA_VERSION_NUM == 504) {
-            S.requireSuccess("lanes.linda(0, 'name', function() end)");
-            S.requireSuccess("lanes.linda(0, function() end, 'name')");
-            S.requireSuccess("lanes.linda('name', 0, function() end)");
-            S.requireSuccess("lanes.linda('name', function() end, 0)");
-            S.requireSuccess("lanes.linda(function() end, 0, 'name')");
-            S.requireSuccess("lanes.linda(function() end, 'name', 0)");
-        }
-
-        // unsupported parameters should fail
-        S.requireFailure("lanes.linda(true)");
-        S.requireFailure("lanes.linda(false)");
-        // uncallable table or full userdata
-        S.requireFailure("lanes.linda({})");
-        S.requireFailure("lanes.linda(lanes.linda())");
+        // if the function raises an error, we should get it
+        S.requireFailure("local l <close> = lanes.linda{close_handler = function() error 'gluh' end}");
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -311,12 +376,12 @@ TEST_CASE("linda.multi Keeper")
 
     S.requireSuccess("lanes = require 'lanes'.configure{nb_user_keepers = 3}");
 
-    S.requireFailure("lanes.linda(-1)");
-    S.requireSuccess("lanes.linda(0)");
-    S.requireSuccess("lanes.linda(1)");
-    S.requireSuccess("lanes.linda(2)");
-    S.requireSuccess("lanes.linda(3)");
-    S.requireFailure("lanes.linda(4)");
+    S.requireFailure("lanes.linda{group = -1}");
+    S.requireSuccess("lanes.linda{group = 0}");
+    S.requireSuccess("lanes.linda{group = 1}");
+    S.requireSuccess("lanes.linda{group = 2}");
+    S.requireSuccess("lanes.linda{group = 3}");
+    S.requireFailure("lanes.linda{group = 4}");
 }
 
 // #################################################################################################

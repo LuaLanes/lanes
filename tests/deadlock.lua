@@ -16,7 +16,7 @@ print "let's begin"
 local do_extra_stuff = true
 
 if do_extra_stuff then
-    local linda = lanes.linda "deadlock_linda"
+    local linda = lanes.linda{name = "deadlock_linda"}
     -- just something to make send() succeed and receive() fail
     local payload = { io.flush }
 

@@ -65,7 +65,7 @@ local function chunk2(linda)
     linda:send("up", function() return ":)" end, "ok2")
 end
 
-local linda = lanes_linda("auto")
+local linda = lanes_linda{name = "auto"}
 local t2= lanes_gen("debug,package,string,io", { name = 'auto', gc_cb = gc_cb }, chunk2)(linda)     -- prepare & launch
 linda:send("down", function(linda) linda:send("up", "ready!") end,
                     "ok")

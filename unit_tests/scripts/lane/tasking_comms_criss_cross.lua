@@ -42,7 +42,7 @@ local tc = lanes_gen("io", { name = 'auto', gc_cb = gc_cb },
   end
 )
 
-local linda= lanes_linda("criss cross")
+local linda= lanes_linda{name = "criss cross"}
 
 local a,b= tc(linda, "A","B"), tc(linda, "B","A")   -- launching two lanes, twisted comms
 

@@ -153,6 +153,14 @@ Universe* Universe::Create(lua_State* const L_)
     lua_setmetatable(L_, -2);                                                                      // L_: settings universe
     lua_pop(L_, 1);                                                                                // L_: settings
 
+    std::ignore = luaG_getfield(L_, kIdxSettings, "linda_wake_period");                            // L_: settings linda_wake_period
+    if (luaG_type(L_, kIdxTop) == LuaType::NUMBER) {
+        _U->lindaWakePeriod = lua_Duration{ lua_tonumber(L_, kIdxTop) };
+    } else {
+        LUA_ASSERT(L_, luaG_tostring(L_, kIdxTop) == "never");
+    }
+    lua_pop(L_, 1);                                                                                // L_: settings
+
     std::ignore = luaG_getfield(L_, kIdxSettings, "strip_functions");                              // L_: settings strip_functions
     _U->stripFunctions = lua_toboolean(L_, -1) ? true : false;
     lua_pop(L_, 1);                                                                                // L_: settings

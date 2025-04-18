@@ -157,7 +157,7 @@ TEST_CASE("lanes.embedding.with default allocator")
         // function with an upvalue
         std::string_view const _script{
             " local lanes = require 'lanes'.configure{with_timers = false}"
-            " local l = lanes.linda'gleh'"
+            " local l = lanes.linda{name = 'gleh'}"
             " local upvalue = 'oeauaoeuoeuaoeuaoeujaoefubycfjbycfybcfjybcfjybcfjbcf'"
             " local upvalued = function()"
             "     return upvalue"
@@ -183,7 +183,7 @@ TEST_CASE("lanes.embedding.with default allocator")
         // try to send io.open into a linda, which fails if io base library is not loaded
         std::string_view const _script{
             " local lanes = require 'lanes'"
-            " local l = lanes.linda'gleh'"
+            " local l = lanes.linda{name = 'gleh'}"
             " l:set('yo', io.open)"
             " return 'SUCCESS'"
         };

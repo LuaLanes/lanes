@@ -289,6 +289,62 @@ TEST_CASE("lanes.configure.keepers_gc_threshold")
 
 // #################################################################################################
 
+TEST_CASE("lanes.configure.linda_wake_period")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
+    // linda_wake_period should be a number > 0, or 'never'
+
+    SECTION("linda_wake_period = <table>")
+    {
+        L.requireFailure("require 'lanes'.configure{linda_wake_period = {}}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("linda_wake_period = <string>")
+    {
+        L.requireFailure("require 'lanes'.configure{linda_wake_period = 'gluh'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("linda_wake_period = 'never'")
+    {
+        L.requireSuccess("require 'lanes'.configure{linda_wake_period = 'never'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("linda_wake_period = <negative number>")
+    {
+        L.requireFailure("require 'lanes'.configure{linda_wake_period = -0.001}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("linda_wake_period = 0")
+    {
+        L.requireFailure("require 'lanes'.configure{linda_wake_period = 0}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("linda_wake_period = 0.0001s")
+    {
+        L.requireSuccess("require 'lanes'.configure{linda_wake_period = 0.0001}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("linda_wake_period = 1e30")
+    {
+        L.requireSuccess("require 'lanes'.configure{linda_wake_period = 1e30}");
+    }
+}
+
+// #################################################################################################
+
 TEST_CASE("lanes.configure.nb_user_keepers")
 {
     LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
@@ -300,35 +356,35 @@ TEST_CASE("lanes.configure.nb_user_keepers")
         L.requireFailure("require 'lanes'.configure{nb_user_keepers = {}}");
     }
 
-    // -----------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
     SECTION("nb_user_keepers = <string>")
     {
         L.requireFailure("require 'lanes'.configure{nb_user_keepers = 'gluh'}");
     }
 
-    // -----------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
     SECTION("nb_user_keepers = -1")
     {
         L.requireFailure("require 'lanes'.configure{nb_user_keepers = -1}");
     }
 
-    // -----------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
     SECTION("nb_user_keepers = 0")
     {
         L.requireSuccess("require 'lanes'.configure{nb_user_keepers = 0}");
     }
 
-    // -----------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
     SECTION("nb_user_keepers = 1")
     {
         L.requireSuccess("require 'lanes'.configure{nb_user_keepers = 1}");
     }
 
-    // -----------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
     SECTION("nb_user_keepers = 100")
     {
@@ -345,340 +401,355 @@ TEST_CASE("lanes.configure.nb_user_keepers")
 
 // #################################################################################################
 
-TEST_CASE("lanes.configure.the rest")
+TEST_CASE("lanes.configure.on_state_create")
 {
     LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
 
     // on_state_create should be a function, either C or Lua, without upvalues
 
-    SECTION("on_state_create")
+    SECTION("on_state_create = <table>")
     {
-        SECTION("on_state_create = <table>")
-        {
-            L.requireFailure("require 'lanes'.configure{on_state_create = {}}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("on_state_create = <string>")
-        {
-            L.requireFailure("require 'lanes'.configure{on_state_create = 'gluh'}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("on_state_create = <number>")
-        {
-            L.requireFailure("require 'lanes'.configure{on_state_create = 1}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("on_state_create = false")
-        {
-            L.requireFailure("require 'lanes'.configure{on_state_create = false}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("on_state_create = true")
-        {
-            L.requireFailure("require 'lanes'.configure{on_state_create = true}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("on_state_create = <Lua function>")
-        {
-            // on_state_create isn't called inside a Keeper state if it's a Lua function (which is good as print() doesn't exist there!)
-            L.requireSuccess("local print = print; require 'lanes'.configure{on_state_create = function() print 'hello' end}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("on_state_create = <C function>")
-        {
-            // funnily enough, in Lua 5.3, print() uses global tostring(), that doesn't exist in a keeper since we didn't open libs -> "attempt to call a nil value"
-            // conclusion, don't use print() as a fake on_state_create() callback!
-            // assert() should be fine since we pass a non-false argument to on_state_create
-            L.requireSuccess("require 'lanes'.configure{on_state_create = assert}");
-        }
+        L.requireFailure("require 'lanes'.configure{on_state_create = {}}");
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    SECTION("on_state_create = <string>")
+    {
+        L.requireFailure("require 'lanes'.configure{on_state_create = 'gluh'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("on_state_create = <number>")
+    {
+        L.requireFailure("require 'lanes'.configure{on_state_create = 1}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("on_state_create = false")
+    {
+        L.requireFailure("require 'lanes'.configure{on_state_create = false}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("on_state_create = true")
+    {
+        L.requireFailure("require 'lanes'.configure{on_state_create = true}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("on_state_create = <Lua function>")
+    {
+        // on_state_create isn't called inside a Keeper state if it's a Lua function (which is good as print() doesn't exist there!)
+        L.requireSuccess("local print = print; require 'lanes'.configure{on_state_create = function() print 'hello' end}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("on_state_create = <C function>")
+    {
+        // funnily enough, in Lua 5.3, print() uses global tostring(), that doesn't exist in a keeper since we didn't open libs -> "attempt to call a nil value"
+        // conclusion, don't use print() as a fake on_state_create() callback!
+        // assert() should be fine since we pass a non-false argument to on_state_create
+        L.requireSuccess("require 'lanes'.configure{on_state_create = assert}");
+    }
+}
+
+// #################################################################################################
+
+TEST_CASE("lanes.configure.shutdown_timeout")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
     // shutdown_timeout should be a number in [0,3600]
 
-    SECTION("shutdown_timeout")
+    SECTION("shutdown_timeout = <table>")
     {
-        SECTION("shutdown_timeout = <table>")
-        {
-            L.requireFailure("require 'lanes'.configure{shutdown_timeout = {}}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("shutdown_timeout = <string>")
-        {
-            L.requireFailure("require 'lanes'.configure{shutdown_timeout = 'gluh'}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("shutdown_timeout = <negative number>")
-        {
-            L.requireFailure("require 'lanes'.configure{shutdown_timeout = -0.001}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("shutdown_timeout = 0")
-        {
-            L.requireSuccess("require 'lanes'.configure{shutdown_timeout = 0}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("shutdown_timeout = 1s")
-        {
-            L.requireSuccess("require 'lanes'.configure{shutdown_timeout = 1}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("shutdown_timeout = 3600s")
-        {
-            L.requireSuccess("require 'lanes'.configure{shutdown_timeout = 3600}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("shutdown_timeout = <too long>")
-        {
-            L.requireFailure("require 'lanes'.configure{shutdown_timeout = 3600.001}");
-        }
+        L.requireFailure("require 'lanes'.configure{shutdown_timeout = {}}");
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    SECTION("shutdown_timeout = <string>")
+    {
+        L.requireFailure("require 'lanes'.configure{shutdown_timeout = 'gluh'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("shutdown_timeout = <negative number>")
+    {
+        L.requireFailure("require 'lanes'.configure{shutdown_timeout = -0.001}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("shutdown_timeout = 0")
+    {
+        L.requireSuccess("require 'lanes'.configure{shutdown_timeout = 0}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("shutdown_timeout = 1s")
+    {
+        L.requireSuccess("require 'lanes'.configure{shutdown_timeout = 1}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("shutdown_timeout = 3600s")
+    {
+        L.requireSuccess("require 'lanes'.configure{shutdown_timeout = 3600}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("shutdown_timeout = <too long>")
+    {
+        L.requireFailure("require 'lanes'.configure{shutdown_timeout = 3600.001}");
+    }
+}
+
+// #################################################################################################
+
+TEST_CASE("lanes.configure.strip_functions")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
     // strip_functions should be a boolean
 
-    SECTION("strip_functions")
+    SECTION("strip_functions = <table>")
     {
-        SECTION("strip_functions = <table>")
-        {
-            L.requireFailure("require 'lanes'.configure{strip_functions = {}}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("strip_functions = <string>")
-        {
-            L.requireFailure("require 'lanes'.configure{strip_functions = 'gluh'}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("strip_functions = <number>")
-        {
-            L.requireFailure("require 'lanes'.configure{strip_functions = 1}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("strip_functions = <C function>")
-        {
-            L.requireFailure("require 'lanes'.configure{strip_functions = print}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("strip_functions = false")
-        {
-            L.requireSuccess("require 'lanes'.configure{strip_functions = false}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("strip_functions = true")
-        {
-            L.requireSuccess("require 'lanes'.configure{strip_functions = true}");
-        }
+        L.requireFailure("require 'lanes'.configure{strip_functions = {}}");
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    SECTION("strip_functions = <string>")
+    {
+        L.requireFailure("require 'lanes'.configure{strip_functions = 'gluh'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("strip_functions = <number>")
+    {
+        L.requireFailure("require 'lanes'.configure{strip_functions = 1}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("strip_functions = <C function>")
+    {
+        L.requireFailure("require 'lanes'.configure{strip_functions = print}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("strip_functions = false")
+    {
+        L.requireSuccess("require 'lanes'.configure{strip_functions = false}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("strip_functions = true")
+    {
+        L.requireSuccess("require 'lanes'.configure{strip_functions = true}");
+    }
+}
+
+// #################################################################################################
+
+TEST_CASE("lanes.configure.track_lanes")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
     // track_lanes should be a boolean
 
-    SECTION("track_lanes")
+    SECTION("track_lanes = <table>")
     {
-        SECTION("track_lanes = <table>")
-        {
-            L.requireFailure("require 'lanes'.configure{track_lanes = {}}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("track_lanes = <string>")
-        {
-            L.requireFailure("require 'lanes'.configure{track_lanes = 'gluh'}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("track_lanes = <number>")
-        {
-            L.requireFailure("require 'lanes'.configure{track_lanes = 1}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("track_lanes = <C function>")
-        {
-            L.requireFailure("require 'lanes'.configure{track_lanes = print}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("track_lanes = false")
-        {
-            L.requireSuccess("require 'lanes'.configure{track_lanes = false}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("track_lanes = true")
-        {
-            L.requireSuccess("require 'lanes'.configure{track_lanes = true}");
-        }
+        L.requireFailure("require 'lanes'.configure{track_lanes = {}}");
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    SECTION("track_lanes = <string>")
+    {
+        L.requireFailure("require 'lanes'.configure{track_lanes = 'gluh'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("track_lanes = <number>")
+    {
+        L.requireFailure("require 'lanes'.configure{track_lanes = 1}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("track_lanes = <C function>")
+    {
+        L.requireFailure("require 'lanes'.configure{track_lanes = print}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("track_lanes = false")
+    {
+        L.requireSuccess("require 'lanes'.configure{track_lanes = false}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("track_lanes = true")
+    {
+        L.requireSuccess("require 'lanes'.configure{track_lanes = true}");
+    }
+}
+
+// #################################################################################################
+
+TEST_CASE("lanes.configure.verbose_errors")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
     // verbose_errors should be a boolean
 
-    SECTION("verbose_errors")
+    SECTION("verbose_errors = <table>")
     {
-        SECTION("verbose_errors = <table>")
-        {
-            L.requireFailure("require 'lanes'.configure{verbose_errors = {}}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("verbose_errors = <string>")
-        {
-            L.requireFailure("require 'lanes'.configure{verbose_errors = 'gluh'}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("verbose_errors = <number>")
-        {
-            L.requireFailure("require 'lanes'.configure{verbose_errors = 1}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("verbose_errors = <C function>")
-        {
-            L.requireFailure("require 'lanes'.configure{verbose_errors = print}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("verbose_errors = false")
-        {
-            L.requireSuccess("require 'lanes'.configure{verbose_errors = false}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("verbose_errors = true")
-        {
-            L.requireSuccess("require 'lanes'.configure{verbose_errors = true}");
-        }
+        L.requireFailure("require 'lanes'.configure{verbose_errors = {}}");
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    SECTION("verbose_errors = <string>")
+    {
+        L.requireFailure("require 'lanes'.configure{verbose_errors = 'gluh'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("verbose_errors = <number>")
+    {
+        L.requireFailure("require 'lanes'.configure{verbose_errors = 1}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("verbose_errors = <C function>")
+    {
+        L.requireFailure("require 'lanes'.configure{verbose_errors = print}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("verbose_errors = false")
+    {
+        L.requireSuccess("require 'lanes'.configure{verbose_errors = false}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("verbose_errors = true")
+    {
+        L.requireSuccess("require 'lanes'.configure{verbose_errors = true}");
+    }
+}
+
+// #################################################################################################
+
+TEST_CASE("lanes.configure.with_timers")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
     // with_timers should be a boolean
 
-    SECTION("with_timers")
+    SECTION("with_timers = <table>")
     {
-        SECTION("with_timers = <table>")
-        {
-            L.requireFailure("require 'lanes'.configure{with_timers = {}}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("with_timers = <string>")
-        {
-            L.requireFailure("require 'lanes'.configure{with_timers = 'gluh'}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("with_timers = <number>")
-        {
-            L.requireFailure("require 'lanes'.configure{with_timers = 1}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("with_timers = <C function>")
-        {
-            L.requireFailure("require 'lanes'.configure{with_timers = print}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("with_timers = false")
-        {
-            L.requireSuccess("require 'lanes'.configure{with_timers = false}");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("with_timers = true")
-        {
-            L.requireSuccess("require 'lanes'.configure{with_timers = true}");
-        }
+        L.requireFailure("require 'lanes'.configure{with_timers = {}}");
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    SECTION("with_timers = <string>")
+    {
+        L.requireFailure("require 'lanes'.configure{with_timers = 'gluh'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("with_timers = <number>")
+    {
+        L.requireFailure("require 'lanes'.configure{with_timers = 1}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("with_timers = <C function>")
+    {
+        L.requireFailure("require 'lanes'.configure{with_timers = print}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("with_timers = false")
+    {
+        L.requireSuccess("require 'lanes'.configure{with_timers = false}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("with_timers = true")
+    {
+        L.requireSuccess("require 'lanes'.configure{with_timers = true}");
+    }
+}
+
+// #################################################################################################
+
+TEST_CASE("lanes.configure.unknown_setting")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
     // any unknown setting should be rejected
 
-    SECTION("unknown_setting")
+    SECTION("table setting")
     {
-        SECTION("table setting")
-        {
-            L.requireFailure("require 'lanes'.configure{[{}] = {}}");
-        }
+        L.requireFailure("require 'lanes'.configure{[{}] = {}}");
+    }
 
-        // -----------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
-        SECTION("boolean setting")
-        {
-            L.requireFailure("require 'lanes'.configure{[true] = 'gluh'}");
-        }
+    SECTION("boolean setting")
+    {
+        L.requireFailure("require 'lanes'.configure{[true] = 'gluh'}");
+    }
 
-        // -----------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
-        SECTION("function setting")
-        {
-            L.requireFailure("require 'lanes'.configure{[function() end] = 1}");
-        }
+    SECTION("function setting")
+    {
+        L.requireFailure("require 'lanes'.configure{[function() end] = 1}");
+    }
 
-        // -----------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
-        SECTION("number setting")
-        {
-            L.requireFailure("require 'lanes'.configure{[1] = function() end}");
-        }
+    SECTION("number setting")
+    {
+        L.requireFailure("require 'lanes'.configure{[1] = function() end}");
+    }
 
-        // -----------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
-        SECTION("unknown string setting")
-        {
-            L.requireFailure("require 'lanes'.configure{['gluh'] = false}");
-        }
+    SECTION("unknown string setting")
+    {
+        L.requireFailure("require 'lanes'.configure{['gluh'] = false}");
     }
 }
 

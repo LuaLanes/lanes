@@ -2,9 +2,9 @@
 local require_lanes_result_1, require_lanes_result_2 = require "lanes".configure{nb_user_keepers = 3, keepers_gc_threshold = 500}
 local lanes = require_lanes_result_1
 
-local a = lanes.linda("A", 1)
-local b = lanes.linda("B", 2)
-local c = lanes.linda("C", 3)
+local a = lanes.linda{name = "A", group = 1}
+local b = lanes.linda{name = "B", group = 2}
+local c = lanes.linda{name = "C", group = 3}
 
 -- store each linda in the other 2
 do

@@ -96,6 +96,7 @@ local default_params =
     -- it looks also like LuaJIT allocator may not appreciate direct use of its allocator for other purposes than the VM operation
     internal_allocator = isLuaJIT and "libc" or "allocator",
     keepers_gc_threshold = -1,
+    linda_wake_period = 'never',
     nb_user_keepers = 0,
     on_state_create = nil,
     shutdown_timeout = 0.25,
@@ -138,6 +139,19 @@ local param_checkers =
         -- keepers_gc_threshold should be a number
         if type(val_) ~= "number" then
             return nil, "not a number"
+        end
+        return true
+    end,
+    linda_wake_period = function(val_)
+        -- linda_wake_period should be a number > 0, or the string 'never'
+        if val_ == 'never' then
+            return true
+        end
+        if type(val_) ~= "number" then
+            return nil, "not a number"
+        end
+        if val_ <= 0 then
+            return nil, "value out of range"
         end
         return true
     end,
