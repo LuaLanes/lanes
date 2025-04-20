@@ -1,5 +1,3 @@
-#pragma once
-
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -9,6 +7,7 @@
 #include <compare>
 #include <concepts>
 #include <condition_variable>
+#include <cstring>
 #include <functional>
 #include <iostream>
 #ifndef __PROSPERO__
@@ -19,6 +18,7 @@
 #include <ranges>
 #include <source_location>
 //#include <stop_token>
+#include <span>
 #include <string_view>
 #include <thread>
 #include <tuple>

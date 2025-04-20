@@ -18,7 +18,7 @@ class Linda final
     {
         private:
         Linda& linda;
-        [[maybe_unused]] lua_State* const L; // just here for inspection while debugging
+        lua_State* const L{}; // just here for inspection while debugging
 
         public:
         KeeperOperationInProgress(Linda& linda_, lua_State* const L_)
