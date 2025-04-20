@@ -2,6 +2,7 @@
 #include "shared.h"
 #include "lanes/src/lanes.hpp"
 
+#if defined __has_include && __has_include(<windows.h>)
 #include <windows.h>
 
 // #################################################################################################
@@ -266,3 +267,5 @@ TEST_CASE("lanes.embedding.with custom allocator")
     lua_close(L2);
     lua_close(L1);
 }
+
+#endif // windows.h

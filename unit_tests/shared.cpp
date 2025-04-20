@@ -476,6 +476,7 @@ void FileRunner::performTest(FileRunnerParam const& testParam_)
     INFO(testParam_.script);
     switch (testParam_.test) {
     case TestType::AssertNoLuaError:
+        lua_atpanic(L, _atPanic);
         requireSuccess(root, testParam_.script);
         break;
 

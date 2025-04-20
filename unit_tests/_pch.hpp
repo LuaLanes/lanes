@@ -1,5 +1,3 @@
-#pragma once
-
 #include <atomic>
 #include <cassert>
 #include <filesystem>
