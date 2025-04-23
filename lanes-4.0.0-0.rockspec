@@ -56,7 +56,7 @@ build = {
 	},
 	modules =
 	{
-		["lanes.core"] =
+		["lanes_core"] =
 		{
 			sources =
 			{
