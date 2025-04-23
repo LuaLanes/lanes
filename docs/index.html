@@ -181,66 +181,66 @@
 		The <tt>lanes</tt> module
 		<ul>
 			<li><tt>lanes.cancel_error</tt>: a special error value returned from cancelled lanes</li>
-			<li><tt>lanes.collectgarbage()</tt>: o trigger a GC cycle in all Keeper states</li>
-			<li><tt>lanes.configure()</tt>: to configure Lanes</li>
-			<li><tt>lanes.coro()</tt>: to start a coroutine-like lane</li>
-			<li><tt>lanes.finally()</tt>: to install a function called on Lanes shutdown</li>
-			<li><tt>lanes.gen()</tt>: to start a lane as a regular function</li>
-			<li><tt>lanes.genactomic()</tt>: to obtain an atomic counter</li>
-			<li><tt>lanes.genlock()</tt>: to obtain an atomic-like data stack</li>
-			<li><tt>lanes.linda()</tt>: to create a Linda</li>
-			<li><tt>lanes.nameof()</tt>: to find where a value exists</li>
-			<li><tt>lanes.now_secs()</tt>: to obtain the current clock value</li>
-			<li><tt>lanes.register()</tt>: to scan modules so that functions using them can be transferred</li>
-			<li><tt>lanes.set_thread_priority()</tt>: to change thread priority</li>
-			<li><tt>lanes.set_thread_affinity()</tt>: to change thread affinity</li>
-			<li><tt>lanes.threads()</tt>: to obtain a list of all lanes</li>
-			<li><tt>lanes.sleep()</tt>: to sleep for a given duration</li>
-			<li><tt>lanes.timer()</tt>: to start a timer</li>
-			<li><tt>lanes.timers()</tt>: to list active timers</li>
+			<li><tt>lanes.collectgarbage()</tt>: trigger a GC cycle in all Keeper states</li>
+			<li><tt>lanes.configure()</tt>: configure Lanes</li>
+			<li><tt>lanes.coro()</tt>: start a coroutine-like lane</li>
+			<li><tt>lanes.finally()</tt>: install a function called on Lanes shutdown</li>
+			<li><tt>lanes.gen()</tt>: start a lane as a regular function</li>
+			<li><tt>lanes.genactomic()</tt>: obtain an atomic counter</li>
+			<li><tt>lanes.genlock()</tt>: obtain an atomic-like data stack</li>
+			<li><tt>lanes.linda()</tt>: create a Linda</li>
+			<li><tt>lanes.nameof()</tt>: find where a value exists</li>
+			<li><tt>lanes.now_secs()</tt>: obtain the current clock value</li>
+			<li><tt>lanes.register()</tt>: scan modules so that functions using them can be transferred</li>
+			<li><tt>lanes.set_thread_priority()</tt>: change thread priority</li>
+			<li><tt>lanes.set_thread_affinity()</tt>: change thread affinity</li>
+			<li><tt>lanes.threads()</tt>: obtain a list of all lanes</li>
+			<li><tt>lanes.sleep()</tt>: sleep for a given duration</li>
+			<li><tt>lanes.timer()</tt>: start a timer</li>
+			<li><tt>lanes.timers()</tt>: list active timers</li>
 		</ul>
 	</li>
 	<li>
 		Given some lane handle <tt>lane_h</tt>
 		<ul>
-			<li><tt>lane_h[]</tt>: to wait for, and read the values returned by the lane</li>
-			<li><tt>lane_h:cancel()</tt>: to request the lane to stop running</li>
+			<li><tt>lane_h[]</tt>: wait for, and read the values returned by the lane</li>
+			<li><tt>lane_h:cancel()</tt>: request the lane to stop running</li>
 			<li><tt>lane_h.error_trace_level</tt>: current setting of error logging level</li>
-			<li><tt>lane_h:get_threadname()</tt>: to read the thread name</li>
-			<li><tt>lane_h:join()</tt>: to wait for the lane to terminate (or yield)</li>
-			<li><tt>lane_h:resume()</tt>: to resume a coroutine Lane</li>
+			<li><tt>lane_h:get_threadname()</tt>: read the thread name</li>
+			<li><tt>lane_h:join()</tt>: wait for the lane to terminate (or yield)</li>
+			<li><tt>lane_h:resume()</tt>: resume a coroutine Lane</li>
 			<li><tt>lane_h.status</tt>: current status of the lane</li>
 		</ul>
 	</li>
 	<li>
 		Inside the lane
 		<ul>
-			<li><tt>lane_threadname()</tt>: to read or change the name of the thread</li>
-			<li><tt>set_finalizer()</tt>: to install a function called when the lane exits</li>
+			<li><tt>lane_threadname()</tt>: read or change the name of the thread</li>
+			<li><tt>set_finalizer()</tt>: install a function called when the lane exits</li>
 		</ul>
 	</li>
 	<li>
 		Given some Linda <tt>l</tt>
 		<ul>
-			<li><tt>l:cancel()</tt>: to mark a Linda for cancellation</li>
-			<li><tt>l:collectgarbage()</tt>: to trigger a GC cycle in the Linda's Keeper state</li>
-			<li><tt>l:deep()</tt>: returns a light userdata uniquely representing the Linda</li>
-			<li><tt>l:dump()</tt>: to have information about slot contents</li>
-			<li><tt>l:count()</tt>: to count data items</li>
-			<li><tt>l:get()</tt>: to read data without consuming it</li>
-			<li><tt>l:limit()</tt>: to cap the amount of transiting data</li>
-			<li><tt>l:receive()</tt>: to read one item of data from multiple slots</li>
-			<li><tt>l:receive_batched()</tt>: to to read several item of data from a single slot</li>
-			<li><tt>l:restrict()</tt>: to place a restraint on the operations that can be done</li>
-			<li><tt>l:send()</tt>: to append data</li>
-			<li><tt>l:set()</tt>: to replace the data</li>
-			<li><tt>l:wake()</tt>: to manually wake blocking calls</li>
+			<li><tt>l:cancel()</tt>: mark a Linda for cancellation</li>
+			<li><tt>l:collectgarbage()</tt>: trigger a GC cycle in the Linda's Keeper state</li>
+			<li><tt>l:deep()</tt>: obtain a light userdata uniquely representing the Linda</li>
+			<li><tt>l:dump()</tt>: have information about slot contents</li>
+			<li><tt>l:count()</tt>: obtain a count of data items in slots</li>
+			<li><tt>l:get()</tt>: read data without consuming it</li>
+			<li><tt>l:limit()</tt>: cap the amount of transiting data</li>
+			<li><tt>l:receive()</tt>: read one item of data from multiple slots</li>
+			<li><tt>l:receive_batched()</tt>: read several item of data from a single slot</li>
+			<li><tt>l:restrict()</tt>: place a restraint on the operations that can be done on a slot</li>
+			<li><tt>l:send()</tt>: append data</li>
+			<li><tt>l:set()</tt>: replace the data</li>
+			<li><tt>l:wake()</tt>: manually wake blocking calls</li>
 		</ul>
 	</li>
 	<li>
 		embedding
 		<ul>
-			<li><tt>luaopen_lanes_embedded</tt>: to manually initialize Lanes</li>
+			<li><tt>luaopen_lanes_embedded</tt>: manually initialize Lanes</li>
 		</ul>
 	</li>
  </ul>
