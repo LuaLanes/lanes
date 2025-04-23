@@ -38,6 +38,7 @@ CHANGE 2: BGe 27-Nov-24
                 - Returns nil, error in case of problem.
                 - Forces lane function body must return a non-nil first value on success because of the above.
             - lane:get_debug_threadname() renamed get_threadname().
+            - cancel_test() returns "soft"/"hard" instead of true when a cancellation request is active
         - Lindas:
             - lanes.linda()
                 - Arguments can be provided in any order.

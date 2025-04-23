@@ -71,7 +71,7 @@
 			</p>
 
 			<p>
-				This document was revised on 21-Apr-25, and applies to version <tt>4.0.0</tt>.
+				This document was revised on 23-Apr-25, and applies to version <tt>4.0.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -215,6 +215,7 @@
 	<li>
 		Inside the lane
 		<ul>
+			<li><tt>cancel_test()</tt>: check for cancellation requests</li>
 			<li><tt>lane_threadname()</tt>: read or change the name of the thread</li>
 			<li><tt>set_finalizer()</tt>: install a function called when the lane exits</li>
 		</ul>
@@ -1222,26 +1223,36 @@
 	First argument is a <tt>mode</tt>. It can be one of:
 	<ul>
 		<li>
-			<tt>"soft"</tt>: Cancellation will only cause <tt>cancel_test()</tt> to return <tt>true</tt>, so that the lane can cleanup manually.
+			<tt>"soft"</tt>: Cancellation will only cause <tt>cancel_test()</tt> to return <tt>"soft"</tt>, so that the lane can cleanup manually.
 			<br />
 			Lindas will also check for cancellation inside blocking calls to early out based on their <tt>wake_period</tt>.
 		</li>
 		<li>
-			<tt>"hard"</tt>: waits for the request to be processed, or a timeout to occur. <a href="#lindas">linda</a> operations detecting the cancellation request will raise a special cancellation error (meaning they won't return in that case).<br />
+			<tt>"hard"</tt>: waits for the request to be processed, or a timeout to occur. <a href="#lindas">linda</a> operations detecting the cancellation request will raise a special cancellation error (meaning they won't return in that case).
+			<br />
+			If the lane isn't actually waiting on a Linda when the request is issued, a lane calling <tt>cancel_test()</tt> will see it return <tt>"hard"</tt>.
+			<br />
 			<tt>wake_lane</tt> defaults to <tt>true</tt>, and <tt>timeout</tt> defaults to 0 if not specified.
 		</li>
 		<li>
 			<tt>"call"</tt>, <tt>"ret"</tt>, <tt>"line"</tt>, <tt>"count"</tt>: Asynchronously install the corresponding hook, then behave as <tt>"hard"</tt>.
+			<br />
+			If the lane has the opportunity to call <tt>cancel_test()</tt> before the hook is invoked, calling <tt>cancel_test()</tt> will see it return <tt>"hard"</tt>.
 		</li>
 		<li>
 			<tt>"all"</tt>: Installs all hooks in one shot, just to be sure.
 		</li>
 	</ul>
-	If <tt>mode</tt> is not specified, it defaults to <tt>"hard"</tt>.
+	<p>
+		If <tt>mode</tt> is not specified, it defaults to <tt>"hard"</tt>.
+	</p>
+</p>
+<p>
 	If <tt>wake_lane</tt> is <tt>true</tt>, the lane is also signalled so that execution returns from any pending <a href="#lindas">linda</a> operation. <a href="#lindas">linda</a> operations detecting the cancellation request return <tt>lanes.cancel_error</tt>.
 </p>
-<tt>timeout</tt> is an optional number &gt= 0. Defaults to infinite if left unspecified or <tt>nil</tt>.
-<br />
+<p>
+	<tt>timeout</tt> is an optional number &gt= 0. Defaults to infinite if left unspecified or <tt>nil</tt>.
+</p>
 <p>
 	If the lane is still running after the timeout expired, there is a chance lanes will freeze forever at shutdown when failing to terminate all free-running lanes within the specified timeout.
 </p>

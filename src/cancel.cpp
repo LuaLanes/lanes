@@ -133,7 +133,11 @@ static CancelOp WhichCancelOp(lua_State* const L_, StackIndex const idx_)
 LUAG_FUNC(cancel_test)
 {
     CancelRequest const _test{ CheckCancelRequest(L_) };
-    lua_pushboolean(L_, _test != CancelRequest::None);
+    if (_test == CancelRequest::None) {
+        lua_pushboolean(L_, 0);
+    } else {
+        luaG_pushstring(L_, (_test == CancelRequest::Soft) ? "soft" : "hard");
+    }
     return 1;
 }
 

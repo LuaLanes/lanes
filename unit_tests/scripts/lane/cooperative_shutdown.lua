@@ -23,7 +23,6 @@ end
 local lane3 = function()
 	lane_threadname("lane3")
 	-- this one cooperates too, because of the hook cancellation modes that Lanes will be using
-	-- but not with LuaJIT, because the function is compiled, and we don't call anyone, so no hook triggers
 	local fixture = require "fixture"
 	repeat until fixture.give_me_back(false)
 end
