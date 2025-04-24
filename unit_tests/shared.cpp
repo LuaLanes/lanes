@@ -58,8 +58,8 @@ namespace
             return 0;
         };
 
-        // a function that sleeps for the specified duration (in seconds)
-        lua_CFunction sSleepFor = +[](lua_State* const L_) {
+        // a function that blocks for the specified duration (in seconds) by putting the current thread to sleep
+        lua_CFunction sBlockFor = +[](lua_State* const L_) {
             std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
             lua_settop(L_, 1);
             if (luaG_type(L_, kIdxTop) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
@@ -88,11 +88,11 @@ namespace
 
         static luaL_Reg const sFixture[] = {
             { "freezing_finalizer", sFreezingFinalizer },
-            { "give_me_back()", sGiveMeBack },
+            { "give_me_back", sGiveMeBack },
             { "newlightuserdata", sNewLightUserData },
             { "newuserdata", sNewUserData },
             { "on_state_create", sOnStateCreate },
-            { "sleep_for", sSleepFor },
+            { "block_for", sBlockFor },
             { "throwing_finalizer", sThrowingFinalizer },
             { nullptr, nullptr }
         };

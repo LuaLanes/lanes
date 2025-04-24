@@ -1,10 +1,10 @@
-local lanes = require "lanes"
+local lanes = require "lanes".configure{on_state_create = require "fixture".on_state_create}
 
 -- launch lanes that cooperate properly with cancellation request
 
 local lane1 = function()
 	lane_threadname("lane1")
-	-- loop breaks on cancellation request
+	-- loop breaks on soft cancellation request
 	repeat
 		lanes.sleep(0)
 	until cancel_test()
@@ -42,7 +42,14 @@ local h2 = g2(linda)
 
 local h3 = g3()
 
--- wait until they are both started
-repeat until h1.status == "running" and h2.status == "waiting" and h3.status == "running"
+lanes.sleep(0.1)
+
+local is_running = function(lane_h)
+	local status = lane_h.status
+	return status == "running" or status == "waiting"
+end
+
+-- wait until they are all started
+repeat until is_running(h1) and is_running(h2) and is_running(h3)
 
 -- let the script terminate, Lanes should not crash at shutdown

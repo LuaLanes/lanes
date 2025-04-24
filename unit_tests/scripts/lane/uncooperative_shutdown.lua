@@ -8,7 +8,7 @@ local lanes = require "lanes".configure{shutdown_timeout = 0.001, on_state_creat
 -- launch lanes that blocks forever
 local lane = function()
 	local fixture = require "fixture"
-	fixture.sleep_for()
+	fixture.block_for()
 end
 
 -- the generator
