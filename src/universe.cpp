@@ -178,8 +178,8 @@ Universe* Universe::Create(lua_State* const L_)
 
     // Linked chains handling
     _U->selfdestructFirst = SELFDESTRUCT_END;
-    _U->initializeAllocatorFunction(L_);
-    _U->initializeOnStateCreate(L_);
+    _U->initializeAllocatorFunction(L_); // this can raise an error
+    _U->initializeOnStateCreate(L_); // this can raise an error
     _U->keepers.initialize(*_U, L_, static_cast<size_t>(_nbUserKeepers), _keepers_gc_threshold);
     STACK_CHECK(L_, 0);
 
@@ -463,7 +463,11 @@ int Universe::UniverseGC(lua_State* const L_)
             // that manifests as a crash inside ntdll!longjmp() function, in optimized builds only
             lua_error(L_);
         }
+    } else {
+        // we didn't use the error message, let's keep a clean stack
+        lua_pop(L_, 1);                                                                            // L_: U
     }
+    STACK_CHECK(L_, 1);
 
     // ---------------------------------------------------------
     // we don't reach that point if some lanes are still running
@@ -472,7 +476,9 @@ int Universe::UniverseGC(lua_State* const L_)
     // no need to mutex-protect this as all lanes in the universe are gone at that point
     Linda::DeleteTimerLinda(L_, std::exchange(_U->timerLinda, nullptr), PK);
 
-    _U->keepers.close();
+    if (!_U->keepers.close()) {
+        raise_luaL_error(L_, "INTERNAL ERROR: Keepers closed more than once");
+    }
 
     // remove the protected allocator, if any
     _U->protectedAllocator.removeFrom(L_);

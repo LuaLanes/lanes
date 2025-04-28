@@ -783,10 +783,14 @@ static void lane_main(Lane* const lane_)
         if (lane_->selfdestructRemove()) { // check and remove (under lock!)
             // We're a free-running thread and no-one is there to clean us up.
             lane_->closeState();
-            lane_->U->selfdestructMutex.lock();
-            // done with lua_close(), terminal shutdown sequence may proceed
-            lane_->U->selfdestructingCount.fetch_sub(1, std::memory_order_release);
-            lane_->U->selfdestructMutex.unlock();
+
+            // let's try not to crash if the lane didn't terminate gracefully and the Universe met its end
+            if (!lane_->flaggedAfterUniverseGC.load(std::memory_order_relaxed)) {
+                lane_->U->selfdestructMutex.lock();
+                // done with lua_close(), terminal shutdown sequence may proceed
+                lane_->U->selfdestructingCount.fetch_sub(1, std::memory_order_release);
+                lane_->U->selfdestructMutex.unlock();
+            }
 
             // we destroy ourselves, therefore our thread member too, from inside the thread body
             // detach so that we don't try to join, as this doesn't seem a good idea

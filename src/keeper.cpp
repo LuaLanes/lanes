@@ -952,15 +952,15 @@ void Keepers::collectGarbage()
 // #################################################################################################
 
 
-void Keepers::close()
+bool Keepers::close()
 {
     if (isClosing.test_and_set(std::memory_order_release)) {
-        assert(false); // should never close more than once in practice
-        return;
+        return false; // should never close more than once in practice
     }
 
+    // We may have not initialized the keepers if an error was raised in Universe::Create because of bad settings
     if (std::holds_alternative<std::monostate>(keeper_array)) {
-        return;
+        return true;
     }
 
     auto _closeOneKeeper = [](Keeper& keeper_) {
@@ -989,6 +989,7 @@ void Keepers::close()
     }
 
     keeper_array.emplace<std::monostate>();
+    return true;
 }
 
 // #################################################################################################
