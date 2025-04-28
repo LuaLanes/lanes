@@ -786,10 +786,8 @@ static void lane_main(Lane* const lane_)
 
             // let's try not to crash if the lane didn't terminate gracefully and the Universe met its end
             if (!lane_->flaggedAfterUniverseGC.load(std::memory_order_relaxed)) {
-                lane_->U->selfdestructMutex.lock();
                 // done with lua_close(), terminal shutdown sequence may proceed
                 lane_->U->selfdestructingCount.fetch_sub(1, std::memory_order_release);
-                lane_->U->selfdestructMutex.unlock();
             }
 
             // we destroy ourselves, therefore our thread member too, from inside the thread body

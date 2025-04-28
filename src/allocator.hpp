@@ -33,6 +33,8 @@ namespace lanes {
         // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
         static void operator delete([[maybe_unused]] void* const p_, [[maybe_unused]] lua_State* const L_) {}
 
+        ~AllocatorDefinition() = default;
+
         AllocatorDefinition(lua_Alloc const allocF_, void* const allocUD_) noexcept
         : allocF{ allocF_ }
         , allocUD{ allocUD_ }

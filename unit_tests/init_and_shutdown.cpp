@@ -117,6 +117,7 @@ TEST_CASE("lanes.configure.allocator")
     SECTION("allocator = 'protected'")
     {
         // no typo, should work
+        // TODO: Investigate why this test crashes when unloading lanes_core.dll when running against Lua 5.1 and Lua 5.2 RELEASE ONLY!
         L.requireSuccess("require 'lanes'.configure{allocator = 'protected'}");
     }
 
