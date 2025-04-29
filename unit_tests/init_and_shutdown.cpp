@@ -58,7 +58,7 @@ TEST_CASE("lanes.require 'lanes'")
 // #################################################################################################
 
 // allocator should be "protected", a C function returning a suitable userdata, or nil
-TEST_CASE("lanes.configure.allocator")
+TEST_CASE("lanes.configure.allocator/bool_number_table_string")
 {
     LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
 
@@ -90,6 +90,21 @@ TEST_CASE("lanes.configure.allocator")
 
     // ---------------------------------------------------------------------------------------------
 
+    SECTION("allocator = <string with a typo>")
+    {
+        // oops, a typo
+        L.requireFailure("require 'lanes'.configure{allocator = 'Protected'}");
+    }
+}
+
+// #################################################################################################
+
+TEST_CASE("lanes.configure.allocator/bad_functions")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
+    // ---------------------------------------------------------------------------------------------
+
     SECTION("allocator = <Lua function>")
     {
         L.requireFailure("require 'lanes'.configure{allocator = function() return {}, 12, 'yoy' end}");
@@ -102,38 +117,6 @@ TEST_CASE("lanes.configure.allocator")
         // a C function that doesn't return what we expect should cause an error too
         // TODO: for some reason, we use os.getenv here because using 'print' as the culprit, the tests deadlock in Release builds
         L.requireFailure("return type(require 'lanes'.configure{allocator = os.getenv})");
-    }
-
-    // ---------------------------------------------------------------------------------------------
-
-    SECTION("allocator = <string with a typo>")
-    {
-        // oops, a typo
-        L.requireFailure("require 'lanes'.configure{allocator = 'Protected'}");
-    }
-
-    // ---------------------------------------------------------------------------------------------
-
-    SECTION("allocator = 'protected'")
-    {
-        // no typo, should work
-        // TODO: Investigate why this test crashes when unloading lanes_core.dll when running against Lua 5.1 and Lua 5.2 RELEASE ONLY!
-        L.requireSuccess("require 'lanes'.configure{allocator = 'protected'}");
-    }
-
-    // ---------------------------------------------------------------------------------------------
-
-    SECTION("allocator = <good custom C allocator>")
-    {
-        // a function that provides what we expect is fine
-        static constexpr lua_CFunction _provideAllocator = +[](lua_State* const L_) {
-            lanes::AllocatorDefinition* const _def{ new (L_) lanes::AllocatorDefinition{} };
-            _def->initFrom(L_);
-            return 1;
-        };
-        lua_pushcfunction(L, _provideAllocator);
-        lua_setglobal(L, "ProvideAllocator");
-        L.requireSuccess("require 'lanes'.configure{allocator = ProvideAllocator}");
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -189,6 +172,39 @@ TEST_CASE("lanes.configure.allocator")
         L.requireFailure("require 'lanes'.configure{allocator = ProvideAllocator, internal_allocator = 'allocator'}");
     }
 }
+
+// #################################################################################################
+
+TEST_CASE("lanes.configure.allocator/good_function")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
+    SECTION("allocator = <good custom C allocator>")
+    {
+        // a function that provides what we expect is fine
+        static constexpr lua_CFunction _provideAllocator = +[](lua_State* const L_) {
+            lanes::AllocatorDefinition* const _def{ new (L_) lanes::AllocatorDefinition{} };
+            _def->initFrom(L_);
+            return 1;
+        };
+        lua_pushcfunction(L, _provideAllocator);
+        lua_setglobal(L, "ProvideAllocator");
+        L.requireSuccess("require 'lanes'.configure{allocator = ProvideAllocator}");
+    }
+}
+
+// #################################################################################################
+
+// TODO: Investigate why this test crashes when unloading lanes_core.dll when running against Lua 5.1 and Lua 5.2 RELEASE ONLY!
+// apparently, the mutex of ProtectedAllocator is deemed still in use. Crash goes away if I don't use it in protected_lua_Alloc
+TEST_CASE(("lanes.configure.allocator/protected"))
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
+    // no typo, should work
+    L.requireSuccess("require 'lanes'.configure{allocator = 'protected'}");
+}
+
 
 // #################################################################################################
 
