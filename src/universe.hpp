@@ -30,7 +30,7 @@ class ProtectedAllocator final
     static void* protected_lua_Alloc(void* const ud_, void* const ptr_, size_t const osize_, size_t const nsize_)
     {
         ProtectedAllocator* const allocator{ static_cast<ProtectedAllocator*>(ud_) };
-        std::lock_guard<std::mutex> guard{ allocator->mutex };
+        std::lock_guard<std::mutex> _guard{ allocator->mutex };
         return allocator->alloc(ptr_, osize_, nsize_);
     }
 

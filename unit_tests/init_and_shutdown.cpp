@@ -195,7 +195,7 @@ TEST_CASE("lanes.configure.allocator/good_function")
 
 // #################################################################################################
 
-// TODO: Investigate why this test crashes when unloading lanes_core.dll when running against Lua 5.1 and Lua 5.2 RELEASE ONLY!
+// TODO: investigate why this test crashes under AppVerifier on lanes_core.dll unload when running against Lua 5.1, 5.2 and 5.4 RELEASE ONLY!
 // apparently, the mutex of ProtectedAllocator is deemed still in use. Crash goes away if I don't use it in protected_lua_Alloc
 TEST_CASE(("lanes.configure.allocator/protected"))
 {
