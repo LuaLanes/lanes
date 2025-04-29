@@ -51,6 +51,16 @@ static constexpr RegistryUniqueKey kUniverseFullRegKey{ 0x1C2D76870DD9DD9Full };
 
 // #################################################################################################
 
+[[nodiscard]]
+void* ProtectedAllocator::Protected_lua_Alloc(void* const ud_, void* const ptr_, size_t const osize_, size_t const nsize_)
+{
+    ProtectedAllocator* const _allocator{ static_cast<ProtectedAllocator*>(ud_) };
+    std::lock_guard<std::mutex> _guard{ _allocator->mutex };
+    return _allocator->alloc(ptr_, osize_, nsize_);
+}
+
+// #################################################################################################
+
 Universe::Universe()
 {
     //---
