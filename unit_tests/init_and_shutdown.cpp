@@ -3,7 +3,7 @@
 
 // #################################################################################################
 
-TEST_CASE("lanes.require 'lanes'")
+TEST_CASE("Lua.require_lanes")
 {
     LuaState L{ LuaState::WithBaseLibs{ false }, LuaState::WithFixture{ false } };
 
@@ -418,7 +418,7 @@ TEST_CASE("lanes.configure.nb_user_keepers")
 
 // #################################################################################################
 
-TEST_CASE("lanes.configure.on_state_create")
+TEST_CASE("lanes.configure.on_state_create/configuration")
 {
     LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
 
@@ -775,7 +775,7 @@ TEST_CASE("lanes.configure.unknown_setting")
 
 #if LUAJIT_FLAVOR() == 0
 // TODO: this test crashes inside S.close() against LuaJIT. to be investigated
-TEST_CASE("lanes.finally.no fixture")
+TEST_CASE("lanes.finally.no_fixture")
 {
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
     // we need Lanes to be up. Since we run several 'scripts', we store it as a global
@@ -796,7 +796,7 @@ TEST_CASE("lanes.finally.no fixture")
 
 // #################################################################################################
 
-TEST_CASE("lanes.finally.with fixture")
+TEST_CASE("lanes.finally.with_fixture")
 {
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
 
@@ -814,7 +814,7 @@ TEST_CASE("lanes.finally.with fixture")
 
 // #################################################################################################
 
-TEST_CASE("lanes.finally.shutdown with an uncooperative lane")
+TEST_CASE("lanes.finally.shutdown_with_an_uncooperative_lane")
 {
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
     S.requireSuccess("lanes = require 'lanes'.configure()");
@@ -863,7 +863,7 @@ namespace
 
 // #################################################################################################
 
-TEST_CASE("lanes.on_state_create setting")
+TEST_CASE("lanes.configure.on_state_create/details")
 {
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
 
