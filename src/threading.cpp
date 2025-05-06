@@ -336,8 +336,8 @@ static int const gs_prio_remap[] = {
 //
 #define _PRIO_MODE SCHED_OTHER
 #define _PRIO_SCOPE PTHREAD_SCOPE_PROCESS
-#define _PRIO_HI 31
-#define _PRIO_0 15
+#define _PRIO_HI 15
+#define _PRIO_0 7
 #define _PRIO_LO 1
 #else
 #error "Unknown OS: not implemented!"
