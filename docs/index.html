@@ -71,7 +71,7 @@
 			</p>
 
 			<p>
-				This document was revised on 23-Apr-25, and applies to version <tt>4.0.0</tt>.
+				This document was revised on 07-May-25, and applies to version <tt>4.0.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -106,7 +106,7 @@
 		<li>Threads can be given priorities.</li>
 		<li>Lanes are cancellable, with proper cleanup.</li>
 		<li>No Lua-side application level locking - ever!</li>
-		<li>Several totally independant Lanes universes may coexist in an application, one per "master" Lua state.</li>
+		<li>Several totally independent Lanes universes may coexist in an application, one per "master" Lua state.</li>
 	</ul>
 
 
@@ -117,7 +117,7 @@
 		<li>Sharing full userdata between states needs special C side preparations (-&gt; <A HREF="#deep_userdata">deep userdata</A> and -&gt; <A HREF="#clonable_userdata">clonable userdata</A>).</li>
 		<li>Network level parallelism not included.</li>
 		<li>Multi-CPU is done with OS threads, not processes. A lane is a Lua full userdata, therefore it will exist only as long as the Lua state that created it still exists. Therefore, a lane won't continue execution after the main program's termination.</li>
-		<li>Just like independant Lua states, Lanes universes cannot communicate together.</li>
+		<li>Just like independent Lua states, Lanes universes cannot communicate together.</li>
 	</ul>
 </p>
 
@@ -190,6 +190,7 @@
 			<li><tt>lanes.genlock()</tt>: obtain an atomic-like data stack</li>
 			<li><tt>lanes.linda()</tt>: create a Linda</li>
 			<li><tt>lanes.nameof()</tt>: find where a value exists</li>
+			<li><tt>lanes.thread_priority_range()</tt>: obtain the valid range of thread priorities</li>
 			<li><tt>lanes.now_secs()</tt>: obtain the current clock value</li>
 			<li><tt>lanes.register()</tt>: scan modules so that functions using them can be transferred</li>
 			<li><tt>lanes.set_thread_priority()</tt>: change thread priority</li>
@@ -863,12 +864,13 @@
 		</tr>
 		<tr valign=top>
 			<td>
-				<code>.priority</code>
+				<code>.priority</code><br />
+				<code>.native_priority</code>
 			</td>
 			<td>integer</td>
 			<td>
-				The priority of lanes generated in the range -3..+3 (default is 0).
-				These values are a mapping over the actual priority range of the underlying implementation.<br />
+				<tt>priority</tt>: The priority of lanes in the range <tt>[-3,+3]</tt> (default is 0). These values are a mapping over the actual priority range of the underlying implementation.<br />
+				<tt>native_priority</tt>: The priority of lanes in a platform-dependent the range. Use <a href="#priority"><tt>lanes.thread_priority_range()</tt></a> to query said range.
 				Implementation and dependability of priorities varies by platform. Especially Linux kernel 2.6 is not supporting priorities in user mode.<br />
 				A lane can also change its own thread priority dynamically with <a href="#priority"><tt>lanes.set_thread_priority()</tt></a>.
 			</td>
@@ -957,14 +959,17 @@
 	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%">
 		<tr>
 			<td>
-				<pre>	lanes.set_thread_priority(prio)</pre>
+				<pre>	prio_min, prio_max = lanes.thread_priority_range(prio [,"native"])</pre>
+				<pre>	lanes.set_thread_priority(prio [,"native"])</pre>
 			</td>
 		</tr>
 	</table>
 <p>
 	Besides setting a default priority in the generator <a href="#generator_settings">settings</a>, each thread can change its own priority at will. This is also true for the main Lua state.
 	<br />
-	The priority must be in the range <tt>[-3,+3]</tt>.
+	<tt>lanes.thread_priority_range()</tt> returns the range of acceptable mapped values. If nothing is specified, should be <tt>[-3,3]</tt> or <tt>[0,3]</tt>, depending on the threading implementation.
+	<br />
+	<tt>lanes.thread_priority_range('native')</tt> returns the range of acceptable native values. The actual values are threading implementation dependent. And some implementations can only accept some values inside that range. YMMV.
 </p>
 
 

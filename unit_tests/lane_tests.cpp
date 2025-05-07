@@ -1,5 +1,7 @@
 #include "_pch.hpp"
+
 #include "shared.h"
+#include "lanes/src/threading.hpp"
 
 // #################################################################################################
 // #################################################################################################
@@ -28,6 +30,76 @@ TEST_CASE("lanes.nameof")
     S.requireReturnedString("local t, n = lanes.nameof(print); return t .. ': ' .. tostring(n)", "function: _G/print()");
     S.requireReturnedString("local t, n = lanes.nameof(string); return t .. ': ' .. tostring(n)", "table: _G/string[]");
     S.requireReturnedString("local t, n = lanes.nameof(string.sub); return t .. ': ' .. tostring(n)", "function: _G/string[]/sub()");
+}
+
+// #################################################################################################
+// #################################################################################################
+
+TEST_CASE("lanes.thread_priority_range")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+    S.requireSuccess("lanes = require 'lanes'.configure()");
+
+    S.requireSuccess("a, b = lanes.thread_priority_range(); print(a, b)");
+    S.requireSuccess("assert(type(a) == 'number' and type(b) == 'number' and b > a)");
+    S.requireSuccess("c, d = lanes.thread_priority_range('native'); print(c, d)");
+    S.requireSuccess("assert(type(c) == 'number' and type(d) == 'number' and d > c)");
+
+    // can't really test the range of values from pthread as they are platform-dependent
+    if constexpr (THREADAPI == THREADAPI_WINDOWS) {
+        // windows constants THREAD_PRIORITY_IDLE and THREAD_PRIORITY_TIME_CRITICAL
+        S.requireSuccess("assert(c == -15 and d == 15)");
+    }
+}
+
+// #################################################################################################
+// #################################################################################################
+
+TEST_CASE("lanes.set_thread_priority")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+    S.requireSuccess("lanes = require 'lanes'.configure()");
+
+    SECTION("mapped priorities")
+    {
+        std::string_view const _script{
+            " min_prio, max_prio = lanes.thread_priority_range()"
+            " for prio = min_prio, max_prio do"
+            "     lanes.set_thread_priority(prio)"
+            " end"
+        };
+        S.requireSuccess(_script);
+
+        S.requireFailure("lanes.set_thread_priority(min_prio - 1)");
+        S.requireFailure("lanes.set_thread_priority(max_prio + 1)");
+    }
+
+    SECTION("native priorities")
+    {
+        S.requireSuccess("min_prio, max_prio = lanes.thread_priority_range('native')");
+        if constexpr (THREADAPI == THREADAPI_WINDOWS) {
+            // Win32 range is -15 to 15, but only some values are accepted
+            S.requireSuccess("lanes.set_thread_priority(-15, 'native')"); // THREAD_PRIORITY_IDLE
+            S.requireFailure("lanes.set_thread_priority(-3, 'native')");
+            S.requireSuccess("lanes.set_thread_priority(-2, 'native')"); // THREAD_PRIORITY_LOWEST
+            S.requireSuccess("lanes.set_thread_priority(-1, 'native')"); // THREAD_PRIORITY_BELOW_NORMAL
+            S.requireSuccess("lanes.set_thread_priority(0, 'native')"); // THREAD_PRIORITY_NORMAL
+            S.requireSuccess("lanes.set_thread_priority(1, 'native')"); // THREAD_PRIORITY_ABOVE_NORMAL
+            S.requireSuccess("lanes.set_thread_priority(2, 'native')"); // THREAD_PRIORITY_HIGHEST
+            S.requireFailure("lanes.set_thread_priority(3, 'native')");
+            S.requireSuccess("lanes.set_thread_priority(-15, 'native')"); // THREAD_PRIORITY_TIME_CRITICAL
+        } else {
+            // until proven otherwise, the full set of values is supported by pthread
+            std::string_view const _script{
+                " for prio = min_prio, max_prio do"
+                "     lanes.set_thread_priority(prio, 'native')"
+                " end"
+            };
+            S.requireSuccess(_script);
+        }
+        S.requireFailure("lanes.set_thread_priority(min_prio - 1)");
+        S.requireFailure("lanes.set_thread_priority(max_prio + 1)");
+    }
 }
 
 // #################################################################################################
@@ -97,88 +169,109 @@ TEST_CASE("lanes.sleep.interactions with timers")
 // #################################################################################################
 // #################################################################################################
 
-TEST_CASE("lanes.gen")
+TEST_CASE("lanes.gen.argument_checks")
 {
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
     S.requireSuccess("lanes = require 'lanes'.configure()");
 
     // ---------------------------------------------------------------------------------------------
 
-    SECTION("argument checks")
-    {
-        // no parameter is bad
-        S.requireFailure("lanes.gen()");
+    // no argument is bad
+    S.requireFailure("lanes.gen()");
 
-        // minimal generator needs a function
-        S.requireSuccess("lanes.gen(function() end)");
+    // minimal generator needs a function
+    S.requireSuccess("lanes.gen(function() end)");
 
-        // acceptable parameters for the generator are strings, tables, nil, followed by the function body
-        S.requireSuccess("lanes.gen(nil, function() end)");
-        S.requireSuccess("lanes.gen('', function() end)");
-        S.requireSuccess("lanes.gen({}, function() end)");
-        S.requireSuccess("lanes.gen('', {}, function() end)");
-        S.requireSuccess("lanes.gen({}, '', function() end)");
-        S.requireSuccess("lanes.gen('', '', function() end)");
-        S.requireSuccess("lanes.gen({}, {}, function() end)");
+    // acceptable arguments for the generator are strings, tables, nil, followed by the function body
+    S.requireSuccess("lanes.gen(nil, function() end)");
+    S.requireSuccess("lanes.gen('', function() end)");
+    S.requireSuccess("lanes.gen({}, function() end)");
+    S.requireSuccess("lanes.gen('', {}, function() end)");
+    S.requireSuccess("lanes.gen({}, '', function() end)");
+    S.requireSuccess("lanes.gen('', '', function() end)");
+    S.requireSuccess("lanes.gen({}, {}, function() end)");
 
-        // anything different should fail: booleans, numbers, any userdata
-        S.requireFailure("lanes.gen(false, function() end)");
-        S.requireFailure("lanes.gen(true, function() end)");
-        S.requireFailure("lanes.gen(42, function() end)");
-        S.requireFailure("lanes.gen(io.stdin, function() end)");
-        S.requireFailure("lanes.gen(lanes.linda(), function() end)");
-        S.requireFailure("lanes.gen(lanes.linda():deep(), function() end)");
+    // anything different should fail: booleans, numbers, any userdata
+    S.requireFailure("lanes.gen(false, function() end)");
+    S.requireFailure("lanes.gen(true, function() end)");
+    S.requireFailure("lanes.gen(42, function() end)");
+    S.requireFailure("lanes.gen(io.stdin, function() end)");
+    S.requireFailure("lanes.gen(lanes.linda(), function() end)");
+    S.requireFailure("lanes.gen(lanes.linda():deep(), function() end)");
 
-        // even if parameter types are correct, the function must come last
-        S.requireFailure("lanes.gen(function() end, '')");
+    // even if argument types are correct, the function must come last
+    S.requireFailure("lanes.gen(function() end, '')");
 
-        // the strings should only list "known base libraries", in any order, or "*"
-        // if the particular Lua flavor we build for doesn't support them, they raise an error unless postfixed by '?'
-        S.requireSuccess("lanes.gen('base', function() end)");
+    // the strings should only list "known base libraries", in any order, or "*"
+    // if the particular Lua flavor we build for doesn't support them, they raise an error unless postfixed by '?'
+    S.requireSuccess("lanes.gen('base', function() end)");
 
-        // bit, ffi, jit are LuaJIT-specific
+    // bit, ffi, jit are LuaJIT-specific
 #if LUAJIT_FLAVOR() == 0
-        S.requireFailure("lanes.gen('bit,ffi,jit', function() end)");
-        S.requireSuccess("lanes.gen('bit?,ffi?,jit?', function() end)");
+    S.requireFailure("lanes.gen('bit,ffi,jit', function() end)");
+    S.requireSuccess("lanes.gen('bit?,ffi?,jit?', function() end)");
 #endif // LUAJIT_FLAVOR()
 
-        // bit32 library existed only in Lua 5.2, there is still a loader that will raise an error in Lua 5.3
+    // bit32 library existed only in Lua 5.2, there is still a loader that will raise an error in Lua 5.3
 #if LUA_VERSION_NUM == 502 || LUA_VERSION_NUM == 503
-        S.requireSuccess("lanes.gen('bit32', function() end)");
+    S.requireSuccess("lanes.gen('bit32', function() end)");
 #else // LUA_VERSION_NUM == 502 || LUA_VERSION_NUM == 503
-        S.requireFailure("lanes.gen('bit32', function() end)");
-        S.requireSuccess("lanes.gen('bit32?', function() end)");
+    S.requireFailure("lanes.gen('bit32', function() end)");
+    S.requireSuccess("lanes.gen('bit32?', function() end)");
 #endif // LUA_VERSION_NUM == 502 || LUA_VERSION_NUM == 503
 
-        // coroutine library appeared with Lua 5.2
+    // coroutine library appeared with Lua 5.2
 #if LUA_VERSION_NUM == 501
-        S.requireFailure("lanes.gen('coroutine', function() end)");
-        S.requireSuccess("lanes.gen('coroutine?', function() end)");
+    S.requireFailure("lanes.gen('coroutine', function() end)");
+    S.requireSuccess("lanes.gen('coroutine?', function() end)");
 #endif // LUA_VERSION_NUM == 501
 
-        S.requireSuccess("lanes.gen('debug', function() end)");
-        S.requireSuccess("lanes.gen('io', function() end)");
-        S.requireSuccess("lanes.gen('math', function() end)");
-        S.requireSuccess("lanes.gen('os', function() end)");
-        S.requireSuccess("lanes.gen('package', function() end)");
-        S.requireSuccess("lanes.gen('string', function() end)");
-        S.requireSuccess("lanes.gen('table', function() end)");
+    S.requireSuccess("lanes.gen('debug', function() end)");
+    S.requireSuccess("lanes.gen('io', function() end)");
+    S.requireSuccess("lanes.gen('math', function() end)");
+    S.requireSuccess("lanes.gen('os', function() end)");
+    S.requireSuccess("lanes.gen('package', function() end)");
+    S.requireSuccess("lanes.gen('string', function() end)");
+    S.requireSuccess("lanes.gen('table', function() end)");
 
-        // utf8 library appeared with Lua 5.3
+    // utf8 library appeared with Lua 5.3
 #if LUA_VERSION_NUM < 503
-        S.requireFailure("lanes.gen('utf8', function() end)");
-        S.requireSuccess("lanes.gen('utf8?', function() end)");
+    S.requireFailure("lanes.gen('utf8', function() end)");
+    S.requireSuccess("lanes.gen('utf8?', function() end)");
 #endif // LUA_VERSION_NUM < 503
 
-        S.requireSuccess("lanes.gen('lanes_core', function() end)");
-        // "*" repeated or combined with anything else is forbidden
-        S.requireFailure("lanes.gen('*', '*', function() end)");
-        S.requireFailure("lanes.gen('base', '*', function() end)");
-        // unknown names are forbidden
-        S.requireFailure("lanes.gen('Base', function() end)");
-        // repeating the same library more than once is forbidden
-        S.requireFailure("lanes.gen('base,base', function() end)");
-    }
+    S.requireSuccess("lanes.gen('lanes_core', function() end)");
+    // "*" repeated or combined with anything else is forbidden
+    S.requireFailure("lanes.gen('*', '*', function() end)");
+    S.requireFailure("lanes.gen('base', '*', function() end)");
+    // unknown names are forbidden
+    S.requireFailure("lanes.gen('Base', function() end)");
+    // repeating the same library more than once is forbidden
+    S.requireFailure("lanes.gen('base,base', function() end)");
+}
+
+// #################################################################################################
+// #################################################################################################
+
+TEST_CASE("lanes.gen.priority")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+    S.requireSuccess("lanes = require 'lanes'.configure()");
+
+    S.requireSuccess("lanes.gen({priority=1}, function() end)");
+    // AFAICT, 1 is accepted by all pthread flavors and win32 API
+    S.requireSuccess("lanes.gen({native_priority=1}, function() end)");
+    // shouldn't be able to provide 2 priority settings
+    S.requireFailure("lanes.gen({priority=1, native_priority=1}, function() end)");
+}
+
+// #################################################################################################
+// #################################################################################################
+
+TEST_CASE("lanes.gen.thread_naming")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+    S.requireSuccess("lanes = require 'lanes'.configure()");
 
     // ---------------------------------------------------------------------------------------------
 

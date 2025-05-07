@@ -204,7 +204,7 @@ class Lane final
     [[nodiscard]]
     bool selfdestructRemove();
     void securizeDebugName(lua_State* L_);
-    void startThread(int priority_);
+    void startThread(lua_State* L_, int priority_, NativePrioFlag native_);
     void storeDebugName( std::string_view const& name_);
     [[nodiscard]]
     int storeResults(lua_State* L_);

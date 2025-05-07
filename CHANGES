@@ -16,6 +16,7 @@ CHANGE 2: BGe 27-Nov-24
             - new function lanes.finally(). Installs a function that gets called at Lanes shutdown after attempting to terminate all lanes.
               If some lanes still run after the finalizer, Universe::__gc with raise an error or freeze, depending on its return value.
             - new function lanes.collectgarbage(), to force a full GC cycle in the keeper states.
+            - new function lanes.thread_priority_range(), to query the valid range of priorities.
             - Configuration settings:
                 - Boolean parameters only accept boolean values.
                 - allocator provider function is called with a string hint to distinguish internal allocations, lane and keeper states.
@@ -26,6 +27,8 @@ CHANGE 2: BGe 27-Nov-24
                 - verbose_errors removed. Use lane error_trace_level instead.
                 - with_timers is false by default.
             - Non-deep full userdata are processed during module registration just like ordinary module C functions, making them valid transferable (up)values (for example: io.stdin).
+            - thread API errors cause a Lua error instead of aborting the program.
+            - thread priorities can now be set using the native range of values, if desired.
         - Lanes:
             - Can no longer be "killed" by hard-stopping their thread without any resource cleanup (see lane:cancel()).
             - lanes.gen() settings:

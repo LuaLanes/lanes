@@ -1,6 +1,7 @@
 #pragma once
 
 #include "platform.h"
+#include "unique.hpp"
 
 #define THREADAPI_WINDOWS 1
 #define THREADAPI_PTHREAD 2
@@ -73,8 +74,15 @@ static constexpr int kThreadPrioMax{ +3 };
 // #################################################################################################
 // #################################################################################################
 
-void THREAD_SETNAME(std::string_view const& name_);
-void THREAD_SET_PRIORITY(int prio_, bool sudo_);
-void THREAD_SET_AFFINITY(unsigned int aff_);
+DECLARE_UNIQUE_TYPE(SudoFlag, bool);
+DECLARE_UNIQUE_TYPE(NativePrioFlag, bool);
 
-void THREAD_SET_PRIORITY(std::thread& thread_, int prio_, bool sudo_);
+std::pair<int, int> THREAD_NATIVE_PRIOS();
+
+void THREAD_SETNAME(std::string_view const& name_);
+
+void THREAD_SET_PRIORITY(lua_State* L_, int prio_, NativePrioFlag native_, SudoFlag sudo_);
+
+void THREAD_SET_AFFINITY(lua_State* L_, unsigned int aff_);
+
+void THREAD_SET_PRIORITY(lua_State* L_, std::thread& thread_, int prio_, NativePrioFlag native_, SudoFlag sudo_);

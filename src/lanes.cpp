@@ -137,13 +137,15 @@ LUAG_FUNC(set_singlethreaded)
 LUAG_FUNC(set_thread_priority)
 {
     lua_Integer const _prio{ luaL_checkinteger(L_, 1) };
+    NativePrioFlag const _native{ std::string_view{ "native" } == luaL_optstring(L_, 2, "mapped") };
     // public Lanes API accepts a generic range -3/+3
     // that will be remapped into the platform-specific scheduler priority scheme
     // On some platforms, -3 is equivalent to -2 and +3 to +2
-    if (_prio < kThreadPrioMin || _prio > kThreadPrioMax) {
+    if (!_native && (_prio < kThreadPrioMin || _prio > kThreadPrioMax)) {
         raise_luaL_error(L_, "priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, _prio);
     }
-    THREAD_SET_PRIORITY(static_cast<int>(_prio), Universe::Get(L_)->sudo);
+
+    THREAD_SET_PRIORITY(L_, static_cast<int>(_prio), _native, Universe::Get(L_)->sudo);
     return 0;
 }
 
@@ -155,7 +157,8 @@ LUAG_FUNC(set_thread_affinity)
     if (_affinity <= 0) {
         raise_luaL_error(L_, "invalid affinity (%d)", _affinity);
     }
-    THREAD_SET_AFFINITY(static_cast<unsigned int>(_affinity));
+
+    THREAD_SET_AFFINITY(L_, static_cast<unsigned int>(_affinity));
     return 0;
 }
 
@@ -236,9 +239,26 @@ int lanes_register(lua_State* const L_)
 
 // #################################################################################################
 
+LUAG_FUNC(thread_priority_range)
+{
+    NativePrioFlag const _native{ std::string_view{ "native" } == luaL_optstring(L_, 1, "mapped") };
+    if (_native) {
+        auto const [_prio_min, _prio_max] = THREAD_NATIVE_PRIOS();
+        lua_pushinteger(L_, _prio_min);
+        lua_pushinteger(L_, _prio_max);
+    } else {
+        lua_pushinteger(L_, kThreadPrioMin);
+        lua_pushinteger(L_, kThreadPrioMax);
+    }
+    return 2;
+}
+
+// #################################################################################################
+
 //--- [] means can be nil
 // lane_ud = lane_new( function
 //                   , [libs_str]
+//                   , [prio_is_native_bool]
 //                   , [priority_int]
 //                   , [globals_tbl]
 //                   , [package_tbl]
@@ -255,15 +275,16 @@ LUAG_FUNC(lane_new)
 {
     static constexpr StackIndex kFuncIdx{ 1 };
     static constexpr StackIndex kLibsIdx{ 2 };
-    static constexpr StackIndex kPrioIdx{ 3 };
-    static constexpr StackIndex kGlobIdx{ 4 };
-    static constexpr StackIndex kPackIdx{ 5 };
-    static constexpr StackIndex kRequIdx{ 6 };
-    static constexpr StackIndex kGcCbIdx{ 7 };
-    static constexpr StackIndex kNameIdx{ 8 };
-    static constexpr StackIndex kErTlIdx{ 9 };
-    static constexpr StackIndex kAsCoro{ 10 };
-    static constexpr StackIndex kFixedArgsIdx{ 10 };
+    static constexpr StackIndex kPrinIdx{ 3 };
+    static constexpr StackIndex kPrioIdx{ 4 };
+    static constexpr StackIndex kGlobIdx{ 5 };
+    static constexpr StackIndex kPackIdx{ 6 };
+    static constexpr StackIndex kRequIdx{ 7 };
+    static constexpr StackIndex kGcCbIdx{ 8 };
+    static constexpr StackIndex kNameIdx{ 9 };
+    static constexpr StackIndex kErTlIdx{ 10 };
+    static constexpr StackIndex kAsCoro{ 11 };
+    static constexpr StackIndex kFixedArgsIdx{ 11 };
 
     int const _nargs{ lua_gettop(L_) - kFixedArgsIdx };
     LUA_ASSERT(L_, _nargs >= 0);
@@ -400,21 +421,22 @@ LUAG_FUNC(lane_new)
     // public Lanes API accepts a generic range -3/+3
     // that will be remapped into the platform-specific scheduler priority scheme
     // On some platforms, -3 is equivalent to -2 and +3 to +2
-    int const _priority{
+    auto const [_priority, _native] {
         std::invoke([L = L_]() {
+            NativePrioFlag const _native{ static_cast<bool>(lua_toboolean(L, kPrinIdx)) };
             StackIndex const _prio_idx{ lua_isnoneornil(L, kPrioIdx) ? kIdxNone : kPrioIdx };
-            if (_prio_idx == 0) {
-                return kThreadPrioDefault;
+            if (_prio_idx == kIdxNone) {
+                return std::make_pair(kThreadPrioDefault, _native);
             }
             int const _priority{ static_cast<int>(lua_tointeger(L, _prio_idx)) };
-            if ((_priority < kThreadPrioMin || _priority > kThreadPrioMax)) {
+            if (!_native && (_priority < kThreadPrioMin || _priority > kThreadPrioMax)) {
                 raise_luaL_error(L, "Priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, _priority);
             }
-            return _priority;
+            return std::make_pair(_priority, _native);
         })
     };
 
-    _lane->startThread(_priority);
+    _lane->startThread(L_, _priority, _native);
 
     STACK_GROW(_L2, _nargs + 3);
     STACK_GROW(L_, 3);
@@ -658,6 +680,7 @@ namespace {
             { Universe::kFinally, Universe::InitializeFinalizer },
             { "linda", LG_linda },
             { "nameof", LG_nameof },
+            { "thread_priority_range", LG_thread_priority_range },
             { "now_secs", LG_now_secs },
             { "register", lanes_register },
             { "set_singlethreaded", LG_set_singlethreaded },
@@ -752,9 +775,6 @@ LUAG_FUNC(configure)
         LANES_VERSION_PATCH
     );                                                                                             // L_: settings M VERSION
     lua_setfield(L_, -2, "version");                                                               // L_: settings M
-
-    lua_pushinteger(L_, kThreadPrioMax);                                                           // L_: settings M kThreadPrioMax
-    lua_setfield(L_, -2, "max_prio");                                                              // L_: settings M
 
     kCancelError.pushKey(L_);                                                                      // L_: settings M kCancelError
     lua_setfield(L_, -2, "cancel_error");                                                          // L_: settings M

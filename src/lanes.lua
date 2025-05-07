@@ -280,6 +280,10 @@ local opt_validators =
         local tv = type(v_)
         return (tv == "string") and v_ or raise_option_error("name", tv, v_)
     end,
+    native_priority = function(v_)
+        local tv = type(v_)
+        return (tv == "number") and v_ or raise_option_error("native_priority", tv, v_)
+    end,
     package = function(v_)
         local tv = type(v_)
         return (tv == "table") and v_ or raise_option_error("package", tv, v_)
@@ -295,7 +299,7 @@ local opt_validators =
 }
 
 -- #############################################################################################
--- ##################################### lanes.gen() ###########################################
+-- ################################### lanes.gen/coro() ########################################
 -- #############################################################################################
 
 local process_gen_opt = function(...)
@@ -367,8 +371,15 @@ local process_gen_opt = function(...)
             opt[k] = validator(v)
         end
     end
+
+    -- special case: can't have priority and native_priority at the same time
+    if opt.priority and opt.native_priority then
+        error "priority and native_priority cannot be specified together"
+    end
     return func, libs, opt
 end -- process_gen_opt
+
+-- #################################################################################################
 
 -- lane_h[1..n]: lane results, same as via 'lane_h:join()'
 -- lane_h[0]:    can be read to make sure a thread has finished (gives the number of available results)
@@ -408,25 +419,28 @@ end -- process_gen_opt
 -- Calling with a function argument ('lane_func') ends the string/table
 -- modifiers, and prepares a lane generator.
 
+local make_generator = function(is_coro_, ...)
+    local func, libs, opt = process_gen_opt(...)
+    local core_lane_new = assert(core.lane_new)
+    local prio_is_native = opt.native_priority and true or false
+    local priority, globals, package, required, gc_cb, name, error_trace_level = opt.priority or opt.native_priority, opt.globals, opt.package or package, opt.required, opt.gc_cb, opt.name, error_trace_levels[opt.error_trace_level]
+    return function(...)
+        -- must pass functions args last else they will be truncated to the first one
+        return core_lane_new(func, libs, prio_is_native, priority, globals, package, required, gc_cb, name, error_trace_level, is_coro_, ...)
+    end
+end -- make_generator
+
+-- #################################################################################################
+
 -- receives a sequence of strings and tables, plus a function
 local gen = function(...)
-    local func, libs, opt = process_gen_opt(...)
-    local core_lane_new = assert(core.lane_new)
-    local priority, globals, package, required, gc_cb, name, error_trace_level = opt.priority, opt.globals, opt.package or package, opt.required, opt.gc_cb, opt.name, error_trace_levels[opt.error_trace_level]
-    return function(...)
-        -- must pass functions args last else they will be truncated to the first one
-        return core_lane_new(func, libs, priority, globals, package, required, gc_cb, name, error_trace_level, false, ...)
-    end
+    return make_generator(false, ...)
 end -- gen()
 
+-- #################################################################################################
+
 local coro = function(...)
-    local func, libs, opt = process_gen_opt(...)
-    local core_lane_new = assert(core.lane_new)
-    local priority, globals, package, required, gc_cb, name, error_trace_level = opt.priority, opt.globals, opt.package or package, opt.required, opt.gc_cb, opt.name, error_trace_levels[opt.error_trace_level]
-    return function(...)
-        -- must pass functions args last else they will be truncated to the first one
-        return core_lane_new(func, libs, priority, globals, package, required, gc_cb, name, error_trace_level, true, ...)
-    end
+    return make_generator(true, ...)
 end -- coro()
 
 -- #################################################################################################
@@ -656,7 +670,8 @@ local configure_timers = function()
                 end
             end
         end -- timer_body()
-        timer_lane = gen("lanes_core,table", { name = "LanesTimer", package = {}, priority = core.max_prio }, timer_body)()
+        local min_prio, max_prio = core.thread_priority_range()
+        timer_lane = gen("lanes_core,table", { name = "LanesTimer", package = {}, priority = max_prio }, timer_body)()
     end -- first_time
 
     -----
@@ -876,6 +891,7 @@ local configure = function(settings_)
     lanes.set_thread_affinity = core.set_thread_affinity
     lanes.set_thread_priority = core.set_thread_priority
     lanes.sleep = core.sleep
+    lanes.thread_priority_range = core.thread_priority_range
     lanes.threads = core.threads or function() error "lane tracking is not available" end -- core.threads isn't registered if settings.track_lanes is false
 
     lanes.gen = gen

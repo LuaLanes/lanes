@@ -80,7 +80,7 @@ build_DUE:
 run_unit_tests: build_lanes build_unit_tests build_DUE
 	@echo =========================================================================================
 	$(_PREFIX) $(_UNITTEST_TARGET) --list-tests
-	$(_PREFIX) $(_UNITTEST_TARGET) --rng-seed 0 -s scripted_tests.lane.tasking_cancelling
+	$(_PREFIX) $(_UNITTEST_TARGET) --rng-seed 0
 
 debug_unit_tests: build_lanes build_unit_tests build_DUE
 	@echo =========================================================================================

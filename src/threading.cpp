@@ -49,6 +49,7 @@ THE SOFTWARE.
 
 #endif // __linux__
 
+#include "compat.hpp"
 #include "threading.hpp"
 
 #if !defined(PLATFORM_XBOX) && !defined(PLATFORM_WIN32) && !defined(PLATFORM_POCKETPC)
@@ -82,25 +83,42 @@ THE SOFTWARE.
 #pragma warning(disable : 4054)
 #endif
 
+static constexpr std::string_view StripFuncName(std::string_view const& where_)
+{
+    std::string_view funcname_{ where_ };
+
+    auto _args_pos{ funcname_.find_first_of('(') };
+    funcname_ = funcname_.substr(0, _args_pos);
+    auto _name_pos{ funcname_.find_last_of(' ') };
+    funcname_.remove_prefix(_name_pos + 1);
+    return funcname_;
+}
+
 /*
  * FAIL is for unexpected API return values - essentially programming
  * error in _this_ code.
  */
 #if HAVE_WIN32
-static void FAIL(char const* funcname_, DWORD const rc_)
+
+template <typename F, typename... ARGS>
+void Win32Invoke(lua_State* const L_, std::string_view const& where_, F& f_, ARGS... args_)
 {
+    auto const _ret{ std::invoke(f_, std::forward<ARGS>(args_)...) };
+    if (!_ret) {
+        auto const _rc{ GetLastError() };
+        std::string_view const _funcname{ StripFuncName(where_) };
+
 #if defined(PLATFORM_XBOX)
-    fprintf(stderr, "%s() failed! (%d)\n", funcname_, rc_);
-#else  // PLATFORM_XBOX
-    char buf[256];
-    FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, rc_, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 256, nullptr);
-    fprintf(stderr, "%s() failed! [GetLastError() -> %lu] '%s'", funcname_, rc_, buf);
+        luaG_pushstring(L_, "%s() failed with code %d", _funcname.data(), _rc);
+#else // PLATFORM_XBOX
+        char _buf[256];
+        FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, _rc, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), _buf, 256, nullptr);
+        luaG_pushstring(L_, "%s() failed with code %d '%s'", _funcname.data(), _rc, _buf);
 #endif // PLATFORM_XBOX
-#ifdef _MSC_VER
-    __debugbreak(); // give a chance to the debugger!
-#endif              // _MSC_VER
-    abort();
+        raise_lua_error(L_);
+    }
 }
+
 #endif // HAVE_WIN32
 
 /*---=== Threading ===---*/
@@ -121,33 +139,35 @@ static int const gs_prio_remap[] = {
 
 // #################################################################################################
 
-void THREAD_SET_PRIORITY(int prio_, [[maybe_unused]] bool sudo_)
+std::pair<int, int> THREAD_NATIVE_PRIOS()
 {
-    // prio range [-3,+3] was checked by the caller
-    if (!SetThreadPriority(GetCurrentThread(), gs_prio_remap[prio_ + 3])) {
-        FAIL("THREAD_SET_PRIORITY", GetLastError());
-    }
+    return std::make_pair(THREAD_PRIORITY_IDLE, THREAD_PRIORITY_TIME_CRITICAL);
 }
 
 // #################################################################################################
 
-void THREAD_SET_PRIORITY(std::thread& thread_, int prio_, [[maybe_unused]] bool sudo_)
+[[nodiscard]]
+void THREAD_SET_PRIORITY(lua_State* const L_, int const prio_, NativePrioFlag const native_, [[maybe_unused]] SudoFlag const sudo_)
 {
-    // prio range [-3,+3] was checked by the caller
-    // for some reason when building for mingw, native_handle() is an unsigned long long, but HANDLE is a void*
-    // -> need a strong cast to make g++ happy
-    if (!SetThreadPriority(thread_.native_handle(), gs_prio_remap[prio_ + 3])) {
-        FAIL("THREAD_SET_PRIORITY", GetLastError());
-    }
+    // mapped prio range [-3,+3] was checked by the caller
+    return Win32Invoke(L_, std::source_location::current().function_name(), SetThreadPriority, GetCurrentThread(), native_ ? prio_ : gs_prio_remap[prio_ + 3]);
 }
 
 // #################################################################################################
 
-void THREAD_SET_AFFINITY(unsigned int aff_)
+[[nodiscard]]
+void THREAD_SET_PRIORITY(lua_State* const L_, std::thread& thread_, int const prio_, NativePrioFlag const native_, [[maybe_unused]] SudoFlag const sudo_)
 {
-    if (!SetThreadAffinityMask(GetCurrentThread(), aff_)) {
-        FAIL("THREAD_SET_AFFINITY", GetLastError());
-    }
+    // mapped prio range [-3,+3] was checked by the caller
+    return Win32Invoke(L_, std::source_location::current().function_name(), SetThreadPriority, thread_.native_handle(), native_ ? prio_ : gs_prio_remap[prio_ + 3]);
+}
+
+// #################################################################################################
+
+[[nodiscard]]
+void THREAD_SET_AFFINITY(lua_State* const L_, unsigned int aff_)
+{
+    return Win32Invoke(L_, std::source_location::current().function_name(), SetThreadAffinityMask, GetCurrentThread(), aff_);
 }
 
 // #################################################################################################
@@ -215,24 +235,24 @@ static int pthread_attr_setschedpolicy(pthread_attr_t* attr, int policy)
 #endif // pthread_attr_setschedpolicy()
 #endif // defined(__MINGW32__) || defined(__MINGW64__)
 
-static void _PT_FAIL(int rc, const char* name, const char* file, int line)
+template <typename F, typename... ARGS>
+void PthreadInvoke(lua_State* const L_, std::string_view const& where_, F& f_, ARGS... args_)
 {
-    const char* why = (rc == EINVAL) ? "EINVAL" 
-        : (rc == EBUSY)              ? "EBUSY"
-        : (rc == EPERM)              ? "EPERM"
-        : (rc == ENOMEM)             ? "ENOMEM"
-        : (rc == ESRCH)              ? "ESRCH"
-        : (rc == ENOTSUP)            ? "ENOTSUP"
-                                     : "<UNKNOWN>";
-    fprintf(stderr, "%s %d: %s failed, %d %s\n", file, line, name, rc, why);
-    abort();
-}
-#define PT_CALL(call) \
-    { \
-        int rc = call; \
-        if (rc != 0) \
-            _PT_FAIL(rc, #call, __FILE__, __LINE__); \
+    auto const _rc{ std::invoke(f_, std::forward<ARGS>(args_)...) };
+    if (_rc) {
+        std::string_view const _funcname{ StripFuncName(where_) };
+
+        char const* _why = (_rc == EINVAL) ? "EINVAL"
+            : (_rc == EBUSY)              ? "EBUSY"
+            : (_rc == EPERM)              ? "EPERM"
+            : (_rc == ENOMEM)             ? "ENOMEM"
+            : (_rc == ESRCH)              ? "ESRCH"
+            : (_rc == ENOTSUP)            ? "ENOTSUP"
+                                          : "<UNKNOWN>";
+
+        raise_luaL_error(L_, "%s() failed with code %s", _funcname.data(), _why);
     }
+}
 
 // array of 7 thread priority values, hand-tuned by platform so that we offer a uniform [-3,+3] public priority range
 static int const gs_prio_remap[] = {
@@ -357,22 +377,18 @@ static int const gs_prio_remap[] = {
 #endif // _PRIO_0
 };
 
-void THREAD_SET_PRIORITY(int prio_, [[maybe_unused]] bool sudo_)
-{
-#ifdef PLATFORM_LINUX
-    if (!sudo_) // only root-privileged process can change priorities
-        return;
-#endif // PLATFORM_LINUX
+// #################################################################################################
 
-    struct sched_param sp;
-    // prio range [-3,+3] was checked by the caller
-    sp.sched_priority = gs_prio_remap[prio_ + 3];
-    PT_CALL(pthread_setschedparam(pthread_self(), _PRIO_MODE, &sp));
+std::pair<int, int> THREAD_NATIVE_PRIOS()
+{
+    int const _prio_min{ sched_get_priority_min(_PRIO_MODE) };
+    int const _prio_max{ sched_get_priority_max(_PRIO_MODE) };
+    return std::make_pair(_prio_min, _prio_max);
 }
 
 // #################################################################################################
 
-void THREAD_SET_PRIORITY(std::thread& thread_, int prio_, [[maybe_unused]] bool sudo_)
+void THREAD_SET_PRIORITY(lua_State* const L_, int const prio_, NativePrioFlag const native_, [[maybe_unused]] SudoFlag const sudo_)
 {
 #ifdef PLATFORM_LINUX
     if (!sudo_) // only root-privileged process can change priorities
@@ -381,28 +397,41 @@ void THREAD_SET_PRIORITY(std::thread& thread_, int prio_, [[maybe_unused]] bool 
 
     struct sched_param sp;
     // prio range [-3,+3] was checked by the caller
-    sp.sched_priority = gs_prio_remap[prio_ + 3];
-    PT_CALL(pthread_setschedparam(thread_.native_handle(), _PRIO_MODE, &sp));
+    sp.sched_priority = native_ ? prio_ : gs_prio_remap[prio_ + 3];
+    PthreadInvoke(L_, std::source_location::current().function_name(), pthread_setschedparam, pthread_self(), _PRIO_MODE, &sp);
+}
+
+// #################################################################################################
+
+void THREAD_SET_PRIORITY(lua_State* const L_, std::thread& thread_, int const prio_, NativePrioFlag const native_, [[maybe_unused]] SudoFlag const sudo_)
+{
+#ifdef PLATFORM_LINUX
+    if (!sudo_) // only root-privileged process can change priorities
+        return;
+#endif // PLATFORM_LINUX
+
+    struct sched_param sp;
+    // prio range [-3,+3] was checked by the caller
+    sp.sched_priority = native_ ? prio_ : gs_prio_remap[prio_ + 3];
+    PthreadInvoke(L_, std::source_location::current().function_name(), pthread_setschedparam, thread_.native_handle(), _PRIO_MODE, &sp);
 }
 
 // #################################################################################################
 
 #ifdef __PROSPERO__
 
-void THREAD_SET_AFFINITY(unsigned int aff_)
+void THREAD_SET_AFFINITY(lua_State* const L_, unsigned int aff_)
 {
-    scePthreadSetaffinity(scePthreadSelf(), aff_);
+    PthreadInvoke(L_, std::source_location::current().function_name(), scePthreadSetaffinity, scePthreadSelf(), aff_);
 }
 
 #else // __PROSPERO__
 
-void THREAD_SET_AFFINITY(unsigned int aff_)
+void THREAD_SET_AFFINITY(lua_State* const L_, unsigned int aff_)
 {
 #if HAVE_WIN32 // "hybrid": Win32 API is available, and pthread too
     // since pthread_setaffinity_np can be missing (for example mingw), use win32 api instead
-    if (!SetThreadAffinityMask(GetCurrentThread(), aff_)) {
-        FAIL("THREAD_SET_AFFINITY", GetLastError());
-    }
+    Win32Invoke(L_, std::source_location::current().function_name(), SetThreadAffinityMask, GetCurrentThread(), aff_);
 #else // pure pthread
     int bit = 0;
 #ifdef __NetBSD__
@@ -422,12 +451,13 @@ void THREAD_SET_AFFINITY(unsigned int aff_)
         aff_ >>= 1;
     }
 #ifdef __ANDROID__
-    PT_CALL(sched_setaffinity(pthread_self(), sizeof(cpu_set_t), &cpuset));
+    
+    PthreadInvoke(L_, std::source_location::current().function_name(), sched_setaffinity, pthread_self(), sizeof(cpu_set_t), &cpuset);
 #elif defined(__NetBSD__)
-    PT_CALL(pthread_setaffinity_np(pthread_self(), cpuset_size(cpuset), cpuset));
+    PthreadInvoke(L_, std::source_location::current().function_name(), pthread_setaffinity_np, pthread_self(), cpuset_size(cpuset), cpuset);
     cpuset_destroy(cpuset);
 #else
-    PT_CALL(pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset));
+    PthreadInvoke(L_, std::source_location::current().function_name(), pthread_setaffinity_np, pthread_self(), sizeof(cpu_set_t), &cpuset);
 #endif
 #endif // PLATFORM_MINGW
 }
@@ -447,7 +477,7 @@ void THREAD_SETNAME(std::string_view const& name_)
 
 void THREAD_SETNAME(std::string_view const& name_)
 {
-    // exact API to set the thread name is platform-dependant
+    // exact API to set the thread name is platform-dependent
     // if you need to fix the build, or if you know how to fill a hole, tell me (bnt.germain@gmail.com) so that I can submit the fix in github.
 #if defined PLATFORM_MINGW
     pthread_setname_np(pthread_self(), name_.data());

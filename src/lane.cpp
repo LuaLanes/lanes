@@ -1169,11 +1169,11 @@ void Lane::securizeDebugName(lua_State* const L_)
 
 // #################################################################################################
 
-void Lane::startThread(int const priority_)
+void Lane::startThread(lua_State* const L_, int const priority_, NativePrioFlag native_)
 {
     thread = std::thread([this]() { lane_main(this); });
     if (priority_ != kThreadPrioDefault) {
-        THREAD_SET_PRIORITY(thread, priority_, U->sudo);
+        THREAD_SET_PRIORITY(L_, thread, priority_, native_, U->sudo);
     }
 }
 

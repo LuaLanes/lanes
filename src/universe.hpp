@@ -4,6 +4,7 @@
 #include "cancel.hpp"
 #include "keeper.hpp"
 #include "lanesconf.h"
+#include "threading.hpp"
 #include "tracker.hpp"
 #include "uniquekey.hpp"
 
@@ -70,9 +71,9 @@ class Universe final
 
 #ifdef PLATFORM_LINUX
     // Linux needs to check, whether it's been run as root
-    bool const sudo{ geteuid() == 0 };
+    SudoFlag const sudo{ geteuid() == 0 };
 #else
-    bool const sudo{ false };
+    SudoFlag const sudo{ false };
 #endif // PLATFORM_LINUX
 
     // for verbose errors
