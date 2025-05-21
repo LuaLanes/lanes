@@ -191,23 +191,33 @@ int KeyUD::pop(KeeperState const K_, int const minCount_, int const maxCount_)
     int const _popCount{ std::min(count, maxCount_) };
     LUA_ASSERT(K_, KeyUD::GetPtr(K_, kIdxTop) == this);                                            // K_: ... this
     prepareAccess(K_, kIdxTop);                                                                    // K_: ... fifo
+
+    STACK_CHECK_START_REL(K_, 0);
     StackIndex const _fifo_idx{ lua_gettop(K_) };
     // each iteration pushes a value on the stack!
     STACK_GROW(K_, _popCount + 2);
-    // skip first item, we will push it last
-    for (int const _i : std::ranges::iota_view{ 1, _popCount }) {
+
+    // remove an element from fifo sequence and push it on the stack
+    auto _extractFifoItem = [K = K_, first = first, fifo_idx = lua_gettop(K_)](int const _i)
+    {
+        STACK_CHECK_START_REL(K, 0);
         int const _at{ first + _i };
         // push item on the stack
-        lua_rawgeti(K_, _fifo_idx, _at);                                                           // K_: ... fifo val
+        lua_rawgeti(K, fifo_idx, _at);                                                             // K_: ... fifo val
         // remove item from the fifo
-        lua_pushnil(K_);                                                                           // K_: ... fifo val nil
-        lua_rawseti(K_, _fifo_idx, _at);                                                           // K_: ... fifo val
+        lua_pushnil(K);                                                                            // K_: ... fifo val nil
+        lua_rawseti(K, fifo_idx, _at);                                                             // K_: ... fifo val
+        STACK_CHECK(K, 1);
+    };
+
+    // skip first item, we will push it last to avoid shifting the whole stack when removing 'fifo'
+    for (int const _i : std::ranges::iota_view{ 1, _popCount }) {
+        _extractFifoItem(_i);                                                                      // K_: ... fifo val1...valN
     }
     // now process first item
-    lua_rawgeti(K_, _fifo_idx, first);                                                             // K_: ... fifo vals val
-    lua_pushnil(K_);                                                                               // K_: ... fifo vals val nil
-    lua_rawseti(K_, _fifo_idx, first);                                                             // K_: ... fifo vals val
-    lua_replace(K_, _fifo_idx);                                                                    // K_: ... vals
+    _extractFifoItem(0);                                                                           // K_: ... fifo val1...valN val0
+    STACK_CHECK(K_, _popCount);
+    lua_replace(K_, _fifo_idx);                                                                    // K_: ... val0...valN
 
     // avoid ever-growing indexes by resetting each time we detect the fifo is empty
     int const _new_count{ count - _popCount };
