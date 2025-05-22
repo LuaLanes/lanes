@@ -38,6 +38,53 @@ THE SOFTWARE.
 #include "debugspew.hpp"
 #include "lane.hpp"
 
+namespace {
+    namespace local {
+
+        // #########################################################################################
+        // #########################################################################################
+
+        [[nodiscard]]
+        static std::optional<CancelOp> WhichCancelOp(std::string_view const& opString_)
+        {
+            if (opString_ == "soft") {
+                return std::make_optional<CancelOp>(CancelRequest::Soft, LuaHookMask::None);
+            } else if (opString_ == "hard") {
+                return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::None);
+            } else if (opString_ == "call") {
+                return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::Call);
+            } else if (opString_ == "ret") {
+                return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::Ret);
+            } else if (opString_ == "line") {
+                return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::Line);
+            } else if (opString_ == "count") {
+                return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::Count);
+            } else if (opString_ == "all") {
+                return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::All);
+            }
+            return std::nullopt;
+        }
+
+        // #########################################################################################
+
+        [[nodiscard]]
+        static CancelOp WhichCancelOp(lua_State* const L_, StackIndex const idx_)
+        {
+            if (luaG_type(L_, idx_) == LuaType::STRING) {
+                std::string_view const _str{ luaG_tostring(L_, idx_) };
+                auto const _op{ WhichCancelOp(_str) };
+                lua_remove(L_, idx_); // argument is processed, remove it
+                if (!_op.has_value()) {
+                    raise_luaL_error(L_, "Invalid cancel operation '%s'", _str.data());
+                }
+                return _op.value();
+            }
+            return CancelOp{ CancelRequest::Hard, LuaHookMask::None };
+        }
+
+    } // namespace local
+} // namespace
+
 // #################################################################################################
 // #################################################################################################
 
@@ -56,66 +103,6 @@ CancelRequest CheckCancelRequest(lua_State* const L_)
     auto const* const _lane{ kLanePointerRegKey.readLightUserDataValue<Lane>(L_) };
     // 'lane' is nullptr for the original main state (and no-one can cancel that)
     return _lane ? _lane->cancelRequest.load(std::memory_order_relaxed) : CancelRequest::None;
-}
-
-// #################################################################################################
-// #################################################################################################
-
-//---
-// = lane_cancel( lane_ud [,timeout_secs=0.0] [,wake_lindas_bool=false] )
-//
-// The originator thread asking us specifically to cancel the other thread.
-//
-// 'timeout': <0: wait forever, until the lane is finished
-//            0.0: just signal it to cancel, no time waited
-//            >0: time to wait for the lane to detect cancellation
-//
-// 'wake_lindas_bool': if true, signal any linda the thread is waiting on
-//                     instead of waiting for its timeout (if any)
-//
-// Returns: true if the lane was already finished (Done/Error/Cancelled) or if we
-//          managed to cancel it.
-//          false if the cancellation timed out, or a kill was needed.
-//
-
-// #################################################################################################
-// #################################################################################################
-
-static std::optional<CancelOp> WhichCancelOp(std::string_view const& opString_)
-{
-    if (opString_ == "soft") {
-        return std::make_optional<CancelOp>(CancelRequest::Soft, LuaHookMask::None);
-    } else if (opString_ == "hard") {
-        return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::None);
-    } else if (opString_== "call") {
-        return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::Call);
-    } else if (opString_ == "ret") {
-        return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::Ret);
-    } else if (opString_ == "line") {
-        return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::Line);
-    } else if (opString_ == "count") {
-        return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::Count);
-    } else if (opString_ == "all") {
-        return std::make_optional<CancelOp>(CancelRequest::Hard, LuaHookMask::All);
-    }
-    return std::nullopt;
-}
-
-// #################################################################################################
-
-[[nodiscard]]
-static CancelOp WhichCancelOp(lua_State* const L_, StackIndex const idx_)
-{
-    if (luaG_type(L_, idx_) == LuaType::STRING) {
-        std::string_view const _str{ luaG_tostring(L_, idx_) };
-        auto const _op{ WhichCancelOp(_str) };
-        lua_remove(L_, idx_); // argument is processed, remove it
-        if (!_op.has_value()) {
-            raise_luaL_error(L_, "Invalid cancel operation '%s'", _str.data());
-        }
-        return _op.value();
-    }
-    return CancelOp{ CancelRequest::Hard, LuaHookMask::None };
 }
 
 // #################################################################################################
@@ -143,11 +130,28 @@ LUAG_FUNC(cancel_test)
 
 // #################################################################################################
 
+//---
+// = lane_cancel( lane_ud [,timeout_secs=0.0] [,wake_lindas_bool=false] )
+//
+// The originator thread asking us specifically to cancel the other thread.
+//
+// 'timeout': <0: wait forever, until the lane is finished
+//            0.0: just signal it to cancel, no time waited
+//            >0: time to wait for the lane to detect cancellation
+//
+// 'wake_lindas_bool': if true, signal any linda the thread is waiting on
+//                     instead of waiting for its timeout (if any)
+//
+// Returns: true if the lane was already finished (Done/Error/Cancelled) or if we
+//          managed to cancel it.
+//          false if the cancellation timed out, or a kill was needed.
+//
+
 // bool[,reason] = lane_h:cancel( [cancel_op, hookcount] [, timeout] [, wake_lane])
 LUAG_FUNC(lane_cancel)
 {
     Lane* const _lane{ ToLane(L_, StackIndex{ 1 }) };                                              // L_: lane [cancel_op, hookcount] [, timeout] [, wake_lane]
-    CancelOp const _op{ WhichCancelOp(L_, StackIndex{ 2 }) };                                      // L_: lane [hookcount] [, timeout] [, wake_lane]
+    CancelOp const _op{ local::WhichCancelOp(L_, StackIndex{ 2 }) };                               // L_: lane [hookcount] [, timeout] [, wake_lane]
 
     int const _hook_count{ std::invoke([_op, L_]() {
         if (_op.hookMask == LuaHookMask::None) {
