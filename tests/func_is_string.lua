@@ -21,16 +21,17 @@ end
 
 local options = {globals = { b = 666 }}
 
-local gen1 = lanes.gen("*", { name = 'auto' }, "return true, dofile('fibonacci.lua')")
-local gen2 = lanes.gen(options, { name = 'auto' }, "return b")
+local gen1 = lanes.gen("*", { name = 'auto' }, "return true, error('bob')")
 
 fibLane = gen1()
 lanes.sleep(0.1)
 print(fibLane, fibLane.status)
-local _status, _err = fibLane:join()
-print(_status, _err)
+local _r, _err, _stk = fibLane:join()
+assert(_r == nil, "got " .. tostring(_r) .. " " .. tostring(_err) .. " " .. tostring(_stk))
 
-retLane1, retLane2 = gen2(), gen2()
+local gen2 = lanes.gen(options, { name = 'auto' }, "return b")
+local retLane1, retLane2 = gen2(), gen2()
 
 print( retLane1[1], retLane2[1])
+assert(retLane1[1] == 666 and retLane2[1] == 666)
 print "TEST OK"

@@ -106,7 +106,7 @@ do
         local _count, l_out <close> = l:get("trip")
         -- linda from arguments
         local l_arg <close> = l_arg_
-        return true
+        return "done"
     end
 
     local close_handler_f = function(linda_, err_)
@@ -118,7 +118,8 @@ do
     l:set("trip", l_in)
 
     do
-    lanes.gen("*", { name = 'auto' }, lane_body)(l_in):join()
+        local r, ret = lanes.gen("*", { name = 'auto' }, lane_body)(l_in):join()
+        assert(r == true and ret == "done")
     end
     local _count, _closed = l_in:get("closed")
     assert(_count == 1 and _closed == 2)

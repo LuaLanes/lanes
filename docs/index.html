@@ -71,7 +71,7 @@
 			</p>
 
 			<p>
-				This document was revised on 07-May-25, and applies to version <tt>4.0.0</tt>.
+				This document was revised on 05-Jun-25, and applies to version <tt>4.0.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -1156,7 +1156,7 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	[...]|[nil,err,stack_tbl]= lane_h:join([timeout])
+	[true, ...]|[nil,err,stack_tbl]= lane_h:join([timeout])
 </pre></td></tr></table>
 
 <p>
@@ -1174,7 +1174,7 @@
 			</ul>
 		</li>
 		<li><tt>nil, "killed"</tt> if forcefully killed.</li>
-		<li>The return values of the lane function. If the first return value is <tt>nil</tt> (or there is no return value), an error is raised, to make sure you can tell timeout and error cases apart from successful return.</li>
+		<li><tt>true [, returned-values]</tt>: The return values of the lane function.</li>
 	</ul>
 	If the lane handle obtained from <tt>lanes.gen()</tt> is to-be-closed, closing the value will cause a call to <tt>join()</tt>. Since it is implicit, the lane body isn't forced to return non-<tt>nil</tt> in that case.
 </p>

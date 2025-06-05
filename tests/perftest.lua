@@ -175,9 +175,9 @@ else
     -- Make sure all lanes finished
     --
     for i=1,N do
-        local tmp= t[i]:join()
+        local r, tmp = t[i]:join()
         -- this assert will trigger if you change M to values below 1000 in order to solve C stack overflow
-        assert( type(tmp)=="table" and tmp[1]==2 and tmp[168]==997 )
+        assert( r == true and type(tmp) == "table" and tmp[1] == 2 and tmp[168] == 997 )
     end
 end
 

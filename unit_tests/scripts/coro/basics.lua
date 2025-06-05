@@ -85,7 +85,8 @@ if true then
     assert(h3:resume(1) == nil)
 
     -- similarly, we can get them with join()
-    assert(h3:join() == "world" and h3.status == "suspended")
+    local r3, ret3 = h3:join()
+    assert(r3 == true and ret3 == "world" and h3.status == "suspended")
     -- since we consumed the returned values, they should not be here when we resume
     assert(h3:resume(2) == nil)
 
@@ -93,5 +94,6 @@ if true then
     assert(h3:resume(3) == "!")
 
     -- the final return value of the lane body remains to be read
-    assert(h3:join() == "done!" and h3.status == "done")
+    local r3, ret3 = h3:join()
+    assert(r3 == true and ret3 == "done!" and h3.status == "done")
 end

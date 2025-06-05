@@ -21,13 +21,15 @@ local pingpong = function(name, qr, qs, start)
         q:send(qs, val)
         count = count + 1
     end
-    return true
+    return "ping!"
 end
 
 -- pingpong("L1", '0', '1', true)
 local t1, err1 = lanes.gen("*", { name = 'auto' }, pingpong)("L1", 'a', 'b', true)
 local t2, err2 = lanes.gen("*", { name = 'auto' }, pingpong)("L2", 'b', 'a', false)
 
-t1:join()
-t2:join()
+local r1, ret1 = t1:join()
+assert(r1 == true and ret1 == "ping!")
+local r2, ret2 = t2:join()
+assert(r2 == true and ret2 == "ping!")
 print "TEST OK"

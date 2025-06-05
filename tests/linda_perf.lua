@@ -56,7 +56,7 @@ local eater = function( l, loop)
 	-- print "loop is over"
 	key, val = l:receive( "done")
 	print("eater: done ("..val..")")
-	return true
+	return "ate everything"
 end
 
 -- #################################################################################################
@@ -74,7 +74,7 @@ local gobbler = function( l, loop, batch)
 	print "loop is over"
 	key, val = l:receive( "done")
 	print("gobbler: done ("..val..")")
-	return true
+	return "gobbled everything"
 end
 
 -- #################################################################################################
@@ -123,7 +123,8 @@ local function ziva1( preloop, loop, batch)
 		end
 	end
 	l:send( "done" ,"are you happy?")
-	lane:join()
+	local r, ret = lane:join()
+	assert(r == true and type(ret) == "string", "got " .. tostring(r) .. " " .. tostring(ret))
 	return lanes.now_secs() - t1
 end
 

@@ -30,14 +30,19 @@ end
 
 PRINT("---=== :join test ===---", "\n\n")
 
+-- a lane body that returns nothing is successfully joined with true, nil
+local r, ret = lanes_gen(function() end)():join()
+assert(r == true and ret == nil)
+
 -- NOTE: 'unpack()' cannot be used on the lane handle; it will always return nil
 --       (unless [1..n] has been read earlier, in which case it would seemingly
 --       work).
 
-local S= lanes_gen("table", { name = 'auto', gc_cb = gc_cb },
+local S = lanes_gen("table", { name = 'auto', gc_cb = gc_cb },
     function(arg)
         lane_threadname "join test lane"
         set_finalizer(function() end)
+        -- take arg table, reverse its contents in aux, then return the unpacked result
         local aux= {}
         for i, v in ipairs(arg) do
            table.insert(aux, 1, v)
@@ -46,15 +51,16 @@ local S= lanes_gen("table", { name = 'auto', gc_cb = gc_cb },
     return (unpack or table.unpack)(aux)
 end)
 
-h= S { 12, 13, 14 }     -- execution starts, h[1..3] will get the return values
+local h = S { 12, 13, 14 }     -- execution starts, h[1..3] will get the return values
 -- wait a bit so that the lane has a chance to set its debug name
 SLEEP(0.5)
 print("joining with '" .. h:get_threadname() .. "'")
-local a,b,c,d= h:join()
+local r, a, b, c, d = h:join()
 if h.status == "error" then
-    print(h:get_threadname(), "error: " , a, b, c, d)
+    print(h:get_threadname(), "error: " , r, a, b, c, d)
 else
-    print(h:get_threadname(), a,b,c,d)
+    print(h:get_threadname(), r, a, b, c, d)
+    assert(r==true, "r == " .. tostring(r))
     assert(a==14, "a == " .. tostring(a))
     assert(b==13, "b == " .. tostring(b))
     assert(c==12, "c == " .. tostring(c))

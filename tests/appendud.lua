@@ -49,7 +49,7 @@ assert(not err)
 -- test
 -- print("t:join()")
 a,b,c = t[1],t[2],t[3]    -- Need to explicitly wait for the thread, since 'ipairs()' does not
---a,b,c = t:join()    -- Need to explicitly wait for the thread, since 'ipairs()' does not
+--r,a,b,c = t:join()    -- Need to explicitly wait for the thread, since 'ipairs()' does not
             -- value the '__index' metamethod (wouldn't it be cool if it did..?)
 
 print(a,b,c)

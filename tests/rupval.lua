@@ -26,17 +26,17 @@ end
 local g = lanes.gen( "base", { name = 'auto' }, a)
 
 local l = g(7)
-local r = l:join()
+local _, r = l:join()
 assert(r == y)
 print(r)
 
 local l = g(8)
-local r = l:join()
+local _, r = l:join()
 assert(r == z)
 print(r)
 
 local l = g(9)
-local r = l:join()
+local _, r = l:join()
 assert(r == x)
 print(r)
 

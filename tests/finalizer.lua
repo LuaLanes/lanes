@@ -77,8 +77,8 @@ local do_test = function(error_)
 
     local h = lgen(error_)
 
-    local _,err,stack = h:join()   -- wait for the lane (no automatic error propagation)
-    if err then
+    local r,err,stack = h:join()   -- wait for the lane (no automatic error propagation)
+    if not r then
         assert(stack, "no stack trace on error, check 'error_trace_level'")
         io.stderr:write( "Lane error: "..tostring(err).."\n" )
         io.stderr:write( "\t", table.concat(stack,"\t\n"), "\n" )

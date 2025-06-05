@@ -105,7 +105,7 @@ static LUAG_FUNC(lane_threadname)
 // #################################################################################################
 
 //---
-// [...] | [nil, err_any, stack_tbl]= lane:join([wait_secs])
+// [true, ...] | [nil, err_any, stack_tbl]= lane:join([wait_secs])
 //
 //  timeout:   returns nil
 //  done:      returns return values (0..N)
@@ -147,18 +147,19 @@ static LUAG_FUNC(lane_join)
     switch (_lane->status.load(std::memory_order_acquire)) {
     case Lane::Suspended: // got yielded values
     case Lane::Done: // got regular return values
-        {
-            if (_stored == 0) {
-                raise_luaL_error(L_, _lane->L ? "First return value must be non-nil when using join()" : "Can't join() more than once or after indexing");
-            }
+        if (_stored > 0) {
             lua_getiuservalue(L_, StackIndex{ 1 }, UserValueIndex{ 1 });                           // L_: lane {uv}
             for (int _i = 2; _i <= _stored; ++_i) {
                 lua_rawgeti(L_, 2, _i);                                                            // L_: lane {uv} results2...N
             }
             lua_rawgeti(L_, 2, 1);                                                                 // L_: lane {uv} results2...N result1
             lua_replace(L_, 2);                                                                    // L_: lane results
-            _ret = _stored;
         }
+        // we precede the lane body returned values with boolean true
+        lua_pushboolean(L_, 1);                                                                    // L_: lane results true
+        lua_replace(L_, 1);                                                                        // L_: true results
+        _ret = _stored + 1;
+        STACK_CHECK(L_, _stored);
         break;
 
     case Lane::Error:
@@ -174,25 +175,30 @@ static LUAG_FUNC(lane_join)
                 lua_replace(L_, 2);                                                                // L_: lane nil <error> <trace>
             }
             _ret = lua_gettop(L_) - 1; // 2 or 3
+            STACK_CHECK(L_, _ret);
         }
         break;
 
     case Lane::Cancelled:
-        LUA_ASSERT(L_, _stored == 2);
-        lua_getiuservalue(L_, StackIndex{ 1 }, UserValueIndex{ 1 });                              // L_: lane {uv}
-        lua_rawgeti(L_, 2, 2);                                                                    // L_: lane {uv} cancel_error
-        lua_rawgeti(L_, 2, 1);                                                                    // L_: lane {uv} cancel_error nil
-        lua_replace(L_, -3);                                                                      // L_: lane nil cancel_error
-        LUA_ASSERT(L_, lua_isnil(L_, -2) && kCancelError.equals(L_, kIdxTop));
-        _ret = 2;
+        {
+            LUA_ASSERT(L_, _stored == 2);
+            lua_getiuservalue(L_, StackIndex{ 1 }, UserValueIndex{ 1 });                           // L_: lane {uv}
+            lua_rawgeti(L_, 2, 2);                                                                 // L_: lane {uv} cancel_error
+            lua_rawgeti(L_, 2, 1);                                                                 // L_: lane {uv} cancel_error nil
+            lua_replace(L_, -3);                                                                   // L_: lane nil cancel_error
+            LUA_ASSERT(L_, lua_isnil(L_, -2) && kCancelError.equals(L_, kIdxTop));
+            _ret = 2;
+            STACK_CHECK(L_, _ret);
+        }
         break;
 
     default:
         DEBUGSPEW_CODE(DebugSpew(nullptr) << "Unknown Lane status: " << static_cast<int>(_lane->status.load(std::memory_order_relaxed)) << std::endl);
         LUA_ASSERT(L_, false);
         _ret = 0;
+        STACK_CHECK(L_, _ret);
     }
-    STACK_CHECK(L_, _ret);
+    LUA_ASSERT(L_, lua_gettop(L_) >= _ret);
     return _ret;
 }
 

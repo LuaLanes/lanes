@@ -6,7 +6,7 @@ local lanes = require_lanes_result_1
 local body = function(linda_)
 	-- a blocking read that lasts longer than the tested wake_period values
 	linda_:receive(2, "empty_slot")
-	return true
+	return "done"
 end
 
 -- if we don't cancel the lane, we should wait the whole duration
@@ -22,7 +22,8 @@ local function check_wake_duration(linda_, expected_, do_cancel_)
 		assert(result == false and reason == 'timeout', "unexpected cancel result")
 	end
 	-- this should wait until the linda wakes by itself before the actual receive timeout and sees the cancel request
-	h:join()
+	local r, ret = h:join()
+	assert(r == true and ret == "done")
 	local t1 = lanes.now_secs()
 	local delta = t1 - t0
 	-- the linda should check for cancellation at about the expected period, not earlier

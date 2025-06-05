@@ -69,8 +69,8 @@ else
     io.stderr:write( N.." lanes launched.\n" )
     
     for i=1,N do
-        local rc= t[i]:join()
-        assert( rc==i )
+        local r,rc = t[i]:join()
+        assert( r == true and rc == i )
     end
 
     io.stderr:write( N.." lanes finished.\n" )

@@ -173,8 +173,7 @@ local do_error_catching_test = function(error_reporting_mode_, error_value_, fin
     local h = start_lane(error_reporting_mode_, error_value_, finalizer_, finalizer_error_value_)
     local ret,err,stack= h:join()   -- wait for the lane (no automatic error propagation)
     WR("Processing results for {", error_reporting_mode_, error_value_, finalizer_, finalizer_error_value_, "}")
-    if err then
-        assert(ret == nil)
+    if ret == nil then
         assert(error_reporting_mode_ == "minimal" or type(stack)=="table") -- only true if lane was configured with error_trace_level ~= "minimal"
         if err == error_value_ then
             WR("Lane regular error: ", err)
@@ -198,8 +197,8 @@ local do_error_catching_test = function(error_reporting_mode_, error_value_, fin
             end
         end
     else -- no error
-        assert(ret == "success")
-        WR("No error in lane: ", ret)
+        assert(ret == true and err == "success")
+        WR("No error in lane: ", err, ret)
     end
     WR "TEST OK"
 end
