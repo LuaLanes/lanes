@@ -419,6 +419,7 @@ TEST_CASE("scripted_tests." #DIR "." #FILE) \
     _runner.performTest(FileRunnerParam{ #DIR "/" #FILE, TestType::CONDITION }); \
 }
 
+MAKE_TEST_CASE(lane, body_is_a_c_function, AssertNoLuaError)
 MAKE_TEST_CASE(lane, cooperative_shutdown, AssertNoLuaError)
 #if LUA_VERSION_NUM >= 504 // // warnings are a Lua 5.4 feature
 // NOTE: when this test ends, there are resource leaks and a dangling thread

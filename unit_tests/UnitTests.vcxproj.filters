@@ -119,5 +119,8 @@
     <None Include="scripts\linda\wake_period.lua">
       <Filter>Scripts\linda</Filter>
     </None>
+    <None Include="scripts\lane\body_is_a_c_function.lua">
+      <Filter>Scripts\lane</Filter>
+    </None>
   </ItemGroup>
 </Project>
