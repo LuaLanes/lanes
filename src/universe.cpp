@@ -227,9 +227,9 @@ static int luaG_provide_protected_allocator(lua_State* const L_)
 
 // #################################################################################################
 
+// already called under protection of selfdestructMutex
 void Universe::flagDanglingLanes() const
 {
-    std::lock_guard<std::mutex> _guard{ selfdestructMutex };
     Lane* _lane{ selfdestructFirst };
     while (_lane != SELFDESTRUCT_END) {
         _lane->flaggedAfterUniverseGC.store(true, std::memory_order_relaxed);
@@ -460,22 +460,25 @@ int Universe::UniverseGC(lua_State* const L_)
     }
     STACK_CHECK(L_, 2);
 
-    // now, all remaining lanes are flagged. if they crash because we remove keepers and the Universe from under them, it is their fault
-    bool const _detectedUncooperativeLanes{ _U->selfdestructFirst != SELFDESTRUCT_END };
-    if (_detectedUncooperativeLanes) {
-        _U->flagDanglingLanes();
-        if (luaG_tostring(L_, kIdxTop) == "freeze") {
-            std::this_thread::sleep_until(std::chrono::time_point<std::chrono::steady_clock>::max());
+    {
+        std::lock_guard<std::mutex> _guard{ _U->selfdestructMutex };
+        // now, all remaining lanes are flagged. if they crash because we remove keepers and the Universe from under them, it is their fault
+        bool const _detectedUncooperativeLanes{ _U->selfdestructFirst != SELFDESTRUCT_END };
+        if (_detectedUncooperativeLanes) {
+            _U->flagDanglingLanes();
+            if (luaG_tostring(L_, kIdxTop) == "freeze") {
+                std::this_thread::sleep_until(std::chrono::time_point<std::chrono::steady_clock>::max());
+            } else {
+                // take the value returned by the finalizer (or our default message) and throw it as an error
+                // since we are inside Lua's GCTM, it will be propagated through the warning system (Lua 5.4) or swallowed silently
+                // IMPORTANT: lua_error() is used here instead of the wrapper raise_lua_error() to circumvent what looks like a MSVC compiler bug
+                // that manifests as a crash inside ntdll!longjmp() function, in optimized builds only
+                lua_error(L_);
+            }
         } else {
-            // take the value returned by the finalizer (or our default message) and throw it as an error
-            // since we are inside Lua's GCTM, it will be propagated through the warning system (Lua 5.4) or swallowed silently
-            // IMPORTANT: lua_error() is used here instead of the wrapper raise_lua_error() to circumvent what looks like a MSVC compiler bug
-            // that manifests as a crash inside ntdll!longjmp() function, in optimized builds only
-            lua_error(L_);
+            // we didn't use the error message, let's keep a clean stack
+            lua_pop(L_, 1); // L_: U
         }
-    } else {
-        // we didn't use the error message, let's keep a clean stack
-        lua_pop(L_, 1);                                                                            // L_: U
     }
     STACK_CHECK(L_, 1);
 
