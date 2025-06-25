@@ -130,7 +130,7 @@ static LUAG_FUNC(lane_join)
     }
 
     lua_settop(L_, 1);                                                                             // L_: lane
-    bool const _done{ !_lane->thread.joinable() || _lane->waitForCompletion(_until) };
+    bool const _done{ !_lane->thread.joinable() || _lane->waitForCompletion(_until, true) };
 
     if (!_done) {
         lua_pushnil(L_);                                                                           // L_: lane nil
@@ -210,23 +210,13 @@ LUAG_FUNC(lane_resume)
     Lane* const _lane{ ToLane(L_, kIdxSelf) };
     lua_State* const _L2{ _lane->L };
 
-    // wait until the lane yields
-    std::optional<Lane::Status> _hadToWait{}; // for debugging, if we ever raise the error just below
-    {
-        std::unique_lock _guard{ _lane->doneMutex };
-        Lane::Status const _status{ _lane->status.load(std::memory_order_acquire) };
-        if (_status == Lane::Pending || _status == Lane::Running || _status == Lane::Resuming) {
-            _hadToWait = _status;
-            _lane->doneCondVar.wait(_guard, [_lane]() { return _lane->status.load(std::memory_order_acquire) == Lane::Suspended; });
-        }
-    }
+// wait until the lane yields or returns
+    std::ignore = _lane->waitForCompletion(std::chrono::time_point<std::chrono::steady_clock>::max(), true);
+
     if (_lane->status.load(std::memory_order_acquire) != Lane::Suspended) {
-        if (_hadToWait) {
-            raise_luaL_error(L_, "INTERNAL ERROR: Lane status is %s instead of 'suspended'", _lane->threadStatusString().data());
-        } else {
-            raise_luaL_error(L_, "Can't resume a non-suspended coroutine-type Lane");
-        }
+        raise_luaL_error(L_, "cannot resume non-suspended coroutine Lane");
     }
+
     int const _nargs{ lua_gettop(L_) - 1 };
     int const _nresults{ lua_gettop(_L2) };
     STACK_CHECK_START_ABS(L_, 1 + _nargs);                                                         // L_: self args...                               _L2: results...
@@ -270,7 +260,7 @@ static int lane_index_number(lua_State* L_)
     lua_pop(L_, 1);                                                                                // L_: lane
 
     std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
-    if (!_lane->waitForCompletion(_until)) {
+    if (!_lane->waitForCompletion(_until, true)) {
         raise_luaL_error(L_, "INTERNAL ERROR: Failed to join");
     }
 
@@ -983,7 +973,7 @@ CancelResult Lane::internalCancel(CancelRequest const rq_, std::chrono::time_poi
         }
     }
     // wait until the lane stops working with its state (either Suspended or Done+)
-    CancelResult const result{ waitForCompletion(until_) ? CancelResult::Cancelled : CancelResult::Timeout };
+    CancelResult const result{ waitForCompletion(until_, true) ? CancelResult::Cancelled : CancelResult::Timeout };
     return result;
 }
 
@@ -1340,17 +1330,15 @@ std::string_view Lane::threadStatusString() const
 
 // #################################################################################################
 
-bool Lane::waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_)
+bool Lane::waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_, bool const _acceptSuspended)
 {
     std::unique_lock _guard{ doneMutex };
     // std::stop_token token{ thread.get_stop_token() };
     // return doneCondVar.wait_until(lock, token, secs_, [this](){ return status >= Lane::Done; });
 
-    // wait until the lane stops working with its state (either Suspended or Done+)
-    return doneCondVar.wait_until(_guard, until_, [this]()
-        {
-            auto const _status{ status.load(std::memory_order_acquire) };
-            return _status == Lane::Suspended || _status >= Lane::Done;
-        }
-    );
+    // wait until the lane exits lane_main (which is the only place where status can become one of the 3 tested values)
+    return doneCondVar.wait_until(_guard, until_, [this, suspended = _acceptSuspended ? Lane::Suspended : Lane::Done]() {
+        auto const _status{ status.load(std::memory_order_acquire) };
+        return _status == Lane::Done || _status == Lane::Error || _status == Lane::Cancelled || _status == suspended;
+    });
 }

@@ -212,7 +212,7 @@ class Lane final
     std::string_view threadStatusString() const;
     // wait until the lane stops working with its state (either Suspended or Done+)
     [[nodiscard]]
-    bool waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_);
+    bool waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_, bool const _acceptSuspended);
 };
 
 // #################################################################################################
