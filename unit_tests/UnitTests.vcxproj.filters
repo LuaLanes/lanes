@@ -95,7 +95,7 @@
     <None Include="scripts\lane\tasking_join_test.lua">
       <Filter>Scripts\lane</Filter>
     </None>
-    <None Include="scripts\coro\basics.lua">
+    <None Include="scripts\coro\yielding_function.lua">
       <Filter>Scripts\coro</Filter>
     </None>
     <None Include="scripts\coro\error_handling.lua">
@@ -119,8 +119,14 @@
     <None Include="scripts\linda\wake_period.lua">
       <Filter>Scripts\linda</Filter>
     </None>
+    <None Include="scripts\coro\collect_yielded_lane.lua">
+      <Filter>Scripts\coro</Filter>
+    </None>
     <None Include="scripts\lane\body_is_a_c_function.lua">
       <Filter>Scripts\lane</Filter>
+    </None>
+    <None Include="scripts\coro\regular_function.lua">
+      <Filter>Scripts\coro</Filter>
     </None>
   </ItemGroup>
 </Project>

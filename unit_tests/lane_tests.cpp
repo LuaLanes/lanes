@@ -421,7 +421,7 @@ TEST_CASE("scripted_tests." #DIR "." #FILE) \
 
 MAKE_TEST_CASE(lane, body_is_a_c_function, AssertNoLuaError)
 MAKE_TEST_CASE(lane, cooperative_shutdown, AssertNoLuaError)
-#if LUA_VERSION_NUM >= 504 // // warnings are a Lua 5.4 feature
+#if LUA_VERSION_NUM >= 504 // warnings are a Lua 5.4 feature
 // NOTE: when this test ends, there are resource leaks and a dangling thread
 MAKE_TEST_CASE(lane, uncooperative_shutdown, AssertWarns)
 #endif // LUA_VERSION_NUM
@@ -434,11 +434,16 @@ MAKE_TEST_CASE(lane, tasking_error, AssertNoLuaError)
 MAKE_TEST_CASE(lane, tasking_join_test, AssertNoLuaError)
 MAKE_TEST_CASE(lane, tasking_send_receive_code, AssertNoLuaError)
 MAKE_TEST_CASE(lane, stdlib_naming, AssertNoLuaError)
-MAKE_TEST_CASE(coro, basics, AssertNoLuaError)
+
+#if LUA_VERSION_NUM >= 504 // this makes use of to-be-closed variables, a Lua 5.4 feature
+MAKE_TEST_CASE(coro, collect_yielded_lane, AssertNoLuaError)
+#endif // LUA_VERSION_NUM
 #if LUAJIT_FLAVOR() == 0
 // TODO: for some reason, the test fails with LuaJIT. To be investigated
 MAKE_TEST_CASE(coro, error_handling, AssertNoLuaError)
 #endif // LUAJIT_FLAVOR()
+MAKE_TEST_CASE(coro, regular_function, AssertNoLuaError)
+MAKE_TEST_CASE(coro, yielding_function, AssertNoLuaError)
 
 /*
 TEST_CASE("lanes.scripted_tests")

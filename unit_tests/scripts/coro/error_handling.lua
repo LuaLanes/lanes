@@ -38,15 +38,15 @@ local force_error_test = function(error_trace_level_)
     utils.dump_error_stack(error_trace_level_, c)
 end
 
-if false then
+if true then
     force_error_test("minimal")
 end
 
-if false then
+if true then
     force_error_test("basic")
 end
 
-if false then
+if true then
     force_error_test("extended")
 end
 
