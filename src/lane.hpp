@@ -56,6 +56,7 @@ class Lane final
     /*
       Pending: The Lua VM hasn't done anything yet.
       Resuming: The user requested the lane to resume execution from Suspended state.
+      Closing: The user is joining the lane, specifically interrupting a suspended Lane.
       Suspended: returned from lua_resume, waiting for the client to request a lua_resume.
       Running, Suspended, Waiting: Thread is inside the Lua VM.
       Done, Error, Cancelled: Thread execution is outside the Lua VM. It can be lua_close()d.
@@ -66,6 +67,7 @@ class Lane final
         Running,
         Suspended,
         Resuming,
+        Closing,
         Waiting,
         Done,
         Error,
@@ -199,6 +201,8 @@ class Lane final
     static void PushMetatable(lua_State* L_);
     void pushStatusString(lua_State* L_) const;
     void pushIndexedResult(lua_State* L_, int key_) const;
+    [[nodiscard]]
+    int pushStoredResults(lua_State* L_) const;
     void resetResultsStorage(lua_State* L_, StackIndex self_idx_);
     void selfdestructAdd();
     [[nodiscard]]
@@ -213,6 +217,8 @@ class Lane final
     // wait until the lane stops working with its state (either Suspended or Done+)
     [[nodiscard]]
     bool waitForCompletion(std::chrono::time_point<std::chrono::steady_clock> until_, bool const _acceptSuspended);
+    [[nodiscard]]
+    bool waitForJoin(lua_State* _L, std::chrono::time_point<std::chrono::steady_clock> until_);
 };
 
 // #################################################################################################

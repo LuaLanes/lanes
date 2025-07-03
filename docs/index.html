@@ -71,7 +71,7 @@
 			</p>
 
 			<p>
-				This document was revised on 26-Jun-25, and applies to version <tt>4.0.0</tt>.
+				This document was revised on 03-Jul-25, and applies to version <tt>4.0.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -922,8 +922,9 @@
 		</tr>
 	</table>
 
-	Coroutine lanes function mostly like regular coroutines. They can use <tt>coroutine.yield()</tt> normally, in which case the yielded values can be obtained with regular lane indexing (see <a href="#results">Results and errors</a>).<br />
-	A yielded coroutine lane has a <tt>"suspended"</tt> status. It can be resumed with <tt>lane_h:resume(values...)</tt>.
+	Coroutine lanes function mostly like regular coroutines. They can use <tt>coroutine.yield()</tt> normally.<br />
+	A yielded coroutine lane has a <tt>"suspended"</tt> status. It can be resumed with <tt>lane_h:resume(values...), which returns the yielded values</tt>.
+	The latter can also be the returned values of <tt>lane_h:join()</tt> or accessed by regular lane indexing (see <a href="#results">Results and errors</a>).<br />
 	<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%">
 		<tr>
 			<td>
@@ -932,8 +933,8 @@
 		</tr>
 	</table>
 
-	The reply values are returned to the lane body at the <tt>coroutine.yield()</tt> point.<br />
-	If the yielded values were previously obtained by lane indexing, <tt>resume()</tt> returns <tt>nil</tt>.
+	Just like regulare coroutines, the reply values passed to <tt>h:resume()</tt> are returned to the lane body at the <tt>coroutine.yield()</tt> point.<br />
+	If a coroutine lane is suspended when it is joined either by indexing or <tt>lane_h:join()</tt>, active to-be-closed variables are closed at that point, and the Lane can no longer be resumed.
 </p>
 <h3>Free running lanes</h3>
 

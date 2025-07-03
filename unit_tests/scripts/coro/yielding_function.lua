@@ -23,7 +23,7 @@ end
 --------------------------------------------------------------------------------------------------
 -- TEST: if we start a non-coroutine lane with a yielding function, we should get an error, right?
 --------------------------------------------------------------------------------------------------
-if false then
+if true then
     local fun_g = lanes.gen("*", { name = 'auto' }, yielder)
     local h = fun_g("hello", "world", "!")
     local err, status, stack = h:join()
@@ -48,7 +48,7 @@ local coro_g = lanes.coro("*", {name = "auto"}, yielder)
 -------------------------------------------------------------------------------------------------
 -- TEST: we can resume as many times as the lane yields, then read the returned value on indexing
 -------------------------------------------------------------------------------------------------
-if false then
+if true then
     -- launch coroutine lane
     local h = coro_g("hello", "world", "!")
     -- read the yielded values, sending back the expected index
@@ -63,7 +63,7 @@ end
 ---------------------------------------------------------------------------------------------
 -- TEST: we can resume as many times as the lane yields, then read the returned value on join
 ---------------------------------------------------------------------------------------------
-if false then
+if true then
     -- launch coroutine lane
     local h = coro_g("hello", "world", "!")
     -- read the yielded values, sending back the expected index
@@ -75,9 +75,9 @@ if false then
     assert(h.status == "done" and s == true and r == "bye!")
 end
 
----------------------------------------------------------------------------------------------------
--- TEST: if we join a yielded lane, we get a timeout, and we can resume as if we didn't try to join
----------------------------------------------------------------------------------------------------
+---------------------------------------------------
+-- TEST: if we join a yielded lane, the lane aborts
+---------------------------------------------------
 if true then
     -- launch coroutine lane
     local h = coro_g("hello", "world", "!")
@@ -89,10 +89,10 @@ if true then
     assert(s == "done" and b == true and r == "world", "got " .. s .. " " .. tostring(b) .. " " .. tostring(r))
 end
 
------------------------------------------------------------------------
--- TEST: if we index yielded lane, we should get the last yielded value
------------------------------------------------------------------------
-if false then
+-------------------------------------------------------------------------
+-- TEST: if we index a yielded lane, we should get the last yielded value
+-------------------------------------------------------------------------
+if true then
     -- launch coroutine lane
     local h = coro_g("hello", "world", "!")
     -- read the first yielded value, sending back the expected index
@@ -102,15 +102,7 @@ if false then
     local r2 = h[1]
     local r3 = h[1]
     assert(r1 == "world" and r2 == "world" and r3 == "world", "got " .. r1 .. " " .. r2 .. " " .. r3)
-    assert(h:resume(2) == "world")
-
-    -- THERE IS AN INCONSISTENCY: h:resume pulls the yielded values directly out of the lane's stack
-    -- but h[n] removes them and stores them in the internal values storage table
-    -- TODO: so we need to decide: should indexing a yielded lane work like resume()?
-    assert(h:resume(3) == "!")
+    -- once the lane was indexed, it is no longer resumable (just like after join)
+    local b, e = pcall(h.resume, h, 2)
+    assert(b == false and e == "cannot resume non-suspended coroutine Lane")
 end
-
--------------------------------------------------------------------------------------
--- TEST: if we close yielded lane, we can join it and get the last yielded values out
--------------------------------------------------------------------------------------
--- TODO: we need to implement lane:close() for that!
