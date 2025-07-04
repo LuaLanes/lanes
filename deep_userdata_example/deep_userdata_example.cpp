@@ -25,7 +25,7 @@ class MyDeepFactory final : public DeepFactory
 
 // #################################################################################################
 
-// a lanes-deep userdata. needs DeepPrelude and luaG_newdeepuserdata from Lanes code.
+// a lanes-deep userdata. needs DeepPrelude and luaW_newdeepuserdata from Lanes code.
 struct MyDeepUserdata : public DeepPrelude // Deep userdata MUST start with a DeepPrelude
 {
     std::atomic<int> inUse{};
@@ -82,7 +82,7 @@ static int deep_tostring(lua_State* const L_)
 {
     MyDeepUserdata* const _self{ static_cast<MyDeepUserdata*>(MyDeepFactory::Instance.toDeep(L_, StackIndex{ 1 })) };
     _self->inUse.fetch_add(1, std::memory_order_seq_cst);
-    luaG_pushstring(L_, "%p:deep(%d)", _self, _self->val);
+    luaW_pushstring(L_, "%p:deep(%d)", _self, _self->val);
     _self->inUse.fetch_sub(1, std::memory_order_seq_cst);
     return 1;
 }
@@ -241,7 +241,7 @@ static int clonable_getuv(lua_State* const L_)
 static int clonable_tostring(lua_State* const L_)
 {
     MyClonableUserdata* _self = static_cast<MyClonableUserdata*>(lua_touserdata(L_, 1));
-    luaG_pushstring(L_, "%p:clonable(%d)", lua_topointer(L_, 1), _self->val);
+    luaW_pushstring(L_, "%p:clonable(%d)", lua_topointer(L_, 1), _self->val);
     return 1;
 }
 
@@ -299,7 +299,7 @@ int luaD_new_clonable(lua_State* L)
 {
     UserValueCount const _nuv{ static_cast<int>(luaL_optinteger(L, 1, 1)) };
     lua_newuserdatauv(L, sizeof(MyClonableUserdata), _nuv);
-    luaG_setmetatable(L, "clonable");
+    luaW_setmetatable(L, "clonable");
     return 1;
 }
 
@@ -317,12 +317,12 @@ static luaL_Reg const deep_module[] = {
 
 LANES_API int luaopen_deep_userdata_example(lua_State* L)
 {
-    luaG_newlib<std::size(deep_module)>(L, deep_module);                                           // M
+    luaW_newlib<std::size(deep_module)>(L, deep_module);                                           // M
 
     // preregister the metatables for the types we can instantiate so that Lanes can know about them
     if (luaL_newmetatable(L, "clonable"))                                                          // M mt
     {
-        luaG_registerlibfuncs(L, clonable_mt);
+        luaW_registerlibfuncs(L, clonable_mt);
         lua_pushvalue(L, -1);                                                                      // M mt mt
         lua_setfield(L, -2, "__index");                                                            // M mt
     }
@@ -330,7 +330,7 @@ LANES_API int luaopen_deep_userdata_example(lua_State* L)
 
     if (luaL_newmetatable(L, "deep"))                                                              // mt
     {
-        luaG_registerlibfuncs(L, deep_mt);
+        luaW_registerlibfuncs(L, deep_mt);
         lua_pushvalue(L, -1);                                                                      // mt mt
         lua_setfield(L, -2, "__index");                                                            // mt
     }

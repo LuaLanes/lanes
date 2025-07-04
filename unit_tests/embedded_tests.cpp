@@ -192,7 +192,7 @@ TEST_CASE("lanes.embedding.with_default_allocator")
 
         // try again after manual registration
         lua_pushcfunction(S, S.get_lanes_register());                                              // S: lanes_register
-        luaG_pushstring(S, LUA_IOLIBNAME);                                                         // S: lanes_register "io"
+        luaW_pushstring(S, LUA_IOLIBNAME);                                                         // S: lanes_register "io"
         luaL_requiref(S, LUA_IOLIBNAME, luaopen_io, 1);                                            // S: lanes_register "io" io
         lua_call(S, 2, 0);                                                                         // S:
         S.stackCheck(0);

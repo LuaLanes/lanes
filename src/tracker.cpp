@@ -96,7 +96,7 @@ int LaneTracker::pushThreadsTable(lua_State* L_) const
         while (_lane != TRACKING_END) {
             // insert a { name='<name>', status='<status>' } tuple, so that several lanes with the same name can't clobber each other
             lua_createtable(L_, 0, 2);                                                             // L_: {} {}
-            luaG_pushstring(L_, _lane->getDebugName());                                            // L_: {} {} "name"
+            luaW_pushstring(L_, _lane->getDebugName());                                            // L_: {} {} "name"
             lua_setfield(L_, -2, "name");                                                          // L_: {} {}
             _lane->pushStatusString(L_);                                                           // L_: {} {} "<status>"
             lua_setfield(L_, -2, "status");                                                        // L_: {} {}

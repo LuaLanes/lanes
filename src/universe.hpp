@@ -128,7 +128,7 @@ class Universe final
 
     public:
     [[nodiscard]]
-    static void* operator new([[maybe_unused]] size_t const size_, lua_State* const L_) noexcept { return luaG_newuserdatauv<Universe>(L_, UserValueCount{ 0 }); };
+    static void* operator new([[maybe_unused]] size_t const size_, lua_State* const L_) noexcept { return luaW_newuserdatauv<Universe>(L_, UserValueCount{ 0 }); };
     // can't actually delete the operator because the compiler generates stack unwinding code that could call it in case of exception
     static void operator delete([[maybe_unused]] void* const p_, [[maybe_unused]] lua_State* const L_) {} // nothing to do, as nothing is allocated independently
 

@@ -70,8 +70,8 @@ namespace {
         [[nodiscard]]
         static CancelOp WhichCancelOp(lua_State* const L_, StackIndex const idx_)
         {
-            if (luaG_type(L_, idx_) == LuaType::STRING) {
-                std::string_view const _str{ luaG_tostring(L_, idx_) };
+            if (luaW_type(L_, idx_) == LuaType::STRING) {
+                std::string_view const _str{ luaW_tostring(L_, idx_) };
                 auto const _op{ WhichCancelOp(_str) };
                 lua_remove(L_, idx_); // argument is processed, remove it
                 if (!_op.has_value()) {
@@ -123,7 +123,7 @@ LUAG_FUNC(cancel_test)
     if (_test == CancelRequest::None) {
         lua_pushboolean(L_, 0);
     } else {
-        luaG_pushstring(L_, (_test == CancelRequest::Soft) ? "soft" : "hard");
+        luaW_pushstring(L_, (_test == CancelRequest::Soft) ? "soft" : "hard");
     }
     return 1;
 }
@@ -158,7 +158,7 @@ LUAG_FUNC(lane_cancel)
             // the caller shouldn't have provided a hook count in that case
             return 0;
         }
-        if (luaG_type(L_, StackIndex{ 2 }) != LuaType::NUMBER) {
+        if (luaW_type(L_, StackIndex{ 2 }) != LuaType::NUMBER) {
             raise_luaL_error(L_, "Hook count expected");
         }
         auto const _hook_count{ static_cast<int>(lua_tointeger(L_, 2)) };
@@ -170,7 +170,7 @@ LUAG_FUNC(lane_cancel)
     }) };
 
     std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
-    if (luaG_type(L_, StackIndex{ 2 }) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
+    if (luaW_type(L_, StackIndex{ 2 }) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
         lua_Duration const duration{ lua_tonumber(L_, 2) };
         if (duration.count() >= 0.0) {
             _until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(duration);
@@ -186,7 +186,7 @@ LUAG_FUNC(lane_cancel)
     WakeLane _wake_lane{ (_op.mode == CancelRequest::Hard) ? WakeLane::Yes : WakeLane::No };
     if (lua_gettop(L_) >= 2) {
         if (!lua_isboolean(L_, 2)) {
-            raise_luaL_error(L_, "Boolean expected for wake_lane argument, got %s", luaG_typename(L_, StackIndex{ 2 }).data());
+            raise_luaL_error(L_, "Boolean expected for wake_lane argument, got %s", luaW_typename(L_, StackIndex{ 2 }).data());
         }
         _wake_lane = lua_toboolean(L_, 2) ? WakeLane::Yes : WakeLane::No;
         lua_remove(L_, 2); // argument is processed, remove it                                     // L_: lane
@@ -206,7 +206,7 @@ LUAG_FUNC(lane_cancel)
 
     case CancelResult::Timeout:
         lua_pushboolean(L_, 0);                                                                    // L_: false
-        luaG_pushstring(L_, "timeout");                                                            // L_: false "timeout"
+        luaW_pushstring(L_, "timeout");                                                            // L_: false "timeout"
         break;
 
     case CancelResult::Cancelled:

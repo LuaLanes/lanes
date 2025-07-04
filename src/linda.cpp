@@ -47,7 +47,7 @@ namespace {
     {
         STACK_CHECK_START_REL(L_, 0);
         for (StackIndex const _i : std::ranges::iota_view{ start_, StackIndex{ end_ + 1 } }) {
-            LuaType const _t{ luaG_type(L_, _i) };
+            LuaType const _t{ luaW_type(L_, _i) };
             switch (_t) {
             case LuaType::BOOLEAN:
             case LuaType::NUMBER:
@@ -109,13 +109,13 @@ namespace {
     {
         Linda* const _linda{ ToLinda<OPT>(L_, idx_) };
         if (_linda != nullptr) {
-            luaG_pushstring(L_, "Linda: ");
+            luaW_pushstring(L_, "Linda: ");
             std::string_view const _lindaName{ _linda->getName() };
             if (!_lindaName.empty()) {
-                luaG_pushstring(L_, _lindaName);
+                luaW_pushstring(L_, _lindaName);
             } else {
                 // obfuscate the pointer so that we can't read the value with our eyes out of a script
-                luaG_pushstring(L_, "%p", _linda->obfuscated());
+                luaW_pushstring(L_, "%p", _linda->obfuscated());
             }
             lua_concat(L_, 2);
             return 1;
@@ -132,7 +132,7 @@ namespace {
         StackIndex _key_i{ 2 }; // index of first slot, if timeout not there
 
         std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
-        if (luaG_type(L_, StackIndex{ 2 }) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
+        if (luaW_type(L_, StackIndex{ 2 }) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
             lua_Duration const _duration{ lua_tonumber(L_, 2) };
             if (_duration.count() >= 0.0) {
                 _until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(_duration);
@@ -279,7 +279,7 @@ namespace {
                 if (_nbPushed == 0) {
                     // not enough data in the linda slot to fulfill the request, return nil, "timeout"
                     lua_pushnil(L_);
-                    luaG_pushstring(L_, "timeout");
+                    luaW_pushstring(L_, "timeout");
                     return 2;
                 }
                 return _nbPushed;
@@ -350,16 +350,16 @@ Linda* Linda::CreateTimerLinda(lua_State* const L_)
     // Initialize 'timerLinda'; a common Linda object shared by all states
     lua_pushcfunction(L_, LG_linda);                                                               // L_: lanes.linda
     lua_createtable(L_, 0, 3);                                                                     // L_: lanes.linda {}
-    luaG_pushstring(L_, "lanes-timer");                                                            // L_: lanes.linda {} "lanes-timer"
-    luaG_setfield(L_, StackIndex{ -2 }, std::string_view{ "name" });                               // L_: lanes.linda { .name="lanes-timer" }
+    luaW_pushstring(L_, "lanes-timer");                                                            // L_: lanes.linda {} "lanes-timer"
+    luaW_setfield(L_, StackIndex{ -2 }, std::string_view{ "name" });                               // L_: lanes.linda { .name="lanes-timer" }
     lua_pushinteger(L_, 0);                                                                        // L_: lanes.linda { .name="lanes-timer" } 0
-    luaG_setfield(L_, StackIndex{ -2 }, std::string_view{ "group" });                              // L_: lanes.linda { .name="lanes-timer" .group = 0 }
+    luaW_setfield(L_, StackIndex{ -2 }, std::string_view{ "group" });                              // L_: lanes.linda { .name="lanes-timer" .group = 0 }
     // note that wake_period is not set (will default to the value in the universe)
     lua_call(L_, 1, 1);                                                                            // L_: linda
     STACK_CHECK(L_, 1);
 
     // Proxy userdata contents is only a 'DeepPrelude*' pointer
-    auto const _timerLinda{ *luaG_tofulluserdata<Linda*>(L_, kIdxTop) };
+    auto const _timerLinda{ *luaW_tofulluserdata<Linda*>(L_, kIdxTop) };
     // increment refcount so that this linda remains alive as long as the universe exists.
     _timerLinda->refcount.fetch_add(1, std::memory_order_relaxed);
     lua_pop(L_, 1);                                                                                // L_:
@@ -452,7 +452,7 @@ int Linda::ProtectedCall(lua_State* const L_, lua_CFunction const f_)
 
 void Linda::pushCancelString(lua_State* L_) const
 {
-    luaG_pushstring(L_, cancelStatus == Status::Cancelled ? "cancelled" : "active");
+    luaW_pushstring(L_, cancelStatus == Status::Cancelled ? "cancelled" : "active");
 }
 
 // #################################################################################################
@@ -504,7 +504,7 @@ void Linda::setName(std::string_view const& name_)
 LUAG_FUNC(linda_cancel)
 {
     Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
-    std::string_view const _who{ luaG_optstring(L_, StackIndex{ 2 }, "both") };
+    std::string_view const _who{ luaW_optstring(L_, StackIndex{ 2 }, "both") };
     // make sure we got 2 arguments: the linda and the cancellation mode
     luaL_argcheck(L_, lua_gettop(L_) <= 2, 2, "wrong number of arguments");
 
@@ -592,13 +592,13 @@ static int linda_index_string(lua_State* L_)
     Linda* const _linda{ ToLinda<false>(L_, kIdxSelf) };
     LUA_ASSERT(L_, lua_gettop(L_) == 2);                                                           // L_: linda "key"
 
-    std::string_view const _keystr{ luaG_tostring(L_, kIdxKey) };
+    std::string_view const _keystr{ luaW_tostring(L_, kIdxKey) };
     lua_settop(L_, 2); // keep only our original arguments on the stack
 
     // look in metatable first
     lua_getmetatable(L_, kIdxSelf);                                                                // L_: linda "key" mt
     lua_replace(L_, -3);                                                                           // L_: mt "key"
-    if (luaG_rawget(L_, StackIndex{ -2 }) != LuaType::NIL) { // found something?                   // L_: mt value
+    if (luaW_rawget(L_, StackIndex{ -2 }) != LuaType::NIL) { // found something?                   // L_: mt value
         return 1; // done
     }
 
@@ -618,12 +618,12 @@ static LUAG_FUNC(linda_index)
     static constexpr StackIndex kIdxKey{ 2 };
     LUA_ASSERT(L_, lua_gettop(L_) == 2);
 
-    switch (luaG_type(L_, kIdxKey)) {
+    switch (luaW_type(L_, kIdxKey)) {
     case LuaType::STRING:
         return linda_index_string(L_); // stack modification is undefined, returned value is at the top
 
     default: // unknown key
-        raise_luaL_error(L_, "Unsupported linda indexing key type %s", luaG_typename(L_, kIdxKey).data());
+        raise_luaL_error(L_, "Unsupported linda indexing key type %s", luaW_typename(L_, kIdxKey).data());
     }
 }
 
@@ -766,7 +766,7 @@ LUAG_FUNC(linda_limit)
             int const _nargs{ lua_gettop(L_) };
             luaL_argcheck(L_, _nargs == 2 || _nargs == 3, 2, "wrong number of arguments");
             // make sure we got a numeric limit, or "unlimited", (or nothing)
-            bool const _unlimited{ luaG_tostring(L_, StackIndex{ 3 }) == "unlimited" };
+            bool const _unlimited{ luaW_tostring(L_, StackIndex{ 3 }) == "unlimited" };
             LindaLimit const _val{ _unlimited ? std::numeric_limits<LindaLimit::type>::max() : static_cast<LindaLimit::type>(luaL_optinteger(L_, 3, 0)) };
             if (_val < 0) {
                 raise_luaL_argerror(L_, StackIndex{ 3 }, "limit must be >= 0");
@@ -777,23 +777,23 @@ LUAG_FUNC(linda_limit)
             KeeperCallResult _pushed;
             if (_linda->cancelStatus == Linda::Active) {
                 if (_unlimited) {
-                    LUA_ASSERT(L_, lua_gettop(L_) == 3 && luaG_tostring(L_, StackIndex{ 3 }) == "unlimited");
+                    LUA_ASSERT(L_, lua_gettop(L_) == 3 && luaW_tostring(L_, StackIndex{ 3 }) == "unlimited");
                     // inside the Keeper, unlimited is signified with a -1 limit (can't use nil because of nil kNilSentinel conversions!)
                     lua_pop(L_, 1);                                                                // L_: linda slot
                     lua_pushinteger(L_, -1);                                                       // L_: linda slot nil
                 }
                 Keeper* const _keeper{ _linda->whichKeeper() };
                 _pushed = keeper_call(_keeper->K, KEEPER_API(limit), L_, _linda, StackIndex{ 2 });
-                LUA_ASSERT(L_, _pushed.has_value() && (_pushed.value() == 2) && luaG_type(L_, kIdxTop) == LuaType::STRING);
+                LUA_ASSERT(L_, _pushed.has_value() && (_pushed.value() == 2) && luaW_type(L_, kIdxTop) == LuaType::STRING);
                 if (_nargs == 3) { // 3 args: setting the limit
                     // changing the limit: no error, boolean value saying if we should wake blocked writer threads
-                    LUA_ASSERT(L_, luaG_type(L_, StackIndex{ -2 }) == LuaType::BOOLEAN);           // L_: bool string
+                    LUA_ASSERT(L_, luaW_type(L_, StackIndex{ -2 }) == LuaType::BOOLEAN);           // L_: bool string
                     if (lua_toboolean(L_, -2)) {
                         _linda->readHappened.notify_all(); // To be done from within the 'K' locking area
                     }
                 } else { // 2 args: reading the limit
                     // reading the limit: a number >=0 or "unlimited"
-                    LUA_ASSERT(L_, luaG_type(L_, StackIndex{ -2 }) == LuaType::NUMBER || luaG_tostring(L_, StackIndex{ -2 }) == "unlimited");
+                    LUA_ASSERT(L_, luaW_type(L_, StackIndex{ -2 }) == LuaType::NUMBER || luaW_tostring(L_, StackIndex{ -2 }) == "unlimited");
                 }
             } else { // linda is cancelled
                 // do nothing and return nil,lanes.cancel_error
@@ -849,7 +849,7 @@ LUAG_FUNC(linda_restrict)
             int const _nargs{ lua_gettop(L_) };
             luaL_argcheck(L_, _nargs == 2 || _nargs == 3, 2, "wrong number of arguments");
             // make sure we got a known restrict mode, (or nothing)
-            std::string_view const _mode{ luaG_tostring(L_, StackIndex{ 3 }) };
+            std::string_view const _mode{ luaW_tostring(L_, StackIndex{ 3 }) };
             if (!_mode.empty() && (_mode != "none" && _mode != "set/get" && _mode != "send/receive")) {
                 raise_luaL_argerror(L_, StackIndex{ 3 }, "unknown restrict mode");
             }
@@ -861,7 +861,7 @@ LUAG_FUNC(linda_restrict)
                 Keeper* const _keeper{ _linda->whichKeeper() };
                 _pushed = keeper_call(_keeper->K, KEEPER_API(restrict), L_, _linda, StackIndex{ 2 });
                 // we should get a single return value: the string describing the previous restrict mode
-                LUA_ASSERT(L_, _pushed.has_value() && (_pushed.value() == 1) && luaG_type(L_, kIdxTop) == LuaType::STRING);
+                LUA_ASSERT(L_, _pushed.has_value() && (_pushed.value() == 1) && luaW_type(L_, kIdxTop) == LuaType::STRING);
             } else { // linda is cancelled
                 // do nothing and return nil,lanes.cancel_error
                 lua_pushnil(L_);
@@ -981,7 +981,7 @@ LUAG_FUNC(linda_send)
                 } else {
                     // not enough room in the Linda slot to fulfill the request, return nil, "timeout"
                     lua_pushnil(L_);
-                    luaG_pushstring(L_, "timeout");
+                    luaW_pushstring(L_, "timeout");
                     return 2;
                 }
             }
@@ -1016,7 +1016,7 @@ LUAG_FUNC(linda_set)
                     if (kRestrictedChannel.equals(L_, kIdxTop)) {
                         raise_luaL_error(L_, "Key is restricted");
                     }
-                    LUA_ASSERT(L_, _pushed.value() == 2 && luaG_type(L_, kIdxTop) == LuaType::STRING && luaG_type(L_, StackIndex{ -2 }) == LuaType::BOOLEAN);
+                    LUA_ASSERT(L_, _pushed.value() == 2 && luaW_type(L_, kIdxTop) == LuaType::STRING && luaW_type(L_, StackIndex{ -2 }) == LuaType::BOOLEAN);
 
                     if (_has_data) {
                         // we put some data in the slot, tell readers that they should wake
@@ -1078,7 +1078,7 @@ LUAG_FUNC(linda_towatch)
 LUAG_FUNC(linda_wake)
 {
     Linda* const _linda{ ToLinda<false>(L_, StackIndex{ 1 }) };
-    std::string_view const _who{ luaG_optstring(L_, StackIndex{ 2 }, "both") };
+    std::string_view const _who{ luaW_optstring(L_, StackIndex{ 2 }, "both") };
     // make sure we got 2 arguments: the linda and the wake targets
     luaL_argcheck(L_, lua_gettop(L_) <= 2, 2, "wrong number of arguments");
 
@@ -1154,8 +1154,8 @@ LUAG_FUNC(linda)
         if (lua_isnil(L_, kIdxTop)) {
             lua_pop(L_, 1);
             lua_pushnumber(L_, _U->lindaWakePeriod.count());
-        } else if (luaG_type(L_, kIdxTop) == LuaType::STRING) {
-            if (luaG_tostring(L_, kIdxTop) != "never") {
+        } else if (luaW_type(L_, kIdxTop) == LuaType::STRING) {
+            if (luaW_tostring(L_, kIdxTop) != "never") {
                 luaL_argerror(L_, 1, "invalid wake_period");
             } else {
                 lua_pop(L_, 1);
@@ -1177,7 +1177,7 @@ LUAG_FUNC(linda)
 
 #if LUA_VERSION_NUM >= 504 // to-be-closed support starts with Lua 5.4
         lua_getfield(L_, 1, "close_handler");                                                      // L_: {} wake_period group close_handler
-        LuaType const _handlerType{ luaG_type(L_, kIdxTop) };
+        LuaType const _handlerType{ luaW_type(L_, kIdxTop) };
         if (_handlerType == LuaType::NIL) {
             lua_pop(L_, 1);                                                                        // L_: {} wake_period group
         } else if (_handlerType == LuaType::USERDATA || _handlerType == LuaType::TABLE) {
@@ -1188,7 +1188,7 @@ LUAG_FUNC(linda)
         }
 #endif // LUA_VERSION_NUM >= 504
 
-        auto const _nameType{ luaG_getfield(L_, StackIndex{ 1 }, "name") };                        // L_: {} wake_period group [close_handler] name
+        auto const _nameType{ luaW_getfield(L_, StackIndex{ 1 }, "name") };                        // L_: {} wake_period group [close_handler] name
         luaL_argcheck(L_, _nameType == LuaType::NIL || _nameType == LuaType::STRING, 1, "name is not a string");
         lua_replace(L_, 1);                                                                        // L_: name wake_period group [close_handler]
     }

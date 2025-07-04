@@ -5,7 +5,7 @@
 "Another issue I've noticed is trying to pass a table with a function
 that uses closures in it as a global variable into a new lane.  This
 causes a segmentation fault and it appears to be related to the
-luaG_inter_move function near line 835-836 or so in lanes.c, but I
+luaW_inter_move function near line 835-836 or so in lanes.c, but I
 haven't investigated further.
 e.g. { globals = { data = 1, func = function() useclosurehere() end } }"
 ]]

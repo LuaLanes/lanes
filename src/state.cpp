@@ -166,7 +166,7 @@ namespace state {
         };
 
         if (_L == nullptr) {
-            raise_luaL_error(from_, "luaG_newstate() failed while creating state; out of memory");
+            raise_luaL_error(from_, "luaW_newstate() failed while creating state; out of memory");
         }
         return _L;
     }
@@ -202,11 +202,11 @@ namespace state {
 
         // neither libs (not even 'base') nor special init func: we are done
         if (!libs_.has_value() && std::holds_alternative<std::nullptr_t>(U_->onStateCreateFunc)) {
-            DEBUGSPEW_CODE(DebugSpew(U_) << "luaG_newstate(nullptr)" << std::endl);
+            DEBUGSPEW_CODE(DebugSpew(U_) << "luaW_newstate(nullptr)" << std::endl);
             return _L;
         }
 
-        DEBUGSPEW_CODE(DebugSpew(U_) << "luaG_newstate()" << std::endl);
+        DEBUGSPEW_CODE(DebugSpew(U_) << "luaW_newstate()" << std::endl);
         DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U_ });
 
         // copy settings (for example because it may contain a Lua on_state_create function)
@@ -239,7 +239,7 @@ namespace state {
                     lua_pop(_L, 1);
                 } else {
                     lua_pushcfunction(_L, luaopen_base);
-                    luaG_pushstring(_L, "");
+                    luaW_pushstring(_L, "");
                     lua_call(_L, 1, 0);
                 }
             }
@@ -274,7 +274,7 @@ namespace state {
 
         STACK_CHECK(_L, 0);
         // after all this, register everything we find in our name<->function database
-        luaG_pushglobaltable(_L);                                                                  // L: _G
+        luaW_pushglobaltable(_L);                                                                  // L: _G
         tools::PopulateFuncLookupTable(_L, kIdxTop, {});
         lua_pop(_L, 1);                                                                            // L:
         STACK_CHECK(_L, 0);
@@ -286,19 +286,19 @@ namespace state {
             kLookupRegKey.pushValue(_L);                                                           // L: {}
             lua_pushnil(_L);                                                                       // L: {} nil
             while (lua_next(_L, -2)) {                                                             // L: {} k v
-                luaG_pushstring(_L, "[");                                                          // L: {} k v "["
+                luaW_pushstring(_L, "[");                                                          // L: {} k v "["
 
                 lua_getglobal(_L, "tostring");                                                     // L: {} k v "[" tostring
                 lua_pushvalue(_L, -4);                                                             // L: {} k v "[" tostring k
                 lua_call(_L, 1, 1);                                                                // L: {} k v "[" 'k'
 
-                luaG_pushstring(_L, "] = ");                                                       // L: {} k v "[" 'k' "] = "
+                luaW_pushstring(_L, "] = ");                                                       // L: {} k v "[" 'k' "] = "
 
                 lua_getglobal(_L, "tostring");                                                     // L: {} k v "[" 'k' "] = " tostring
                 lua_pushvalue(_L, -5);                                                             // L: {} k v "[" 'k' "] = " tostring v
                 lua_call(_L, 1, 1);                                                                // L: {} k v "[" 'k' "] = " 'v'
                 lua_concat(_L, 4);                                                                 // L: {} k v "[k] = v"
-                DEBUGSPEW_CODE(DebugSpew(U_) << luaG_tostring(_L, kIdxTop) << std::endl);
+                DEBUGSPEW_CODE(DebugSpew(U_) << luaW_tostring(_L, kIdxTop) << std::endl);
                 lua_pop(_L, 2);                                                                    // L: {} k
             } // lua_next()                                                                        // L: {}
             lua_pop(_L, 1);                                                                        // L:
@@ -317,7 +317,7 @@ namespace state {
         lua_newtable(L_);                                                                          // L_: out
         for (luaL_Reg const& _entry : local::sLibs) {
             lua_pushboolean(L_, 1);                                                                // L_: out true
-            luaG_setfield(L_, StackIndex{ -2 }, std::string_view{ _entry.name });                  // out[name] = true            // L_: out
+            luaW_setfield(L_, StackIndex{ -2 }, std::string_view{ _entry.name });                  // out[name] = true            // L_: out
         }
         STACK_CHECK(L_, 1);
         return 1;

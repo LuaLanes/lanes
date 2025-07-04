@@ -5,10 +5,10 @@
 
 // #################################################################################################
 
-UserValueCount luaG_getalluservalues(lua_State* const L_, StackIndex const idx_)
+UserValueCount luaW_getalluservalues(lua_State* const L_, StackIndex const idx_)
 {
     STACK_CHECK_START_REL(L_, 0);
-    StackIndex const _idx{ luaG_absindex(L_, idx_) };
+    StackIndex const _idx{ luaW_absindex(L_, idx_) };
     UserValueIndex _nuv{ 0 };
     do {
         // we don't know how many uservalues we are going to extract, there might be a lot...
@@ -24,15 +24,15 @@ UserValueCount luaG_getalluservalues(lua_State* const L_, StackIndex const idx_)
 // #################################################################################################
 
 // a small helper to obtain a module's table from the registry instead of relying on the presence of _G["<name>"]
-LuaType luaG_getmodule(lua_State* const L_, std::string_view const& name_)
+LuaType luaW_getmodule(lua_State* const L_, std::string_view const& name_)
 {
     STACK_CHECK_START_REL(L_, 0);
-    LuaType _type{ luaG_getfield(L_, kIdxRegistry, LUA_LOADED_TABLE) };                            // L_: _R._LOADED|nil
+    LuaType _type{ luaW_getfield(L_, kIdxRegistry, LUA_LOADED_TABLE) };                            // L_: _R._LOADED|nil
     if (_type != LuaType::TABLE) {                                                                 // L_: _R._LOADED|nil
         STACK_CHECK(L_, 1);
         return _type;
     }
-    _type = luaG_getfield(L_, kIdxTop, name_);                                                     // L_: _R._LOADED {module}|nil
+    _type = luaW_getfield(L_, kIdxTop, name_);                                                     // L_: _R._LOADED {module}|nil
     lua_remove(L_, -2);                                                                            // L_: {module}|nil
     STACK_CHECK(L_, 1);
     return _type;
@@ -52,7 +52,7 @@ int luaL_getsubtable(lua_State* const L_, StackIndex const idx_, char const* fna
         return 1; /* table already there */
     } else {
         lua_pop(L_, 1); /* remove previous result */
-        StackIndex const _absidx{ luaG_absindex(L_, idx_) };
+        StackIndex const _absidx{ luaW_absindex(L_, idx_) };
         lua_newtable(L_);
         lua_pushvalue(L_, -1); /* copy to be left at top */
         lua_setfield(L_, _absidx, fname_); /* assign new table to field */

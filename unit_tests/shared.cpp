@@ -18,9 +18,9 @@ namespace
         {
             STACK_CHECK_START_REL(L_, 0);
             lua_getglobal(L_, "package");                                                          // L_: package
-            std::ignore = luaG_getfield(L_, kIdxTop, "preload");                                   // L_: package package.preload
+            std::ignore = luaW_getfield(L_, kIdxTop, "preload");                                   // L_: package package.preload
             lua_pushcfunction(L_, openf_);                                                         // L_: package package.preload openf_
-            luaG_setfield(L_, StackIndex{ -2 }, name_);                                            // L_: package package.preload
+            luaW_setfield(L_, StackIndex{ -2 }, name_);                                            // L_: package package.preload
             lua_pop(L_, 2);
             STACK_CHECK(L_, 0);
         }
@@ -32,7 +32,7 @@ namespace
         lua_CFunction sFreezingFinalizer = +[](lua_State* const L_) {
             std::lock_guard _guard{ sCallCountsLock };
             sFinalizerHits[L_].test_and_set();
-            luaG_pushstring(L_, "freeze"); // just freeze the thread in place so that it can be debugged
+            luaW_pushstring(L_, "freeze"); // just freeze the thread in place so that it can be debugged
             return 1;
         };
 
@@ -47,7 +47,7 @@ namespace
         };
 
         lua_CFunction sNewUserData = +[](lua_State* const L_) {
-            std::ignore = luaG_newuserdatauv<int>(L_, UserValueCount{ 0 });
+            std::ignore = luaW_newuserdatauv<int>(L_, UserValueCount{ 0 });
             return 1;
         };
 
@@ -62,7 +62,7 @@ namespace
         lua_CFunction sBlockFor = +[](lua_State* const L_) {
             std::chrono::time_point<std::chrono::steady_clock> _until{ std::chrono::time_point<std::chrono::steady_clock>::max() };
             lua_settop(L_, 1);
-            if (luaG_type(L_, kIdxTop) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
+            if (luaW_type(L_, kIdxTop) == LuaType::NUMBER) { // we don't want to use lua_isnumber() because of autocoercion
                 lua_Duration const _duration{ lua_tonumber(L_, kIdxTop) };
                 if (_duration.count() >= 0.0) {
                     _until = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(_duration);
@@ -82,7 +82,7 @@ namespace
             std::lock_guard _guard{ sCallCountsLock };
             sFinalizerHits[L_].test_and_set();
             bool const _allLanesTerminated = lua_toboolean(L_, kIdxTop);
-            luaG_pushstring(L_, "Finalizer%s", _allLanesTerminated ? "" : ": Uncooperative lanes detected");
+            luaW_pushstring(L_, "Finalizer%s", _allLanesTerminated ? "" : ": Uncooperative lanes detected");
             return 1;
         };
 
@@ -103,7 +103,7 @@ namespace
     int luaopen_fixture(lua_State* L_)
     {
         STACK_CHECK_START_REL(L_, 0);
-        luaG_newlib<std::size(local::sFixture)>(L_, local::sFixture);                              // M
+        luaW_newlib<std::size(local::sFixture)>(L_, local::sFixture);                              // M
         STACK_CHECK(L_, 1);
         return 1;
     }
@@ -246,7 +246,7 @@ LuaError LuaState::doString(std::string_view const& str_) const
         return _loadErr;
     }
     LuaError const _callErr{ lua_pcall(L, 0, 1, 0) };                                              // L: "<msg>"?
-    [[maybe_unused]] std::string_view const _out{ luaG_tostring(L, kIdxTop) };
+    [[maybe_unused]] std::string_view const _out{ luaW_tostring(L, kIdxTop) };
     STACK_CHECK(L, 1);
     return _callErr;
 }
@@ -257,8 +257,8 @@ std::string_view LuaState::doStringAndRet(std::string_view const& str_) const
 {
     lua_settop(L, 0);
     if (str_.empty()) {
-        luaG_pushstring(L, "");
-        return luaG_tostring(L, kIdxTop);
+        luaW_pushstring(L, "");
+        return luaW_tostring(L, kIdxTop);
     }
     STACK_CHECK_START_REL(L, 0);
     LuaError const _loadErr{ luaL_loadstring(L, str_.data()) };                                    // L: chunk()
@@ -268,7 +268,7 @@ std::string_view LuaState::doStringAndRet(std::string_view const& str_) const
     }
     [[maybe_unused]] LuaError const _callErr{ lua_pcall(L, 0, 1, 0) };                             // L: "<msg>"?|retstring
     STACK_CHECK(L, 1);
-    return luaG_tostring(L, kIdxTop);
+    return luaW_tostring(L, kIdxTop);
 }
 
 // #################################################################################################
@@ -336,7 +336,7 @@ void LuaState::requireFailure(std::string_view const& script_)
 {
     auto const _result{ doString(script_) };
     if (_result == LuaError::OK) {
-        WARN(luaG_tostring(L, kIdxTop));
+        WARN(luaW_tostring(L, kIdxTop));
     }
     REQUIRE(_result != LuaError::OK);
     lua_settop(L, 0);
@@ -372,7 +372,7 @@ void LuaState::requireSuccess(std::string_view const& script_)
 {
     auto const _result{ doString(script_) };
     if (_result != LuaError::OK) {
-        WARN(luaG_tostring(L, kIdxTop));
+        WARN(luaW_tostring(L, kIdxTop));
     }
     REQUIRE(_result == LuaError::OK);
     lua_settop(L, 0);
@@ -384,7 +384,7 @@ void LuaState::requireSuccess(std::filesystem::path const& root_, std::string_vi
 {
     auto const _result{ doFile(root_, path_) };
     if (_result != LuaError::OK) {
-        WARN(luaG_tostring(L, kIdxTop));
+        WARN(luaW_tostring(L, kIdxTop));
     }
     REQUIRE(_result == LuaError::OK);
     lua_settop(L, 0);
@@ -407,20 +407,20 @@ TEST_CASE("LuaState.doString")
 {
     LuaState _L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
     // if the script fails to load, we should find the error message at the top of the stack
-    REQUIRE([&L = _L]() { std::ignore = L.doString("function end"); return lua_gettop(L) == 1 && luaG_type(L, StackIndex{1}) == LuaType::STRING; }());
+    REQUIRE([&L = _L]() { std::ignore = L.doString("function end"); return lua_gettop(L) == 1 && luaW_type(L, StackIndex{1}) == LuaType::STRING; }());
 
     // if the script runs, the stack should contain its return value
-    REQUIRE([&L = _L]() { std::ignore = L.doString("return true"); return lua_gettop(L) == 1 && luaG_type(L, StackIndex{1}) == LuaType::BOOLEAN; }());
-    REQUIRE([&L = _L]() { std::ignore = L.doString("return 'hello'"); return lua_gettop(L) == 1 && luaG_tostring(L, StackIndex{1}) == "hello"; }());
+    REQUIRE([&L = _L]() { std::ignore = L.doString("return true"); return lua_gettop(L) == 1 && luaW_type(L, StackIndex{1}) == LuaType::BOOLEAN; }());
+    REQUIRE([&L = _L]() { std::ignore = L.doString("return 'hello'"); return lua_gettop(L) == 1 && luaW_tostring(L, StackIndex{1}) == "hello"; }());
     // or nil if it didn't return anything
-    REQUIRE([&L = _L]() { std::ignore = L.doString("return"); return lua_gettop(L) == 1 && luaG_type(L, StackIndex{1}) == LuaType::NIL; }());
+    REQUIRE([&L = _L]() { std::ignore = L.doString("return"); return lua_gettop(L) == 1 && luaW_type(L, StackIndex{1}) == LuaType::NIL; }());
 
     // on failure, doStringAndRet returns "", and the error message is on the stack
-    REQUIRE([&L = _L]() { return L.doStringAndRet("function end") == "" && lua_gettop(L) == 1 && luaG_type(L, StackIndex{ 1 }) == LuaType::STRING && luaG_tostring(L, StackIndex{ 1 }) != ""; }());
+    REQUIRE([&L = _L]() { return L.doStringAndRet("function end") == "" && lua_gettop(L) == 1 && luaW_type(L, StackIndex{ 1 }) == LuaType::STRING && luaW_tostring(L, StackIndex{ 1 }) != ""; }());
     // on success doStringAndRet returns the string returned by the script, that is also at the top of the stack
-    REQUIRE([&L = _L]() { return L.doStringAndRet("return 'hello'") == "hello" && lua_gettop(L) == 1 && luaG_type(L, StackIndex{ 1 }) == LuaType::STRING && luaG_tostring(L, StackIndex{ 1 }) == "hello"; }());
+    REQUIRE([&L = _L]() { return L.doStringAndRet("return 'hello'") == "hello" && lua_gettop(L) == 1 && luaW_type(L, StackIndex{ 1 }) == LuaType::STRING && luaW_tostring(L, StackIndex{ 1 }) == "hello"; }());
     // if the returned value is not (convertible to) a string, we should get an empty string out of doStringAndRet
-    REQUIRE([&L = _L]() { return L.doStringAndRet("return function() end") == "" && lua_gettop(L) == 1 && luaG_type(L, StackIndex{ 1 }) == LuaType::FUNCTION && luaG_tostring(L, StackIndex{ 1 }) == ""; }());
+    REQUIRE([&L = _L]() { return L.doStringAndRet("return function() end") == "" && lua_gettop(L) == 1 && luaW_type(L, StackIndex{ 1 }) == LuaType::FUNCTION && luaW_tostring(L, StackIndex{ 1 }) == ""; }());
 }
 
 // #################################################################################################
@@ -436,9 +436,9 @@ FileRunner::FileRunner(std::string_view const& where_)
     // because the VS Test Explorer doesn't appreciate the text output of some scripts, so absorb them
     if constexpr (1) {
         auto const _nullprint = +[](lua_State* const L_) { return 0; };
-        luaG_pushglobaltable(L);
+        luaW_pushglobaltable(L);
         lua_pushcfunction(L, _nullprint);
-        luaG_setfield(L, StackIndex{ -2 }, std::string_view{ "print" });
+        luaW_setfield(L, StackIndex{ -2 }, std::string_view{ "print" });
         lua_pop(L, 1);
         stackCheck(0);
     }

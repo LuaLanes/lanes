@@ -52,25 +52,25 @@ FqnLength DiscoverObjectNameRecur(lua_State* const L_, FqnLength const shortest_
     static constexpr auto _pushNameOnFQN = [](lua_State* const L_) {
         STACK_CHECK_START_REL(L_, 0);
         lua_pushvalue(L_, -2);                                                                     // L_: o "r" {c} {fqn} ... k v k
-        auto const _keyType{ luaG_type(L_, kIdxTop) };
+        auto const _keyType{ luaW_type(L_, kIdxTop) };
         if (_keyType != LuaType::STRING) {
             lua_pop(L_, 1);                                                                        // L_: o "r" {c} {fqn} ... k v
-            luaG_pushstring(L_, "<%s>", luaG_typename(L_, _keyType).data());                       // L_: o "r" {c} {fqn} ... k v "<type of k>"
+            luaW_pushstring(L_, "<%s>", luaW_typename(L_, _keyType).data());                       // L_: o "r" {c} {fqn} ... k v "<type of k>"
         } else {
             // decorate the key string with something that tells us the type of the value
-            switch (luaG_type(L_, StackIndex{ -2 })) {
+            switch (luaW_type(L_, StackIndex{ -2 })) {
             default:
                 LUA_ASSERT(L_, false); // there is something wrong if we end up here
-                luaG_pushstring(L_, "??");                                                         // L_: o "r" {c} {fqn} ... k v "k" "??"
+                luaW_pushstring(L_, "??");                                                         // L_: o "r" {c} {fqn} ... k v "k" "??"
                 break;
             case LuaType::FUNCTION:
-                luaG_pushstring(L_, "()");                                                         // L_: o "r" {c} {fqn} ... k v "k" "()"
+                luaW_pushstring(L_, "()");                                                         // L_: o "r" {c} {fqn} ... k v "k" "()"
                 break;
             case LuaType::TABLE:
-                luaG_pushstring(L_, "[]");                                                         // L_: o "r" {c} {fqn} ... k v "k" "[]"
+                luaW_pushstring(L_, "[]");                                                         // L_: o "r" {c} {fqn} ... k v "k" "[]"
                 break;
             case LuaType::USERDATA:
-                luaG_pushstring(L_, "<>");                                                         // L_: o "r" {c} {fqn} ... k v "k" "<>"
+                luaW_pushstring(L_, "<>");                                                         // L_: o "r" {c} {fqn} ... k v "k" "<>"
                 break;
             }
             lua_concat(L_, 2);                                                                     // L_: o "r" {c} {fqn} ... k v "k??"
@@ -92,7 +92,7 @@ FqnLength DiscoverObjectNameRecur(lua_State* const L_, FqnLength const shortest_
     static constexpr auto _recurseThenPop = [](lua_State* const L_, FqnLength const shortest_) -> FqnLength {
         STACK_CHECK_START_REL(L_, 0);                                                              // L_: o "r" {c} {fqn} ... <>
         FqnLength r_{ shortest_ };
-        auto const _type{ luaG_type(L_, kIdxTop) };
+        auto const _type{ luaW_type(L_, kIdxTop) };
         if (_type == LuaType::TABLE || _type == LuaType::USERDATA || _type == LuaType::FUNCTION) {
             r_ = DiscoverObjectNameRecur(L_, shortest_);
             STACK_CHECK(L_, 0);
@@ -113,7 +113,7 @@ FqnLength DiscoverObjectNameRecur(lua_State* const L_, FqnLength const shortest_
         STACK_CHECK_START_REL(L_, 0);                                                              // L_: o "r" {c} {fqn} ... k v
 
         // filter out uninteresting values
-        auto const _valType{ luaG_type(L_, kIdxTop) };
+        auto const _valType{ luaW_type(L_, kIdxTop) };
         if (_valType == LuaType::NIL || _valType == LuaType::BOOLEAN || _valType == LuaType::LIGHTUSERDATA || _valType == LuaType::NUMBER || _valType == LuaType::STRING) {
             lua_pop(L_, 1);                                                                        // L_: o "r" {c} {fqn} ... k
             return _r;
@@ -177,7 +177,7 @@ FqnLength DiscoverObjectNameRecur(lua_State* const L_, FqnLength const shortest_
 
         UserValueIndex _uvi{ 0 };
         while (lua_getiuservalue(L_, kIdxTop, ++_uvi) != LUA_TNONE) {                              // L_: o "r" {c} {fqn} ... U uv
-            luaG_pushstring(L_, "<uv:%d>", _uvi);                                                  // L_: o "r" {c} {fqn} ... U uv name
+            luaW_pushstring(L_, "<uv:%d>", _uvi);                                                  // L_: o "r" {c} {fqn} ... U uv name
             lua_insert(L_, -2);                                                                    // L_: o "r" {c} {fqn} ... U name uv
             r_ = _processKeyValue(L_, r_);                                                         // L_: o "r" {c} {fqn} ... U name
             lua_pop(L_, 1);                                                                        // L_: o "r" {c} {fqn} ... U
@@ -200,7 +200,7 @@ FqnLength DiscoverObjectNameRecur(lua_State* const L_, FqnLength const shortest_
                 _upname = "<C>";
             }
 
-            luaG_pushstring(L_, "upvalue:%s", _upname);                                            // L_: o "r" {c} {fqn} ... F up name
+            luaW_pushstring(L_, "upvalue:%s", _upname);                                            // L_: o "r" {c} {fqn} ... F up name
             lua_insert(L_, -2);                                                                    // L_: o "r" {c} {fqn} ... F name up
             r_ = _processKeyValue(L_, r_);                                                         // L_: o "r" {c} {fqn} ... F name
             lua_pop(L_, 1);                                                                        // L_: o "r" {c} {fqn} ... F
@@ -213,7 +213,7 @@ FqnLength DiscoverObjectNameRecur(lua_State* const L_, FqnLength const shortest_
     STACK_GROW(L_, 2);
     STACK_CHECK_START_REL(L_, 0);
     // stack top contains the location to search in (table, function, userdata)
-    [[maybe_unused]] auto const _typeWhere{ luaG_type(L_, kIdxTop) };
+    [[maybe_unused]] auto const _typeWhere{ luaW_type(L_, kIdxTop) };
     LUA_ASSERT(L_, _typeWhere == LuaType::TABLE || _typeWhere == LuaType::USERDATA || _typeWhere == LuaType::FUNCTION);
     lua_pushvalue(L_, kIdxTop);                                                                    // L_: o "r" {c} {fqn} ... <> <>
     lua_rawget(L_, kCache);                                                                        // L_: o "r" {c} {fqn} ... <> nil/N
@@ -263,12 +263,12 @@ LUAG_FUNC(nameof)
 
     // nil, boolean, light userdata, number and string aren't identifiable
     static constexpr auto _isIdentifiable = [](lua_State* const L_) {
-        auto const _valType{ luaG_type(L_, kIdxTop) };
+        auto const _valType{ luaW_type(L_, kIdxTop) };
         return _valType == LuaType::TABLE || _valType == LuaType::FUNCTION || _valType == LuaType::USERDATA || _valType == LuaType::THREAD;
     };
 
     if (!_isIdentifiable(L_)) {
-        luaG_pushstring(L_, luaG_typename(L_, kIdxTop));                                           // L_: o "type"
+        luaW_pushstring(L_, luaW_typename(L_, kIdxTop));                                           // L_: o "type"
         lua_insert(L_, -2);                                                                        // L_: "type" o
         return 2;
     }
@@ -282,15 +282,15 @@ LUAG_FUNC(nameof)
     // push a table whose contents are strings that, when concatenated, produce unique name
     lua_newtable(L_);                                                                              // L_: o nil {c} {fqn}
     // {fqn}[1] = "_G"
-    luaG_pushstring(L_, LUA_GNAME);                                                                // L_: o nil {c} {fqn} "_G"
+    luaW_pushstring(L_, LUA_GNAME);                                                                // L_: o nil {c} {fqn} "_G"
     lua_rawseti(L_, -2, 1);                                                                        // L_: o nil {c} {fqn}
     // this is where we start the search
-    luaG_pushglobaltable(L_);                                                                      // L_: o nil {c} {fqn} _G
+    luaW_pushglobaltable(L_);                                                                      // L_: o nil {c} {fqn} _G
     auto const _foundInG{ DiscoverObjectNameRecur(L_, FqnLength{ std::numeric_limits<FqnLength::type>::max() }) };
     if (lua_isnil(L_, 2)) { // try again with registry, just in case...
         LUA_ASSERT(L_, _foundInG == std::numeric_limits<FqnLength::type>::max());
         lua_pop(L_, 1);                                                                            // L_: o nil {c} {fqn}
-        luaG_pushstring(L_, "_R");                                                                 // L_: o nil {c} {fqn} "_R"
+        luaW_pushstring(L_, "_R");                                                                 // L_: o nil {c} {fqn} "_R"
         lua_rawseti(L_, -2, 1);                                                                    // L_: o nil {c} {fqn}
         lua_pushvalue(L_, kIdxRegistry);                                                           // L_: o nil {c} {fqn} _R
         [[maybe_unused]] auto const _foundInR{ DiscoverObjectNameRecur(L_, FqnLength{ std::numeric_limits<FqnLength::type>::max() }) };

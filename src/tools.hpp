@@ -21,7 +21,7 @@ enum class [[nodiscard]] FuncSubType
 };
 
 [[nodiscard]]
-FuncSubType luaG_getfuncsubtype(lua_State* L_, StackIndex i_);
+FuncSubType luaW_getfuncsubtype(lua_State* L_, StackIndex i_);
 
 // #################################################################################################
 

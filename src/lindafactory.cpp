@@ -47,22 +47,22 @@ void LindaFactory::createMetatable(lua_State* L_) const
     lua_newtable(L_);                                                                              // L_: mt
 
     // protect metatable from external access
-    luaG_pushstring(L_, kLindaMetatableName);                                                      // L_: mt "<name>"
+    luaW_pushstring(L_, kLindaMetatableName);                                                      // L_: mt "<name>"
     lua_setfield(L_, -2, "__metatable");                                                           // L_: mt
 
     // the linda functions
-    luaG_registerlibfuncs(L_, mLindaMT);
+    luaW_registerlibfuncs(L_, mLindaMT);
 
     kNilSentinel.pushKey(L_);                                                                      // L_: mt kNilSentinel
     lua_setfield(L_, -2, "null");                                                                  // L_: mt
 
     // if the metatable contains __index, leave it as is
-    if (luaG_getfield(L_, kIdxTop, kIndex) != LuaType::NIL) {                                      // L_: mt __index
+    if (luaW_getfield(L_, kIdxTop, kIndex) != LuaType::NIL) {                                      // L_: mt __index
         lua_pop(L_, 1);                                                                            // L_: mt __index
     } else {
         // metatable is its own index
         lua_pushvalue(L_, kIdxTop);                                                                // L_: mt mt
-        luaG_setfield(L_, StackIndex{ -2 }, kIndex);                                               // L_: mt
+        luaW_setfield(L_, StackIndex{ -2 }, kIndex);                                               // L_: mt
     }
 
     STACK_CHECK(L_, 1);
@@ -110,7 +110,7 @@ DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* const L_) const
 {
     STACK_CHECK_START_REL(L_, 0);
     // we always expect name, wake_period, group at the bottom of the stack (either can be nil). any extra stuff we ignore and keep unmodified
-    std::string_view _linda_name{ luaG_tostring(L_, StackIndex{ 1 }) };
+    std::string_view _linda_name{ luaW_tostring(L_, StackIndex{ 1 }) };
     auto const _wake_period{ static_cast<lua_Duration>(lua_tonumber(L_, 2)) };
     LindaGroup const _linda_group{ static_cast<int>(lua_tointeger(L_, 3)) };
 
@@ -119,12 +119,12 @@ DeepPrelude* LindaFactory::newDeepObjectInternal(lua_State* const L_) const
         lua_Debug _ar;
         if (lua_getstack(L_, 1, &_ar) == 1) { // 1 because we want the name of the function that called lanes.linda (where we currently are)
             lua_getinfo(L_, "Sln", &_ar);
-            _linda_name = luaG_pushstring(L_, "%s:%d", _ar.short_src, _ar.currentline);
+            _linda_name = luaW_pushstring(L_, "%s:%d", _ar.short_src, _ar.currentline);
         } else {
-            _linda_name = luaG_pushstring(L_, "<unresolved>");
+            _linda_name = luaW_pushstring(L_, "<unresolved>");
         }
         // since the name is not empty, it is at slot 1, and we can replace "auto" with the result, just in case
-        LUA_ASSERT(L_, luaG_tostring(L_, StackIndex{ 1 }) == "auto");
+        LUA_ASSERT(L_, luaW_tostring(L_, StackIndex{ 1 }) == "auto");
         lua_replace(L_, 1);
     }
 

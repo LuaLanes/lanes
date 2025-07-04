@@ -35,7 +35,7 @@ namespace lanes
 {
     AllocatorDefinition& AllocatorDefinition::Validated(lua_State* const L_, StackIndex const idx_)
     {
-        lanes::AllocatorDefinition* const _def{ luaG_tofulluserdata<lanes::AllocatorDefinition>(L_, idx_) };
+        lanes::AllocatorDefinition* const _def{ luaW_tofulluserdata<lanes::AllocatorDefinition>(L_, idx_) };
         // raise an error and don't return if the full userdata at the specified index is not a valid AllocatorDefinition
         if (!_def) {
             raise_luaL_error(L_, "Bad config.allocator function, provided value is not a userdata");

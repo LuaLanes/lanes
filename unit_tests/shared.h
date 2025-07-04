@@ -56,7 +56,7 @@ class LuaState
 
     friend std::ostream& operator<<(std::ostream& os_, LuaState const& s_)
     {
-        os_ << luaG_tostring(s_.L, kIdxTop);
+        os_ << luaW_tostring(s_.L, kIdxTop);
         return os_;
     }
 };

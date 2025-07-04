@@ -80,7 +80,7 @@ class RegistryUniqueKey final
         STACK_GROW(L_, 1);
         STACK_CHECK_START_REL(L_, 0);
         pushValue(L_);                                                                             // L_: ... {}|nil
-        T* const value{ luaG_tolightuserdata<T>(L_, kIdxTop) };
+        T* const value{ luaW_tolightuserdata<T>(L_, kIdxTop) };
         lua_pop(L_, 1);                                                                            // L_: ...
         STACK_CHECK(L_, 0);
         return value;
@@ -125,8 +125,8 @@ class RegistryUniqueKey final
             if (!mode_.empty()) {
                 STACK_GROW(L_, 3);
                 lua_createtable(L_, 0, 1);                                                         // L_: {} mt
-                luaG_pushstring(L_, "__mode");                                                     // L_: {} mt "__mode"
-                luaG_pushstring(L_, mode_);                                                        // L_: {} mt "__mode" mode
+                luaW_pushstring(L_, "__mode");                                                     // L_: {} mt "__mode"
+                luaW_pushstring(L_, mode_);                                                        // L_: {} mt "__mode" mode
                 lua_rawset(L_, -3);                                                                // L_: {} mt
                 lua_setmetatable(L_, -2);                                                          // L_: {}
             }

@@ -109,11 +109,11 @@ void Win32Invoke(lua_State* const L_, std::string_view const& where_, F& f_, ARG
         std::string_view const _funcname{ StripFuncName(where_) };
 
 #if defined(PLATFORM_XBOX)
-        luaG_pushstring(L_, "%s() failed with code %d", _funcname.data(), _rc);
+        luaW_pushstring(L_, "%s() failed with code %d", _funcname.data(), _rc);
 #else // PLATFORM_XBOX
         char _buf[256];
         FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, nullptr, _rc, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), _buf, 256, nullptr);
-        luaG_pushstring(L_, "%s() failed with code %d '%s'", _funcname.data(), _rc, _buf);
+        luaW_pushstring(L_, "%s() failed with code %d '%s'", _funcname.data(), _rc, _buf);
 #endif // PLATFORM_XBOX
         raise_lua_error(L_);
     }
