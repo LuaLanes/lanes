@@ -21,7 +21,7 @@
 #endif // LUA_OK
 
 #ifndef LUA_ERRGCMM
-#define LUA_ERRGCMM 666 // doesn't exist in Lua 5.1 and Lua 5.4, we don't care about the actual value
+#define LUA_ERRGCMM 666 // doesn't exist in Lua 5.1 and Lua 5.4/5.5, we don't care about the actual value
 #endif // LUA_ERRGCMM
 
 
@@ -29,7 +29,7 @@
 #define LUA_LOADED_TABLE "_LOADED" // doesn't exist before Lua 5.3
 #endif // LUA_LOADED_TABLE
 
-// code is now preferring Lua 5.4 API
+// code is now preferring Lua 5.5 API
 
 // #################################################################################################
 
@@ -76,18 +76,6 @@ int luaL_getsubtable(lua_State* L_, StackIndex idx_, char const* fname_);
 
 // #################################################################################################
 
-// wrap Lua 5.3 calls under Lua 5.1 API when it is simpler that way
-#if LUA_VERSION_NUM == 503
-
-inline int luaL_optint(lua_State* L_, int n_, lua_Integer d_)
-{
-    return static_cast<int>(luaL_optinteger(L_, n_, d_));
-}
-
-#endif // LUA_VERSION_NUM == 503
-
-// #################################################################################################
-
 #if LUA_VERSION_NUM < 504
 
 void* lua_newuserdatauv(lua_State* L_, size_t sz_, UserValueCount nuvalue_);
@@ -100,15 +88,11 @@ int lua_setiuservalue(lua_State* L_, StackIndex idx_, UserValueIndex n_);
 
 // #################################################################################################
 
-// wrap Lua 5.4 calls under Lua 5.1 API when it is simpler that way
-#if LUA_VERSION_NUM == 504
+#if LUA_VERSION_NUM < 505
 
-inline int luaL_optint(lua_State* L_, StackIndex n_, lua_Integer d_)
-{
-    return static_cast<int>(luaL_optinteger(L_, n_, d_));
-}
+unsigned int luaL_makeseed(lua_State*);
 
-#endif // LUA_VERSION_NUM == 504
+#endif // LUA_VERSION_NUM < 505
 
 // #################################################################################################
 
@@ -284,6 +268,47 @@ LuaType luaW_getmodule(lua_State* L_, std::string_view const& name_);
 
 // #################################################################################################
 
+template <typename LUA_NEWSTATE>
+concept RequiresOldLuaNewState = requires(LUA_NEWSTATE f_)
+{
+    {
+        f_(nullptr, 0)
+    } -> std::same_as<lua_State*>;
+};
+
+template <RequiresOldLuaNewState LUA_NEWSTATE>
+static inline lua_State* WrapLuaNewState(LUA_NEWSTATE const lua_newstate_, lua_Alloc const allocf_, void* const ud_, [[maybe_unused]] unsigned int const seed_)
+{
+    // until Lua 5.5, lua_newstate has only 2 parameters
+    return lua_newstate_(allocf_, ud_);
+}
+
+// -------------------------------------------------------------------------------------------------
+
+template <typename LUA_NEWSTATE>
+concept RequiresNewLuaNewState = requires(LUA_NEWSTATE f_)
+{
+    {
+        f_(nullptr, nullptr, 0)
+    } -> std::same_as<lua_State*>;
+};
+
+template <RequiresNewLuaNewState LUA_NEWSTATE>
+static inline lua_State* WrapLuaNewState(LUA_NEWSTATE const lua_newstate_, lua_Alloc const allocf_, void* const ud_, unsigned int const seed_)
+{
+    // starting with Lua 5.5, lua_newstate has 3 parameters
+    return lua_newstate_(allocf_, ud_, seed_);
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static inline lua_State* luaW_newstate(lua_Alloc const allocf_, void* const ud_, unsigned int const seed_)
+{
+    return WrapLuaNewState(lua_newstate, allocf_, ud_, seed_);
+}
+
+// #################################################################################################
+
 template<typename ENUM>
 requires std::is_enum_v<ENUM>
 [[nodiscard]]
@@ -364,7 +389,7 @@ template <typename LUA_RAWGET>
 concept RequiresOldLuaRawget = requires(LUA_RAWGET f_) { { f_(nullptr, 0) } -> std::same_as<void>; };
 
 template <RequiresOldLuaRawget LUA_RAWGET>
-static inline LuaType WrapLuaRawget(LUA_RAWGET lua_rawget_, lua_State* const L_, StackIndex const idx_)
+static inline LuaType WrapLuaRawget(LUA_RAWGET const lua_rawget_, lua_State* const L_, StackIndex const idx_)
 {
     // until Lua 5.3, lua_rawget -> void
     lua_rawget_(L_, idx_);
@@ -377,7 +402,7 @@ template <typename LUA_RAWGET>
 concept RequiresNewLuaRawget = requires(LUA_RAWGET f_) { { f_(nullptr, 0) } -> std::same_as<int>; };
 
 template <RequiresNewLuaRawget LUA_RAWGET>
-static inline LuaType WrapLuaRawget(LUA_RAWGET lua_rawget_, lua_State* const L_, StackIndex const idx_)
+static inline LuaType WrapLuaRawget(LUA_RAWGET const lua_rawget_, lua_State* const L_, StackIndex const idx_)
 {
     // starting with Lua 5.3, lua_rawget -> int (the type of the extracted value)
     return static_cast<LuaType>(lua_rawget_(L_, idx_));

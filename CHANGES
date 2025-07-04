@@ -6,6 +6,7 @@ CHANGE 2: BGe 05-Jun-25
         - Almost all platform-specific code is gone (only a small bit for thread priority and affinity remains).
         - Decoda support inactive by default.
         - Deep userdata interface fully revamped to C++20 too.
+        - Supports Lua 5.5
     * Lanes API changes
         - Version is now 4.0.0
         - Lanes module:

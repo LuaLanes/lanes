@@ -447,7 +447,7 @@ int Universe::UniverseGC(lua_State* const L_)
     if (!lua_isnil(L_, -1)) {
         lua_pushboolean(L_, _allLanesTerminated);                                                  // L_: U finalizer bool
         // no protection. Lua rules for errors in finalizers apply normally:
-        // Lua 5.4: error is propagated in the warn system
+        // Lua 5.4+: error is propagated in the warn system
         // older: error is swallowed
         lua_call(L_, 1, 1);                                                                        // L_: U msg?
         // phew, no error in finalizer, since we reached that point

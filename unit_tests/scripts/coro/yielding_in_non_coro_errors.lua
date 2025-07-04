@@ -20,7 +20,8 @@ local msgs = {
     ["Lua 5.1"] = jit and "attempt to yield across C-call boundary" or "attempt to yield across metamethod/C-call boundary",
     ["Lua 5.2"] = "attempt to yield from outside a coroutine",
     ["Lua 5.3"] = "attempt to yield from outside a coroutine",
-    ["Lua 5.4"] = "attempt to yield from outside a coroutine"
+    ["Lua 5.4"] = "attempt to yield from outside a coroutine",
+    ["Lua 5.5"] = "attempt to yield from outside a coroutine"
 }
 local expected_msg = msgs[_VERSION]
 PRINT("expected_msg = " .. expected_msg)

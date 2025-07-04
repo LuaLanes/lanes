@@ -67,7 +67,7 @@
 				<br />
 				<i>Copyright &copy; 2007-25 Asko Kauppi, Benoit Germain. All rights reserved.</i>
 				<br />
-				Lua Lanes is published under the same <a href="http://en.wikipedia.org/wiki/MIT_License">MIT license</a> as Lua 5.1, 5.2, 5.3 and 5.4.
+				Lua Lanes is published under the same <a href="http://en.wikipedia.org/wiki/MIT_License">MIT license</a> as Lua 5.1, 5.2, 5.3, 5.4 and 5.5.
 			</p>
 
 			<p>
@@ -89,7 +89,7 @@
 	Lanes is included into your software by the regular <tt>require "lanes"</tt> method. No C side programming is needed; all APIs are Lua side, and most existing extension modules should work seamlessly together with the multiple lanes.
 </p>
 <p>
-	Lanes should build and run identically with either Lua 5.1 to Lua 5.4, as well as LuaJIT.
+	Lanes should build and run identically with either Lua 5.1 to Lua 5.5, as well as LuaJIT.
 </p>
 <p>
 	See <A HREF="comparison.html">comparison</A> of Lua Lanes with other Lua multithreading solutions.
@@ -893,7 +893,7 @@
 	The name is stored inside the Lua state registry so that it is available for error reporting. Changing <tt>decoda_name</tt> doesn't affect this hidden name or the OS thread name reported by MSVC.<br />
 	When Lanes is initialized by the first <a href="#initialization"><tt>lanes.configure()</tt></a> call, <tt>"main"</tt> is stored in the registry in the same fashion (but <tt>decoda_name</tt> and the OS thread name are left unchanged).<br />
 	The lane also has a method <tt>lane:get_threadname()</tt> that gives access to that name from the caller side (returns <tt>"&lt;unnamed&gt;"</tt> if unset).<br />
-	With Lua 5.4, Lanes have a <tt>__close</tt> metamethod, meaning they can be declared to-be-closed. <tt>__close</tt> calls <tt>lane:join(nil)</tt>.
+	With Lua 5.4+, Lanes have a <tt>__close</tt> metamethod, meaning they can be declared to-be-closed. <tt>__close</tt> calls <tt>lane:join(nil)</tt>.
 </p>
 
 <p>

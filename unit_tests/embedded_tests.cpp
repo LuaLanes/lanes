@@ -220,7 +220,7 @@ TEST_CASE("lanes.embedding.with_custom_allocator")
 
     static constexpr auto launch_lane = +[](lua_CFunction on_state_create_, int id_, int n_) {
         char script[500];
-        lua_State* L = lua_newstate(local::allocf, nullptr);
+        lua_State* L = luaW_newstate(local::allocf, nullptr, luaL_makeseed(nullptr));
         // _G.ID = id_
         luaL_openlibs(L);
         luaL_dostring(L, "lanes = require 'lanes'");

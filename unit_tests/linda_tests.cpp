@@ -35,7 +35,7 @@ TEST_CASE("linda.single_keeper.creation/close_handler")
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
     S.requireSuccess("lanes = require 'lanes'");
 
-    if constexpr (LUA_VERSION_NUM == 504) {
+    if constexpr (LUA_VERSION_NUM >= 504) {
         // a function is acceptable as a __close handler
         S.requireSuccess("local l <close> = lanes.linda{close_handler = function() end}");
         // a callable table too (a callable full userdata as well, but I have none here)

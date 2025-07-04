@@ -66,7 +66,7 @@ namespace lanes {
         [[nodiscard]]
         lua_State* newState() const
         {
-            return lua_newstate(allocF, allocUD);
+            return luaW_newstate(allocF, allocUD, luaL_makeseed(nullptr));
         }
 
         [[nodiscard]]

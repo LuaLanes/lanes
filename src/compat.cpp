@@ -149,3 +149,41 @@ int lua_setiuservalue(lua_State* const L_, StackIndex const idx_, UserValueIndex
 }
 
 #endif // LUA_VERSION_NUM
+
+// #################################################################################################
+
+#if LUA_VERSION_NUM < 505
+
+#include <time.h>
+
+/* Size for the buffer, in bytes */
+#define BUFSEEDB (sizeof(void*) + sizeof(time_t))
+
+/* Size for the buffer in int's, rounded up */
+#define BUFSEED ((BUFSEEDB + sizeof(int) - 1) / sizeof(int))
+
+/*
+** Copy the contents of variable 'v' into the buffer pointed by 'b'.
+** (The '&b[0]' disguises 'b' to fix an absurd warning from clang.)
+*/
+#define addbuff(b, v) (memcpy(&b[0], &(v), sizeof(v)), b += sizeof(v))
+
+// Copied from Lua 5.5 lauxlib.c
+unsigned int luaL_makeseed(lua_State*)
+{
+    unsigned int buff[BUFSEED];
+    unsigned int res;
+    unsigned int i;
+    time_t t = time(nullptr);
+    char* b = (char*) buff;
+    addbuff(b, b); /* local variable's address */
+    addbuff(b, t); /* time */
+    /* fill (rare but possible) remain of the buffer with zeros */
+    memset(b, 0, sizeof(buff) - BUFSEEDB);
+    res = buff[0];
+    for (i = 1; i < BUFSEED; i++)
+        res ^= (res >> 3) + (res << 7) + buff[i];
+    return res;
+}
+
+#endif // LUA_VERSION_NUM < 505
