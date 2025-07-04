@@ -208,7 +208,7 @@
 			<li><tt>lane_h:cancel()</tt>: request the lane to stop running</li>
 			<li><tt>lane_h.error_trace_level</tt>: current setting of error logging level</li>
 			<li><tt>lane_h:get_threadname()</tt>: read the thread name</li>
-			<li><tt>lane_h:join()</tt>: wait for the lane to terminate (or yield)</li>
+			<li><tt>lane_h:join()</tt>: wait for the lane to close, reading the returned values</li>
 			<li><tt>lane_h:resume()</tt>: resume a coroutine Lane</li>
 			<li><tt>lane_h.status</tt>: current status of the lane</li>
 		</ul>
@@ -870,7 +870,7 @@
 			<td>integer</td>
 			<td>
 				<tt>priority</tt>: The priority of lanes in the range <tt>[-3,+3]</tt> (default is 0). These values are a mapping over the actual priority range of the underlying implementation.<br />
-				<tt>native_priority</tt>: The priority of lanes in a platform-dependent the range. Use <a href="#priority"><tt>lanes.thread_priority_range()</tt></a> to query said range.
+				<tt>native_priority</tt>: The priority of lanes in a platform-dependent range. Use <a href="#priority"><tt>lanes.thread_priority_range()</tt></a> to query said range.
 				Implementation and dependability of priorities varies by platform. Especially Linux kernel 2.6 is not supporting priorities in user mode.<br />
 				A lane can also change its own thread priority dynamically with <a href="#priority"><tt>lanes.set_thread_priority()</tt></a>.
 			</td>
