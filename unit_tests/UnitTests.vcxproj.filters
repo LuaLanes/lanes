@@ -95,7 +95,7 @@
     <None Include="scripts\lane\tasking_join_test.lua">
       <Filter>Scripts\lane</Filter>
     </None>
-    <None Include="scripts\coro\yielding_function.lua">
+    <None Include="scripts\coro\index_suspended.lua">
       <Filter>Scripts\coro</Filter>
     </None>
     <None Include="scripts\coro\error_handling.lua">
@@ -126,6 +126,24 @@
       <Filter>Scripts\lane</Filter>
     </None>
     <None Include="scripts\coro\regular_function.lua">
+      <Filter>Scripts\coro</Filter>
+    </None>
+    <None Include="scripts\coro\yielding_in_non_coro_errors.lua">
+      <Filter>Scripts\coro</Filter>
+    </None>
+    <None Include="scripts\coro\resume_basics.lua">
+      <Filter>Scripts\coro</Filter>
+    </None>
+    <None Include="scripts\coro\join_suspended.lua">
+      <Filter>Scripts\coro</Filter>
+    </None>
+    <None Include="scripts\_utils54.lua">
+      <Filter>Scripts</Filter>
+    </None>
+    <None Include="scripts\coro\linda_in_close_handler.lua">
+      <Filter>Scripts\coro</Filter>
+    </None>
+    <None Include="scripts\coro\cancelling_suspended.lua">
       <Filter>Scripts\coro</Filter>
     </None>
   </ItemGroup>

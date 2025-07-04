@@ -68,8 +68,26 @@ local function dump_error_stack(error_reporting_mode_, stack)
     end
 end
 
+-- a function that yields back what got in, one element at a time
+local yield_one_by_one = function(...)
+    local PRINT = MAKE_PRINT()
+    PRINT "In lane"
+    for _i  = 1, select('#', ...) do
+        local _val = select(_i, ...)
+        PRINT("yielding #", _i, _val)
+        local _ack = coroutine.yield(_val)
+        if cancel_test and cancel_test() then -- cancel_test does not exist when run immediately (not in a Lane)
+            return "cancelled!"
+        end
+        -- of course, if we are cancelled, we were not resumed, and yield() didn't return what we expect
+        assert(_ack == _i)
+    end
+    return "bye!"
+end
+
 return {
     MAKE_PRINT = MAKE_PRINT,
     tables_match = tables_match,
-    dump_error_stack = dump_error_stack
+    dump_error_stack = dump_error_stack,
+    yield_one_by_one = yield_one_by_one
 }

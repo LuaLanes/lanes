@@ -967,13 +967,19 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\.runsettings" />
+    <None Include="scripts\coro\cancelling_suspended.lua" />
     <None Include="scripts\coro\collect_yielded_lane.lua" />
+    <None Include="scripts\coro\join_suspended.lua" />
+    <None Include="scripts\coro\linda_in_close_handler.lua" />
     <None Include="scripts\coro\regular_function.lua" />
+    <None Include="scripts\coro\resume_basics.lua" />
+    <None Include="scripts\coro\yielding_in_non_coro_errors.lua" />
     <None Include="scripts\lane\body_is_a_c_function.lua" />
     <None Include="scripts\lane\tasking_cancelling_with_hook.lua" />
     <None Include="scripts\linda\wake_period.lua" />
+    <None Include="scripts\_utils54.lua" />
     <None Include="UnitTests.makefile" />
-    <None Include="scripts\coro\yielding_function.lua" />
+    <None Include="scripts\coro\index_suspended.lua" />
     <None Include="scripts\coro\error_handling.lua" />
     <None Include="scripts\lane\cooperative_shutdown.lua" />
     <None Include="scripts\lane\stdlib_naming.lua" />

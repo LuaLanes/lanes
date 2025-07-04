@@ -412,19 +412,22 @@ TEST_CASE("lane.cancel")
 // unfortunately, VS Test adapter does not list individual sections,
 // so let's create a separate test case for each file with an ugly macro...
 
-#define MAKE_TEST_CASE(DIR, FILE, CONDITION)\
+#define MAKE_TEST_CASE(DIR, FILE, CONDITION) \
 TEST_CASE("scripted_tests." #DIR "." #FILE) \
 { \
     FileRunner _runner(R"(.\unit_tests\scripts)"); \
     _runner.performTest(FileRunnerParam{ #DIR "/" #FILE, TestType::CONDITION }); \
 }
 
+#if LUA_VERSION_NUM >= 504 // this makes use of to-be-closed variables, a Lua 5.4 feature
+#define MAKE_TEST_CASE_54(DIR, FILE, CONDITION) MAKE_TEST_CASE(DIR, FILE, CONDITION)
+#else // LUA_VERSION_NUM
+#define MAKE_TEST_CASE_54(DIR, FILE, CONDITION)
+#endif // LUA_VERSION_NUM
+
 MAKE_TEST_CASE(lane, body_is_a_c_function, AssertNoLuaError)
 MAKE_TEST_CASE(lane, cooperative_shutdown, AssertNoLuaError)
-#if LUA_VERSION_NUM >= 504 // warnings are a Lua 5.4 feature
-// NOTE: when this test ends, there are resource leaks and a dangling thread
-MAKE_TEST_CASE(lane, uncooperative_shutdown, AssertWarns)
-#endif // LUA_VERSION_NUM
+MAKE_TEST_CASE_54(lane, uncooperative_shutdown, AssertWarns) // NOTE: when this test ends, there are resource leaks and a dangling thread
 MAKE_TEST_CASE(lane, tasking_basic, AssertNoLuaError)
 MAKE_TEST_CASE(lane, tasking_cancelling_with_hook, AssertNoLuaError)
 MAKE_TEST_CASE(lane, tasking_cancelling, AssertNoLuaError)
@@ -434,16 +437,18 @@ MAKE_TEST_CASE(lane, tasking_error, AssertNoLuaError)
 MAKE_TEST_CASE(lane, tasking_join_test, AssertNoLuaError)
 MAKE_TEST_CASE(lane, tasking_send_receive_code, AssertNoLuaError)
 MAKE_TEST_CASE(lane, stdlib_naming, AssertNoLuaError)
-
-#if LUA_VERSION_NUM >= 504 // this makes use of to-be-closed variables, a Lua 5.4 feature
-MAKE_TEST_CASE(coro, collect_yielded_lane, AssertNoLuaError)
-#endif // LUA_VERSION_NUM
+MAKE_TEST_CASE(coro, cancelling_suspended, AssertNoLuaError)
+MAKE_TEST_CASE_54(coro, collect_yielded_lane, AssertNoLuaError)
 #if LUAJIT_FLAVOR() == 0
 // TODO: for some reason, the test fails with LuaJIT. To be investigated
 MAKE_TEST_CASE(coro, error_handling, AssertNoLuaError)
 #endif // LUAJIT_FLAVOR()
+MAKE_TEST_CASE(coro, index_suspended, AssertNoLuaError)
+MAKE_TEST_CASE(coro, join_suspended, AssertNoLuaError)
+MAKE_TEST_CASE_54(coro, linda_in_close_handler, AssertNoLuaError)
 MAKE_TEST_CASE(coro, regular_function, AssertNoLuaError)
-MAKE_TEST_CASE(coro, yielding_function, AssertNoLuaError)
+MAKE_TEST_CASE(coro, resume_basics, AssertNoLuaError)
+MAKE_TEST_CASE(coro, yielding_in_non_coro_errors, AssertNoLuaError)
 
 /*
 TEST_CASE("lanes.scripted_tests")
