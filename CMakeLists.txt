@@ -4,8 +4,9 @@
 # For details see the COPYRIGHT file distributed with LuaDist.
 # Please note that the package source code is licensed under its own license.
 
-PROJECT(lanes C)
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.18)
+PROJECT(lanes CXX)
+set (CMAKE_CXX_STANDARD 20)
 
 
 FIND_PACKAGE(Lua51 REQUIRED)
