@@ -143,6 +143,11 @@ namespace tools {
     int PushFunctionBytecode(lua_State* const L_, int const strip_)
     {
         luaL_Buffer B{};
+        // WORKAROUND FOR Lua 5.5 beta: lua_dump followed by luaL_pushresult pops the function from the stack before adding the bytecode string
+        // so I need to duplicate it so that I end up with the original stack and the bytecode string pushed on top
+        if constexpr (LUA_VERSION_NUM == 505) {
+            lua_pushvalue(L_, kIdxTop);
+        }
         int const result_{ luaW_dump(L_, local::buf_writer, &B, strip_) };
         if (result_ == 0) { // documentation says it should always be the case (because our writer only ever returns 0), but better safe than sorry
             luaL_pushresult(&B);
