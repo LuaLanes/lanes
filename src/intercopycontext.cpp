@@ -36,23 +36,6 @@ THE SOFTWARE.
 
 // #################################################################################################
 
-// Lua 5.4.3 style of dumping (see lstrlib.c)
-// we have to do it that way because we can't unbalance the stack between buffer operations
-// namely, this means we can't push a function on top of the stack *after* we initialize the buffer!
-// luckily, this also works with earlier Lua versions
-[[nodiscard]]
-static int buf_writer(lua_State* L_, void const* b_, size_t size_, void* ud_)
-{
-    luaL_Buffer* const _B{ static_cast<luaL_Buffer*>(ud_) };
-    if (!_B->L) {
-        luaL_buffinit(L_, _B);
-    }
-    luaL_addlstring(_B, static_cast<char const*>(b_), size_);
-    return 0;
-}
-
-// #################################################################################################
-
 // function sentinel used to transfer native functions from/to keeper states
 [[nodiscard]]
 static int func_lookup_sentinel(lua_State* const L_)
@@ -211,18 +194,17 @@ void InterCopyContext::copyFunction() const
     // to the writer" (and we only return 0)
     // not sure this could ever fail but for memory shortage reasons
     // last argument is Lua 5.4-specific (no stripping)
-    luaL_Buffer B{};
-    if (luaW_dump(L1, buf_writer, &B, U->stripFunctions) != 0) {
+    if (tools::PushFunctionBytecode(L1, U->stripFunctions) != 0) {                                 // L1: ... f "<bytecode>"
         raise_luaL_error(getErrL(), "internal error: function dump failed.");
     }
 
-    // pushes dumped string on 'L1'
-    luaL_pushresult(&B);                                                                           // L1: ... f b
-
-    // if not pushed, no need to pop
+    // if pushed, we need to pop
     if (_needToPush) {
-        lua_remove(L1, -2);                                                                        // L1: ... b
+        lua_remove(L1, -2);                                                                        // L1: ... "<bytecode>"
     }
+
+    // When we are done, the stack should be the original one, with the bytecode string added on top
+    STACK_CHECK(L1, 1);
 
     // transfer the bytecode, then the upvalues, to create a similar closure
     {
@@ -231,16 +213,16 @@ void InterCopyContext::copyFunction() const
         if constexpr (LOG_FUNC_INFO)
         {
             lua_Debug _ar;
-            lua_pushvalue(L1, L1_i);                                                               // L1: ... b f
+            lua_pushvalue(L1, L1_i);                                                               // L1: ... "<bytecode>" f
             // "To get information about a function you push it onto the stack and start the what string with the character '>'."
             // fills 'fname' 'namewhat' and 'linedefined', pops function
-            lua_getinfo(L1, ">nS", &_ar);                                                          // L1: ... b
+            lua_getinfo(L1, ">nS", &_ar);                                                          // L1: ... "<bytecode>"
             _fname = _ar.namewhat;
             DEBUGSPEW_CODE(DebugSpew(U) << "FNAME: " << _ar.short_src << " @ " << _ar.linedefined << std::endl);
         }
 
         {
-            std::string_view const _bytecode{ luaW_tostring(L1, kIdxTop) };                        // L1: ... b
+            std::string_view const _bytecode{ luaW_tostring(L1, kIdxTop) };                        // L1: ... "<bytecode>"
             LUA_ASSERT(L1, !_bytecode.empty());
             STACK_GROW(L2, 2);
             // Note: Line numbers seem to be taken precisely from the
@@ -257,7 +239,7 @@ void InterCopyContext::copyFunction() const
                 raise_luaL_error(getErrL(), "%s: %s", _fname, lua_tostring(L2, -1));
             }
             // remove the dumped string
-            lua_pop(L1, 1); // ...
+            lua_pop(L1, 1);                                                                        // L1: ...
             // now set the cache as soon as we can.
             // this is necessary if one of the function's upvalues references it indirectly
             // we need to find it in the cache even if it isn't fully transfered yet

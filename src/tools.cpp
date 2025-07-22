@@ -45,13 +45,33 @@ static constexpr RegistryUniqueKey kLookupCacheRegKey{ 0x9BF75F84E54B691Bull };
 
 // #################################################################################################
 
-static constexpr int kWriterReturnCode{ 666 };
-[[nodiscard]]
-static int dummy_writer([[maybe_unused]] lua_State* const L_, [[maybe_unused]] void const* p_, [[maybe_unused]] size_t sz_, [[maybe_unused]] void* ud_)
-{
-    // always fail with this code
-    return kWriterReturnCode;
-}
+namespace {
+    namespace local {
+        static int buf_writer(lua_State* L_, void const* b_, size_t size_, void* ud_)
+        {
+            auto* const _B{ static_cast<luaL_Buffer*>(ud_) };
+            if (!_B->L) {
+                luaL_buffinit(L_, _B);
+            }
+            // starting with Lua 5.5, the writer is called one last time with nullptr, 0 at the end
+            if (b_ && size_) {
+                luaL_addlstring(_B, static_cast<char const*>(b_), size_);
+            }
+            return 0;
+        }
+
+        static constexpr int kWriterReturnCode{ 666 };
+        [[nodiscard]]
+        static int dummy_writer([[maybe_unused]] lua_State* const L_, [[maybe_unused]] void const* p_, [[maybe_unused]] size_t sz_, [[maybe_unused]] void* ud_)
+        {
+            // always fail with this code
+            return kWriterReturnCode;
+        }
+
+    } // namespace local
+} // namespace
+
+// #################################################################################################
 
 /*
  * differentiation between C, bytecode and JIT-fast functions
@@ -77,11 +97,11 @@ FuncSubType luaW_getfuncsubtype(lua_State* const L_, StackIndex const i_)
     // luaW_dump expects the function at the top of the stack
     int const _popCount{ (luaW_absindex(L_, i_) == lua_gettop(L_)) ? 0 : (lua_pushvalue(L_, i_), 1) };
     // here we either have a Lua bytecode or a LuaJIT-compiled function
-    int const _dumpres{ luaW_dump(L_, dummy_writer, nullptr, 0) };
+    int const _dumpres{ luaW_dump(L_, local::dummy_writer, nullptr, 0) };
     if (_popCount > 0) {
         lua_pop(L_, _popCount);
     }
-    if (_dumpres == kWriterReturnCode) {
+    if (_dumpres == local::kWriterReturnCode) {
         // anytime we get kWriterReturnCode, this means that luaW_dump() attempted a dump
         return FuncSubType::Bytecode;
     }
@@ -92,7 +112,6 @@ FuncSubType luaW_getfuncsubtype(lua_State* const L_, StackIndex const i_)
 // #################################################################################################
 
 namespace tools {
-
     // inspired from tconcat() in ltablib.c
     [[nodiscard]]
     std::string_view PushFQN(lua_State* const L_, StackIndex const t_)
@@ -118,6 +137,18 @@ namespace tools {
         return luaW_tostring(L_, kIdxTop);
     }
 
+    // #############################################################################################
+
+    [[nodiscard]]
+    int PushFunctionBytecode(lua_State* const L_, int const strip_)
+    {
+        luaL_Buffer B{};
+        int const result_{ luaW_dump(L_, local::buf_writer, &B, strip_) };
+        if (result_ == 0) { // documentation says it should always be the case (because our writer only ever returns 0), but better safe than sorry
+            luaL_pushresult(&B);
+        }
+        return result_;
+    }
 } // namespace tools
 
 // #################################################################################################

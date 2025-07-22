@@ -37,5 +37,7 @@ namespace tools {
     void PopulateFuncLookupTable(lua_State* L_, StackIndex i_, std::string_view const& name_);
     [[nodiscard]]
     std::string_view PushFQN(lua_State* L_, StackIndex t_);
+    [[nodiscard]]
+    int PushFunctionBytecode(lua_State* L_, int strip_);
     void SerializeRequire(lua_State* L_);
 } // namespace tools
