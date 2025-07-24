@@ -47,13 +47,9 @@ static constexpr RegistryUniqueKey kLookupCacheRegKey{ 0x9BF75F84E54B691Bull };
 
 namespace {
     namespace local {
-        static int buf_writer(lua_State* L_, void const* b_, size_t size_, void* ud_)
+        static int buf_writer([[maybe_unused]] lua_State* const L_, void const* b_, size_t size_, void* ud_)
         {
             auto* const _B{ static_cast<luaL_Buffer*>(ud_) };
-            if (!_B->L) {
-                luaL_buffinit(L_, _B);
-            }
-            // starting with Lua 5.5, the writer is called one last time with nullptr, 0 at the end
             if (b_ && size_) {
                 luaL_addlstring(_B, static_cast<char const*>(b_), size_);
             }
@@ -79,9 +75,7 @@ namespace {
  *                   +-------------------+------------+----------+
  *                   |      bytecode     | C function | JIT-fast |
  * +-----------------+-------------------+------------+----------+
- * | lua_topointer   |                   |            |          |
- * +-----------------+-------------------+------------+----------+
- * | lua_tocfunction |      nullptr      |            |  nullptr |
+ * | lua_tocfunction |      nullptr      |  <some p>  |  nullptr |
  * +-----------------+-------------------+------------+----------+
  * | luaW_dump       | kWriterReturnCode |  1         |  1       |
  * +-----------------+-------------------+------------+----------+
@@ -139,20 +133,17 @@ namespace tools {
 
     // #############################################################################################
 
-    [[nodiscard]]
-    int PushFunctionBytecode(lua_State* const L_, int const strip_)
+    void PushFunctionBytecode(SourceState const L1_, DestState const L2_, int const strip_)
     {
         luaL_Buffer B{};
-        // WORKAROUND FOR Lua 5.5 beta: lua_dump followed by luaL_pushresult pops the function from the stack before adding the bytecode string
-        // so I need to duplicate it so that I end up with the original stack and the bytecode string pushed on top
-        if constexpr (LUA_VERSION_NUM == 505) {
-            lua_pushvalue(L_, kIdxTop);
-        }
-        int const result_{ luaW_dump(L_, local::buf_writer, &B, strip_) };
-        if (result_ == 0) { // documentation says it should always be the case (because our writer only ever returns 0), but better safe than sorry
-            luaL_pushresult(&B);
-        }
-        return result_;
+        STACK_CHECK_START_REL(L1_, 0);
+        STACK_CHECK_START_REL(L2_, 0);
+        STACK_GROW(L2_, 2);
+        luaL_buffinit(L2_, &B);                                                                    // L1_: ... f                                     L2_: ... <B stuff>
+        luaW_dump(L1_, local::buf_writer, &B, strip_);
+        luaL_pushresult(&B);                                                                       //                                                L2_: ... "<bytecode>"
+        STACK_CHECK(L2_, 1);
+        STACK_CHECK(L1_, 0);
     }
 } // namespace tools
 

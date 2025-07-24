@@ -53,28 +53,26 @@ local function chunk2(linda)
     assert(info.linedefined == 32, "bad linedefined")   -- start of 'chunk2'
     assert(config.strip_functions and info.currentline==-1 or info.currentline > info.linedefined, "bad currentline")   -- line of 'debug.getinfo'
     assert(info.lastlinedefined > info.currentline, "bad lastlinedefined")   -- end of 'chunk2'
-    local k,func= linda:receive("down")
-    assert(type(func)=="function", "not a function")
+    assert(linda:count("down") == 2, "bad linda contents") -- function, "ok"
+    local k,func,str= linda:receive_batched("down", 2)
     assert(k=="down")
+    assert(type(func)=="function", "not a function")
+    assert(str=="ok", "bad receive result: " .. tostring(k) .. " -> ".. tostring(str))
+    assert(linda:count("down") == 0, "bad linda contents") -- nothing
 
     func(linda)
-
-    local k,str= linda:receive("down")
-    assert(str=="ok", "bad receive result")
-
     linda:send("up", function() return ":)" end, "ok2")
 end
 
 local linda = lanes_linda{name = "auto"}
 local t2= lanes_gen("debug,package,string,io", { name = 'auto', gc_cb = gc_cb }, chunk2)(linda)     -- prepare & launch
-linda:send("down", function(linda) linda:send("up", "ready!") end,
-                    "ok")
+linda:send("down", function(linda) linda:send("up", "ready!") end, "ok")
 -- wait to see if the tiny function gets executed
 --
 local k,s= linda:receive(1, "up")
 if t2.status == "error" then
-    PRINT("t2 error: " , t2:join())
-    assert(false)
+    local n,err,s = t2:join()
+    assert(false, "t2 error: " .. err)
 end
 PRINT(s)
 assert(s=="ready!", s .. " is not 'ready!'")

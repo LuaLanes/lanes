@@ -178,9 +178,10 @@ static lua_Integer get_mt_id(Universe* const U_, lua_State* const L_, StackIndex
 // L2 has the cache key for this function at the top of the stack
 void InterCopyContext::copyFunction() const
 {
-    LUA_ASSERT(L1, L2_cache_i != 0);                                                               //                                                L2: ... {cache} ... p
+    LUA_ASSERT(L1, L2_cache_i != 0);                                                               // L1: ... f                                      L2: ... {cache} ... p
     STACK_GROW(L1, 2);
     STACK_CHECK_START_REL(L1, 0);
+    STACK_CHECK_START_REL(L2, 0);
 
     // 'luaW_dump()' needs the function at top of stack
     // if already on top of the stack, no need to push again
@@ -194,17 +195,16 @@ void InterCopyContext::copyFunction() const
     // to the writer" (and we only return 0)
     // not sure this could ever fail but for memory shortage reasons
     // last argument is Lua 5.4-specific (no stripping)
-    if (tools::PushFunctionBytecode(L1, U->stripFunctions) != 0) {                                 // L1: ... f "<bytecode>"
-        raise_luaL_error(getErrL(), "internal error: function dump failed.");
-    }
+    tools::PushFunctionBytecode(L1, L2, U->stripFunctions);                                        // L1: ... f                                      L2: ... {cache} ... p "<bytecode>"
 
     // if pushed, we need to pop
     if (_needToPush) {
-        lua_remove(L1, -2);                                                                        // L1: ... "<bytecode>"
+        lua_pop(L1, 1);                                                                            // L1: ...
     }
 
-    // When we are done, the stack should be the original one, with the bytecode string added on top
-    STACK_CHECK(L1, 1);
+    // When we are done, the stack of L1 should be the original one, with the bytecode string added on top of L2
+    STACK_CHECK(L1, 0);
+    STACK_CHECK(L2, 1);
 
     // transfer the bytecode, then the upvalues, to create a similar closure
     {
@@ -213,16 +213,16 @@ void InterCopyContext::copyFunction() const
         if constexpr (LOG_FUNC_INFO)
         {
             lua_Debug _ar;
-            lua_pushvalue(L1, L1_i);                                                               // L1: ... "<bytecode>" f
+            lua_pushvalue(L1, L1_i);                                                               // L1: ... f
             // "To get information about a function you push it onto the stack and start the what string with the character '>'."
             // fills 'fname' 'namewhat' and 'linedefined', pops function
-            lua_getinfo(L1, ">nS", &_ar);                                                          // L1: ... "<bytecode>"
+            lua_getinfo(L1, ">nS", &_ar);                                                          // L1: ...
             _fname = _ar.namewhat;
             DEBUGSPEW_CODE(DebugSpew(U) << "FNAME: " << _ar.short_src << " @ " << _ar.linedefined << std::endl);
         }
 
         {
-            std::string_view const _bytecode{ luaW_tostring(L1, kIdxTop) };                        // L1: ... "<bytecode>"
+            std::string_view const _bytecode{ luaW_tostring(L2, kIdxTop) };                        //                                                L2: ... {cache} ... p "<bytecode>"
             LUA_ASSERT(L1, !_bytecode.empty());
             STACK_GROW(L2, 2);
             // Note: Line numbers seem to be taken precisely from the
@@ -231,15 +231,15 @@ void InterCopyContext::copyFunction() const
             //
             // TBD: Can we get the function's original name through, as well?
             //
-            if (luaL_loadbuffer(L2, _bytecode.data(), _bytecode.size(), _fname) != 0) {            //                                                L2: ... {cache} ... p function
+            if (luaL_loadbuffer(L2, _bytecode.data(), _bytecode.size(), _fname) != 0) {            //                                                L2: ... {cache} ... p "<bytecode>" function
                 // chunk is precompiled so only LUA_ERRMEM can happen
                 // "Otherwise, it pushes an error message"
                 //
                 STACK_GROW(L1, 1);
-                raise_luaL_error(getErrL(), "%s: %s", _fname, lua_tostring(L2, -1));
+                raise_luaL_error(getErrL(), "%s: %s", _fname, lua_tostring(L2, kIdxTop));
             }
             // remove the dumped string
-            lua_pop(L1, 1);                                                                        // L1: ...
+            lua_replace(L2, -2);                                                                   //                                                L2: ... {cache} ... p function
             // now set the cache as soon as we can.
             // this is necessary if one of the function's upvalues references it indirectly
             // we need to find it in the cache even if it isn't fully transfered yet
@@ -249,6 +249,7 @@ void InterCopyContext::copyFunction() const
             lua_rawset(L2, L2_cache_i);                                                            //                                                L2: ... {cache} ... function
         }
         STACK_CHECK(L1, 0);
+        STACK_CHECK(L2, 0); // cache key is replaced by the function, so no stack level change
 
         /* push over any upvalues; references to this function will come from
          * cache so we don't end up in eternal loop.
@@ -279,6 +280,7 @@ void InterCopyContext::copyFunction() const
             lua_pop(L1, 1);                                                                        // L1: ...
         }                                                                                          //                                                L2: ... {cache} ... function + 'n' upvalues (>=0)
         STACK_CHECK(L1, 0);
+        STACK_CHECK(L2, _n);
 
         // Set upvalues (originally set to 'nil' by 'lua_load')
         for (StackIndex const _func_index{ lua_gettop(L2) - _n }; _n > 0; --_n) {
@@ -289,6 +291,7 @@ void InterCopyContext::copyFunction() const
         // once all upvalues have been set we are left
         // with the function at the top of the stack                                               //                                                L2: ... {cache} ... function
     }
+    STACK_CHECK(L2, 0);
     STACK_CHECK(L1, 0);
 }
 
