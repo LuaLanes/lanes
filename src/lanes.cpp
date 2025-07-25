@@ -178,9 +178,13 @@ LUAG_FUNC(sleep)
     } else if (lua_isnoneornil(L_, 1)) {
         lua_pushnumber(L_, 0);                                                                     // L_: duration? receive() timerLinda 0
     } else if (!lua_isnumber(L_, 1)) {
-        raise_luaL_argerror(L_, StackIndex{ 1 }, "invalid duration");
+        raise_luaL_argerror(L_, StackIndex{ 1 }, "duration must be a number");
     }
     else {
+        auto const _n{ lua_tonumber(L_, 1) };
+        if (_n < 0) {
+            raise_luaL_argerror(L_, StackIndex{ 1 }, "duration must be >= 0");
+        }
         lua_pushnumber(L_, lua_tonumber(L_, 1));                                                   // L_: duration? receive() timerLinda duration
     }
     luaW_pushstring(L_, "ac100de1-a696-4619-b2f0-a26de9d58ab8");                                   // L_: duration? receive() timerLinda duration key

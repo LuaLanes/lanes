@@ -21,7 +21,7 @@ class Linda final
         lua_State* const L{}; // just here for inspection while debugging
 
         public:
-        KeeperOperationInProgress(Linda& linda_, lua_State* const L_)
+        KeeperOperationInProgress(Linda& linda_, lua_State* const L_) noexcept
         : linda{ linda_ }
         , L{ L_ }
         {
@@ -29,7 +29,7 @@ class Linda final
         }
 
         public:
-        ~KeeperOperationInProgress()
+        ~KeeperOperationInProgress() noexcept
         {
             [[maybe_unused]] UnusedInt const _prev{ linda.keeperOperationCount.fetch_sub(1, std::memory_order_seq_cst) };
         }
