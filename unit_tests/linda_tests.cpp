@@ -109,6 +109,99 @@ TEST_CASE("linda.single_keeper.creation/wake_period")
 
 // #################################################################################################
 
+TEST_CASE("linda.single_keeper.indexing")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
+    S.requireSuccess("lanes = require 'lanes'.configure()");
+
+    // indexing the linda with an unknown string key should fail
+    S.requireFailure("return lanes.linda().gouikra");
+    // indexing the linda with an unsupported key type should fail
+    S.requireFailure("return lanes.linda()[5]");
+    S.requireFailure("return lanes.linda()[false]");
+    S.requireFailure("return lanes.linda()[{}]");
+    S.requireFailure("return lanes.linda()[function() end]");
+}
+
+// #################################################################################################
+
+TEST_CASE("linda.single_keeper.send()")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
+    S.requireSuccess("lanes = require 'lanes'.configure()");
+
+        SECTION("timeout")
+    {
+        // timeout checks
+        // linda:send() should fail if the timeout is bad
+        S.requireFailure("lanes.linda():send(-1, 'k', 'v')");
+        // any positive value is ok
+        S.requireSuccess("lanes.linda():send(0, 'k', 'v')");
+        S.requireSuccess("lanes.linda():send(1e20, 'k', 'v')");
+        // nil too (same as 'forever')
+        S.requireSuccess("lanes.linda():send(nil, 'k', 'v')");
+    }
+
+    // -----------------------------------------------------------------------------------------
+
+    SECTION("fails on bad keys")
+    {
+        // key checks
+        // linda:send() should fail if the key is unsupported (nil, table, function, full userdata, reserved light userdata)
+        S.requireFailure("lanes.linda():send(0, nil, 'v')");
+        S.requireFailure("lanes.linda():send(0, {}, 'v')");
+        S.requireFailure("lanes.linda():send(0, function() end, 'v')");
+        S.requireFailure("lanes.linda():send(0, io.stdin, 'v')");
+        S.requireFailure("lanes.linda():send(0, lanes.null, 'v')");
+        S.requireFailure("lanes.linda():send(0, lanes.cancel_error, 'v')");
+    }
+
+    // -----------------------------------------------------------------------------------------
+
+    SECTION("succeeds on supported keys")
+    {
+        // supported keys are ok: boolean, number, string, light userdata, deep userdata
+        S.requireSuccess("lanes.linda():send(0, true, 'v')");
+        S.requireSuccess("lanes.linda():send(0, false, 'v')");
+        S.requireSuccess("lanes.linda():send(0, 99, 'v')");
+        S.requireSuccess("local l = lanes.linda(); l:send(0, l:deep(), 'v')");
+    }
+
+    // -----------------------------------------------------------------------------------------
+
+    SECTION("succeeds on deep userdata key")
+    {
+        S.requireSuccess("local l = lanes.linda(); l:send(0, l, 'v')");
+    }
+
+    // -----------------------------------------------------------------------------------------
+
+    SECTION(". fails")
+    {
+        // misuse checks, . instead of :
+        S.requireFailure("lanes.linda().send(nil, 'k', 'v')");
+    }
+
+    // -----------------------------------------------------------------------------------------
+
+    SECTION("unsupported values fail")
+    {
+        // value checks
+        // linda:send() should fail if we don't send anything
+        S.requireFailure("lanes.linda():send()");
+        S.requireFailure("lanes.linda():send(0)");
+        S.requireFailure("lanes.linda():send(0, 'k')");
+        // or non-deep userdata
+        S.requireFailure("lanes.linda():send(0, 'k', fixture.newuserdata())");
+        // or something with a converter that raises an error (maybe that should go to a dedicated __lanesconvert test!)
+        S.requireFailure("lanes.linda():send(0, 'k', setmetatable({}, {__lanesconvert = function(where_) error (where_ .. ': should not send me' end}))");
+        // but a registered non-deep userdata should work
+        S.requireSuccess("lanes.linda():send(0, 'k', io.stdin)");
+    }
+}
+
+// #################################################################################################
+
 TEST_CASE("linda.single_keeper.the_rest")
 {
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
@@ -120,92 +213,6 @@ TEST_CASE("linda.single_keeper.the_rest")
     {
         // if the function raises an error, we should get it
         S.requireFailure("local l <close> = lanes.linda{close_handler = function() error 'gluh' end}");
-    }
-
-    // ---------------------------------------------------------------------------------------------
-
-    SECTION("Linda indexing")
-    {
-        // indexing the linda with an unknown string key should fail
-        S.requireFailure("return lanes.linda().gouikra");
-        // indexing the linda with an unsupported key type should fail
-        S.requireFailure("return lanes.linda()[5]");
-        S.requireFailure("return lanes.linda()[false]");
-        S.requireFailure("return lanes.linda()[{}]");
-        S.requireFailure("return lanes.linda()[function() end]");
-    }
-
-    // ---------------------------------------------------------------------------------------------
-    SECTION("linda:send()")
-    {
-        SECTION("timeout")
-        {
-            // timeout checks
-            // linda:send() should fail if the timeout is bad
-            S.requireFailure("lanes.linda():send(-1, 'k', 'v')");
-            // any positive value is ok
-            S.requireSuccess("lanes.linda():send(0, 'k', 'v')");
-            S.requireSuccess("lanes.linda():send(1e20, 'k', 'v')");
-            // nil too (same as 'forever')
-            S.requireSuccess("lanes.linda():send(nil, 'k', 'v')");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("fails on bad keys")
-        {
-            // key checks
-            // linda:send() should fail if the key is unsupported (nil, table, function, full userdata, reserved light userdata)
-            S.requireFailure("lanes.linda():send(0, nil, 'v')");
-            S.requireFailure("lanes.linda():send(0, {}, 'v')");
-            S.requireFailure("lanes.linda():send(0, function() end, 'v')");
-            S.requireFailure("lanes.linda():send(0, io.stdin, 'v')");
-            S.requireFailure("lanes.linda():send(0, lanes.null, 'v')");
-            S.requireFailure("lanes.linda():send(0, lanes.cancel_error, 'v')");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("succeeds on supported keys")
-        {
-            // supported keys are ok: boolean, number, string, light userdata, deep userdata
-            S.requireSuccess("lanes.linda():send(0, true, 'v')");
-            S.requireSuccess("lanes.linda():send(0, false, 'v')");
-            S.requireSuccess("lanes.linda():send(0, 99, 'v')");
-            S.requireSuccess("local l = lanes.linda(); l:send(0, l:deep(), 'v')");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("succeeds on deep userdata key")
-        {
-            S.requireSuccess("local l = lanes.linda(); l:send(0, l, 'v')");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION(". fails")
-        {
-            // misuse checks, . instead of :
-            S.requireFailure("lanes.linda().send(nil, 'k', 'v')");
-        }
-
-        // -----------------------------------------------------------------------------------------
-
-        SECTION("unsupported values fail")
-        {
-            // value checks
-            // linda:send() should fail if we don't send anything
-            S.requireFailure("lanes.linda():send()");
-            S.requireFailure("lanes.linda():send(0)");
-            S.requireFailure("lanes.linda():send(0, 'k')");
-            // or non-deep userdata
-            S.requireFailure("lanes.linda():send(0, 'k', fixture.newuserdata())");
-            // or something with a converter that raises an error (maybe that should go to a dedicated __lanesconvert test!)
-            S.requireFailure("lanes.linda():send(0, 'k', setmetatable({}, {__lanesconvert = function(where_) error (where_ .. ': should not send me' end}))");
-            // but a registered non-deep userdata should work
-            S.requireSuccess("lanes.linda():send(0, 'k', io.stdin)");
-        }
     }
 
     // ---------------------------------------------------------------------------------------------

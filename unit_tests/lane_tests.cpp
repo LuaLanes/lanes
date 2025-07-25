@@ -105,7 +105,7 @@ TEST_CASE("lanes.set_thread_priority")
 // #################################################################################################
 // #################################################################################################
 
-TEST_CASE("lanes.sleep.argument validation")
+TEST_CASE("lanes.sleep.argument_validation/not_numbers")
 {
     LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
     S.requireSuccess("lanes = require 'lanes'.configure()");
@@ -116,6 +116,14 @@ TEST_CASE("lanes.sleep.argument validation")
     S.requireFailure("lanes.sleep('a string')");
     S.requireFailure("lanes.sleep(lanes.null)");
     S.requireFailure("lanes.sleep(print)");
+}
+
+// #################################################################################################
+
+TEST_CASE("lanes.sleep.argument_validation/numbers")
+{
+    LuaState S{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+    S.requireSuccess("lanes = require 'lanes'.configure()");
 
     // negative durations are not supported
     S.requireFailure("lanes.sleep(-1)");
