@@ -5,7 +5,6 @@
 
 // try to detect if we are building against LuaJIT or MoonJIT
 #if defined(LUA_JITLIBNAME)
-#include "luajit.h"
 #if (defined(__x86_64__) || defined(_M_X64) || defined(__LP64__))
 #define LUAJIT_FLAVOR() 64
 #else // 64 bits
