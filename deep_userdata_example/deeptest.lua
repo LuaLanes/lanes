@@ -1,5 +1,5 @@
 local lanes = require("lanes").configure{ with_timers = false}
-local l = lanes.linda "my linda"
+local l = lanes.linda{name = "my linda"}
 
 local table_unpack = table.unpack or unpack -- Lua 5.1 support
 
