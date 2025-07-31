@@ -1160,6 +1160,7 @@
     <None Include="scripts\lane\tasking_cancelling_with_hook.lua" />
     <None Include="scripts\linda\send_receive_func_and_string.lua" />
     <None Include="scripts\linda\wake_period.lua" />
+    <None Include="scripts\misc\deeptest.lua" />
     <None Include="scripts\_utils54.lua" />
     <None Include="UnitTests.makefile" />
     <None Include="scripts\coro\index_suspended.lua" />

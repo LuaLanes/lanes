@@ -54,6 +54,9 @@
     <Filter Include="Make">
       <UniqueIdentifier>{c62af5d9-9161-4ca1-9b58-6837e2907e35}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Scripts\misc">
+      <UniqueIdentifier>{1fbb1341-2f93-4eaa-924c-1df79e083704}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="scripts\linda\send_receive.lua">
@@ -148,6 +151,9 @@
     </None>
     <None Include="scripts\linda\send_receive_func_and_string.lua">
       <Filter>Scripts\linda</Filter>
+    </None>
+    <None Include="scripts\misc\deeptest.lua">
+      <Filter>Scripts\misc</Filter>
     </None>
   </ItemGroup>
 </Project>

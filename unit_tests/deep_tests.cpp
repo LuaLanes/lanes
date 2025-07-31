@@ -93,3 +93,12 @@ TEST_CASE("misc.deep_userdata.example")
         );
     }
 }
+
+#define MAKE_TEST_CASE(DIR, FILE, CONDITION) \
+    TEST_CASE("scripted_tests." #DIR "." #FILE) \
+    { \
+        FileRunner _runner(R"(.\unit_tests\scripts)"); \
+        _runner.performTest(FileRunnerParam{ #DIR "/" #FILE, TestType::CONDITION }); \
+    }
+
+MAKE_TEST_CASE(misc, deeptest, AssertNoLuaError)

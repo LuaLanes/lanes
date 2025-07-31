@@ -307,7 +307,7 @@ int luaD_new_clonable(lua_State* L)
 // #################################################################################################
 
 static luaL_Reg const deep_module[] = {
-    { "get_deep_count", luaD_get_deep_count }, 
+    { "get_deep_count", luaD_get_deep_count },
     { "new_deep", luaD_new_deep },
     { "new_clonable", luaD_new_clonable },
     { nullptr, nullptr }

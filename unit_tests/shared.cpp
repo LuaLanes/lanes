@@ -51,7 +51,7 @@ namespace
             return 1;
         };
 
-        // a function that enables any lane to require "fixture"
+        // a function that enables any lane to require "fixture" and "deep_userdata_example"
         lua_CFunction sOnStateCreate = +[](lua_State* const L_) {
             PreloadModule(L_, "fixture", luaopen_fixture);
             PreloadModule(L_, "deep_userdata_example", luaopen_deep_userdata_example);
