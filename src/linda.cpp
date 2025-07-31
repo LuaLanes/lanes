@@ -338,6 +338,7 @@ Keeper* Linda::acquireKeeper() const
     Keeper* const _keeper{ whichKeeper() };
     if (_keeper) {
         _keeper->mutex.lock();
+        keeperOperationCount.fetch_add(1, std::memory_order_seq_cst);
     }
     return _keeper;
 }
@@ -422,23 +423,16 @@ int Linda::ProtectedCall(lua_State* const L_, lua_CFunction const f_)
     // doing LindaFactory::deleteDeepObjectInternal -> keeper_call(clear)
     lua_gc(L_, LUA_GCSTOP, 0);
 
-    LuaError _rc{};
-    {
-        // there is something really strange here: in Release builds, MSVC will invoke _koip destructor on stack unwinding when we raise_lua_error() below
-        // even though the variable does not exist in the stack frame because it went out of scope -> comment until we understand why, because it causes a crash
-        //LUA_ASSERT_CODE(auto const _koip{ _linda->startKeeperOperation(L_) });
+    // if we didn't do anything wrong, the keeper stack should be clean
+    LUA_ASSERT(L_, lua_gettop(_K) == 0);
 
-        // if we didn't do anything wrong, the keeper stack should be clean
-        LUA_ASSERT(L_, lua_gettop(_K) == 0);
-
-        // push the function to be called and move it before the arguments
-        lua_pushcfunction(L_, f_);
-        lua_insert(L_, 1);
-        // do a protected call
-        _rc = ToLuaError(lua_pcall(L_, lua_gettop(L_) - 1, LUA_MULTRET, 0));
-        // whatever happens, the keeper state stack must be empty when we are done
-        lua_settop(_K, 0);
-    }
+    // push the function to be called and move it before the arguments
+    lua_pushcfunction(L_, f_);
+    lua_insert(L_, 1);
+    // do a protected call
+    LuaError const _rc{ ToLuaError(lua_pcall(L_, lua_gettop(L_) - 1, LUA_MULTRET, 0)) };
+    // whatever happens, the keeper state stack must be empty when we are done
+    lua_settop(_K, 0);
 
     // restore normal GC operations
     lua_gc(L_, LUA_GCRESTART, 0);
@@ -467,6 +461,7 @@ void Linda::releaseKeeper(Keeper* const keeper_) const
 {
     if (keeper_) { // can be nullptr if we tried to acquire during shutdown
         assert(keeper_ == whichKeeper());
+        keeperOperationCount.fetch_sub(1, std::memory_order_seq_cst);
         keeper_->mutex.unlock();
     }
 }

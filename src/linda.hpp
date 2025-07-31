@@ -14,26 +14,6 @@ class Linda final
 : public DeepPrelude // Deep userdata MUST start with this header
 {
     public:
-    class [[nodiscard]] KeeperOperationInProgress final
-    {
-        private:
-        Linda& linda;
-        lua_State* const L{}; // just here for inspection while debugging
-
-        public:
-        KeeperOperationInProgress(Linda& linda_, lua_State* const L_) noexcept
-        : linda{ linda_ }
-        , L{ L_ }
-        {
-            [[maybe_unused]] UnusedInt const _prev{ linda.keeperOperationCount.fetch_add(1, std::memory_order_seq_cst) };
-        }
-
-        public:
-        ~KeeperOperationInProgress() noexcept
-        {
-            [[maybe_unused]] UnusedInt const _prev{ linda.keeperOperationCount.fetch_sub(1, std::memory_order_seq_cst) };
-        }
-    };
 
     enum class [[nodiscard]] Status
     {
@@ -51,7 +31,7 @@ class Linda final
     // depending on the name length, it is either embedded inside the Linda, or allocated separately
     std::variant<std::string_view, EmbeddedName> nameVariant{};
     // counts the keeper operations in progress
-    std::atomic<int> keeperOperationCount{};
+    mutable std::atomic<int> keeperOperationCount{};
     lua_Duration wakePeriod{};
 
     public:
@@ -109,8 +89,6 @@ class Linda final
     [[nodiscard]]
     static int ProtectedCall(lua_State* L_, lua_CFunction f_);
     void pushCancelString(lua_State* L_) const;
-    [[nodiscard]]
-    KeeperOperationInProgress startKeeperOperation(lua_State* const L_) { return KeeperOperationInProgress{ *this, L_ }; };
     [[nodiscard]]
     Keeper* whichKeeper() const { return U->keepers.getKeeper(keeperIndex); }
 };
