@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tools.hpp"
+#include "universe.hpp"
 
 // forwards
 class Universe;
@@ -19,6 +20,13 @@ enum class [[nodiscard]] InterCopyResult
     Success,
     NotEnoughValues,
     Error
+};
+
+enum class [[nodiscard]] InterCopyOneResult
+{
+    NotCopied,
+    Copied,
+    RetryAfterConversion
 };
 
 // #################################################################################################
@@ -43,8 +51,14 @@ class InterCopyContext final
     // when mode == LookupMode::FromKeeper, L1 is a keeper state and L2 is not, therefore L2 is the state where we want to raise the error
     // whon mode != LookupMode::FromKeeper, L1 is not a keeper state, therefore L1 is the state where we want to raise the error
     lua_State* getErrL() const { return (mode == LookupMode::FromKeeper) ? L2.value() : L1.value(); }
+
+    // for use in processConversion
     [[nodiscard]]
-    LuaType processConversion() const;
+    ConvertMode lookupConverter() const;
+
+    // for use in interCopyTable and interCopyUserdata
+    [[nodiscard]]
+    bool processConversion() const;
 
     // for use in copyCachedFunction
     void copyFunction() const;
@@ -71,22 +85,18 @@ class InterCopyContext final
     bool tryCopyDeep() const;
 
     // copying a single Lua stack item
-    [[nodiscard]]
-    bool interCopyBoolean() const;
+    void interCopyBoolean() const;
     [[nodiscard]]
     bool interCopyFunction() const;
-    [[nodiscard]]
-    bool interCopyLightuserdata() const;
+    void interCopyLightuserdata() const;
     [[nodiscard]]
     bool interCopyNil() const;
+    void interCopyNumber() const;
+    void interCopyString() const;
     [[nodiscard]]
-    bool interCopyNumber() const;
+    InterCopyOneResult interCopyTable() const;
     [[nodiscard]]
-    bool interCopyString() const;
-    [[nodiscard]]
-    bool interCopyTable() const;
-    [[nodiscard]]
-    bool interCopyUserdata() const;
+    InterCopyOneResult interCopyUserdata() const;
 
     public:
     [[nodiscard]]

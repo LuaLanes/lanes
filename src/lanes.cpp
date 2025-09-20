@@ -907,6 +907,9 @@ LANES_API int luaopen_lanes_core(lua_State* const L_)
         // will do nothing on first invocation, as we haven't stored settings in the registry yet
         lua_setfield(L_, -3, "settings");                                                          // L_: M LG_configure()
         lua_setfield(L_, -2, "configure");                                                         // L_: M
+        // lanes.null can be used for some configure settings, expose it now
+        kNilSentinel.pushKey(L_);                                                                  // L_: M kNilSentinel
+        lua_setfield(L_, -2, "null");                                                              // L_: M
     }
 
     STACK_CHECK(L_, 1);

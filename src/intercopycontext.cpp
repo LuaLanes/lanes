@@ -513,72 +513,130 @@ void InterCopyContext::interCopyKeyValuePair() const
 
 // #################################################################################################
 
-LuaType InterCopyContext::processConversion() const
+ConvertMode InterCopyContext::lookupConverter() const
 {
-    static constexpr int kPODmask = (1 << LUA_TNIL) | (1 << LUA_TBOOLEAN) | (1 << LUA_TLIGHTUSERDATA) | (1 << LUA_TNUMBER) | (1 << LUA_TSTRING);
-
-    LuaType _val_type{ luaW_type(L1, L1_i) };
-
+    static constexpr std::string_view kConvertField{ "__lanesconvert" };
     STACK_CHECK_START_REL(L1, 0);
 
-    // it's a POD: nothing to do
-    if (((1 << static_cast<int>(_val_type)) & kPODmask) != 0) {
-        return _val_type;
-    }
+    // lookup and push a converter on the stack
+    LuaType const _convertType{
+        std::invoke([this]() {
+            // never convert from inside a keeper
+            if (mode == LookupMode::FromKeeper) {
+                lua_pushnil(L1);
+                return LuaType::NIL;
+            }
+            if (lua_getmetatable(L1, L1_i)) {                                                      // L1: ... mt
+                // we have a metatable: grab the converter inside it
+                LuaType const _convertType{ luaW_getfield(L1, kIdxTop, kConvertField) };           // L1: ... mt <converter>
+                lua_remove(L1, -2);                                                                // L1: ... <converter>
+                return _convertType;
+            }
+            // no metatable: setup converter from the global settings
+            switch (U->convertMode) {
+            case ConvertMode::DoNothing:
+                lua_pushnil(L1);
+                return LuaType::NIL;
 
-    // no metatable: nothing to do
-    if (!lua_getmetatable(L1, L1_i)) {                                                             // L1: ...
-        STACK_CHECK(L1, 0);
-        return _val_type;
-    }
-    // we have a metatable                                                                         // L1: ... mt
-    static constexpr std::string_view kConvertField{ "__lanesconvert" };
-    LuaType const _converterType{ luaW_getfield(L1, kIdxTop, kConvertField) };                     // L1: ... mt kConvertField
-    switch (_converterType) {
-    case LuaType::NIL:
-        // no __lanesconvert, nothing to do
-        lua_pop(L1, 2);                                                                            // L1: ...
+            case ConvertMode::ConvertToNil:
+                kNilSentinel.pushKey(L1);
+                return LuaType::LIGHTUSERDATA;
+
+            case ConvertMode::Decay:
+                luaW_pushstring(L1, "decay");
+                return LuaType::STRING;
+
+            case ConvertMode::UserConversion:
+                raise_luaL_error(getErrL(), "INTERNAL ERROR: function-based conversion should have been prevented at configure settings validation");
+            }
+            // technically unreachable, since all cases are handled and raise_luaL_error() is [[noreturn]], but MSVC raises C4715 without that:
+            return LuaType::NIL;
+        })
+    };
+    STACK_CHECK(L1, 1);
+
+    ConvertMode _convertMode{ ConvertMode::DoNothing };
+    LUA_ASSERT(getErrL(), luaW_type(L1, kIdxTop) == _convertType);
+    switch (_convertType) {
+    case LuaType::NIL:                                                                             // L1: ... nil
+        // no converter, nothing to do
         break;
 
     case LuaType::LIGHTUSERDATA:
-        if (kNilSentinel.equals(L1, kIdxTop)) {
-            DEBUGSPEW_CODE(DebugSpew(U) << "converted " << luaW_typename(L1, _val_type) << " to nil" << std::endl);
-            lua_replace(L1, L1_i);                                                                 // L1: ... mt
-            lua_pop(L1, 1);                                                                        // L1: ...
-            _val_type = _converterType;
-        } else {
-            raise_luaL_error(getErrL(), "Invalid %s type %s", kConvertField.data(), luaW_typename(L1, _converterType).data());
+        if (!kNilSentinel.equals(L1, kIdxTop)) {
+            raise_luaL_error(getErrL(), "Invalid %s type %s", kConvertField.data(), luaW_typename(L1, _convertType).data());
         }
+        _convertMode = ConvertMode::ConvertToNil;
         break;
 
     case LuaType::STRING:
-        // kConvertField == "decay" -> replace source value with it's pointer
-        if (std::string_view const _mode{ luaW_tostring(L1, kIdxTop) }; _mode == "decay") {
-            lua_pop(L1, 1);                                                                        // L1: ... mt
-            lua_pushlightuserdata(L1, const_cast<void*>(lua_topointer(L1, L1_i)));                 // L1: ... mt decayed
-            lua_replace(L1, L1_i);                                                                 // L1: ... mt
-            lua_pop(L1, 1);                                                                        // L1: ...
-            _val_type = LuaType::LIGHTUSERDATA;
-        } else {
+        if (std::string_view const _mode{ luaW_tostring(L1, kIdxTop) }; _mode != "decay") {        // L1: ... "<some string>"
             raise_luaL_error(getErrL(), "Invalid %s mode '%s'", kConvertField.data(), _mode.data());
         }
+        _convertMode = ConvertMode::Decay;
         break;
 
-    case LuaType::FUNCTION:
-        lua_pushvalue(L1, L1_i);                                                                   // L1: ... mt kConvertField val
-        luaW_pushstring(L1, mode == LookupMode::ToKeeper ? "keeper" : "regular");                  // L1: ... mt kConvertField val string
-        lua_call(L1, 2, 1); // val:kConvertField(str) -> result                                    // L1: ... mt kConvertField converted
-        lua_replace(L1, L1_i);                                                                     // L1: ... mt
-        lua_pop(L1, 1);                                                                            // L1: ... mt
-        _val_type =  luaW_type(L1, L1_i);
+    case LuaType::FUNCTION:                                                                        // L1: ... <some_function>
+        _convertMode = ConvertMode::UserConversion;
         break;
 
     default:
-        raise_luaL_error(getErrL(), "Invalid %s type %s", kConvertField.data(), luaW_typename(L1, _converterType).data());
+        raise_luaL_error(getErrL(), "Invalid %s type %s", kConvertField.data(), luaW_typename(L1, _convertType).data());
+    }
+    STACK_CHECK(L1, 1);                                                                            // L1: ... <converter>
+    return _convertMode;
+}
+
+// #################################################################################################
+
+bool InterCopyContext::processConversion() const
+{
+#if HAVE_LUA_ASSERT() || USE_DEBUG_SPEW()
+    LuaType const _val_type{ luaW_type(L1, L1_i) };
+#endif // HAVE_LUA_ASSERT() || USE_DEBUG_SPEW()
+    LUA_ASSERT(getErrL(), _val_type == LuaType::TABLE || _val_type == LuaType::USERDATA);
+
+    STACK_CHECK_START_REL(L1, 0);
+
+    ConvertMode const _convertMode{ lookupConverter() };                                           // L1: ... <converter>
+    STACK_CHECK(L1, 1);
+
+    bool _converted{ true };
+    switch (_convertMode) {
+    case ConvertMode::DoNothing:
+        LUA_ASSERT(getErrL(), luaW_type(L1, kIdxTop) == LuaType::NIL);                             // L1: ... nil
+        lua_pop(L1, 1);                                                                            // L1: ...
+        _converted = false;
+        break;
+
+    case ConvertMode::ConvertToNil:
+        LUA_ASSERT(getErrL(), kNilSentinel.equals(L1, kIdxTop));                                   // L1: ... kNilSentinel
+        DEBUGSPEW_CODE(DebugSpew(U) << "converted " << luaW_typename(L1, _val_type) << " to nil" << std::endl);
+        lua_replace(L1, L1_i);                                                                     // L1: ...
+        break;
+
+    case ConvertMode::Decay:
+        // kConvertField == "decay" -> replace source value with its pointer
+        LUA_ASSERT(getErrL(), luaW_tostring(L1, kIdxTop) == "decay");
+        DEBUGSPEW_CODE(DebugSpew(U) << "converted " << luaW_typename(L1, _val_type) << " to a pointer" << std::endl);
+        lua_pop(L1, 1);                                                                            // L1: ...
+        lua_pushlightuserdata(L1, const_cast<void*>(lua_topointer(L1, L1_i)));                     // L1: ... decayed
+        lua_replace(L1, L1_i);                                                                     // L1: ...
+        break;
+
+    case ConvertMode::UserConversion:
+        lua_pushvalue(L1, L1_i);                                                                   // L1: ... converter() val
+        luaW_pushstring(L1, mode == LookupMode::ToKeeper ? "keeper" : "regular");                  // L1: ... converter() val string
+        lua_call(L1, 2, 1); // val:converter(str) -> result                                        // L1: ... converted
+        lua_replace(L1, L1_i);                                                                     // L1: ...
+        DEBUGSPEW_CODE(DebugSpew(U) << "converted " << luaW_typename(L1, _val_type) << " to a " << luaW_typename(L1, L1_i) << std::endl);
+        break;
+
+    default:
+        raise_luaL_error(getErrL(), "INTERNAL ERROR: SHOULD NEVER GET HERE");
     }
     STACK_CHECK(L1, 0);
-    LUA_ASSERT(getErrL(), luaW_type(L1, L1_i) == _val_type);
-    return _val_type;
+    return _converted;
 }
 
 // #################################################################################################
@@ -867,13 +925,11 @@ bool InterCopyContext::tryCopyDeep() const
 
 // #################################################################################################
 
-[[nodiscard]]
-bool InterCopyContext::interCopyBoolean() const
+void InterCopyContext::interCopyBoolean() const
 {
     int const _v{ lua_toboolean(L1, L1_i) };
     DEBUGSPEW_CODE(DebugSpew(nullptr) << (_v ? "true" : "false") << std::endl);
     lua_pushboolean(L2, _v);
-    return true;
 }
 
 // #################################################################################################
@@ -972,8 +1028,7 @@ bool InterCopyContext::interCopyFunction() const
 
 // #################################################################################################
 
-[[nodiscard]]
-bool InterCopyContext::interCopyLightuserdata() const
+void InterCopyContext::interCopyLightuserdata() const
 {
     void* const _p{ lua_touserdata(L1, L1_i) };
     // recognize and print known UniqueKey names here
@@ -999,7 +1054,6 @@ bool InterCopyContext::interCopyLightuserdata() const
         lua_pushlightuserdata(L2, _p);
         DEBUGSPEW_CODE(DebugSpew(nullptr) << std::endl);
     }
-    return true;
 }
 
 // #################################################################################################
@@ -1021,8 +1075,7 @@ bool InterCopyContext::interCopyNil() const
 
 // #################################################################################################
 
-[[nodiscard]]
-bool InterCopyContext::interCopyNumber() const
+void InterCopyContext::interCopyNumber() const
 {
     // LNUM patch support (keeping integer accuracy)
 #if defined LUA_LNUM || LUA_VERSION_NUM >= 503
@@ -1037,32 +1090,36 @@ bool InterCopyContext::interCopyNumber() const
         DEBUGSPEW_CODE(DebugSpew(nullptr) << _v << std::endl);
         lua_pushnumber(L2, _v);
     }
-    return true;
 }
 
 // #################################################################################################
 
-[[nodiscard]]
-bool InterCopyContext::interCopyString() const
+void InterCopyContext::interCopyString() const
 {
     std::string_view const _s{ luaW_tostring(L1, L1_i) };
     DEBUGSPEW_CODE(DebugSpew(nullptr) << "'" << _s << "'" << std::endl);
     luaW_pushstring(L2, _s);
-    return true;
 }
 
 // #################################################################################################
 
 [[nodiscard]]
-bool InterCopyContext::interCopyTable() const
+InterCopyOneResult InterCopyContext::interCopyTable() const
 {
     if (vt == VT::KEY) {
-        return false;
+        return InterCopyOneResult::NotCopied;
     }
 
     STACK_CHECK_START_REL(L1, 0);
     STACK_CHECK_START_REL(L2, 0);
     DEBUGSPEW_CODE(DebugSpew(nullptr) << "TABLE " << name << std::endl);
+
+    // replace the value at L1_i with the result of a conversion if required
+    bool const _converted{ processConversion() };
+    if (_converted) {
+        return InterCopyOneResult::RetryAfterConversion;
+    }
+    STACK_CHECK(L1, 0);
 
     /*
      * First, let's try to see if this table is special (aka is it some table that we registered in our lookup databases during module registration?)
@@ -1070,7 +1127,7 @@ bool InterCopyContext::interCopyTable() const
      */
     if (lookupTable()) {
         LUA_ASSERT(L1, lua_istable(L2, -1) || (lua_tocfunction(L2, -1) == table_lookup_sentinel)); // from lookup data. can also be table_lookup_sentinel if this is a table we know
-        return true;
+        return InterCopyOneResult::Copied;
     }
 
     /* Check if we've already copied the same table from 'L1' (during this transmission), and
@@ -1084,7 +1141,7 @@ bool InterCopyContext::interCopyTable() const
      */
     if (pushCachedTable()) {                                                                       //                                                L2: ... t
         LUA_ASSERT(L1, lua_istable(L2, -1)); // from cache
-        return true;
+        return InterCopyOneResult::Copied;
     }
     LUA_ASSERT(L1, lua_istable(L2, -1));
 
@@ -1106,25 +1163,25 @@ bool InterCopyContext::interCopyTable() const
     }
     STACK_CHECK(L2, 1);
     STACK_CHECK(L1, 0);
-    return true;
+    return InterCopyOneResult::Copied;
 }
 
 // #################################################################################################
 
 [[nodiscard]]
-bool InterCopyContext::interCopyUserdata() const
+InterCopyOneResult InterCopyContext::interCopyUserdata() const
 {
     STACK_CHECK_START_REL(L1, 0);
     STACK_CHECK_START_REL(L2, 0);
     if (vt == VT::KEY) {
-        return false;
+        return InterCopyOneResult::NotCopied;
     }
 
     // try clonable userdata first
     if (tryCopyClonable()) {
         STACK_CHECK(L1, 0);
         STACK_CHECK(L2, 1);
-        return true;
+        return InterCopyOneResult::Copied;
     }
 
     STACK_CHECK(L1, 0);
@@ -1134,13 +1191,20 @@ bool InterCopyContext::interCopyUserdata() const
     if (tryCopyDeep()) {
         STACK_CHECK(L1, 0);
         STACK_CHECK(L2, 1);
-        return true;
+        return InterCopyOneResult::Copied;
     }
+
+    // replace the value at L1_i with the result of a conversion if required
+    bool const _converted{ processConversion() };
+    if (_converted) {
+        return InterCopyOneResult::RetryAfterConversion;
+    }
+    STACK_CHECK(L1, 0);
 
     // Last, let's try to see if this userdata is special (aka is it some userdata that we registered in our lookup databases during module registration?)
     if (lookupUserdata()) {
         LUA_ASSERT(L1, luaW_type(L2, kIdxTop) == LuaType::USERDATA || (lua_tocfunction(L2, kIdxTop) == userdata_lookup_sentinel)); // from lookup data. can also be userdata_lookup_sentinel if this is a userdata we know
-        return true;
+        return InterCopyOneResult::Copied;
     }
 
     raise_luaL_error(getErrL(), "can't copy non-deep full userdata across lanes");
@@ -1193,54 +1257,64 @@ InterCopyResult InterCopyContext::interCopyOne() const
     DEBUGSPEW_CODE(DebugSpew(U) << "interCopyOne()" << std::endl);
     DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U });
 
-    // replace the value at L1_i with the result of a conversion if required
-    LuaType const _val_type{ processConversion() };
+    DEBUGSPEW_CODE(DebugSpew(U) << local::sLuaTypeNames[static_cast<int>(luaW_type(L1, L1_i))] << " " << local::sValueTypeNames[static_cast<int>(vt)] << ": ");
+
+    auto _tryCopy = [this]() {
+        LuaType const _val_type{ luaW_type(L1, L1_i) };
+        InterCopyOneResult _result{ InterCopyOneResult::Copied };
+        switch (_val_type) {
+        // Basic types allowed both as values, and as table keys
+        case LuaType::BOOLEAN:
+            interCopyBoolean();
+            break;
+        case LuaType::NUMBER:
+            interCopyNumber();
+            break;
+        case LuaType::STRING:
+            interCopyString();
+            break;
+        case LuaType::LIGHTUSERDATA:
+            interCopyLightuserdata();
+            break;
+
+        // The following types are not allowed as table keys
+        case LuaType::USERDATA:
+            _result = interCopyUserdata();
+            break;
+        case LuaType::NIL:
+            _result = interCopyNil() ? InterCopyOneResult::Copied : InterCopyOneResult::NotCopied;
+            break;
+        case LuaType::FUNCTION:
+            _result = interCopyFunction() ? InterCopyOneResult::Copied : InterCopyOneResult::NotCopied;
+            break;
+        case LuaType::TABLE:
+            _result = interCopyTable();
+            break;
+
+        // The following types cannot be copied
+        case LuaType::NONE:
+        case LuaType::CDATA:
+            [[fallthrough]];
+
+        case LuaType::THREAD:
+            _result = InterCopyOneResult::NotCopied;
+            break;
+        }
+        return _result;
+    };
+
+    uint32_t _conversionCount{ 0 };
+    InterCopyOneResult _result{ InterCopyOneResult::Copied };
+    do {
+        if (_conversionCount++ > U->convertMaxAttempts) {
+            raise_luaL_error(getErrL(), "more than %d conversion attempts", U->convertMaxAttempts);
+        }
+        _result = _tryCopy();
+    } while (_result == InterCopyOneResult::RetryAfterConversion);
+
+    STACK_CHECK(L2, (_result == InterCopyOneResult::Copied) ? 1 : 0);
     STACK_CHECK(L1, 0);
-    DEBUGSPEW_CODE(DebugSpew(U) << local::sLuaTypeNames[static_cast<int>(_val_type)] << " " << local::sValueTypeNames[static_cast<int>(vt)] << ": ");
-
-    // Lets push nil to L2 if the object should be ignored
-    bool _ret{ true };
-    switch (_val_type) {
-    // Basic types allowed both as values, and as table keys
-    case LuaType::BOOLEAN:
-        _ret = interCopyBoolean();
-        break;
-    case LuaType::NUMBER:
-        _ret = interCopyNumber();
-        break;
-    case LuaType::STRING:
-        _ret = interCopyString();
-        break;
-    case LuaType::LIGHTUSERDATA:
-        _ret = interCopyLightuserdata();
-        break;
-
-    // The following types are not allowed as table keys
-    case LuaType::USERDATA:
-        _ret = interCopyUserdata();
-        break;
-    case LuaType::NIL:
-        _ret = interCopyNil();
-        break;
-    case LuaType::FUNCTION:
-        _ret = interCopyFunction();
-        break;
-    case LuaType::TABLE:
-        _ret = interCopyTable();
-        break;
-
-    // The following types cannot be copied
-    case LuaType::NONE:
-    case LuaType::CDATA:
-        [[fallthrough]];
-    case LuaType::THREAD:
-        _ret = false;
-        break;
-    }
-
-    STACK_CHECK(L2, _ret ? 1 : 0);
-    STACK_CHECK(L1, 0);
-    return _ret ? InterCopyResult::Success : InterCopyResult::Error;
+    return (_result == InterCopyOneResult::Copied) ? InterCopyResult::Success : InterCopyResult::Error;
 }
 
 // #################################################################################################

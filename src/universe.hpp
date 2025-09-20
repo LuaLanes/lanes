@@ -17,6 +17,17 @@ enum class LookupMode;
 
 // #################################################################################################
 
+// having this enum declared here is not ideal, but it will do for now
+enum class [[nodiscard]] ConvertMode
+{
+    DoNothing, // no conversion
+    ConvertToNil, // value is converted to nil
+    Decay, // value is converted to a light userdata pointer
+    UserConversion // value is converted by calling user-provided function
+};
+
+// #################################################################################################
+
 // mutex-protected allocator for use with Lua states that share a non-threadsafe allocator
 class ProtectedAllocator final
 : public lanes::AllocatorDefinition
@@ -94,6 +105,9 @@ class Universe final
     lanes::AllocatorDefinition internalAllocator;
 
     Keepers keepers;
+
+    ConvertMode convertMode{ ConvertMode::DoNothing };
+    uint32_t convertMaxAttempts{ 1 };
 
     lua_Duration lindaWakePeriod{};
 

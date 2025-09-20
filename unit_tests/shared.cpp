@@ -46,8 +46,14 @@ namespace
             return 1;
         };
 
+        // a function that creates a full userdata, using first argument as its metatable
         lua_CFunction sNewUserData = +[](lua_State* const L_) {
-            std::ignore = luaW_newuserdatauv<int>(L_, UserValueCount{ 0 });
+            lua_settop(L_, 1);                                                                     // L_: {}|nil
+            STACK_CHECK_START_ABS(L_, 1);
+            std::ignore = luaW_newuserdatauv<int>(L_, UserValueCount{ 0 });                        // L_: {}|nil u
+            lua_insert(L_, 1);                                                                     // L_: u {}|nil
+            lua_setmetatable(L_, 1);                                                               // L_: u
+            STACK_CHECK(L_, 1);
             return 1;
         };
 

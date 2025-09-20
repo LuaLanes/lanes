@@ -1106,6 +1106,7 @@
     <ClCompile Include="lane_tests.cpp" />
     <ClCompile Include="legacy_tests.cpp" />
     <ClCompile Include="linda_tests.cpp" />
+    <ClCompile Include="misc_tests.cpp" />
     <ClCompile Include="shared.cpp" />
     <ClCompile Include="init_and_shutdown.cpp" />
     <ClCompile Include="_pch.cpp">

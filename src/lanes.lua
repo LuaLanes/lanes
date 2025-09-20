@@ -93,6 +93,8 @@ local default_params =
 {
     -- LuaJIT provides a thread-unsafe allocator by default, so we need to protect it when used in parallel lanes
     allocator = isLuaJIT and "protected" or nil,
+    convert_fallback = nil,
+    convert_max_attempts = 1,
     -- it looks also like LuaJIT allocator may not appreciate direct use of its allocator for other purposes than the VM operation
     internal_allocator = isLuaJIT and "libc" or "allocator",
     keepers_gc_threshold = -1,
@@ -125,6 +127,23 @@ local param_checkers =
         end
         return true
     end,
+    convert_fallback = function(val_)
+        -- convert_fallback should be nil, lanes.null or 'decay'
+        if val_ == nil or val_ == core.null or val_ == 'decay' then
+            return true
+        end
+        return nil, "must be nil, lanes.null or 'decay'"
+    end, -- convert_fallback
+    convert_max_attempts = function(val_)
+        -- convert_max_attempts should be a number
+        if type(val_) ~= "number" then
+            return nil, "not a number"
+        end
+        if val_ <= 0 or val_ >= 10 then
+            return nil, "value out of range"
+        end
+        return true
+    end, -- convert_fallback
     internal_allocator = function(val_)
         -- can be "libc" or "allocator"
         if type(val_) ~= "string" then
@@ -850,12 +869,8 @@ local configure = function(settings_)
     lanes.configure = function() return lanes end -- no need to configure anything again
 
     -- now we can configure Lanes core
-
-
-
-
-
     local settings = core.configure and core.configure(params_checker(settings_)) or core.settings
+    assert(type(settings) == 'table')
 
     --
     lanes.ABOUT =
@@ -912,7 +927,10 @@ lanesMeta.__index = function(lanes_, k_)
     -- Access the required key
     return lanes_[k_]
 end
+
 lanes.configure = configure
+-- lanes.null can be used for some configure settings, expose it now
+lanes.null = assert(core.null)
 setmetatable(lanes, lanesMeta)
 
 -- #################################################################################################

@@ -71,7 +71,7 @@
 			</p>
 
 			<p>
-				This document was revised on 03-Jul-25, and applies to version <tt>4.0.0</tt>.
+				This document was revised on 19-Sep-25, and applies to version <tt>4.0.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -384,6 +384,30 @@
 				</table>
 				The contents will be used to create the state with <tt>lua_newstate(allocF, allocUD)</tt>.
 				This option is mostly useful for embedders that want to provide different allocators to each lane, for example to have each one work in a different memory pool thus preventing the need for the allocator itself to be threadsafe.
+			</td>
+		</tr>
+
+		<tr valign=top>
+			<td id="convert_fallback">
+				<code>.convert_fallback</code>
+			</td>
+			<td>
+				<tt>nil</tt>, <tt>lanes.null</tt> or <tt>'decay'</tt>
+			</td>
+			<td>
+				Same as <tt>__lanesconvert</tt> (see <a href="#other">Limitations on data passing</a>), but cannot be a function, because this would have to be transferred to all newly created lanes.
+			</td>
+		</tr>
+
+		<tr valign=top>
+			<td id="convert_max_attempts">
+				<code>.convert_max_attempts</code>
+			</td>
+			<td>
+				1 &ge; number &ge; 9
+			</td>
+			<td>
+				When a table or userdata conversion is performed with a function, it can happen recursively up to this number of attempts before triggering an error. Default is 1.
 			</td>
 		</tr>
 
@@ -1801,11 +1825,14 @@
 			Using the same source table in multiple <a href="#lindas">linda</a> messages keeps no ties between the tables (this is the same reason why tables can't be used as slots).
 		</li>
 		<li>
-			For tables and full userdata: before anything else, the metatable is searched for a <tt>__lanesconvert</tt> field. If found, the source object is converted as follows depending on <tt>__lanesconvert</tt>'s value:
+			For tables and full userdata that are neither deep nor clonable: before anything else, a converter is searched for in the <tt>__lanesconvert</tt> field of its metatable.
+			If there is no metatable, or no <tt>__lanesconvert</tt>, <a href="#convert_fallback"><tt>convert_fallback</tt></a> is used instead.
+			The source object is then converted depending on the converter value:
 			<ul>
+				<li><tt>nil</tt>: The value is not converted. If it is not a clonable or deep userdata, the transfer will eventually fail with an error.</li>
 				<li><tt>lanes.null</tt>: The value is converted to <tt>nil</tt>.</li>
 				<li><tt>"decay"</tt>: The value is converted to a light userdata obtained from <tt>lua_topointer()</tt>.</li>
-				<li>A function: The function is called as <tt>o:__lanesconvert(string)</tt>, where the argument is either <tt>"keeper"</tt> or <tt>"regular"</tt>, depending on the type of destination. Its (single) return value is the result of the conversion.</li>
+				<li>A function: The function is called as <tt>o:__lanesconvert(string)</tt>, where the argument is either <tt>"keeper"</tt> (sending data in a Linda) or <tt>"regular"</tt> (when creating or calling a Lane generator). Its first return value is the result of the conversion, the rest is ignored. Transfer is then attempted on the new value. If this also requires a conversion, it will be done, up to a depth of 3, after which an error will be raised.</li>
 				<li>Any other value raises an error.</li>
 			</ul>
 		</li>

@@ -163,6 +163,22 @@ Universe* Universe::Create(lua_State* const L_)
     lua_setmetatable(L_, -2);                                                                      // L_: settings universe
     lua_pop(L_, 1);                                                                                // L_: settings
 
+    std::ignore = luaW_getfield(L_, kIdxSettings, "convert_fallback");                            // L_: settings convert_fallback
+    if (kNilSentinel.equals(L_, kIdxTop)) {
+        _U->convertMode = ConvertMode::ConvertToNil;
+    } else if (luaW_type(L_, kIdxTop) == LuaType::STRING) {
+        LUA_ASSERT(L_, luaW_tostring(L_, kIdxTop) == "decay");
+        _U->convertMode = ConvertMode::Decay;
+    } else {
+        LUA_ASSERT(L_, lua_isnil(L_, kIdxTop));
+    }
+    lua_pop(L_, 1);                                                                                // L_: settings
+
+    std::ignore = luaW_getfield(L_, kIdxSettings, "convert_max_attempts");                         // L_: settings convert_max_attempts
+    _U->convertMaxAttempts = static_cast<decltype(_U->convertMaxAttempts)>(lua_tointeger(L_, kIdxTop));
+    lua_pop(L_, 1);                                                                                // L_: settings
+    STACK_CHECK(L_, 0);
+
     std::ignore = luaW_getfield(L_, kIdxSettings, "linda_wake_period");                            // L_: settings linda_wake_period
     if (luaW_type(L_, kIdxTop) == LuaType::NUMBER) {
         _U->lindaWakePeriod = lua_Duration{ lua_tonumber(L_, kIdxTop) };

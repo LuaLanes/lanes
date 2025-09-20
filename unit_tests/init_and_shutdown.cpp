@@ -205,6 +205,141 @@ TEST_CASE(("lanes.configure.allocator/protected"))
     L.requireSuccess("require 'lanes'.configure{allocator = 'protected'}");
 }
 
+// #################################################################################################
+
+TEST_CASE("lanes.configure.convert_fallback")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
+
+    SECTION("convert_fallback = <light userdata>")
+    {
+        SECTION("bad value")
+        {
+            // make sure our fixture works
+            L.requireSuccess("fixture = require 'fixture'; assert(type(fixture.newlightuserdata() == 'userdata'))");
+            // and that providing a bad userdata fails
+            L.requireFailure("lanes = require 'lanes'; lanes.configure{convert_fallback = fixture.newlightuserdata()}");
+        }
+
+        SECTION("lanes.null")
+        {
+            // lanes.null should be accessible even if we don't lanes.configure() immediately
+            L.requireSuccess("lanes = require 'lanes'; lanes_null = lanes.null; assert(type(lanes_null) == 'userdata')");
+            // and providing it should work fine
+            L.requireSuccess("lanes.configure{convert_fallback = lanes_null}");
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("convert_fallback = <string>")
+    {
+        SECTION("bad value")
+        {
+            L.requireFailure("require 'lanes'.configure{convert_fallback = 'some other string'}");
+        }
+        SECTION("'decay'")
+        {
+            L.requireSuccess("require 'lanes'.configure{convert_fallback = 'decay'}");
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("convert_fallback = <function>")
+    {
+        // cannot use functions in the global settings, like we can in __lanesconvert metatable entries
+        L.requireFailure("require 'lanes'.configure{convert_fallback = print}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("convert_fallback = <number>")
+    {
+        L.requireFailure("require 'lanes'.configure{convert_fallback = 42}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("convert_fallback = <boolean>")
+    {
+        L.requireFailure("require 'lanes'.configure{convert_fallback = true}");
+    }
+}
+
+// #################################################################################################
+
+TEST_CASE("lanes.configure.convert_max_attempts")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ true } };
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("convert_max_attempts = <boolean>")
+    {
+        L.requireFailure("require 'lanes'.configure{convert_max_attempts = true}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("convert_max_attempts = <string>")
+    {
+        L.requireFailure("require 'lanes'.configure{convert_max_attempts = 'bob'}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("convert_max_attempts = <function>")
+    {
+        L.requireFailure("require 'lanes'.configure{convert_max_attempts = print}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("convert_max_attempts = <light userdata>")
+    {
+        // make sure our fixture works
+        L.requireSuccess("fixture = require 'fixture'; assert(type(fixture.newlightuserdata() == 'userdata'))");
+        L.requireFailure("require 'lanes'.configure{convert_max_attempts = fixture.newlightuserdata()}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("convert_max_attempts = <full userdata>")
+    {
+        // make sure our fixture works
+        L.requireSuccess("fixture = require 'fixture'; assert(type(fixture.newuserdata() == 'userdata'))");
+        L.requireFailure("require 'lanes'.configure{convert_max_attempts = fixture.newuserdata()}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("convert_max_attempts = 0")
+    {
+        L.requireFailure("require 'lanes'.configure{convert_max_attempts = 0}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("convert_max_attempts = 1")
+    {
+        L.requireSuccess("require 'lanes'.configure{convert_max_attempts = 1}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("convert_max_attempts = 9")
+    {
+        L.requireSuccess("require 'lanes'.configure{convert_max_attempts = 9}");
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    SECTION("convert_max_attempts = 9")
+    {
+        L.requireFailure("require 'lanes'.configure{convert_max_attempts = 10}");
+    }
+}
 
 // #################################################################################################
 
@@ -474,6 +609,32 @@ TEST_CASE("lanes.configure.on_state_create/configuration")
         // assert() should be fine since we pass a non-false argument to on_state_create
         L.requireSuccess("require 'lanes'.configure{on_state_create = assert}");
     }
+}
+
+// #################################################################################################
+
+TEST_CASE("lanes.configure.returns_lanes")
+{
+    LuaState L{ LuaState::WithBaseLibs{ true }, LuaState::WithFixture{ false } };
+
+    // when lanes is required, it should contain a 'configure' function and a 'null' userdata
+    L.requireSuccess("lanes = require 'lanes'; lanes_configure1 = lanes.configure; assert(type(lanes.configure) == 'function')");
+    L.requireSuccess("assert(type(lanes.null) == 'userdata')");
+
+    // make sure we didn't automatically call lanes.configure() when indexing lanes to retrieve lanes.null
+    L.requireSuccess("lanes_configure2 = lanes.configure; assert(lanes_configure2 == lanes_configure1)");
+
+    // calling lanes.configure() should return lanes
+    L.requireSuccess("assert(lanes.configure() == lanes)");
+
+    // and the configure function should have been changed to another function
+    L.requireSuccess("lanes_configure3 = lanes.configure; assert(lanes_configure3 ~= lanes_configure2)");
+
+    // which returns lanes too
+    L.requireSuccess("assert(lanes.configure() == lanes)");
+
+    // and the configure function should not change again
+    L.requireSuccess("assert(lanes.configure == lanes_configure3)");
 }
 
 // #################################################################################################

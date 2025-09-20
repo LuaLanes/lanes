@@ -18,6 +18,7 @@
     <ClCompile Include="catch_amalgamated.cpp">
       <Filter>Catch2</Filter>
     </ClCompile>
+    <ClCompile Include="misc_tests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="_pch.hpp" />
