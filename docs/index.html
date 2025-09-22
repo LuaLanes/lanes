@@ -71,7 +71,7 @@
 			</p>
 
 			<p>
-				This document was revised on 19-Sep-25, and applies to version <tt>4.0.0</tt>.
+				This document was revised on 22-Sep-2025, and applies to version <tt>4.0.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -1832,7 +1832,7 @@
 				<li><tt>nil</tt>: The value is not converted. If it is not a clonable or deep userdata, the transfer will eventually fail with an error.</li>
 				<li><tt>lanes.null</tt>: The value is converted to <tt>nil</tt>.</li>
 				<li><tt>"decay"</tt>: The value is converted to a light userdata obtained from <tt>lua_topointer()</tt>.</li>
-				<li>A function: The function is called as <tt>o:__lanesconvert(string)</tt>, where the argument is either <tt>"keeper"</tt> (sending data in a Linda) or <tt>"regular"</tt> (when creating or calling a Lane generator). Its first return value is the result of the conversion, the rest is ignored. Transfer is then attempted on the new value. If this also requires a conversion, it will be done, up to a depth of 3, after which an error will be raised.</li>
+				<li>A function: The function is called as <tt>o:__lanesconvert(string)</tt>, where the argument is either <tt>"keeper"</tt> (sending data in a Linda) or <tt>"regular"</tt> (when creating or calling a Lane generator). Its first return value is the result of the conversion, the rest is ignored. Transfer is then attempted on the new value. If this also requires a conversion, it will be done, up to a count of <a href="#convert_max_attempts"><tt>convert_max_attempts</tt></a>, after which an error will be raised.</li>
 				<li>Any other value raises an error.</li>
 			</ul>
 		</li>
