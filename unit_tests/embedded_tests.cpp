@@ -92,19 +92,6 @@ namespace
             EmbeddedLuaState()
             : LuaState { LuaState::WithBaseLibs{ false }, LuaState::WithFixture{ false } }
             {
-
-                if (!hCore) {
-                    throw std::logic_error("Could not load lanes_core");
-                }
-                luaopen_lanes_embedded_t const _p_luaopen_lanes_embedded{ reinterpret_cast<luaopen_lanes_embedded_t>(GetProcAddress(hCore, "luaopen_lanes_embedded")) };
-                if (!_p_luaopen_lanes_embedded) {
-                    throw std::logic_error("Could not bind luaopen_lanes_embedded");
-                }
-
-                lanes_register = reinterpret_cast<lua_CFunction>(GetProcAddress(hCore, "lanes_register"));
-                if (!lanes_register) {
-                    throw std::logic_error("Could not bind lanes_register");
-                }
                 // need base to make lanes happy
                 luaL_requiref(L, LUA_GNAME, luaopen_base, 1);
                 lua_pop(L, 1);
@@ -125,7 +112,41 @@ namespace
                 lua_pop(L, 1);
                 stackCheck(0);
 
-                _p_luaopen_lanes_embedded(L, local::load_lanes_lua); // S: lanes
+                if (!hCore) {
+                    // lanes_core not found in PATH. use package.path and try in the listed locations, just like Lua would do
+                    lua_getglobal(L, "package");                                                   // S: package
+                    std::ignore = luaW_getfield(L, kIdxTop, "cpath");                              // S: package package.path
+                    std::string_view _package_path{ luaW_tostring(L, kIdxTop) };
+                    lua_pop(L, 2);
+                    while (!_package_path.empty() && !hCore) {
+                        // extract an element
+                        auto _sep{ _package_path.find_first_of(";") };
+                        std::string _path{ _sep == std::string::npos ? _package_path : _package_path.substr(0, _sep) };
+                        (_sep == std::string::npos) ? (void)(_package_path = "") : (_package_path.remove_prefix(_sep + 1));
+                        // replace question mark by "lanes_core"
+                        auto _found{ _path.find_first_of("?") };
+                        if (_found != std::string::npos) {
+                            _path.replace(_found, 1, "lanes_core");
+                            hCore = LoadLibraryA(_path.c_str());
+                        }
+                    }
+                }
+                stackCheck(0);
+
+                if (!hCore) {
+                    throw std::logic_error("Could not load lanes_core, check PATH");
+                }
+                luaopen_lanes_embedded_t const _p_luaopen_lanes_embedded{ reinterpret_cast<luaopen_lanes_embedded_t>(GetProcAddress(hCore, "luaopen_lanes_embedded")) };
+                if (!_p_luaopen_lanes_embedded) {
+                    throw std::logic_error("Could not bind luaopen_lanes_embedded");
+                }
+
+                lanes_register = reinterpret_cast<lua_CFunction>(GetProcAddress(hCore, "lanes_register"));
+                if (!lanes_register) {
+                    throw std::logic_error("Could not bind lanes_register");
+                }
+
+                _p_luaopen_lanes_embedded(L, local::load_lanes_lua);                               // S: lanes
                 lua_pop(L, 1);
                 stackCheck(0);
             }
