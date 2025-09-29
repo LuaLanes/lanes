@@ -398,6 +398,7 @@ TEST_CASE("scripted_tests." #DIR "." #FILE) \
 MAKE_TEST_CASE(linda, multiple_keepers)
 MAKE_TEST_CASE(linda, send_receive)
 MAKE_TEST_CASE(linda, send_receive_func_and_string)
+MAKE_TEST_CASE(linda, send_receive_tables)
 MAKE_TEST_CASE(linda, send_registered_userdata)
 MAKE_TEST_CASE(linda, wake_period)
 

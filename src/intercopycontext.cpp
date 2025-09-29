@@ -1106,10 +1106,6 @@ void InterCopyContext::interCopyString() const
 [[nodiscard]]
 InterCopyOneResult InterCopyContext::interCopyTable() const
 {
-    if (vt == VT::KEY) {
-        return InterCopyOneResult::NotCopied;
-    }
-
     STACK_CHECK_START_REL(L1, 0);
     STACK_CHECK_START_REL(L2, 0);
     DEBUGSPEW_CODE(DebugSpew(nullptr) << "TABLE " << name << std::endl);

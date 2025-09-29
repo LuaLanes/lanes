@@ -1936,13 +1936,12 @@
 </p>
 
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
-	int luaopen_module(lua_State *L )
+	int luaopen_module(lua_State* L)
 	{
 		static char been_here;  /* 0 by ANSI C */
 
 		// Calls to 'require' serialized by Lanes; this is safe.
-		if (!been_here)
-		{
+		if (!been_here) {
 			been_here= 1;
 			... one time initializations ...
 		}
@@ -1959,8 +1958,7 @@
 <table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%"><tr><td><pre>
 static int clonable_lanesclone(lua_State* L)
 {
-	switch(lua_gettop(L))
-	{
+	switch(lua_gettop(L)) {
 		case 3:
 		{
 			struct s_MyClonableUserdata* self = lua_touserdata(L, 1);
@@ -1988,16 +1986,14 @@ int luaopen_deep_userdata_example(lua_State* L)
 	luaL_newlib(L, deep_module);
 
 	// preregister the metatables for the types we can instanciate so that Lanes can know about them
-	if (luaL_newmetatable(L, "clonable"))
-	{
+	if (luaL_newmetatable(L, "clonable")) {
 		luaL_setfuncs(L, clonable_mt, 0);
 		lua_pushvalue(L, -1);
 		lua_setfield(L, -2, "__index");
 	}
 	lua_setfield(L, -2, "__clonableMT"); // actual name is not important
 
-	if (luaL_newmetatable(L, "deep"))
-	{
+	if (luaL_newmetatable(L, "deep")) {
 		luaL_setfuncs(L, deep_mt, 0);
 		lua_pushvalue(L, -1);
 		lua_setfield(L, -2, "__index");

@@ -57,9 +57,11 @@ CHANGE 2: BGe 05-Jun-25
             - linda:wake() can wake up threads waiting for a Linda without doing any I/O on it.
             - linda.status reads the cancel status of the Linda.
             - new function linda:collectgarbage() to force collection of all stale data in the associated keeper.
-            - Deep userdata are an acceptable key to send data into (for example, another linda).
+            - Deep userdata are an acceptable slot to send data into (for example, another linda).
+            - Tables can be used as table keys in transferred data.
         - Full userdata conversion:
             - __lanesconvert added.
+            - global configuration convert_fallback and convert_max_attempts added.
             - __lanesignore removed. Use __lanesconvert instead.
 
 CHANGE 1: BGe 9-Apr-24
