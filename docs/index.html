@@ -71,7 +71,7 @@
 			</p>
 
 			<p>
-				This document was revised on 22-Sep-2025, and applies to version <tt>4.0.0</tt>.
+				This document was revised on 29-Sep-2025, and applies to version <tt>4.0.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -186,10 +186,11 @@
 			<li><tt>lanes.coro()</tt>: start a coroutine-like lane</li>
 			<li><tt>lanes.finally()</tt>: install a function called on Lanes shutdown</li>
 			<li><tt>lanes.gen()</tt>: start a lane as a regular function</li>
-			<li><tt>lanes.genactomic()</tt>: obtain an atomic counter</li>
+			<li><tt>lanes.genatomic()</tt>: obtain an atomic counter</li>
 			<li><tt>lanes.genlock()</tt>: obtain an atomic-like data stack</li>
-			<li><tt>lanes.linda()</tt>: create a Linda</li>
+			<li><tt>lanes.linda()</tt>: create a <a href="#lindas">linda</a></li>
 			<li><tt>lanes.nameof()</tt>: find where a value exists</li>
+			<li><tt>lanes.null</tt>: a light userdata used to represent <tt>nil</tt> in data transfers</li>
 			<li><tt>lanes.thread_priority_range()</tt>: obtain the valid range of thread priorities</li>
 			<li><tt>lanes.now_secs()</tt>: obtain the current clock value</li>
 			<li><tt>lanes.register()</tt>: scan modules so that functions using them can be transferred</li>
@@ -198,6 +199,7 @@
 			<li><tt>lanes.threads()</tt>: obtain a list of all lanes</li>
 			<li><tt>lanes.sleep()</tt>: sleep for a given duration</li>
 			<li><tt>lanes.timer()</tt>: start a timer</li>
+			<li><tt>lanes.timer_lane</tt>: the lane that manages timers</li>
 			<li><tt>lanes.timers()</tt>: list active timers</li>
 		</ul>
 	</li>
@@ -222,11 +224,11 @@
 		</ul>
 	</li>
 	<li>
-		Given some Linda <tt>l</tt>
+		Given some <a href="#lindas">linda</a> <tt>l</tt>
 		<ul>
-			<li><tt>l:cancel()</tt>: mark a Linda for cancellation</li>
-			<li><tt>l:collectgarbage()</tt>: trigger a GC cycle in the Linda's Keeper state</li>
-			<li><tt>l:deep()</tt>: obtain a light userdata uniquely representing the Linda</li>
+			<li><tt>l:cancel()</tt>: mark a <a href="#lindas">linda</a> for cancellation</li>
+			<li><tt>l:collectgarbage()</tt>: trigger a GC cycle in the <a href="#lindas">linda</a>'s Keeper state</li>
+			<li><tt>l:deep()</tt>: obtain a light userdata uniquely representing the <a href="#lindas">linda</a></li>
 			<li><tt>l:dump()</tt>: have information about slot contents</li>
 			<li><tt>l:count()</tt>: obtain a count of data items in slots</li>
 			<li><tt>l:get()</tt>: read data without consuming it</li>
@@ -242,7 +244,7 @@
 	<li>
 		embedding
 		<ul>
-			<li><tt>luaopen_lanes_embedded</tt>: manually initialize Lanes</li>
+			<li><tt>luaopen_lanes_embedded()</tt>: manually initialize Lanes</li>
 		</ul>
 	</li>
  </ul>
@@ -447,11 +449,11 @@
 				number > 0
 			</td>
 			<td>
-				Sets the default period in seconds a linda will wake by itself during blocked operations. Default is never.<br />
-				When a Linda enters a blocking call (<tt>send()</tt>, <tt>receive()</tt>, <tt>receive_batched()</tt>, <tt>sleep()</tt>), it normally sleeps either until the operation completes
+				Sets the default period in seconds a <a href="#lindas">linda</a> will wake by itself during blocked operations. Default is never.<br />
+				When a <a href="#lindas">linda</a> enters a blocking call (<tt>send()</tt>, <tt>receive()</tt>, <tt>receive_batched()</tt>, <tt>sleep()</tt>), it normally sleeps either until the operation completes
 				or the specified timeout expires. With this setting, the default behavior can be changed to wake periodically. This can help for example with timing issues where a lane is signalled
-				for cancellation, but a linda inside the lane was in the middle of processing an operation but did not actually start the wait. This can result in the signal to be ignored, thus
-				causing the Linda to wait out the full operation timeout before cancellation is processed.
+				for cancellation, but a <a href="#lindas">linda</a> inside the lane was in the middle of processing an operation but did not actually start the wait. This can result in the signal to be ignored, thus
+				causing the <a href="#lindas">linda</a> to wait out the full operation timeout before cancellation is processed.
 			</td>
 		</tr>
 
@@ -612,7 +614,7 @@
 </p>
 
 <hr/>
-<h2 id="creation">Creation</h2>
+<h2 id="creation">Lane Creation</h2>
 
 <p>
 	The following sample shows preparing a function for parallel calling, and calling it with varying arguments. Each of the two results is calculated in a separate OS thread, parallel to the calling one. Reading the results joins the threads, waiting for any results not already there.
@@ -851,7 +853,7 @@
 			<td>table</td>
 			<td>
 				Lists modules that have to be required in order to be able to transfer functions/userdata they exposed. Non-Lua functions are <a href="#function_notes">searched in lookup tables</a>.
-				These tables are built from the modules listed here. <tt>required</tt> must be an array of strings, each one being the name of a module to be required. Each module is required with <tt>require()</tt> before the lanes function is invoked.
+				These tables are built from the modules listed here. <tt>required</tt> must be an array of strings, each one being the name of a module to be required. Each module is required with <tt>require()</tt> before the lane function is invoked.
 				So, from the required module's point of view, requiring it manually from inside the lane body or having it required this way doesn't change anything. From the lane body's point of view, the only difference is that a module not creating a global won't be accessible.
 				Therefore, a lane body will also have to require a module manually, but this won't do anything more (see Lua's <tt>require</tt> documentation).	<br />
 				ATTEMPTING TO TRANSFER A FUNCTION REGISTERED BY A MODULE NOT LISTED HERE WILL RAISE AN ERROR.
@@ -865,7 +867,7 @@
 			<td>
 				Sets the error reporting mode. One of <tt>"minimal"</tt> (the default), <tt>"basic"</tt>, <tt>"extended"</tt>.<br />
 				<tt>"minimal"</tt> yields only the location of the error.<br />
-				The other 2 yield a full stack trace, with different amounts of data extracted from the debug infos. See <a href="#results">Results</a>.
+				The other two options yield a full stack trace, with different amounts of data extracted from the debug infos. See <a href="#results">Results</a>.
 			</td>
 		</tr>
 		<tr id=".name" valign=top>
@@ -946,7 +948,7 @@
 		</tr>
 	</table>
 
-	Coroutine lanes function mostly like regular coroutines. They can use <tt>coroutine.yield()</tt> normally.<br />
+	Coroutine lanes operate mostly like regular coroutines. They can use <tt>coroutine.yield()</tt> normally.<br />
 	A yielded coroutine lane has a <tt>"suspended"</tt> status. It can be resumed with <tt>lane_h:resume(values...), which returns the yielded values</tt>.
 	The latter can also be the returned values of <tt>lane_h:join()</tt> or accessed by regular lane indexing (see <a href="#results">Results and errors</a>).<br />
 	<table border="1" bgcolor="#FFFFE0" cellpadding="10" style="width:50%">
@@ -957,7 +959,7 @@
 		</tr>
 	</table>
 
-	Just like regulare coroutines, the reply values passed to <tt>h:resume()</tt> are returned to the lane body at the <tt>coroutine.yield()</tt> point.<br />
+	Just like regular coroutines, the reply values passed to <tt>h:resume()</tt> are returned to the lane body at the <tt>coroutine.yield()</tt> point.<br />
 	If a coroutine lane is suspended when it is joined either by indexing or <tt>lane_h:join()</tt>, active to-be-closed variables are closed at that point, and the Lane can no longer be resumed.
 </p>
 <h3>Free running lanes</h3>
@@ -1171,7 +1173,7 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	[val]= lane_h[1]
+	[val] = lane_h[1]
 </pre></td></tr></table>
 
 <p>
@@ -1181,7 +1183,7 @@
 </p>
 
 <table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	[true, ...]|[nil,err,stack_tbl]= lane_h:join([timeout])
+	[true, ...]|[nil,err,stack_tbl] = lane_h:join([timeout])
 </pre></td></tr></table>
 
 <p>
@@ -1255,12 +1257,12 @@
 		<li>
 			<tt>"soft"</tt>: Cancellation will only cause <tt>cancel_test()</tt> to return <tt>"soft"</tt>, so that the lane can cleanup manually.
 			<br />
-			Lindas will also check for cancellation inside blocking calls to early out based on their <tt>wake_period</tt>.
+			The <a href="#lindas">linda</a> will also check for cancellation inside blocking calls to early out based on its <tt>wake_period</tt>.
 		</li>
 		<li>
 			<tt>"hard"</tt>: waits for the request to be processed, or a timeout to occur. <a href="#lindas">linda</a> operations detecting the cancellation request will raise a special cancellation error (meaning they won't return in that case).
 			<br />
-			If the lane isn't actually waiting on a Linda when the request is issued, a lane calling <tt>cancel_test()</tt> will see it return <tt>"hard"</tt>.
+			If the lane isn't actually waiting on a <a href="#lindas">linda</a> when the request is issued, a lane calling <tt>cancel_test()</tt> will see it return <tt>"hard"</tt>.
 			<br />
 			<tt>wake_lane</tt> defaults to <tt>true</tt>, and <tt>timeout</tt> defaults to 0 if not specified.
 		</li>
@@ -1284,7 +1286,7 @@
 	<tt>timeout</tt> is an optional number &gt= 0. Defaults to infinite if left unspecified or <tt>nil</tt>.
 </p>
 <p>
-	If the lane is still running after the timeout expired, there is a chance lanes will freeze forever at shutdown when failing to terminate all free-running lanes within the specified timeout.
+	If the lane is still running after the timeout expired, there is a chance Lanes will freeze forever at shutdown when failing to terminate all free-running lanes within the specified timeout.
 </p>
 <p>
 	Cancellation is tested <u>before</u> going to sleep in <tt>receive()</tt>, <tt>receive_batched()</tt> or <tt>send()</tt> calls and after executing <tt>cancelstep</tt> Lua statements. A pending <tt>receive()</tt>or <tt>send()</tt> call is awakened.
@@ -1314,7 +1316,7 @@
 
 <p>
 	Lanes registers a function <tt>set_finalizer()</tt> in the lane's Lua state for doing this.
-	Any functions given to it will be called in the lane Lua state, just prior to closing it. It is possible to set more than one finalizer. They are not called in any particular order.
+	Any functions given to it will be called in the lane's Lua state, just prior to closing it. It is possible to set more than one finalizer. They are not called in any particular order.
 </p>
 
 <p>
@@ -1390,18 +1392,18 @@
 			Registered functions and userdata transiting into a Keeper state are converted to a special dummy closure that holds its actual identity. On transit out, the identity is used to find the real function or userdata in the destination.
 			For that reason, it is not possible to run user code inside a Keeper state. The only exception is <a href="#on_state_create"><tt>on_state_create</tt></a>, which is handled in a special way.
 		</li>
-		<li>Consuming method is <tt>:receive</tt> (not in).</li>
-		<li>Non-consuming method is <tt>:get</tt> (not rd).</li>
-		<li>Two producer-side methods: <tt>:send</tt> and <tt>:set</tt> (not out).</li>
-		<li><tt>send</tt> allows for sending multiple values -atomically- to a given slot.</li>
-		<li><tt>receive</tt> can wait for multiple slots at once.</li>
-		<li><tt>receive_batched</tt> can be used to consume more than one value from a single slot, as in <tt>linda:receive_batched(1.0, "slot", 3, 6).</tt></li>
-		<li><tt>restrict</tt> can restrain a particular slot to function either with <tt>send/receive</tt> or <tt>set/get</tt>.</li>
-		<li>Individual slots' queue length can be limited, balancing speed differences in a producer/consumer scenario (making <tt>:send</tt> wait).</li>
+		<li>Consuming method is <tt>:receive()</tt> (not in).</li>
+		<li>Non-consuming method is <tt>:get()</tt> (not rd).</li>
+		<li>Two producer-side methods: <tt>:send()</tt> and <tt>:set()</tt> (not out).</li>
+		<li><tt>send()</tt> allows for sending multiple values -atomically- to a given slot.</li>
+		<li><tt>receive()</tt> can wait for multiple slots at once.</li>
+		<li><tt>receive_batched()</tt> can be used to consume more than one value from a single slot, as in <tt>linda:receive_batched(1.0, "slot", 3, 6).</tt></li>
+		<li><tt>restrict()</tt> can restrain a particular slot to function either with <tt>send()/receive()</tt> or <tt>set()/get()</tt>.</li>
+		<li>Individual slots' queue length can be limited, balancing speed differences in a producer/consumer scenario (making <tt>:send()</tt> wait).</li>
 		<li><tt>tostring(linda)</tt> returns a string of the form <tt>"Linda: &lt;opt_name&gt;"</tt></li>
 		<li>
 			Several linda objects may share the same <a href="#keepers">Keeper state</a>. In case there is more than one user <a href="#keepers">Keeper state</a>, assignation must be controlled with the linda's group (an integer in <tt>[0,nb_user_keepers]</tt>).
-			Lanes has an internal linda used for timers and <tt>lanes.wait</tt>; this linda uses group 0.
+			Lanes has an internal linda used for timers and <tt>lanes.wait()</tt>; this linda uses group 0.
 		</li>
 		<li>
 			IMPORTANT: *all* linda operations are wrapped inside a <tt>lua_gc STOP/RESTART</tt> pair.
@@ -1418,7 +1420,7 @@
 	Argument to <tt>lanes.linda()</tt> is either <tt>nil</tt> or a single table. The table may contain the following entries:
 	<ul>
 		<li><tt>close_handler</tt>: a callable object (function or table/userdata with <tt>__call</tt> metamethod). If provided, and the linda is to-be-closed (Lua 5.4+), it will be called with all the provided arguments. For older Lua versions, its presence is ignored.</li>
-		<li><tt>group</tt>: an integer between 0 and the number of Keeper states. Mandatory if Lanes is configured with more than one Keeper state. Group 0 is used by the internal timer linda.</li>
+		<li><tt>group</tt>: an integer between 0 and the number of <a href="#keepers">Keeper states</a>. Mandatory if Lanes is configured with more than one <a href="#keepers">Keeper state</a>. Group 0 is used by the internal timer linda.</li>
 		<li>
 			<tt>name</tt>: a string. Converting the linda to a string will yield the provided name prefixed by <tt>"Linda: "</tt>.
 			If omitted or empty, it will evaluate to the string representation of a hexadecimal number uniquely representing that linda when the linda is converted to a string. The numeric value is the same as returned by <tt>linda:deep()</tt>.<br />
@@ -1451,7 +1453,7 @@
 </pre></td></tr></table>
 
 <p>
-	It is possible to restrict a particular slot in a Linda to either <tt>send/receive</tt> or <tt>set/get</tt> operations.<br />
+	It is possible to restrict a particular slot in a Linda to either <tt>send()/receive()</tt> or <tt>set()/get()</tt> operations.<br />
 	Possible modes are <tt>"none"</tt>, <tt>"set/get"</tt> or <tt>"send/receive"</tt>.<br />
 	If a new mode is specified, <tt>restrict()</tt> updates the mode and returns the previous one.<br />
 	If no mode is specified, <tt>restrict()</tt> does nothing and returns the current mode.<br />
@@ -1558,7 +1560,8 @@
 </pre></td></tr></table>
 
 <p>
-	Forces a full garbage collect cycle inside the Keeper state assigned to the Linda (same as <tt>lua_gc(L, LUA_GCCOLLECT)</tt>).<br />
+	Forces a full garbage collect cycle inside the <a href="#keepers">Keeper state</a> assigned to the linda (same as <tt>lua_gc(L, LUA_GCCOLLECT)</tt>).<br />
+	All lindas sharing the same <a href="#keepers">Keeper state</a> will have to wait for the operation to complete before being able to resume regular service.<br />
 	Can be useful to clean stale storage after some keys are cleaned.
 </p>
 
@@ -1682,7 +1685,7 @@
 </p>
 
 <p>
-	Once a timer expires, the <tt>slot</tt> is set with the current time (in seconds, same offset as <tt>os.time()</tt> but with millisecond accuracy). The slot can be waited upon using the regular <a href="#lindas">linda</a> <tt>:receive()</tt> method.
+	Once a timer expires, the <tt>slot</tt> is set with the current time (in seconds, same offset as <tt>os.time()</tt> but with millisecond accuracy). The slot can be waited upon using the regular <tt><a href="#lindas">linda</a>:receive()</tt> method.
 </p>
 
 <p>
@@ -1722,7 +1725,7 @@
 		<td>
 			<font size="-1">
 				Having the API as <tt>lanes.timer()</tt> is intentional. Another alternative would be <tt>linda_h:timer()</tt> but timers are not traditionally seen to be part of lindas. Also, it would mean any lane getting a <a href="#lindas">linda</a> handle would be able to modify timers on it.
-				A third choice could be abstracting the timers out of <a href="#lindas">linda</a> realm altogether (<tt>timer_h= lanes.timer(date|first_secs, period_secs )</tt>) but that would mean separate waiting functions for timers, and lindas.
+				A third choice could be abstracting the timers out of <a href="#lindas">linda</a> realm altogether (<tt>timer_h = lanes.timer(date|first_secs, period_secs )</tt>) but that would mean separate waiting functions for timers, and lindas.
 				Even if a <a href="#lindas">linda</a> object and slot was returned, that slot couldn't be waited upon simultaneously with one's general <a href="#lindas">linda</a> events.
 				The current system gives maximum capabilities with minimum API, and any smoothenings can easily be crafted in Lua at the application level.
 			</font>
@@ -2059,8 +2062,8 @@ static MyDeepFactory g_MyDeepFactory;
 </p>
 
 <p>
-	Pay attention to the fact a deep userdata last proxy can be held inside a Keeper state after being stored in a Linda and all other references are lost.
-	If the Linda then flushes its contents through garbage collection in the Keeper state or by being collected itself, it means that <tt>deleteDeepObjectInternal()</tt> can be called from inside a Keeper state.
+	Pay attention to the fact a deep userdata last proxy can be held inside a <a href="#keepers">Keeper state</a> after being stored in a <a href="#lindas">linda</a> and all other references are lost.
+	If the <a href="#lindas">linda</a> then flushes its contents through garbage collection in the <a href="#keepers">Keeper state</a> or by being collected itself, it means that <tt>deleteDeepObjectInternal()</tt> can be called from inside a <a href="#keepers">Keeper state</a>.
 </p>
 
 <p>
