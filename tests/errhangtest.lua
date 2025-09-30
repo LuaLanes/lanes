@@ -42,19 +42,23 @@ if true then
 	print "OK"
 end
 
--- send a table that contains a function
+-- =================================================================================================
+-- send a table that contains a function, both as key and value
+-- =================================================================================================
+
 if true then
 	print "\n#### send table with a function"
-	local fun = function() print "function test ok" end
-	local t_in = { [fun] = fun, fun = fun }
+	local fun = function() print "function test ok" return 42 end
+	local t_in = { [fun] = fun, ["fun"] = fun }
 	print(pcall(linda.send, linda, 'test', t_in))
-	local k,t_out = linda:receive('test') -- read the contents successfully sent
-	t_out.fun()
-	-- t_out should contain a single entry, as [fun] = fun should have been discarded because functions are not acceptable keys
+	local k, t_out = linda:receive('test') -- read the contents successfully sent
+	-- t_out should contain two entries, just like t_in
 	local count = 0
 	for k,v in pairs(t_out) do count = count + 1 end
-	assert(count == 1)
-	print "OK"
+	assert(count == 2)
+	assert(t_out["fun"] == t_out[t_out.fun]) -- t_out[t_out.fun] should be identical to t_out["fun"]
+	assert(t_out["fun"] ~= fun) -- even if the function is not the original one but a copy
+	assert(t_out["fun"]() == t_out[t_out.fun]() and t_out["fun"]() == fun()) -- all functions should return the same value, since they are the same
 end
 
 -- send a string

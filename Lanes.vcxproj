@@ -2060,6 +2060,7 @@ xcopy /F /I /R /Y "$(OutputPath)$(TargetName).pdb" "$(SolutionDir)_LuaVersions/$
     <None Include="tests\objects.lua" />
     <None Include="tests\parallel_os_calls.lua" />
     <None Include="tests\perftest.lua" />
+    <None Include="tests\pingpong.lua" />
     <None Include="tests\protectproxy.lua" />
     <None Include="tests\protect_allocator.lua" />
     <None Include="tests\recursive.lua" />

@@ -937,10 +937,6 @@ void InterCopyContext::interCopyBoolean() const
 [[nodiscard]]
 bool InterCopyContext::interCopyFunction() const
 {
-    if (vt == VT::KEY) {
-        return false;
-    }
-
     STACK_CHECK_START_REL(L1, 0);
     STACK_CHECK_START_REL(L2, 0);
     DEBUGSPEW_CODE(DebugSpew(nullptr) << "FUNCTION " << name << std::endl);
@@ -1169,9 +1165,6 @@ InterCopyOneResult InterCopyContext::interCopyUserdata() const
 {
     STACK_CHECK_START_REL(L1, 0);
     STACK_CHECK_START_REL(L2, 0);
-    if (vt == VT::KEY) {
-        return InterCopyOneResult::NotCopied;
-    }
 
     // try clonable userdata first
     if (tryCopyClonable()) {

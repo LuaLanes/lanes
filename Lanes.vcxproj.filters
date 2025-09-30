@@ -297,6 +297,9 @@
     <None Include="Lanes.slnenv">
       <Filter>Resource Files\Make</Filter>
     </None>
+    <None Include="tests\pingpong.lua">
+      <Filter>tests</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\lanes.lua">
