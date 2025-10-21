@@ -8,7 +8,7 @@ using namespace std::chrono_literals;
 
 // #################################################################################################
 
-inline void STACK_GROW(lua_State* const L_, int const n_)
+static inline void STACK_GROW(lua_State* const L_, int const n_)
 {
     if (!lua_checkstack(L_, n_)) {
         raise_luaL_error(L_, "Cannot grow stack!");
