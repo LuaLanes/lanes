@@ -835,10 +835,11 @@ void signal_handler(int signal_)
 
 // helper to have correct callstacks when crashing a Win32 running on 64 bits Windows
 // don't forget to toggle Debug/Exceptions/Win32 in visual Studio too!
-static std::atomic_flag s_ecoc_initDone;
-static std::atomic_flag s_ecoc_go_ahead;
 static void EnableCrashingOnCrashes(void)
 {
+    static std::atomic_flag s_ecoc_initDone;
+    static std::atomic_flag s_ecoc_go_ahead;
+
     if (!s_ecoc_initDone.test_and_set(std::memory_order_acquire)) {
         using GetPolicy_t = BOOL(WINAPI *)(LPDWORD lpFlags);
         using SetPolicy_t = BOOL(WINAPI *)(DWORD dwFlags);
