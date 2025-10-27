@@ -8,6 +8,7 @@
 #include <concepts>
 #include <condition_variable>
 #include <cstring>
+#include <format>
 #include <functional>
 #include <iostream>
 #ifndef __PROSPERO__

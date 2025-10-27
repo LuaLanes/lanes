@@ -474,29 +474,28 @@ void InterCopyContext::interCopyKeyValuePair() const
         // for debug purposes, let's try to build a useful name
         if (luaW_type(L1, _key_i) == LuaType::STRING) {
             std::string_view const _key{ luaW_tostring(L1, _key_i) };
-            size_t const _bufLen{ name.size() + _key.size() + 2 }; // +2 for separator dot and terminating 0
-            _valPath = static_cast<char*>(alloca(_bufLen));
-            sprintf(_valPath, "%s." STRINGVIEW_FMT, name.data(), (int) _key.size(), _key.data());
+            _valPath = static_cast<char*>(alloca(name.size() + _key.size() + 2)); // +2 for separator dot and terminating 0
+            *std::format_to(_valPath, "{}.{}", name, _key) = 0;
         }
 #if defined LUA_LNUM || LUA_VERSION_NUM >= 503
         else if (lua_isinteger(L1, _key_i)) {
             lua_Integer const key{ lua_tointeger(L1, _key_i) };
-            _valPath = (char*) alloca(name.size() + 32 + 3); // +3 for [] and terminating 0
-            sprintf(_valPath, "%s[" LUA_INTEGER_FMT "]", name.data(), key);
+            _valPath = static_cast<char*>(alloca(name.size() + 32 + 3)); // +3 for [] and terminating 0
+            *std::format_to(_valPath, "{}[{}]", name, key) = 0;
         }
 #endif // defined LUA_LNUM || LUA_VERSION_NUM >= 503
         else if (luaW_type(L1, _key_i) == LuaType::NUMBER) {
             lua_Number const key{ lua_tonumber(L1, _key_i) };
-            _valPath = (char*) alloca(name.size() + 32 + 3); // +3 for [] and terminating 0
-            sprintf(_valPath, "%s[" LUA_NUMBER_FMT "]", name.data(), key);
+            _valPath = static_cast<char*>(alloca(name.size() + 32 + 3)); // +3 for [] and terminating 0
+            *std::format_to(_valPath, "{}[{}]", name, key) = 0;
         } else if (luaW_type(L1, _key_i) == LuaType::LIGHTUSERDATA) {
             void* const _key{ lua_touserdata(L1, _key_i) };
-            _valPath = (char*) alloca(name.size() + 16 + 5); // +5 for [U:] and terminating 0
-            sprintf(_valPath, "%s[U:%p]", name.data(), _key);
+            _valPath = static_cast<char*>(alloca(name.size() + 16 + 5)); // +5 for [U:] and terminating 0
+            *std::format_to(_valPath, "{}[U:{}]", name, _key) = 0;
         } else if (luaW_type(L1, _key_i) == LuaType::BOOLEAN) {
             int const _key{ lua_toboolean(L1, _key_i) };
-            _valPath = (char*) alloca(name.size() + 8); // +8 for [], 'false' and terminating 0
-            sprintf(_valPath, "%s[%s]", name.data(), _key ? "true" : "false");
+            _valPath = static_cast<char*>(alloca(name.size() + 8)); // +8 for [], 'false' and terminating 0
+            *std::format_to(_valPath, "{}[{}]", name, _key ? "true" : "false") = 0;
         }
     }
 
@@ -1430,7 +1429,7 @@ InterCopyResult InterCopyContext::interCopy(int const n_) const
     for (StackIndex _i{ (L1_i != 0) ? L1_i.value() : (_top_L1 - n_ + 1) }, _j{ 1 }; _j <= n_; ++_i, ++_j) {
         char _tmpBuf[16];
         if (U->verboseErrors) {
-            sprintf(_tmpBuf, "arg_%d", _j.value());
+            *std::format_to(_tmpBuf, "arg#{}", _j.value()) = 0;
             _c.name = _tmpBuf;
         }
         _c.L1_i = SourceIndex{ _i.value() };

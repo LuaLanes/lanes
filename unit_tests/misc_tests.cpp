@@ -191,3 +191,12 @@ TEST_CASE("misc.convert_max_attempts.is_respected")
         " l:send('k', t)" // send the table, it should raise an error because the converter retries too many times
     );
 }
+
+#define MAKE_TEST_CASE(DIR, FILE, CONDITION) \
+    TEST_CASE("scripted_tests." #DIR "." #FILE) \
+    { \
+        FileRunner _runner(R"(.\unit_tests\scripts)"); \
+        _runner.performTest(FileRunnerParam{ #DIR "/" #FILE, TestType::CONDITION }); \
+    }
+
+MAKE_TEST_CASE(misc, verbose_errors, AssertNoLuaError)
