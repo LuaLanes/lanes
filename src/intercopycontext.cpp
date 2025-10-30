@@ -494,8 +494,12 @@ void InterCopyContext::interCopyKeyValuePair() const
             *std::format_to(_valPath, "{}[U:{}]", name, _key) = 0;
         } else if (luaW_type(L1, _key_i) == LuaType::BOOLEAN) {
             int const _key{ lua_toboolean(L1, _key_i) };
-            _valPath = static_cast<char*>(alloca(name.size() + 8)); // +8 for [], 'false' and terminating 0
+            _valPath = static_cast<char*>(alloca(name.size() + 8)); // +8 for [false] and terminating 0
             *std::format_to(_valPath, "{}[{}]", name, _key ? "true" : "false") = 0;
+        } else if (luaW_type(L1, _key_i) == LuaType::USERDATA) {
+            // I don't want to invoke tostring on the userdata to get its name
+            _valPath = static_cast<char*>(alloca(name.size() + 11)); // +11 for [U:<FULL>] and terminating 0
+            *std::format_to(_valPath, "{}[U:<FULL>]", name) = 0;
         }
     }
 
