@@ -1327,7 +1327,7 @@
 
 <p>
 	Lanes registers a function <tt>set_finalizer()</tt> in the lane's Lua state for doing this.
-	Any functions given to it will be called in the lane's Lua state, just prior to closing it. It is possible to set more than one finalizer. They are not called in any particular order.
+	Any functions given to it will be called in the lane's Lua state, just prior to closing it. It is possible to set more than one finalizer. They are called in LIFO order.
 </p>
 
 <p>
