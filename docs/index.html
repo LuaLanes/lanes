@@ -1294,10 +1294,14 @@
 	This means the execution of the lane will resume although the operation has not completed, to give the lane a chance to detect cancellation (even in the case the code waits on a <a href="#lindas">linda</a> with infinite timeout).
 	<br />
 	The code should be able to handle this situation appropriately if required (in other words, it should gracefully handle the fact that it didn't receive the expected values).
-	<br />
-	It is also possible to manually test for cancel requests with <tt>cancel_test()</tt>.
 </p>
 
+	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
+	false|"soft"|"hard" = cancel_test() -- inside the lane
+</pre></td></tr></table>
+<p>
+	Lanes installs the function <tt>cancel_test()</tt> in each created lane to manually test for cancel requests.
+</p>
 
 <!-- finalizers +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
 <hr/>

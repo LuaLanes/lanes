@@ -18,6 +18,16 @@ local lanes_linda = assert(lanes.linda)
 -- ##################################################################################################
 -- ##################################################################################################
 
+-- test that cancel_test() returns exactly false (boolean) when no cancel is pending
+local no_cancel = function()
+    local result = cancel_test()
+    assert(result == false, "cancel_test() should return boolean false when not cancelled, got " .. type(result) .. ": " .. tostring(result))
+    return result
+end
+local no_cancel_lane = lanes_gen("*", { name = 'auto' }, no_cancel)()
+local no_cancel_result = no_cancel_lane[1]
+assert(no_cancel_result == false, "cancel_test() should return boolean false, got " .. type(no_cancel_result) .. ": " .. tostring(no_cancel_result))
+
 -- cancellation of cooperating lanes
 local cooperative = function()
     local fixture = assert(require "fixture")
@@ -32,11 +42,11 @@ end
 local cooperative_lane_soft = lanes_gen("*", { name = 'auto' }, cooperative)()
 local a, b = cooperative_lane_soft:cancel("soft", 0) -- issue request, do not wait for lane to terminate
 assert(a == false and b == "timeout", "got " .. tostring(a) .. " " .. tostring(b))
-assert(cooperative_lane_soft[1] == "soft") -- return value of the lane body is the value returned by cancel_test()
+assert(cooperative_lane_soft[1] == "soft", "cancel_test() should return \"soft\", got " .. type(cooperative_lane_soft[1]) .. ": " .. tostring(cooperative_lane_soft[1])) -- return value of the lane body is the value returned by cancel_test()
 local cooperative_lane_hard = lanes_gen("*", { name = 'auto' }, cooperative)()
 local c, d = cooperative_lane_hard:cancel("hard", 0) -- issue request, do not wait for lane to terminate
-assert(a == false and b == "timeout", "got " .. tostring(c) .. " " .. tostring(d))
-assert(cooperative_lane_hard[1] == "hard") -- return value of the lane body is the value returned by cancel_test()
+assert(c == false and d == "timeout", "got " .. tostring(c) .. " " .. tostring(d))
+assert(cooperative_lane_hard[1] == "hard", "cancel_test() should return \"hard\", got " .. type(cooperative_lane_hard[1]) .. ": " .. tostring(cooperative_lane_hard[1])) -- return value of the lane body is the value returned by cancel_test()
 
 -- ##################################################################################################
 
