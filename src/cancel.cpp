@@ -140,12 +140,9 @@ LUAG_FUNC(cancel_test)
 
 // #################################################################################################
 
-//---
-// = lane_cancel( lane_ud [,timeout_secs=0.0] [,wake_lindas_bool=false] )
-//
 // The originator thread asking us specifically to cancel the other thread.
 //
-// 'timeout': <0: wait forever, until the lane is finished
+// 'timeout': nil: wait forever, until the lane is finished
 //            0.0: just signal it to cancel, no time waited
 //            >0: time to wait for the lane to detect cancellation
 //
