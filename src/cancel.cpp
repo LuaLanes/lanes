@@ -112,18 +112,28 @@ CancelRequest CheckCancelRequest(lua_State* const L_)
 // #################################################################################################
 
 //---
-// bool = cancel_test()
+// false|"soft" = cancel_test([return_hard])
 //
-// Available inside the global namespace of a lane
-// returns a boolean saying if a cancel request is pending
+// Available inside the global namespace of a lane.
+// Returns false when no cancel request is pending.
+// Returns "soft" when a soft cancel request is pending.
+// Raises cancel_error when a hard cancel request is pending,
+// unless the optional boolean argument is true, in which case it returns "hard" instead.
 //
 LUAG_FUNC(cancel_test)
 {
     CancelRequest const _test{ CheckCancelRequest(L_) };
     if (_test == CancelRequest::None) {
         lua_pushboolean(L_, 0);
+    } else if (_test == CancelRequest::Soft) {
+        luaW_pushstring(L_, "soft");
     } else {
-        luaW_pushstring(L_, (_test == CancelRequest::Soft) ? "soft" : "hard");
+        // Hard cancel: raise by default, return "hard" if the optional argument is true
+        if (lua_toboolean(L_, 1)) {
+            luaW_pushstring(L_, "hard");
+        } else {
+            raise_cancel_error(L_); // doesn't return
+        }
     }
     return 1;
 }

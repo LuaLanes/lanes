@@ -11,7 +11,7 @@ end
 local g = function()
 	local cancelled
 	repeat
-		cancelled = cancel_test()
+		cancelled = cancel_test(true)
 	until cancelled
 	print "User cancellation detected!"
 end

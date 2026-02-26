@@ -130,7 +130,7 @@ local laneBody = function(mode_, payload_)
 		else
 			error "no mode: raise an error"
 		end
-	until cancel_test() -- soft cancel self test
+	until cancel_test(true) -- soft cancel self test
 	print "			lane shutting down after breaking out of loop"
 end
 

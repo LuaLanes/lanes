@@ -29,24 +29,32 @@ local no_cancel_result = no_cancel_lane[1]
 assert(no_cancel_result == false, "cancel_test() should return boolean false, got " .. type(no_cancel_result) .. ": " .. tostring(no_cancel_result))
 
 -- cancellation of cooperating lanes
-local cooperative = function()
+-- query_only: if true, pass true to cancel_test() so that hard cancel returns "hard" instead of raising
+local cooperative = function(query_only_)
     local fixture = assert(require "fixture")
     local which_cancel
     repeat
         fixture.block_for(0.2)
-        which_cancel = cancel_test()
+        which_cancel = cancel_test(query_only_)
     until which_cancel
     return which_cancel
 end
--- soft and hard are behaviorally equivalent when no blocking linda operation is involved
+-- for soft cancel, cancel_test() returns "soft" so the lane exits the loop and returns it
 local cooperative_lane_soft = lanes_gen("*", { name = 'auto' }, cooperative)()
 local a, b = cooperative_lane_soft:cancel("soft", 0) -- issue request, do not wait for lane to terminate
 assert(a == false and b == "timeout", "got " .. tostring(a) .. " " .. tostring(b))
 assert(cooperative_lane_soft[1] == "soft", "cancel_test() should return \"soft\", got " .. type(cooperative_lane_soft[1]) .. ": " .. tostring(cooperative_lane_soft[1])) -- return value of the lane body is the value returned by cancel_test()
+-- for hard cancel, cancel_test() raises cancel_error, so the lane ends up in the cancelled state
 local cooperative_lane_hard = lanes_gen("*", { name = 'auto' }, cooperative)()
 local c, d = cooperative_lane_hard:cancel("hard", 0) -- issue request, do not wait for lane to terminate
 assert(c == false and d == "timeout", "got " .. tostring(c) .. " " .. tostring(d))
-assert(cooperative_lane_hard[1] == "hard", "cancel_test() should return \"hard\", got " .. type(cooperative_lane_hard[1]) .. ": " .. tostring(cooperative_lane_hard[1])) -- return value of the lane body is the value returned by cancel_test()
+assert(cooperative_lane_hard[1] == nil, "cancelled lane first result should be nil, got " .. type(cooperative_lane_hard[1]) .. ": " .. tostring(cooperative_lane_hard[1]))
+assert(cooperative_lane_hard[2] == lanes.cancel_error, "cancelled lane second result should be cancel_error")
+-- for hard cancel with query_only=true, cancel_test(true) returns "hard" so the lane exits the loop and returns it
+local cooperative_lane_hard_query = lanes_gen("*", { name = 'auto' }, cooperative)(true)
+local e, f = cooperative_lane_hard_query:cancel("hard", 0) -- issue request, do not wait for lane to terminate
+assert(e == false and f == "timeout", "got " .. tostring(e) .. " " .. tostring(f))
+assert(cooperative_lane_hard_query[1] == "hard", "cancel_test(true) should return \"hard\", got " .. type(cooperative_lane_hard_query[1]) .. ": " .. tostring(cooperative_lane_hard_query[1]))
 
 -- ##################################################################################################
 

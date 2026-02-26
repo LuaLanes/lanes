@@ -7,7 +7,7 @@ local lane1 = function()
 	-- loop breaks on soft cancellation request
 	repeat
 		lanes.sleep(0)
-	until cancel_test()
+	until cancel_test(true)
 	print "lane1 cancelled"
 end
 

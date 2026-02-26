@@ -65,13 +65,13 @@
 		<font size="-1">
 			<p>
 				<br />
-				<i>Copyright &copy; 2007-25 Asko Kauppi, Benoit Germain. All rights reserved.</i>
+				<i>Copyright &copy; 2007-26 Asko Kauppi, Benoit Germain. All rights reserved.</i>
 				<br />
 				Lua Lanes is published under the same <a href="http://en.wikipedia.org/wiki/MIT_License">MIT license</a> as Lua 5.1, 5.2, 5.3, 5.4 and 5.5.
 			</p>
 
 			<p>
-				This document was revised on 29-Sep-2025, and applies to version <tt>4.0.0</tt>.
+				This document was revised on 26-Feb-2026, and applies to version <tt>4.0.0</tt>.
 			</p>
 		</font>
 	</center>
@@ -1200,7 +1200,7 @@
 				<li><tt>"extended"</tt>: <tt>stack_tbl</tt> is an array of tables containing info gathered with <tt>lua_getinfo()</tt> (<tt>"source"</tt>,<tt>"currentline"</tt>,<tt>"name"</tt>,<tt>"namewhat"</tt>,<tt>"what"</tt>).</li>
 			</ul>
 		</li>
-		<li><tt>nil, "killed"</tt> if forcefully killed.</li>
+		<li><tt>nil, lanes.cancel_error</tt> if <tt>"hard"</tt>-cancelled during a <a href="#lindas">linda</a> operation (which is nothing more than a special case of the above).</li>
 		<li><tt>true [, returned-values]</tt>: The return values of the lane function.</li>
 	</ul>
 	If the lane handle obtained from <tt>lanes.gen()</tt> is to-be-closed, closing the value will cause a call to <tt>join()</tt>.
@@ -1262,14 +1262,14 @@
 		<li>
 			<tt>"hard"</tt>: waits for the request to be processed, or a timeout to occur. <a href="#lindas">linda</a> operations detecting the cancellation request will raise a special cancellation error (meaning they won't return in that case).
 			<br />
-			If the lane isn't actually waiting on a <a href="#lindas">linda</a> when the request is issued, a lane calling <tt>cancel_test()</tt> will see it return <tt>"hard"</tt>.
+			If the lane isn't actually waiting on a <a href="#lindas">linda</a> when the request is issued, a lane calling <tt>cancel_test()</tt> will also raise <tt>lanes.cancel_error</tt>, unless <tt>cancel_test(true)</tt> is used, in which case it returns <tt>"hard"</tt> instead.
 			<br />
-			<tt>wake_lane</tt> defaults to <tt>true</tt>, and <tt>timeout</tt> defaults to 0 if not specified.
+			<tt>wake_lane</tt> defaults to <tt>true</tt>, and <tt>timeout</tt> defaults to infinite if not specified.
 		</li>
 		<li>
 			<tt>"call"</tt>, <tt>"ret"</tt>, <tt>"line"</tt>, <tt>"count"</tt>: Asynchronously install the corresponding hook, then behave as <tt>"hard"</tt>.
 			<br />
-			If the lane has the opportunity to call <tt>cancel_test()</tt> before the hook is invoked, calling <tt>cancel_test()</tt> will see it return <tt>"hard"</tt>.
+			If the lane has the opportunity to call <tt>cancel_test()</tt> before the hook is invoked, it will also raise <tt>lanes.cancel_error</tt> (or return <tt>"hard"</tt> if <tt>cancel_test(true)</tt> is used).
 		</li>
 		<li>
 			<tt>"all"</tt>: Installs all hooks in one shot, just to be sure.
@@ -1297,10 +1297,15 @@
 </p>
 
 	<table border="1" bgcolor="#E0E0FF" cellpadding="10" style="width:50%"><tr><td><pre>
-	false|"soft"|"hard" = cancel_test() -- inside the lane
+	false|"soft" = cancel_test()        -- raises cancel_error on hard cancel
+	false|"soft"|"hard" = cancel_test(true) -- returns "hard" instead of raising
 </pre></td></tr></table>
 <p>
 	Lanes installs the function <tt>cancel_test()</tt> in each created lane to manually test for cancel requests.
+	It returns <tt>false</tt> when no cancel is pending, <tt>"soft"</tt> on a soft cancel request, and raises
+	<tt>lanes.cancel_error</tt> on a hard cancel request. Passing <tt>true</tt> as the optional argument suppresses
+	the raise and returns <tt>"hard"</tt> instead, which is useful when the lane needs to distinguish the cancel
+	mode before deciding how to react.
 </p>
 
 <!-- finalizers +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->

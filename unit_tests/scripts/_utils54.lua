@@ -20,7 +20,7 @@ utils.yielder_with_to_be_closed = function(out_linda_, wait_)
 	local n = 1
 	while true do
 		coroutine.yield("I yield!", n)
-		if cancel_test and cancel_test() then -- cancel_test does not exist when run immediately (not in a Lane)
+		if cancel_test and cancel_test(true) then -- cancel_test does not exist when run immediately (not in a Lane)
 			return "I am cancelled"
 		end
 		n = n + 1

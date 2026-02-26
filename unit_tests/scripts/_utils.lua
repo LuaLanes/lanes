@@ -76,7 +76,7 @@ local yield_one_by_one = function(...)
         local _val = select(_i, ...)
         PRINT("yielding #", _i, _val)
         local _ack = coroutine.yield(_val)
-        if cancel_test and cancel_test() then -- cancel_test does not exist when run immediately (not in a Lane)
+        if cancel_test and cancel_test(true) then -- cancel_test does not exist when run immediately (not in a Lane)
             return "cancelled!"
         end
         -- of course, if we are cancelled, we were not resumed, and yield() didn't return what we expect
