@@ -1200,7 +1200,7 @@
 				<li><tt>"extended"</tt>: <tt>stack_tbl</tt> is an array of tables containing info gathered with <tt>lua_getinfo()</tt> (<tt>"source"</tt>,<tt>"currentline"</tt>,<tt>"name"</tt>,<tt>"namewhat"</tt>,<tt>"what"</tt>).</li>
 			</ul>
 		</li>
-		<li><tt>nil, lanes.cancel_error</tt> if <tt>"hard"</tt>-cancelled during a <a href="#lindas">linda</a> operation (which is nothing more than a special case of the above).</li>
+		<li><tt>nil, lanes.cancel_error</tt> if the lane is in <tt>"cancelled"</tt> status (i.e. it was hard-cancelled, whether via a <a href="#lindas">linda</a> operation, a hook, or <tt>cancel_test()</tt> raising).</li>
 		<li><tt>true [, returned-values]</tt>: The return values of the lane function.</li>
 	</ul>
 	If the lane handle obtained from <tt>lanes.gen()</tt> is to-be-closed, closing the value will cause a call to <tt>join()</tt>.
@@ -1258,13 +1258,15 @@
 			<tt>"soft"</tt>: Cancellation will only cause <tt>cancel_test()</tt> to return <tt>"soft"</tt>, so that the lane can cleanup manually.
 			<br />
 			The <a href="#lindas">linda</a> will also check for cancellation inside blocking calls to early out based on its <tt>wake_period</tt>.
+			<br />
+			<tt>wake_lane</tt> defaults to <tt>false</tt>.
 		</li>
 		<li>
 			<tt>"hard"</tt>: waits for the request to be processed, or a timeout to occur. <a href="#lindas">linda</a> operations detecting the cancellation request will raise a special cancellation error (meaning they won't return in that case).
 			<br />
 			If the lane isn't actually waiting on a <a href="#lindas">linda</a> when the request is issued, a lane calling <tt>cancel_test()</tt> will also raise <tt>lanes.cancel_error</tt>, unless <tt>cancel_test(true)</tt> is used, in which case it returns <tt>"hard"</tt> instead.
 			<br />
-			<tt>wake_lane</tt> defaults to <tt>true</tt>, and <tt>timeout</tt> defaults to infinite if not specified.
+			<tt>wake_lane</tt> defaults to <tt>true</tt>.
 		</li>
 		<li>
 			<tt>"call"</tt>, <tt>"ret"</tt>, <tt>"line"</tt>, <tt>"count"</tt>: Asynchronously install the corresponding hook, then behave as <tt>"hard"</tt>.
