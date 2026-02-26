@@ -1,6 +1,6 @@
 CHANGES:
 
-CHANGE 2: BGe 05-Jun-25
+CHANGE 2: BGe 26-Feb-26
     * Internal changes
         - Lanes is implemented in C++20: thread, condition_variable, mutex, string_view, variant, lambdas, templates, and more!
         - Almost all platform-specific code is gone (only a small bit for thread priority and affinity remains).
@@ -14,6 +14,7 @@ CHANGE 2: BGe 05-Jun-25
             - lanes.register() is also available as lanes_register() in the exported C API.
             - lanes.sleep() accepts a new argument "indefinitely" to block forever (until hard cancellation is received).
             - function set_debug_threadname() available inside a Lane is renamed lane_threadname(); can now both read and write the name.
+            - function cancel_test() raises cancel_error by default in a hard-cancelled lane.
             - new function lanes.finally(). Installs a function that gets called at Lanes shutdown after attempting to terminate all lanes.
               If some lanes still run after the finalizer, Universe::__gc with raise an error or freeze, depending on its return value.
             - new function lanes.collectgarbage(), to force a full GC cycle in the keeper states.
