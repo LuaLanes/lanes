@@ -1516,7 +1516,7 @@
 <p>
 	Unbatched <tt>receive()</tt> return values can be:
 	<ul>
-		<li><tt>nil, lanes.cancel_error</tt> if interrupted by a hard cancel request.</li>
+		<li><tt>nil, lanes.cancel_error</tt> if interrupted by a soft cancel request.</li>
 		<li><tt>nil, "timeout"</tt> if nothing was available.</li>
 		<li>A slot and the value extracted from it. Note that <tt>nil</tt> can be sent and received; the first returned value <tt>slot</tt> will tell it apart from a timeout.</li>
 	</ul>
