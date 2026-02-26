@@ -1096,11 +1096,23 @@
 		<tr>
 			<td />
 			<td>
+				<tt>
+					"closing"
+				</tt>
+			</td>
+			<td />
+			<td>
+				Happens only inside a <tt>join()</tt>/indexation call to unblock a suspended <a href="#coroutines">coroutine</a> lane so that it can join properly. In theory not observable by lanes client code, but who knows.
+			</td>
+		</tr>
+		<tr>
+			<td />
+			<td>
 				<tt>"waiting"</tt>
 			</td>
 			<td />
 			<td>
-				Waiting at a <a href="#lindas">linda</a> <tt>:receive()</tt> or <tt>:send()</tt>
+				Waiting at a <a href="#lindas">linda</a> <tt>:receive()</tt> or <tt>:send()</tt>.
 			</td>
 		</tr>
 		<tr>
@@ -1110,7 +1122,7 @@
 			</td>
 			<td />
 			<td>
-				Finished executing (results are ready)
+				Finished executing (results are ready).
 			</td>
 		</tr>
 		<tr>
@@ -1120,7 +1132,7 @@
 			</td>
 			<td />
 			<td>
-				Met an error (reading results will propagate it)
+				Met an error (reading results will propagate it).
 			</td>
 		</tr>
 		<tr>
@@ -1792,7 +1804,7 @@
 <p>
 	The generated function acquires M tokens from the N available, or releases them if the value is negative. The acquiring call will suspend the lane, if necessary. Use <tt>M=N=1</tt> for a critical section lock (only one lane allowed to enter).
 	<br />
-	When passsing <tt>"try"</tt> as second argument when acquiring, then <tt>lock_func</tt> operates on the <a href="#lindas">linda</a> with a timeout of 0 to emulate a TryLock() operation. If locking fails, <tt>lock_func</tt> returns <tt>false</tt>. <tt>"try"</tt> is ignored when releasing (as it it not expected to ever have to wait unless the acquisition/release pairs are not properly matched).
+	When passing <tt>"try"</tt> as second argument when acquiring, then <tt>lock_func</tt> operates on the <a href="#lindas">linda</a> with a timeout of 0 to emulate a TryLock() operation. If locking fails, <tt>lock_func</tt> returns <tt>false</tt>. <tt>"try"</tt> is ignored when releasing (as it it not expected to ever have to wait unless the acquisition/release pairs are not properly matched).
 	<br />
 	Upon successful lock/unlock, <tt>lock_func</tt> returns <tt>true</tt> (always the case when block-waiting for completion).
 </p>
