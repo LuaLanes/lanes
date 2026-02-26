@@ -79,10 +79,16 @@ assert( caught[T2] )
 
 
 PRINT( "\n*** Listing timers ***\n" )
-local r = lanes.timers() -- list of {linda, key, {}}
+local r = lanes.timers() -- list of {linda, key, {when [, period]}}
 for _,t in ipairs( r) do
-    local linda, key, timer = t[1], t[2], t[3]
-    print( tostring( linda), key, timer[1], timer[2])
+    local linda, key, timer_data = t[1], t[2], t[3]
+    -- verify the structure: 3 elements, third is a nested table (not a flat 4-element entry)
+    assert(t[4] == nil, "timer entry must have exactly 3 elements, not 4 (flat structure)")
+    assert(type(linda) == "userdata", "timer entry [1] must be a linda userdata")
+    assert(type(timer_data) == "table", "timer entry [3] must be a table {when [, period]}, not a flat value")
+    assert(type(timer_data[1]) == "number", "timer_data[1] (when) must be a number")
+    assert(timer_data[2] == nil or type(timer_data[2]) == "number", "timer_data[2] (period) must be a number or nil")
+    print( tostring( linda), key, timer_data[1], timer_data[2])
 end
 
 
