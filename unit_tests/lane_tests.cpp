@@ -128,9 +128,11 @@ TEST_CASE("lanes.sleep.argument_validation/numbers")
     // negative durations are not supported
     S.requireFailure("lanes.sleep(-1)");
 
-    // no duration is supported (same as 0)
-    S.requireSuccess("lanes.sleep()");
+    // no duration is supported
     S.requireSuccess("lanes.sleep(0)");
+
+    // positive durations are supported
+    S.requireSuccess("lanes.sleep(0.1)");
 }
 
 // #################################################################################################
@@ -161,7 +163,7 @@ TEST_CASE("lanes.sleep.interactions with timers")
         " lanes.timer(l, 'gluh', 0.1, 0.1)"
         // launch a lane that is supposed to sleep forever
         " local g = lanes.gen('*', { name = 'auto' }, lanes.sleep)"
-        " local h = g('indefinitely')"
+        " local h = g(nil)"
         // sleep 1 second (this uses the timer linda)
         " lanes.sleep(1)"
         // shutdown should be able to cancel the lane and stop it instantly

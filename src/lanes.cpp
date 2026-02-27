@@ -169,25 +169,23 @@ LUAG_FUNC(sleep)
     extern LUAG_FUNC(linda_receive);
 
     Universe* const _U{ Universe::Get(L_) };
-    lua_settop(L_, 1);
-    lua_pushcfunction(L_, LG_linda_receive);                                                       // L_: duration|nil receive()
+    lua_settop(L_, 1);                                                                             // L_: duration?
+    lua_pushcfunction(L_, LG_linda_receive);                                                       // L_: duration? receive()
     STACK_CHECK_START_REL(L_, 0); // we pushed the function we intend to call, now prepare the arguments
-    _U->timerLinda->push(L_);                                                                      // L_: duration|nil receive() timerLinda
-    if (luaW_tostring(L_, StackIndex{ 1 }) == "indefinitely") {
-        lua_pushnil(L_);                                                                           // L_: duration? receive() timerLinda nil
-    } else if (lua_isnoneornil(L_, 1)) {
-        lua_pushnumber(L_, 0);                                                                     // L_: duration? receive() timerLinda 0
-    } else if (!lua_isnumber(L_, 1)) {
-        raise_luaL_argerror(L_, StackIndex{ 1 }, "duration must be a number");
-    }
-    else {
+    _U->timerLinda->push(L_);                                                                      // L_: duration? receive() timerLinda
+    if (lua_isnumber(L_, 1)) {
         auto const _n{ lua_tonumber(L_, 1) };
         if (_n < 0) {
             raise_luaL_argerror(L_, StackIndex{ 1 }, "duration must be >= 0");
         }
-        lua_pushnumber(L_, lua_tonumber(L_, 1));                                                   // L_: duration? receive() timerLinda duration
+        lua_pushvalue(L_, StackIndex{ 1 });                                                        // L_: duration? receive() timerLinda timeout
+    } else if (lua_isnoneornil(L_, 1)) {
+        lua_pushnil(L_);                                                                           // L_: duration? receive() timerLinda timeout
+    } else {
+        raise_luaL_argerror(L_, StackIndex{ 1 }, "duration must be a number");
     }
-    luaW_pushstring(L_, "ac100de1-a696-4619-b2f0-a26de9d58ab8");                                   // L_: duration? receive() timerLinda duration key
+
+    luaW_pushstring(L_, "ac100de1-a696-4619-b2f0-a26de9d58ab8");                                   // L_: duration? receive() timerLinda timeout key
     STACK_CHECK(L_, 3); // 3 arguments ready
     lua_call(L_, 3, LUA_MULTRET); // timerLinda:receive(duration,key)                              // L_: duration? result...
     return lua_gettop(L_) - 1;

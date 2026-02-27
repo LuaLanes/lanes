@@ -46,7 +46,7 @@ end
 local g = lanes.gen( "*", { name = 'auto' }, sleeper)
 
 -- start a forever-waiting lane (nil timeout)
-local forever = g( "forever", 'indefinitely')
+local forever = g( "forever", nil)
 
 -- start a lane that will last 2 seconds
 local ephemeral1 = g( "two_seconds", 2)
