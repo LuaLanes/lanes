@@ -412,6 +412,61 @@ namespace {
                 raise_luaL_error(L_, "tried to copy unsupported types");
             }
         }
+
+        // Create and push the Lane full userdata onto L_, attach its metatable (upvalue 1) and a
+        // uservalue table, optionally store the gc_cb callback, and set the lane's debug name.
+        static void PrepareLaneUserData(lua_State* const L_, Lane* const lane_, StackIndex const gcCbIdx_, StackIndex const nameIdx_, StackIndex const funcIdx_)
+        {
+            DEBUGSPEW_CODE(DebugSpew(lane_->U) << "lane_new: preparing lane userdata" << std::endl);
+            STACK_CHECK_START_REL(L_, 0);
+            // a Lane full userdata needs a single uservalue
+            Lane** const _ud{ luaW_newuserdatauv<Lane*>(L_, UserValueCount{ 1 }) };                // L_: ... lane
+            *_ud = lane_; // don't forget to store the pointer in the userdata!
+
+            // Set metatable for the userdata
+            lua_pushvalue(L_, lua_upvalueindex(1));                                                // L_: ... lane mt
+            lua_setmetatable(L_, -2);                                                              // L_: ... lane
+            STACK_CHECK(L_, 1);
+
+            // Create uservalue for the userdata. There can be only one that must be a table, due to Lua 5.1 compatibility.
+            // (this is where lane body return values will be stored when the handle is indexed by a numeric key)
+            lua_newtable(L_);                                                                      // L_: ... lane {uv}
+
+            // Store the gc_cb callback in the uservalue
+            StackIndex const _gc_cb_idx{ lua_isnoneornil(L_, gcCbIdx_) ? kIdxNone : gcCbIdx_ };
+            if (_gc_cb_idx > 0) {
+                kLaneGC.pushKey(L_);                                                               // L_: ... lane {uv} k
+                lua_pushvalue(L_, _gc_cb_idx);                                                     // L_: ... lane {uv} k gc_cb
+                lua_rawset(L_, -3);                                                                // L_: ... lane {uv}
+            }
+            STACK_CHECK(L_, 2);
+            // store the uservalue in the Lane full userdata
+            lua_setiuservalue(L_, StackIndex{ -2 }, UserValueIndex{ 1 });                          // L_: ... lane
+
+            StackIndex const _name_idx{ lua_isnoneornil(L_, nameIdx_) ? kIdxNone : nameIdx_ };
+            std::string_view _debugName{ (_name_idx > 0) ? luaW_tostring(L_, _name_idx) : std::string_view{} };
+            if (!_debugName.empty()) {
+                if (_debugName == "auto") {
+                    if (luaW_type(L_, funcIdx_) == LuaType::STRING) {
+                        lua_Debug _ar;
+                        if (lua_getstack(L_, 2, &_ar) == 0) { // 0 is here, 1 is lanes.gen, 2 is its caller
+                            lua_getstack(L_, 1, &_ar); // level 2 may not exist with LuaJIT, try again with level 1
+                        }
+                        lua_getinfo(L_, "Sl", &_ar);
+                        luaW_pushstring(L_, "%s:%d", _ar.short_src, _ar.currentline);              // L_: ... lane "<name>"
+                    } else {
+                        lua_Debug _ar;
+                        lua_pushvalue(L_, funcIdx_);                                               // L_: ... lane func
+                        lua_getinfo(L_, ">S", &_ar);                                               // L_: ... lane
+                        luaW_pushstring(L_, "%s:%d", _ar.short_src, _ar.linedefined);              // L_: ... lane "<name>"
+                    }
+                    lua_replace(L_, _name_idx);                                                    // L_: ... lane
+                    _debugName = luaW_tostring(L_, _name_idx);
+                }
+                lane_->storeDebugName(_debugName);
+            }
+            STACK_CHECK(L_, 1);
+        }
     } // namespace local
 } // namespace
 
@@ -489,7 +544,7 @@ LUAG_FUNC(lane_new)
             if (lane) {
                 STACK_CHECK_START_REL(L, 0);
                 // we still need a full userdata so that garbage collection can do its thing
-                prepareUserData();
+                local::PrepareLaneUserData(L, lane, kGcCbIdx, kNameIdx, kFuncIdx);
                 // remove it immediately from the stack so that the error that landed us here is at the top
                 lua_pop(L, 1);
                 STACK_CHECK(L, 0);
@@ -510,65 +565,10 @@ LUAG_FUNC(lane_new)
             }
         }
 
-        private:
-        void prepareUserData()
-        {
-            DEBUGSPEW_CODE(DebugSpew(lane->U) << "lane_new: preparing lane userdata" << std::endl);
-            STACK_CHECK_START_REL(L, 0);
-            // a Lane full userdata needs a single uservalue
-            Lane** const _ud{ luaW_newuserdatauv<Lane*>(L, UserValueCount{ 1 }) };                 // L: ... lane
-            *_ud = lane; // don't forget to store the pointer in the userdata!
-
-            // Set metatable for the userdata
-            lua_pushvalue(L, lua_upvalueindex(1));                                                 // L: ... lane mt
-            lua_setmetatable(L, -2);                                                               // L: ... lane
-            STACK_CHECK(L, 1);
-
-            // Create uservalue for the userdata. There can be only one that must be a table, due to Lua 5.1 compatibility.
-            // (this is where lane body return values will be stored when the handle is indexed by a numeric key)
-            lua_newtable(L);                                                                       // L: ... lane {uv}
-
-            // Store the gc_cb callback in the uservalue
-            StackIndex const _gc_cb_idx{ lua_isnoneornil(L, kGcCbIdx) ? kIdxNone : kGcCbIdx };
-            if (_gc_cb_idx > 0) {
-                kLaneGC.pushKey(L);                                                                // L: ... lane {uv} k
-                lua_pushvalue(L, _gc_cb_idx);                                                      // L: ... lane {uv} k gc_cb
-                lua_rawset(L, -3);                                                                 // L: ... lane {uv}
-            }
-            STACK_CHECK(L, 2);
-            // store the uservalue in the Lane full userdata
-            lua_setiuservalue(L, StackIndex{ -2 }, UserValueIndex{ 1 });                           // L: ... lane
-
-            StackIndex const _name_idx{ lua_isnoneornil(L, kNameIdx) ? kIdxNone : kNameIdx };
-            std::string_view _debugName{ (_name_idx > 0) ? luaW_tostring(L, _name_idx) : std::string_view{} };
-            if (!_debugName.empty())
-            {
-                if (_debugName == "auto") {
-                    if (luaW_type(L, kFuncIdx) == LuaType::STRING) {
-                        lua_Debug _ar;
-                        if (lua_getstack(L, 2, &_ar) == 0) { // 0 is here, 1 is lanes.gen, 2 is its caller
-                            lua_getstack(L, 1, &_ar); // level 2 may not exist with LuaJIT, try again with level 1
-                        }
-                        lua_getinfo(L, "Sl", &_ar);
-                        luaW_pushstring(L, "%s:%d", _ar.short_src, _ar.currentline);               // L: ... lane "<name>"
-                    } else {
-                        lua_Debug _ar;
-                        lua_pushvalue(L, kFuncIdx);                                                // L: ... lane func
-                        lua_getinfo(L, ">S", &_ar);                                                // L: ... lane
-                        luaW_pushstring(L, "%s:%d", _ar.short_src, _ar.linedefined);               // L: ... lane "<name>"
-                    }
-                    lua_replace(L, _name_idx);                                                     // L: ... lane
-                    _debugName = luaW_tostring(L, _name_idx);
-                }
-                lane->storeDebugName(_debugName);
-            }
-            STACK_CHECK(L, 1);
-        }
-
         public:
         void success()
         {
-            prepareUserData();
+            local::PrepareLaneUserData(L, lane, kGcCbIdx, kNameIdx, kFuncIdx);
             // unblock the thread so that it can terminate gracefully
 #ifndef __PROSPERO__
             lane->ready.count_down();
