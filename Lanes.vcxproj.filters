@@ -312,6 +312,9 @@
     <None Include="README">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="CLAUDE.md">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\lanes.lua">

@@ -2025,6 +2025,7 @@ xcopy /F /I /R /Y "$(OutputPath)$(TargetName).pdb" "$(SolutionDir)_LuaVersions/$
       <MaxItemsInBatch Condition="'$(Configuration)|$(Platform)'=='Release 5.5|x64'">
       </MaxItemsInBatch>
     </CustomBuild>
+    <None Include="CLAUDE.md" />
     <None Include="CMakeLists.txt" />
     <None Include="COPYRIGHT" />
     <None Include="docs\comparison.html" />
