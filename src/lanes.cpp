@@ -256,6 +256,7 @@ LUAG_FUNC(thread_priority_range)
 }
 
 // #################################################################################################
+
 namespace {
     namespace local {
         struct LanePriority
@@ -277,6 +278,20 @@ namespace {
                 raise_luaL_error(L_, "Priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, _priority);
             }
             return { _priority, _native };
+        }
+
+        // Copy the 'package' table from the source state into the lane state so that the lane
+        // inherits the loader configuration. No-op when packageIdx_ is nil/none.
+        static void TransferPackage(Universe* const U_, lua_State* const L_, lua_State* const L2_, StackIndex const packageIdx_)
+        {
+            if (lua_isnoneornil(L_, packageIdx_)) {
+                return;
+            }
+            DEBUGSPEW_CODE(DebugSpew(U_) << "lane_new: update 'package'" << std::endl);
+            // when copying with mode LookupMode::LaneBody, should raise an error in case of problem, not leave it on the stack
+            InterCopyContext _c{ U_, DestState{ L2_ }, SourceState{ L_ }, {}, SourceIndex{ packageIdx_ }, {}, {}, {} };
+            [[maybe_unused]] InterCopyResult const _ret{ _c.interCopyPackage() };
+            LUA_ASSERT(L_, _ret == InterCopyResult::Success); // either all went well, or we should not even get here
         }
     } // namespace local
 } // namespace
@@ -458,14 +473,7 @@ LUAG_FUNC(lane_new)
     STACK_CHECK_START_REL(L_, 0);
 
     // package
-    StackIndex const _package_idx{ lua_isnoneornil(L_, kPackIdx) ? kIdxNone : kPackIdx };
-    if (_package_idx != 0) {
-        DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: update 'package'" << std::endl);
-        // when copying with mode LookupMode::LaneBody, should raise an error in case of problem, not leave it one the stack
-        InterCopyContext _c{ _U, DestState{ _L2 }, SourceState{ L_ }, {}, SourceIndex{ _package_idx }, {}, {}, {} };
-        [[maybe_unused]] InterCopyResult const _ret{ _c.interCopyPackage() };
-        LUA_ASSERT(L_, _ret == InterCopyResult::Success); // either all went well, or we should not even get here
-    }
+    local::TransferPackage(_U, L_, _L2, kPackIdx);
     STACK_CHECK(L_, 0);
     STACK_CHECK(_L2, 0);
 
