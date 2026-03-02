@@ -397,6 +397,21 @@ namespace {
             }
             return _errorHandlerCount;
         }
+
+        // Inter-move nargs_ values from L_ into L2_. No-op when nargs_ is zero.
+        static void TransferArguments(Universe* const U_, lua_State* const L_, lua_State* const L2_, int const nargs_)
+        {
+            if (nargs_ == 0) {
+                return;
+            }
+            DEBUGSPEW_CODE(DebugSpew(U_) << "lane_new: transfer lane arguments" << std::endl);
+            DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U_ });
+            InterCopyContext _c{ U_, DestState{ L2_ }, SourceState{ L_ }, {}, {}, {}, {}, {} };
+            InterCopyResult const _res{ _c.interMove(nargs_) };                                    // L_: [fixed]                                    L2: eh? func args...
+            if (_res != InterCopyResult::Success) {
+                raise_luaL_error(L_, "tried to copy unsupported types");
+            }
+        }
     } // namespace local
 } // namespace
 
@@ -599,15 +614,7 @@ LUAG_FUNC(lane_new)
     LUA_ASSERT(L_, lua_isfunction(_L2, _errorHandlerCount + 1));
 
     // revive arguments
-    if (_nargs > 0) {
-        DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: transfer lane arguments" << std::endl);
-        DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
-        InterCopyContext _c{ _U, DestState{ _L2 }, SourceState{ L_ }, {}, {}, {}, {}, {} };
-        InterCopyResult const res{ _c.interMove(_nargs) };                                         // L_: [fixed]                                    L2: eh? func args...
-        if (res != InterCopyResult::Success) {
-            raise_luaL_error(L_, "tried to copy unsupported types");
-        }
-    }
+    local::TransferArguments(_U, L_, _L2, _nargs);
     STACK_CHECK(L_, -_nargs);
     LUA_ASSERT(L_, lua_gettop(L_) == kFixedArgsIdx);
     STACK_CHECK(_L2, _errorHandlerCount + 1 + _nargs);
