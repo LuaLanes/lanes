@@ -342,6 +342,33 @@ namespace {
                 ++_nbRequired;
             }                                                                                      // L_: [fixed] args...
         }
+
+        // Transfer each key/value pair from globalsIdx_ into the lane's global environment (_G).
+        // Must be called after stdlibs are loaded and modules required, so that references to
+        // native functions those exposed can be resolved. No-op when globalsIdx_ is nil/none.
+        static void TransferGlobals(Universe* const U_, lua_State* const L_, lua_State* const L2_, StackIndex const globalsIdx_)
+        {
+            if (lua_isnoneornil(L_, globalsIdx_)) {
+                return;
+            }
+            DEBUGSPEW_CODE(DebugSpew(U_) << "lane_new: transfer globals" << std::endl);
+            if (!lua_istable(L_, globalsIdx_)) {
+                raise_luaL_error(L_, "Expected table, got %s", luaL_typename(L_, globalsIdx_));
+            }
+
+            DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U_ });
+            lua_pushnil(L_);                                                                       // L_: [fixed] args... nil                        L2:
+            // Lua 5.2 wants us to push the globals table on the stack
+            InterCopyContext _c{ U_, DestState{ L2_ }, SourceState{ L_ }, {}, {}, {}, {}, {} };
+            luaW_pushglobaltable(L2_);                                                             // L_: [fixed] args... nil                        L2: _G
+            while (lua_next(L_, globalsIdx_)) {                                                    // L_: [fixed] args... k v                        L2: _G
+                std::ignore = _c.interCopy(2);                                                     // L_: [fixed] args... k v                        L2: _G k v
+                // assign it in L2's globals table
+                lua_rawset(L2_, -3);                                                               // L_: [fixed] args... k v                        L2: _G
+                lua_pop(L_, 1);                                                                    // L_: [fixed] args... k
+            }                                                                                      // L_: [fixed] args...
+            lua_pop(L2_, 1);                                                                       // L_: [fixed] args...                            L2:
+        }
     } // namespace local
 } // namespace
 
@@ -533,27 +560,7 @@ LUAG_FUNC(lane_new)
 
     // Appending the specified globals to the global environment
     // *after* stdlibs have been loaded and modules required, in case we transfer references to native functions they exposed...
-    //
-    StackIndex const _globals_idx{ lua_isnoneornil(L_, kGlobIdx) ? kIdxNone : kGlobIdx };
-    if (_globals_idx != 0) {
-        DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: transfer globals" << std::endl);
-        if (!lua_istable(L_, _globals_idx)) {
-            raise_luaL_error(L_, "Expected table, got %s", luaL_typename(L_, _globals_idx));
-        }
-
-        DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
-        lua_pushnil(L_);                                                                           // L_: [fixed] args... nil                        L2:
-        // Lua 5.2 wants us to push the globals table on the stack
-        InterCopyContext _c{ _U, DestState{ _L2 }, SourceState{ L_ }, {}, {}, {}, {}, {} };
-        luaW_pushglobaltable(_L2);                                                                 // L_: [fixed] args... nil                        L2: _G
-        while (lua_next(L_, _globals_idx)) {                                                       // L_: [fixed] args... k v                        L2: _G
-            std::ignore = _c.interCopy(2);                                                         // L_: [fixed] args... k v                        L2: _G k v
-            // assign it in L2's globals table
-            lua_rawset(_L2, -3);                                                                   // L_: [fixed] args... k v                        L2: _G
-            lua_pop(L_, 1);                                                                        // L_: [fixed] args... k
-        }                                                                                          // L_: [fixed] args...
-        lua_pop(_L2, 1);                                                                           // L_: [fixed] args...                            L2:
-    }
+    local::TransferGlobals(_U, L_, _L2, kGlobIdx);
     STACK_CHECK(L_, 0);
     STACK_CHECK(_L2, 0);
 
