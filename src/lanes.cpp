@@ -369,6 +369,34 @@ namespace {
             }                                                                                      // L_: [fixed] args...
             lua_pop(L2_, 1);                                                                       // L_: [fixed] args...                            L2:
         }
+
+        // Push the optional error handler onto L2, then transfer the lane body (a Lua function or
+        // a string to be compiled) from L_ into L2_. Returns the error handler count (0 or 1) so
+        // the caller can assert the correct L2 stack depth after arguments are transferred.
+        [[nodiscard]] static int TransferLaneBody(Universe* const U_, lua_State* const L_, lua_State* const L2_, StackIndex const funcIdx_, Lane* const lane_)
+        {
+            int const _errorHandlerCount{ lane_->pushErrorHandler() };                             // L_: [fixed] args...                            L2: eh?
+            LuaType const _func_type{ luaW_type(L_, funcIdx_) };
+            if (_func_type == LuaType::FUNCTION) {
+                DEBUGSPEW_CODE(DebugSpew(U_) << "lane_new: transfer lane body" << std::endl);
+                DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U_ });
+                lua_pushvalue(L_, funcIdx_);                                                       // L_: [fixed] args... func                       L2: eh?
+                InterCopyContext _c{ U_, DestState{ L2_ }, SourceState{ L_ }, {}, {}, {}, {}, {} };
+                InterCopyResult const _res{ _c.interMove(1) };                                     // L_: [fixed] args...                            L2: eh? func
+                if (_res != InterCopyResult::Success) {
+                    raise_luaL_error(L_, "tried to copy unsupported types");
+                }
+            } else if (_func_type == LuaType::STRING) {
+                DEBUGSPEW_CODE(DebugSpew(U_) << "lane_new: compile lane body" << std::endl);
+                // compile the string
+                if (luaL_loadstring(L2_, lua_tostring(L_, funcIdx_)) != 0) {                       // L_: [fixed] args...                            L2: eh? func
+                    raise_luaL_error(L_, "error when parsing lane function code");
+                }
+            } else {
+                raise_luaL_error(L_, "Expected function, got %s", luaW_typename(L_, _func_type).data());
+            }
+            return _errorHandlerCount;
+        }
     } // namespace local
 } // namespace
 
@@ -565,26 +593,7 @@ LUAG_FUNC(lane_new)
     STACK_CHECK(_L2, 0);
 
     // Lane main function
-    [[maybe_unused]] int const _errorHandlerCount{ _lane->pushErrorHandler() };                    // L_: [fixed] args...                            L2: eh?
-    LuaType const _func_type{ luaW_type(L_, kFuncIdx) };
-    if (_func_type == LuaType::FUNCTION) {
-        DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: transfer lane body" << std::endl);
-        DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
-        lua_pushvalue(L_, kFuncIdx);                                                               // L_: [fixed] args... func                       L2: eh?
-        InterCopyContext _c{ _U, DestState{ _L2 }, SourceState{ L_ }, {}, {}, {}, {}, {} };
-        InterCopyResult const _res{ _c.interMove(1) };                                             // L_: [fixed] args...                            L2: eh? func
-        if (_res != InterCopyResult::Success) {
-            raise_luaL_error(L_, "tried to copy unsupported types");
-        }
-    } else if (_func_type == LuaType::STRING) {
-        DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: compile lane body" << std::endl);
-        // compile the string
-        if (luaL_loadstring(_L2, lua_tostring(L_, kFuncIdx)) != 0) {                               // L_: [fixed] args...                            L2: eh? func
-            raise_luaL_error(L_, "error when parsing lane function code");
-        }
-    } else {
-        raise_luaL_error(L_, "Expected function, got %s", luaW_typename(L_, _func_type).data());
-    }
+    int const _errorHandlerCount{ local::TransferLaneBody(_U, L_, _L2, kFuncIdx, _lane) };
     STACK_CHECK(L_, 0);
     STACK_CHECK(_L2, _errorHandlerCount + 1);
     LUA_ASSERT(L_, lua_isfunction(_L2, _errorHandlerCount + 1));
