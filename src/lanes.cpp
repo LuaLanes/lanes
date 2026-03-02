@@ -293,6 +293,55 @@ namespace {
             [[maybe_unused]] InterCopyResult const _ret{ _c.interCopyPackage() };
             LUA_ASSERT(L_, _ret == InterCopyResult::Success); // either all went well, or we should not even get here
         }
+
+        // require() each module listed in requiredIdx_ inside the lane state, then register its
+        // exported functions in the lookup table. No-op when requiredIdx_ is nil/none.
+        static void RequireModulesInLane(Universe* const U_, lua_State* const L_, lua_State* const L2_, StackIndex const requiredIdx_)
+        {
+            if (lua_isnoneornil(L_, requiredIdx_)) {
+                return;
+            }
+            DEBUGSPEW_CODE(DebugSpew(U_) << "lane_new: process 'required' list" << std::endl);
+            DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ U_ });
+            // should not happen, was checked in lanes.lua before calling lane_new()
+            if (luaW_type(L_, requiredIdx_) != LuaType::TABLE) {
+                raise_luaL_error(L_, "expected required module list as a table, got %s", luaL_typename(L_, requiredIdx_));
+            }
+
+            int _nbRequired{ 1 };
+            lua_pushnil(L_);                                                                       // L_: [fixed] args... nil                        L2:
+            while (lua_next(L_, requiredIdx_) != 0) {                                              // L_: [fixed] args... n "modname"                L2:
+                if (luaW_type(L_, kIdxTop) != LuaType::STRING || luaW_type(L_, StackIndex{ -2 }) != LuaType::NUMBER || lua_tonumber(L_, -2) != _nbRequired) {
+                    raise_luaL_error(L_, "required module list should be a list of strings");
+                } else {
+                    // require the module in the target state, and populate the lookup table there too
+                    std::string_view const _name{ luaW_tostring(L_, kIdxTop) };
+                    DEBUGSPEW_CODE(DebugSpew(U_) << "lane_new: require '" << _name << "'" << std::endl);
+
+                    // require the module in the target lane
+                    lua_getglobal(L2_, "require");                                                 // L_: [fixed] args... n "modname"                L2: require()?
+                    if (lua_isnil(L2_, -1)) {
+                        lua_pop(L2_, 1);                                                           // L_: [fixed] args... n "modname"                L2:
+                        raise_luaL_error(L_, "cannot pre-require modules without loading 'package' library first");
+                    } else {
+                        luaW_pushstring(L2_, _name);                                               // L_: [fixed] args... n "modname"                L2: require() name
+                        LuaError const _rc{ lua_pcall(L2_, 1, 1, 0) };                             // L_: [fixed] args... n "modname"                L2: ret/errcode
+                        if (_rc != LuaError::OK) {
+                            // propagate error to main state if any
+                            InterCopyContext _c{ U_, DestState{ L_ }, SourceState{ L2_ }, {}, {}, {}, {}, {} };
+                            std::ignore = _c.interMove(1);                                         // L_: [fixed] args... n "modname" error          L2:
+                            raise_lua_error(L_);
+                        }
+                        // here the module was successfully required                               // L_: [fixed] args... n "modname"                L2: ret
+                        // after requiring the module, register the functions it exported in our name<->function database
+                        tools::PopulateFuncLookupTable(L2_, kIdxTop, _name);
+                        lua_pop(L2_, 1);                                                           // L_: [fixed] args... n "modname"                L2:
+                    }
+                }
+                lua_pop(L_, 1);                                                                    // L_: [fixed] args... n                          L2:
+                ++_nbRequired;
+            }                                                                                      // L_: [fixed] args...
+        }
     } // namespace local
 } // namespace
 
@@ -336,7 +385,7 @@ LUAG_FUNC(lane_new)
     DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: setup" << std::endl);
 
     std::optional<std::string_view> _libs_str{ lua_isnil(L_, kLibsIdx) ? std::nullopt : std::make_optional(luaW_tostring(L_, kLibsIdx)) };
-    lua_State* const _S{ state::NewLaneState(_U, SourceState{ L_ }, _libs_str) };                 // L_: [fixed] ...                                L2:
+    lua_State* const _S{ state::NewLaneState(_U, SourceState{ L_ }, _libs_str) };                  // L_: [fixed] ...                                L2:
     STACK_CHECK_START_REL(_S, 0);
 
     // 'lane' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
@@ -478,49 +527,7 @@ LUAG_FUNC(lane_new)
     STACK_CHECK(_L2, 0);
 
     // modules to require in the target lane *before* the function is transfered!
-    StackIndex const _required_idx{ lua_isnoneornil(L_, kRequIdx) ? kIdxNone : kRequIdx };
-    if (_required_idx != 0) {
-        int _nbRequired{ 1 };
-        DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: process 'required' list" << std::endl);
-        DEBUGSPEW_CODE(DebugSpewIndentScope _scope{ _U });
-        // should not happen, was checked in lanes.lua before calling lane_new()
-        if (luaW_type(L_, _required_idx) != LuaType::TABLE) {
-            raise_luaL_error(L_, "expected required module list as a table, got %s", luaL_typename(L_, _required_idx));
-        }
-
-        lua_pushnil(L_);                                                                           // L_: [fixed] args... nil                        L2:
-        while (lua_next(L_, _required_idx) != 0) {                                                 // L_: [fixed] args... n "modname"                L2:
-            if (luaW_type(L_, kIdxTop) != LuaType::STRING || luaW_type(L_, StackIndex{ -2 }) != LuaType::NUMBER || lua_tonumber(L_, -2) != _nbRequired) {
-                raise_luaL_error(L_, "required module list should be a list of strings");
-            } else {
-                // require the module in the target state, and populate the lookup table there too
-                std::string_view const _name{ luaW_tostring(L_, kIdxTop) };
-                DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: require '" << _name << "'" << std::endl);
-
-                // require the module in the target lane
-                lua_getglobal(_L2, "require");                                                     // L_: [fixed] args... n "modname"                L2: require()?
-                if (lua_isnil(_L2, -1)) {
-                    lua_pop(_L2, 1);                                                               // L_: [fixed] args... n "modname"                L2:
-                    raise_luaL_error(L_, "cannot pre-require modules without loading 'package' library first");
-                } else {
-                    luaW_pushstring(_L2, _name);                                                   // L_: [fixed] args... n "modname"                L2: require() name
-                    LuaError const _rc{ lua_pcall(_L2, 1, 1, 0) };                                 // L_: [fixed] args... n "modname"                L2: ret/errcode
-                    if (_rc != LuaError::OK) {
-                        // propagate error to main state if any
-                        InterCopyContext _c{ _U, DestState{ L_ }, SourceState{ _L2 }, {}, {}, {}, {}, {} };
-                        std::ignore = _c.interMove(1);                                             // L_: [fixed] args... n "modname" error          L2:
-                        raise_lua_error(L_);
-                    }
-                    // here the module was successfully required                                   // L_: [fixed] args... n "modname"                L2: ret
-                    // after requiring the module, register the functions it exported in our name<->function database
-                    tools::PopulateFuncLookupTable(_L2, kIdxTop, _name);
-                    lua_pop(_L2, 1);                                                               // L_: [fixed] args... n "modname"                L2:
-                }
-            }
-            lua_pop(L_, 1);                                                                        // L_: [fixed] args... n                          L2:
-            ++_nbRequired;
-        }                                                                                          // L_: [fixed] args...
-    }
+    local::RequireModulesInLane(_U, L_, _L2, kRequIdx);
     STACK_CHECK(L_, 0);
     STACK_CHECK(_L2, 0);                                                                           // L_: [fixed] args...                            L2:
 
