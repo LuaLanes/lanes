@@ -256,6 +256,32 @@ LUAG_FUNC(thread_priority_range)
 }
 
 // #################################################################################################
+namespace {
+    namespace local {
+        struct LanePriority
+        {
+            int priority;
+            NativePrioFlag native;
+        };
+
+        // Read the priority-is-native flag and optional priority integer from the lane_new() argument stack.
+        // Validates the mapped priority range if native mode is not requested.
+        [[nodiscard]] static LanePriority ResolveLanePriority(lua_State* const L_, StackIndex const prinIdx_, StackIndex const prioIdx_)
+        {
+            NativePrioFlag const _native{ static_cast<bool>(lua_toboolean(L_, prinIdx_)) };
+            if (lua_isnoneornil(L_, prioIdx_)) {
+                return { kThreadPrioDefault, _native };
+            }
+            int const _priority{ static_cast<int>(lua_tointeger(L_, prioIdx_)) };
+            if (!_native && (_priority < kThreadPrioMin || _priority > kThreadPrioMax)) {
+                raise_luaL_error(L_, "Priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, _priority);
+            }
+            return { _priority, _native };
+        }
+    } // namespace local
+} // namespace
+
+// #################################################################################################
 
 //--- [] means can be nil
 // lane_ud = lane_new( function
@@ -423,20 +449,7 @@ LUAG_FUNC(lane_new)
     // public Lanes API accepts a generic range -3/+3
     // that will be remapped into the platform-specific scheduler priority scheme
     // On some platforms, -3 is equivalent to -2 and +3 to +2
-    auto const [_priority, _native] {
-        std::invoke([L = L_]() {
-            NativePrioFlag const _native{ static_cast<bool>(lua_toboolean(L, kPrinIdx)) };
-            StackIndex const _prio_idx{ lua_isnoneornil(L, kPrioIdx) ? kIdxNone : kPrioIdx };
-            if (_prio_idx == kIdxNone) {
-                return std::make_pair(kThreadPrioDefault, _native);
-            }
-            int const _priority{ static_cast<int>(lua_tointeger(L, _prio_idx)) };
-            if (!_native && (_priority < kThreadPrioMin || _priority > kThreadPrioMax)) {
-                raise_luaL_error(L, "Priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, _priority);
-            }
-            return std::make_pair(_priority, _native);
-        })
-    };
+    auto const [_priority, _native]{ local::ResolveLanePriority(L_, kPrinIdx, kPrioIdx) };
 
     _lane->startThread(L_, _priority, _native);
 
