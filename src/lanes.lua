@@ -12,7 +12,7 @@
 ===============================================================================
 
 Copyright (C) 2007-10 Asko Kauppi <akauppi@gmail.com>
-Copyright (C) 2010-24 Benoit Germain <bnt.germain@gmail.com>
+Copyright (C) 2010-26 Benoit Germain <bnt.germain@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -875,10 +875,10 @@ local configure = function(settings_)
     --
     lanes.ABOUT =
     {
-        author= "Asko Kauppi <akauppi@gmail.com>, Benoit Germain <bnt.germain@gmail.com>",
-        description= "Running multiple Lua states in parallel",
-        license= "MIT/X11",
-        copyright= "Copyright (c) 2007-10, Asko Kauppi; (c) 2011-23, Benoit Germain",
+        author = "Asko Kauppi <akauppi@gmail.com>, Benoit Germain <bnt.germain@gmail.com>",
+        description = "Running multiple Lua states in parallel",
+        license = "MIT/X11",
+        copyright = "Copyright (c) 2007-10, Asko Kauppi; (c) 2011-26, Benoit Germain",
         version = assert(core.version)
     }
 

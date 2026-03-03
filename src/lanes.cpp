@@ -1,6 +1,6 @@
 /*
  * LANES.CPP                            Copyright (c) 2007-08, Asko Kauppi
- *                                      Copyright (C) 2009-24, Benoit Germain
+ *                                      Copyright (C) 2009-26, Benoit Germain
  *
  * Multithreading in Lua.
  *
@@ -56,7 +56,7 @@
 ===============================================================================
 
 Copyright (C) 2007-10 Asko Kauppi <akauppi@gmail.com>
-              2011-24 Benoit Germain <bnt.germain@gmail.com>
+              2011-26 Benoit Germain <bnt.germain@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -267,7 +267,8 @@ namespace {
 
         // Read the priority-is-native flag and optional priority integer from the lane_new() argument stack.
         // Validates the mapped priority range if native mode is not requested.
-        [[nodiscard]] static LanePriority ResolveLanePriority(lua_State* const L_, StackIndex const prinIdx_, StackIndex const prioIdx_)
+        [[nodiscard]]
+        static LanePriority ResolveLanePriority(lua_State* const L_, StackIndex const prinIdx_, StackIndex const prioIdx_)
         {
             NativePrioFlag const _native{ static_cast<bool>(lua_toboolean(L_, prinIdx_)) };
             if (lua_isnoneornil(L_, prioIdx_)) {
@@ -373,7 +374,8 @@ namespace {
         // Push the optional error handler onto L2, then transfer the lane body (a Lua function or
         // a string to be compiled) from L_ into L2_. Returns the error handler count (0 or 1) so
         // the caller can assert the correct L2 stack depth after arguments are transferred.
-        [[nodiscard]] static int TransferLaneBody(Universe* const U_, lua_State* const L_, lua_State* const L2_, StackIndex const funcIdx_, Lane* const lane_)
+        [[nodiscard]]
+        static int TransferLaneBody(Universe* const U_, lua_State* const L_, lua_State* const L2_, StackIndex const funcIdx_, Lane* const lane_)
         {
             int const _errorHandlerCount{ lane_->pushErrorHandler() };                             // L_: [fixed] args...                            L2: eh?
             LuaType const _func_type{ luaW_type(L_, funcIdx_) };

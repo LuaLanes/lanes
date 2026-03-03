@@ -11,10 +11,9 @@
  --
  -- C implementation replacement of the original keeper.lua
  --
- --[[
  ===============================================================================
 
- Copyright (C) 2011-2024 Benoit Germain <bnt.germain@gmail.com>
+ Copyright (C) 2011-2026 Benoit Germain <bnt.germain@gmail.com>
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +34,6 @@
  THE SOFTWARE.
 
  ===============================================================================
- ]]--
  */
 #include "_pch.hpp"
 #include "keeper.hpp"
