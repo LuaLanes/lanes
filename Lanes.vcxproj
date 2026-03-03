@@ -2029,7 +2029,10 @@ xcopy /F /I /R /Y "$(OutputPath)$(TargetName).pdb" "$(SolutionDir)_LuaVersions/$
     <None Include="CMakeLists.txt" />
     <None Include="COPYRIGHT" />
     <None Include="docs\comparison.html" />
+    <None Include="docs\index.css" />
     <None Include="docs\index.html" />
+    <None Include="docs\lua.css" />
+    <None Include="docs\manual.css" />
     <None Include="lanes-4.0.0-0.rockspec" />
     <None Include="Lanes.slnenv" />
     <None Include="make-vc.cmd" />
@@ -2082,6 +2085,9 @@ xcopy /F /I /R /Y "$(OutputPath)$(TargetName).pdb" "$(SolutionDir)_LuaVersions/$
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="docs\multi.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

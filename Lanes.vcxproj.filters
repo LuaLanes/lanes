@@ -18,6 +18,9 @@
     <Filter Include="Resource Files\Make\src">
       <UniqueIdentifier>{6ae0bc84-53df-4a3d-bcb7-fe6ff0dd4b8b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\Manual">
+      <UniqueIdentifier>{ab8dd80b-3ecd-444a-801d-ae568718d47b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\keeper.cpp">
@@ -282,9 +285,6 @@
     <None Include="docs\comparison.html">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="docs\index.html">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="TODO">
       <Filter>Resource Files</Filter>
     </None>
@@ -315,10 +315,27 @@
     <None Include="CLAUDE.md">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="docs\index.html">
+      <Filter>Resource Files\Manual</Filter>
+    </None>
+    <None Include="docs\index.css">
+      <Filter>Resource Files\Manual</Filter>
+    </None>
+    <None Include="docs\lua.css">
+      <Filter>Resource Files\Manual</Filter>
+    </None>
+    <None Include="docs\manual.css">
+      <Filter>Resource Files\Manual</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="src\lanes.lua">
       <Filter>Source Files</Filter>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="docs\multi.png">
+      <Filter>Resource Files\Manual</Filter>
+    </Image>
   </ItemGroup>
 </Project>
