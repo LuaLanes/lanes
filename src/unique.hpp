@@ -2,6 +2,12 @@
 
 // #################################################################################################
 
+// Opt-in trait: specialize to true for a TAG to enable increment/decrement operators on that Unique<> type
+template <typename TAG>
+inline constexpr bool kUniqueIsArithmetic = false;
+
+// #################################################################################################
+
 // A unique type generator
 // Marking *all* Unique<> types as [[nodiscard]] is maybe overkill, but there is no way of marking a specific instanciation
 template <typename T, typename TAG, typename specialization = void>
@@ -45,25 +51,25 @@ class [[nodiscard]] Unique
     constexpr T const& value() const noexcept { return val; }
 
     // pre-increment
-    auto& operator++() noexcept
+    auto& operator++() noexcept requires kUniqueIsArithmetic<TAG>
     {
         ++val;
         return *this;
     }
     // post-increment
-    auto operator++(int) noexcept
+    auto operator++(int) noexcept requires kUniqueIsArithmetic<TAG>
     {
         return Unique<T, TAG>{ std::exchange(val, val + 1) };
     }
 
     // pre-decrement
-    auto& operator--() noexcept
+    auto& operator--() noexcept requires kUniqueIsArithmetic<TAG>
     {
         --val;
         return *this;
     }
     // post-decrement
-    auto operator--(int) noexcept
+    auto operator--(int) noexcept requires kUniqueIsArithmetic<TAG>
     {
         return Unique<T, TAG>{ std::exchange(val, val - 1) };
     }
@@ -105,3 +111,8 @@ class [[nodiscard]] Unique<T, TAG, std::enable_if_t<!std::is_scalar_v<T>>>
 };
 
 #define DECLARE_UNIQUE_TYPE(_name, _type) using _name = Unique<_type, class Unique_##_name##_Tag>
+
+#define DECLARE_UNIQUE_ARITHMETIC_TYPE(_name, _type)                                                                   \
+    DECLARE_UNIQUE_TYPE(_name, _type);                                                                                 \
+    template <>                                                                                                        \
+    inline constexpr bool kUniqueIsArithmetic<Unique_##_name##_Tag> = true

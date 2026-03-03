@@ -2,13 +2,13 @@
 
 #include "unique.hpp"
 
-DECLARE_UNIQUE_TYPE(StackIndex, int);
+DECLARE_UNIQUE_ARITHMETIC_TYPE(StackIndex, int);
 static_assert(std::is_trivial_v<StackIndex>);
 
-DECLARE_UNIQUE_TYPE(TableIndex, int);
+DECLARE_UNIQUE_ARITHMETIC_TYPE(TableIndex, int);
 static_assert(std::is_trivial_v<TableIndex>);
 
-DECLARE_UNIQUE_TYPE(UserValueIndex, int);
+DECLARE_UNIQUE_ARITHMETIC_TYPE(UserValueIndex, int);
 static_assert(std::is_trivial_v<UserValueIndex>);
 
 DECLARE_UNIQUE_TYPE(UserValueCount, int);
