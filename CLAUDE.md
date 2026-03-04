@@ -129,6 +129,8 @@ From `lanesconf.h` (authoritative source):
 
 Registry keys use xxh64 hashes (generated at https://www.pelock.com/products/hash-calculator) to prevent name collisions across modules.
 
-`DECLARE_UNIQUE_TYPE(Name, BaseType)` creates strong typedefs to prevent accidental implicit conversions (e.g., `KeeperIndex`, `StackIndex`, `DestState`).
+`DECLARE_UNIQUE_TYPE(Name, BaseType)` creates strong typedefs to prevent accidental implicit conversions (e.g., `KeeperIndex`, `DestState`).
 
-`[[nodiscard]]` is used extensively on return values that must be checked.
+`DECLARE_UNIQUE_ARITHMETIC_TYPE(Name, BaseType)` does the same but additionally enables arithmetic operators (`++`, `--`, etc.) via the `kUniqueIsArithmetic<TAG>` trait specialization. Use this for index/counter types that need increment/decrement (e.g., `StackIndex`, `TableIndex`, `UserValueIndex`).
+
+`[[nodiscard]]` is used extensively on return values that must be checked. Style-wise, it is placed on its own line before function signatures.
