@@ -180,9 +180,11 @@ TEST_CASE("lanes.embedding.with_default_allocator")
         std::string_view const _script{
             " local lanes = require 'lanes'.configure{with_timers = false}"
             " local l = lanes.linda{name = 'gleh'}"
-            " local upvalue = 'oeauaoeuoeuaoeuaoeujaoefubycfjbycfybcfjybcfjybcfjbcf'"
+            " local str_upvalue = 'oeauaoeuoeuaoeuaoeujaoefubycfjbycfybcfjybcfjybcfjbcf'"
+            " local num_upvalue = 42"
+            " local tab_upvalue = {what = 'i am an upvalue'}"
             " local upvalued = function()"
-            "     return upvalue"
+            "     return str_upvalue, num_upvalue, tab_upvalue"
             " end"
             " local t = setmetatable({ true, true, true, a = true}, {__index = rawget })"
             " l:set('yo', true, 10, 100.0, upvalue, t, upvalued)" // put a breakpoint in linda_set to have some data to explore with the NATVIS
