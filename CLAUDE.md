@@ -100,7 +100,12 @@ The library consists of two components that must work together:
 - `state.hpp/cpp` — Lua state creation and initialization helpers.
 - `compat.hpp/cpp` — Cross-version Lua API compatibility helpers.
 - `macros_and_utils.hpp` — Stack-check debug macros (`STACK_CHECK_START_REL`, `STACK_CHECK`).
+- `unique.hpp` — `Unique<>` strong-typedef template; `DECLARE_UNIQUE_TYPE` / `DECLARE_UNIQUE_ARITHMETIC_TYPE` macros.
 - `uniquekey.hpp` — `UniqueKey`/`RegistryUniqueKey` types using xxh64 hashes to avoid registry key collisions.
+- `stackindex.hpp` — Defines `StackIndex`, `TableIndex`, `UserValueIndex`, `UserValueCount` Unique types.
+- `lindafactory.hpp/cpp` — Concrete `DeepFactory` subclass for `Linda`; singleton `LindaFactory::Instance`.
+- `luaerrors.hpp` — `raise_lua_error` / `raise_luaL_error` wrappers; use these instead of `lua_error` / `luaL_error` directly.
+- `debugspew.hpp` — Debug-spew tracing controlled by `USE_DEBUG_SPEW()`; `DebugSpewIndentScope` manages indent depth.
 
 ### Data Flow: Send/Receive
 
@@ -129,8 +134,8 @@ From `lanesconf.h` (authoritative source):
 
 Registry keys use xxh64 hashes (generated at https://www.pelock.com/products/hash-calculator) to prevent name collisions across modules.
 
-`DECLARE_UNIQUE_TYPE(Name, BaseType)` creates strong typedefs to prevent accidental implicit conversions (e.g., `KeeperIndex`, `DestState`).
+`DECLARE_UNIQUE_TYPE(Name, BaseType)` (`unique.hpp`) creates strong typedefs to prevent accidental implicit conversions (e.g., `KeeperIndex`, `DestState`).
 
-`DECLARE_UNIQUE_ARITHMETIC_TYPE(Name, BaseType)` does the same but additionally enables arithmetic operators (`++`, `--`, etc.) via the `kUniqueIsArithmetic<TAG>` trait specialization. Use this for index/counter types that need increment/decrement (e.g., `StackIndex`, `TableIndex`, `UserValueIndex`).
+`DECLARE_UNIQUE_ARITHMETIC_TYPE(Name, BaseType)` (`unique.hpp`) does the same but additionally enables arithmetic operators (`++`, `--`, etc.) via the `kUniqueIsArithmetic<TAG>` trait specialization. Use this for index/counter types that need increment/decrement (e.g., `StackIndex`, `TableIndex`, `UserValueIndex`).
 
 `[[nodiscard]]` is used extensively on return values that must be checked. Style-wise, it is placed on its own line before function signatures.
