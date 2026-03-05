@@ -266,7 +266,7 @@ namespace {
         };
 
         // Read the priority-is-native flag and optional priority integer from the lane_new() argument stack.
-        // Validates the mapped priority range if native mode is not requested.
+        // Validates the priority against the acceptable range
         [[nodiscard]]
         static LanePriority ResolveLanePriority(lua_State* const L_, StackIndex const prinIdx_, StackIndex const prioIdx_)
         {
@@ -275,9 +275,16 @@ namespace {
                 return { kThreadPrioDefault, _native };
             }
             int const _priority{ static_cast<int>(lua_tointeger(L_, prioIdx_)) };
-            if (!_native && (_priority < kThreadPrioMin || _priority > kThreadPrioMax)) {
-                raise_luaL_error(L_, "Priority out of range: %d..+%d (%d)", kThreadPrioMin, kThreadPrioMax, _priority);
-            }
+
+            auto _checkPriorityRange = [L_, _priority](std::pair<int, int> prios_) {
+                auto const [_prio_min, _prio_max] = prios_;
+                if (_priority < _prio_min || _priority > _prio_max) {
+                    raise_luaL_error(L_, "Priority out of range: %d..+%d (%d)", _prio_min, _prio_max, _priority);
+                }
+            };
+
+            _checkPriorityRange(_native ? THREAD_NATIVE_PRIOS() : std::pair{ kThreadPrioMin, kThreadPrioMax });
+
             return { _priority, _native };
         }
 
@@ -420,6 +427,7 @@ namespace {
         static void PrepareLaneUserData(lua_State* const L_, Lane* const lane_, StackIndex const gcCbIdx_, StackIndex const nameIdx_, StackIndex const funcIdx_)
         {
             DEBUGSPEW_CODE(DebugSpew(lane_->U) << "lane_new: preparing lane userdata" << std::endl);
+            STACK_GROW(L_, 4);
             STACK_CHECK_START_REL(L_, 0);
             // a Lane full userdata needs a single uservalue
             Lane** const _ud{ luaW_newuserdatauv<Lane*>(L_, UserValueCount{ 1 }) };                // L_: ... lane
@@ -492,155 +500,132 @@ namespace {
 //
 LUAG_FUNC(lane_new)
 {
-    static constexpr StackIndex kFuncIdx{ 1 };
-    static constexpr StackIndex kLibsIdx{ 2 };
-    static constexpr StackIndex kPrinIdx{ 3 };
-    static constexpr StackIndex kPrioIdx{ 4 };
-    static constexpr StackIndex kGlobIdx{ 5 };
-    static constexpr StackIndex kPackIdx{ 6 };
-    static constexpr StackIndex kRequIdx{ 7 };
-    static constexpr StackIndex kGcCbIdx{ 8 };
-    static constexpr StackIndex kNameIdx{ 9 };
-    static constexpr StackIndex kErTlIdx{ 10 };
-    static constexpr StackIndex kAsCoro{ 11 };
-    static constexpr StackIndex kFixedArgsIdx{ 11 };
+    // this is to communicate the lane pointer back to us from inside the protected call
+    Lane* _lane{};
 
-    int const _nargs{ lua_gettop(L_) - kFixedArgsIdx };
-    LUA_ASSERT(L_, _nargs >= 0);
-
-    Universe* const _U{ Universe::Get(L_) };
-    DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: setup" << std::endl);
-
-    std::optional<std::string_view> _libs_str{ lua_isnil(L_, kLibsIdx) ? std::nullopt : std::make_optional(luaW_tostring(L_, kLibsIdx)) };
-    lua_State* const _S{ state::NewLaneState(_U, SourceState{ L_ }, _libs_str) };                  // L_: [fixed] ...                                L2:
-    STACK_CHECK_START_REL(_S, 0);
-
-    // 'lane' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
-    Lane::ErrorTraceLevel const _errorTraceLevel{ static_cast<Lane::ErrorTraceLevel>(lua_tointeger(L_, kErTlIdx)) };
-    bool const _asCoroutine{ lua_toboolean(L_, kAsCoro) ? true : false };
-    Lane* const _lane{ new (_U) Lane{ _U, _S, _errorTraceLevel, _asCoroutine } };
-    STACK_CHECK(_S, _asCoroutine ? 1 : 0); // the Lane's thread is on the Lane's state stack
-    lua_State* const _L2{ _lane->L };
-    STACK_CHECK_START_REL(_L2, 0);
-    if (_lane == nullptr) {
-        raise_luaL_error(L_, "could not create lane: out of memory");
-    }
-
-    class OnExit final
+    auto _protectedLaneNew = [](lua_State* const L_) // stateless lambda convertible to a lua_CFunction
     {
-        private:
-        lua_State* const L;
-        Lane* lane{ nullptr };
-        DEBUGSPEW_CODE(DebugSpewIndentScope scope);
+        static constexpr StackIndex kFuncIdx{ 1 };
+        static constexpr StackIndex kLibsIdx{ 2 };
+        static constexpr StackIndex kPrinIdx{ 3 };
+        static constexpr StackIndex kLaneIdx{ 3 }; // <-- this is where the Lane userdata is stored (after prio is read from the stack)
+        static constexpr StackIndex kPrioIdx{ 4 };
+        static constexpr StackIndex kGlobIdx{ 5 };
+        static constexpr StackIndex kPackIdx{ 6 };
+        static constexpr StackIndex kRequIdx{ 7 };
+        static constexpr StackIndex kGcCbIdx{ 8 };
+        static constexpr StackIndex kNameIdx{ 9 };
+        static constexpr StackIndex kErTlIdx{ 10 };
+        static constexpr StackIndex kCoroIdx{ 11 };
+        static constexpr StackIndex kFixedArgsIdx{ 11 };
 
-        public:
-        OnExit(lua_State* L_, Lane* lane_)
-        : L{ L_ }
-        , lane{ lane_ }
-        DEBUGSPEW_COMMA_PARAM(scope{ lane_->U })
-        {
+        int const _nargs{ lua_gettop(L_) - kFixedArgsIdx };
+        LUA_ASSERT(L_, _nargs >= 0);
+
+        Universe* const _U{ Universe::Get(L_) };
+        DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: setup" << std::endl);
+
+        // Get priority early, because it can fail by raising an error
+        auto const [_priority, _native]{ local::ResolveLanePriority(L_, kPrinIdx, kPrioIdx) };
+
+        std::optional<std::string_view> _libs_str{ lua_isnil(L_, kLibsIdx) ? std::nullopt : std::make_optional(luaW_tostring(L_, kLibsIdx)) };
+        lua_State* const _S{ state::NewLaneState(_U, SourceState{ L_ }, _libs_str) };                  // L_: [fixed] ...                                L2:
+        STACK_CHECK_START_REL(_S, 0);
+
+        Lane::ErrorTraceLevel const _errorTraceLevel{ static_cast<Lane::ErrorTraceLevel>(lua_tointeger(L_, kErTlIdx)) };
+        bool const _asCoroutine{ lua_toboolean(L_, kCoroIdx) ? true : false };
+
+        // 'lane' is allocated from heap, not Lua, since its life span may surpass the handle's (if free running thread)
+        Lane* const _lane{ new (_U) Lane{ _U, _S, _errorTraceLevel, _asCoroutine } };
+        if (_lane == nullptr) {
+            raise_luaL_error(L_, "could not create lane: out of memory");
         }
+        // write back to the outer _lane variable so it can call signalReady()
+        *static_cast<Lane**>(lua_touserdata(L_, lua_upvalueindex(2))) = _lane;
 
-        ~OnExit()
-        {
-            if (lane) {
-                STACK_CHECK_START_REL(L, 0);
-                // we still need a full userdata so that garbage collection can do its thing
-                local::PrepareLaneUserData(L, lane, kGcCbIdx, kNameIdx, kFuncIdx);
-                // remove it immediately from the stack so that the error that landed us here is at the top
-                lua_pop(L, 1);
-                STACK_CHECK(L, 0);
-                // leave a single cancel_error on the stack for the caller
-                lua_settop(lane->L, 0);
-                kCancelError.pushKey(lane->L);
-                {
-                    std::lock_guard _guard{ lane->doneMutex };
-                    // this will cause lane_main to skip actual running (because we are not Pending anymore)
-                    lane->status.store(Lane::Running, std::memory_order_release);
-                }
-                // unblock the thread so that it can terminate gracefully
-#ifndef __PROSPERO__
-                lane->ready.count_down();
-#else // __PROSPERO__
-                lane->ready.test_and_set();
-#endif // __PROSPERO__
-            }
+        STACK_CHECK(_S, _asCoroutine ? 1 : 0); // the Lane's thread is on the Lane's state stack
+        lua_State* const _L2{ _lane->L };
+        STACK_CHECK_START_REL(_L2, 0);
+
+        DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: launching thread" << std::endl);
+
+        // launch the thread early, it will sync with a std::latch to parallelize OS thread warmup and L2 preparation
+        _lane->startThread(L_, _priority, _native);
+
+        STACK_CHECK_START_REL(L_, 0);
+
+        // create the wrapping full userdata, so that it can be cleaned up properly in case of error
+        local::PrepareLaneUserData(L_, _lane, kGcCbIdx, kNameIdx, kFuncIdx);                       // L_: [fixed] args... LaneUD
+        STACK_CHECK(L_, 1);
+        // store the userdata in a reusable stack slot until we know everything went well
+        lua_replace(L_, kLaneIdx);                                                                 // L_: [fixed] args...
+
+        STACK_GROW(_L2, _nargs + 3);
+        STACK_GROW(L_, 3);
+
+        // package
+        local::TransferPackage(_U, L_, _L2, kPackIdx);
+        STACK_CHECK(L_, 0);
+        STACK_CHECK(_L2, 0);
+
+        // modules to require in the target lane *before* the function is transfered!
+        local::RequireModulesInLane(_U, L_, _L2, kRequIdx);
+        STACK_CHECK(L_, 0);
+        STACK_CHECK(_L2, 0);                                                                       // L_: [fixed] args...                            L2:
+
+        // Appending the specified globals to the global environment
+        // *after* stdlibs have been loaded and modules required, in case we transfer references to native functions they exposed...
+        local::TransferGlobals(_U, L_, _L2, kGlobIdx);
+        STACK_CHECK(L_, 0);
+        STACK_CHECK(_L2, 0);
+
+        // Lane main function, optionally preceded by an error handler (depending on error_trace_level setting)
+        int const _errorHandlerCount{ local::TransferLaneBody(_U, L_, _L2, kFuncIdx, _lane) };     // L_: [fixed] args...                            L2: eh? func
+        STACK_CHECK(L_, 0);
+        STACK_CHECK(_L2, _errorHandlerCount + 1);
+        LUA_ASSERT(L_, lua_isfunction(_L2, _errorHandlerCount + 1));
+
+        // *Move* arguments in the lane state
+        local::TransferArguments(_U, L_, _L2, _nargs);                                             // L_: [fixed]                                    L2: eh? func args...
+        STACK_CHECK(L_, -_nargs);
+        LUA_ASSERT(L_, lua_gettop(L_) == kFixedArgsIdx);
+        STACK_CHECK(_L2, _errorHandlerCount + 1 + _nargs);
+
+        // if in coroutine mode, the Lane's master state stack should contain the thread
+        if (_asCoroutine) {
+            LUA_ASSERT(L_, _S != _L2);
+            STACK_CHECK(_S, 1);
         }
+        // and the thread's stack has whatever is needed to run
+        STACK_CHECK(_L2, _errorHandlerCount + 1 + _nargs);
 
-        public:
-        void success()
-        {
-            local::PrepareLaneUserData(L, lane, kGcCbIdx, kNameIdx, kFuncIdx);
-            // unblock the thread so that it can terminate gracefully
-#ifndef __PROSPERO__
-            lane->ready.count_down();
-#else // __PROSPERO__
-            lane->ready.test_and_set();
-#endif // __PROSPERO__
-            lane = nullptr;
+        // all went well, return the LaneUD by cutting the stack at the position we stored it earlier
+        lua_settop(L_, kLaneIdx);                                                                  // L_: ... lane                                   L2: <living its own life>
+        return 1;
+    };
+
+    // the protected closure has a 2 uservalues:
+    // - uv#1 is our own uservalue (the Lane userdata's metatable)
+    // - uv#2: a pointer to our local variable _lane, to give us back the Lane pointer
+    lua_pushvalue(L_, lua_upvalueindex(1));                                                        // L_: nil [fixed] args... mt
+    lua_pushlightuserdata(L_, &_lane);                                                             // L_: nil [fixed] args... mt &_lane
+    lua_pushcclosure(L_, _protectedLaneNew, 2);                                                    // L_: nil [fixed] args... wrapped
+    lua_replace(L_, 1);                                                                            // L_: wrapped [fixed] args...
+    LuaError _rc{ lua_pcall(L_, lua_gettop(L_) - 1, 1, 0) };                                       // L_: lane|error
+    // _lane can be nullptr if we failed to allocate it!
+    if (_rc == LuaError::OK) {
+        // unblock the thread so that it can start doing its work
+        if (_lane) {
+            _lane->signalReady(true);
         }
-    } _onExit{ L_, _lane};
-    // launch the thread early, it will sync with a std::latch to parallelize OS thread warmup and L2 preparation
-    DEBUGSPEW_CODE(DebugSpew(_U) << "lane_new: launching thread" << std::endl);
-    // public Lanes API accepts a generic range -3/+3
-    // that will be remapped into the platform-specific scheduler priority scheme
-    // On some platforms, -3 is equivalent to -2 and +3 to +2
-    auto const [_priority, _native]{ local::ResolveLanePriority(L_, kPrinIdx, kPrioIdx) };
-
-    _lane->startThread(L_, _priority, _native);
-
-    STACK_GROW(_L2, _nargs + 3);
-    STACK_GROW(L_, 3);
-    STACK_CHECK_START_REL(L_, 0);
-
-    // package
-    local::TransferPackage(_U, L_, _L2, kPackIdx);
-    STACK_CHECK(L_, 0);
-    STACK_CHECK(_L2, 0);
-
-    // modules to require in the target lane *before* the function is transfered!
-    local::RequireModulesInLane(_U, L_, _L2, kRequIdx);
-    STACK_CHECK(L_, 0);
-    STACK_CHECK(_L2, 0);                                                                           // L_: [fixed] args...                            L2:
-
-    // Appending the specified globals to the global environment
-    // *after* stdlibs have been loaded and modules required, in case we transfer references to native functions they exposed...
-    local::TransferGlobals(_U, L_, _L2, kGlobIdx);
-    STACK_CHECK(L_, 0);
-    STACK_CHECK(_L2, 0);
-
-    // Lane main function
-    int const _errorHandlerCount{ local::TransferLaneBody(_U, L_, _L2, kFuncIdx, _lane) };
-    STACK_CHECK(L_, 0);
-    STACK_CHECK(_L2, _errorHandlerCount + 1);
-    LUA_ASSERT(L_, lua_isfunction(_L2, _errorHandlerCount + 1));
-
-    // revive arguments
-    local::TransferArguments(_U, L_, _L2, _nargs);
-    STACK_CHECK(L_, -_nargs);
-    LUA_ASSERT(L_, lua_gettop(L_) == kFixedArgsIdx);
-    STACK_CHECK(_L2, _errorHandlerCount + 1 + _nargs);
-
-    // Store 'lane' in the lane's registry, for 'cancel_test()' (we do cancel tests at pending send/receive).
-    kLanePointerRegKey.setValue(
-        _L2, [lane = _lane](lua_State* L_) { lua_pushlightuserdata(L_, lane); }                    // L_: [fixed]                                    L2: eh? func args...
-    );
-    STACK_CHECK(_L2, _errorHandlerCount + 1 + _nargs);
-
-    // if in coroutine mode, the Lane's master state stack should contain the thread
-    if (_asCoroutine) {
-        LUA_ASSERT(L_, _S != _L2);
-        STACK_CHECK(_S, 1);
+        return 1;
+    } else {
+        // unblock the thread so that it can terminate gracefully (but will abort early)
+        if (_lane) {
+            _lane->signalReady(false);
+        }
+        raise_lua_error(L_);
     }
-    // and the thread's stack has whatever is needed to run
-    STACK_CHECK(_L2, _errorHandlerCount + 1 + _nargs);
-
-    STACK_CHECK_RESET_REL(L_, 0);
-    // all went well, the lane's thread can start working
-    _onExit.success();                                                                             // L_: [fixed] lane                               L2: <living its own life>
-    // we should have the lane userdata on top of the stack
-    STACK_CHECK(L_, 1);
-    return 1;
 }
 
 // #################################################################################################

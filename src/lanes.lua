@@ -36,6 +36,8 @@ THE SOFTWARE.
 ]]--
 
 local core = require "lanes_core"
+local min_prio, max_prio -- initialized in configure()
+
 -- Lua 5.1: module() creates a global variable
 -- Lua 5.2: module() is gone
 -- almost everything module() does is done by require() anyway
@@ -445,7 +447,8 @@ local make_generator = function(is_coro_, ...)
     local priority, globals, package, required, gc_cb, name, error_trace_level = opt.priority or opt.native_priority, opt.globals, opt.package or package, opt.required, opt.gc_cb, opt.name, error_trace_levels[opt.error_trace_level]
     return function(...)
         -- must pass functions args last else they will be truncated to the first one
-        return core_lane_new(func, libs, prio_is_native, priority, globals, package, required, gc_cb, name, error_trace_level, is_coro_, ...)
+        -- also, core_lane_new will pcall-invoke a wrapper internally. save time by reserving the stack slot here and now (the first nil)
+        return core_lane_new(nil, func, libs, prio_is_native, priority, globals, package, required, gc_cb, name, error_trace_level, is_coro_, ...)
     end
 end -- make_generator
 
@@ -689,8 +692,8 @@ local configure_timers = function()
                 end
             end
         end -- timer_body()
-        local min_prio, max_prio = core.thread_priority_range()
-        timer_lane = gen("lanes_core,table", { name = "LanesTimer", package = {}, priority = max_prio }, timer_body)()
+        -- max_prio was obtained during configure()
+        timer_lane = gen("lanes_core,table", { name = "LanesTimer", package = {}, priority = assert(max_prio) }, timer_body)()
     end -- first_time
 
     -----
@@ -887,6 +890,7 @@ local configure = function(settings_)
     cancel_error = assert(core.cancel_error)
     supported_libs = assert(core.supported_libs())
     timerLinda = assert(core.timerLinda)
+    min_prio, max_prio = core.thread_priority_range("mapped")
 
     if settings.with_timers then
         configure_timers(settings)

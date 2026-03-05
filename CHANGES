@@ -1,5 +1,11 @@
 CHANGES:
 
+CHANGE 3: BGe 5-Mar-26
+    - Version is now 4.0.1
+    - replace stack unwinding with a protected call in lane_new to play better with setjmp/longjmp
+    - better lane priority error management: correctly error when an out-of-range priority is used by a lane generator
+    - Documentation style copied from Lua's manual
+
 CHANGE 2: BGe 26-Feb-26
     * Internal changes
         - Lanes is implemented in C++20: thread, condition_variable, mutex, string_view, variant, lambdas, templates, and more!

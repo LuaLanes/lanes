@@ -775,6 +775,10 @@ static void lane_main(Lane* const lane_)
             delete lane_;
             return;
         }
+    } else {
+        // some error occurred in lane_new and we don't have anything to do
+        lua_settop(_L, 0); // should already be the case, but I'm paranoid
+        kCancelError.pushKey(_L); // this is our return value, as if we were cancelled right from the start
     }
 
     // leave results (1..top) or error message + stack trace (1..2) on the stack - master will copy them
@@ -872,6 +876,13 @@ Lane::Lane(Universe* const U_, lua_State* const L_, ErrorTraceLevel const errorT
 , errorTraceLevel{ errorTraceLevel_ }
 {
     STACK_CHECK_START_REL(S, 0);
+
+    // Store a pointer to ourselves in the lane's registry, for 'cancel_test()' (we do cancel tests at pending send/receive).
+    kLanePointerRegKey.setValue(S,
+        [lane = this](lua_State* L_) { lua_pushlightuserdata(L_, lane); }                          // S:
+    );
+    STACK_CHECK(S, 0);
+
     assert(errorTraceLevel == ErrorTraceLevel::Minimal || errorTraceLevel == ErrorTraceLevel::Basic || errorTraceLevel == ErrorTraceLevel::Extended);
     kExtendedStackTraceRegKey.setValue(S, [yes = errorTraceLevel == ErrorTraceLevel::Extended ? 1 : 0](lua_State* L_) { lua_pushboolean(L_, yes); });
     U->tracker.tracking_add(this);
@@ -1225,6 +1236,21 @@ void Lane::securizeDebugName(lua_State* const L_)
     lua_rawset(L_, -3);                                                                            // L_: lane ... {uv}
     lua_pop(L_, 1);                                                                                // L_: lane
     STACK_CHECK(L_, 0);
+}
+
+// #################################################################################################
+void Lane::signalReady(bool const canRun_)
+{
+    if (!canRun_) {
+        std::lock_guard _guard{ doneMutex };
+        // this will cause lane_main to skip actual running (because we are not Pending anymore)
+        status.store(Lane::Running, std::memory_order_release);
+    }
+#ifndef __PROSPERO__
+    ready.count_down();
+#else // __PROSPERO__
+    ready.test_and_set();
+#endif // __PROSPERO__
 }
 
 // #################################################################################################
