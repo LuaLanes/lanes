@@ -75,7 +75,7 @@
 		</p>
 
 		<p>
-			This document was revised on 5-Mar-2026, and applies to version <code>4.0.1</code>.
+			This document was revised on 12-Mar-2026, and applies to version <code>4.0.1</code>.
 		</p>
 	</center>
 </div>
@@ -211,7 +211,7 @@
 		<ul>
 			<li><code>lane_h[]</code>: wait for, and read the values returned by the lane</li>
 			<li><code>lane_h:cancel()</code>: request the lane to stop running</li>
-			<li><code>lane_h.error_trace_level</code>: current setting of error logging level</li>
+			<li><code>lane_h.error_trace_level</code>: read the current error logging level</li>
 			<li><code>lane_h:get_threadname()</code>: read the thread name</li>
 			<li><code>lane_h:join()</code>: wait for the lane to close, reading the returned values</li>
 			<li><code>lane_h:resume()</code>: resume a coroutine Lane</li>
@@ -241,6 +241,7 @@
 			<li><code>l:restrict()</code>: place a restraint on the operations that can be done on a slot</li>
 			<li><code>l:send()</code>: append data</li>
 			<li><code>l:set()</code>: replace the data</li>
+			<li><code>l.status</code>: current status of the <a href="#lindas">linda</a></li>
 			<li><code>l:wake()</code>: manually wake blocking calls</li>
 		</ul>
 	</li>
@@ -1017,11 +1018,13 @@ static constexpr lua_CFunction _provideAllocator = +[](lua_State* const L_) {
 		</tr>
 	</table>
 <p>
-	Each thread can change its own affinity at will. This is also true for the main Lua state.
+	Each thread can change its own affinity at will. This is also true for the main Lua state.<br />
+	By default, threads can run on all CPU cores.<br />
+	Affinity should be provided as an unsigned integer value that will be interpreted as a mask where the CPU cores that can be used are defined by the set bits.
 </p>
 
 
-<!-- status +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+<!-- error_trace_level +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
 <hr/>
 <h2 id="error_trace_level">Error trace level</h2>
 
@@ -1109,7 +1112,7 @@ static constexpr lua_CFunction _provideAllocator = +[](lua_State* const L_) {
 				<code>"waiting"</code>
 			</td>
 			<td>
-				Waiting at a <a href="#lindas">linda</a> <code>:receive()</code> or <code>:send()</code>.
+				Waiting at a <a href="#lindas">linda</a> <code>:receive()</code> (when insufficient data is available to serve the operation) or <code>:send()</code> (when a limit of the <a href="#lindas">linda</a> prevents sending all the values).
 			</td>
 		</tr>
 		<tr>
